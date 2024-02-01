@@ -1,4 +1,4 @@
-import SvgNest from "./svgnest";
+import { SvgNest } from "./svg-nest";
 import "./svg-parser/pathsegpolyfill";
 
 // UI-specific stuff, button clicks go here

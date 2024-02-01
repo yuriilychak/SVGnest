@@ -5,15 +5,15 @@
 
 import ClipperLib from "js-clipper";
 
-import { GeneticAlgorithm } from "./genetic-algorithm";
-import { SvgParser } from "./svg-parser";
-import { Parallel } from "./parallel";
+import { GeneticAlgorithm } from "../genetic-algorithm";
+import { SvgParser } from "../svg-parser";
+import { Parallel } from "../parallel";
 import {
   polygonArea,
   pointInPolygon,
   almostEqual,
   getPolygonBounds
-} from "./geometry-util";
+} from "../geometry-util";
 
 function flattenTree(tree, hole, result = []) {
   const nodeCount = tree.length;

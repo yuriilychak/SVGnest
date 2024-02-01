@@ -15,7 +15,7 @@ export default class Phenotype {
     return new Phenotype(this._placemant.slice(), this._rotation.slice());
   }
 
-  contains(id) {
+  _contains(id) {
     let i = 0;
     const size = this.size;
 
@@ -37,7 +37,7 @@ export default class Phenotype {
       placement = phenotype.placement[i];
       rotation = phenotype.rotation[i];
 
-      if (!this.contains(placement.id)) {
+      if (!this._contains(placement.id)) {
         this._placemant.push(placement);
         this._rotation.push(rotation);
       }

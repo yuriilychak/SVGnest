@@ -19,46 +19,60 @@ function toClipperCoordinates(polygon) {
   const size = polygon.length;
   const result = [];
   let i = 0;
+  let point;
 
   for (i = 0; i < size; ++i) {
-    result.push({ X: polygon[i].x, Y: polygon[i].y });
+    point = polygon[i];
+    result.push({ X: point.x, Y: point.y });
   }
 
   return result;
 }
 
 function toNestCoordinates(polygon, scale) {
-  var clone = [];
-  for (var i = 0; i < polygon.length; i++) {
-    clone.push({
-      x: polygon[i].X / scale,
-      y: polygon[i].Y / scale
+  const size = polygon.length;
+  const result = [];
+  let i = 0;
+  let point;
+
+  for (i = 0; i < size; ++i) {
+    point = polygon[i];
+    result.push({
+      x: point.X / scale,
+      y: point.Y / scale
     });
   }
 
-  return clone;
+  return result;
 }
 
 function rotatePolygon(polygon, degrees) {
-  var rotated = [];
-  var angle = (degrees * Math.PI) / 180;
-  for (var i = 0; i < polygon.length; i++) {
+  const result = [];
+  const angle = (degrees * Math.PI) / 180;
+  const size = polygon[i];
+  let i = 0;
+
+  for (i = 0; i < size; ++i) {
     var x = polygon[i].x;
     var y = polygon[i].y;
     var x1 = x * Math.cos(angle) - y * Math.sin(angle);
     var y1 = x * Math.sin(angle) + y * Math.cos(angle);
 
-    rotated.push({ x: x1, y: y1 });
+    result.push({ x: x1, y: y1 });
   }
 
   if (polygon.children && polygon.children.length > 0) {
-    rotated.children = [];
-    for (var j = 0; j < polygon.children.length; j++) {
-      rotated.children.push(rotatePolygon(polygon.children[j], degrees));
+    let j = 0;
+    let childCount = polygon.children.length;
+
+    result.children = [];
+
+    for (j = 0; j < childCount; ++j) {
+      result.children.push(rotatePolygon(polygon.children[j], degrees));
     }
   }
 
-  return rotated;
+  return result;
 }
 
 function placePaths(paths, self) {
@@ -389,6 +403,7 @@ function pairData(pair, env) {
   if (!pair || pair.length == 0) {
     return null;
   }
+
   var searchEdges = env.searchEdges;
   var useHoles = env.useHoles;
 
