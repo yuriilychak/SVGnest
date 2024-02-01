@@ -37,7 +37,7 @@ export default class GeneticAlgorithm {
       angleList.push(i * (360 / angleCount));
     }
 
-    angleList = GeneticAlgorithm.shuffleArray(angleList);
+    angleList = GeneticAlgorithm.shuffle(angleList);
 
     for (i = 0; i < angleCount; ++i) {
       rotatedPart = rotatePolygon(part, angleList[i]);
@@ -158,7 +158,7 @@ export default class GeneticAlgorithm {
     return localPopulation[0];
   }
 
-  static shuffleArray(array) {
+  static shuffle(array) {
     const lastIndex = array.length - 1;
     let i = 0;
     let j = 0;

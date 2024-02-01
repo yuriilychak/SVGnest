@@ -10,9 +10,9 @@ import {
 } from "../geometry-util";
 
 // clipperjs uses alerts for warnings
-window.alert = function (message) {
+function alert(message) {
   console.log("alert: ", message);
-};
+}
 
 // jsClipper uses X/Y instead of x/y...
 function toClipperCoordinates(polygon) {
@@ -49,7 +49,7 @@ function toNestCoordinates(polygon, scale) {
 function rotatePolygon(polygon, degrees) {
   const result = [];
   const angle = (degrees * Math.PI) / 180;
-  const size = polygon[i];
+  const size = polygon.length;
   let i = 0;
 
   for (i = 0; i < size; ++i) {
