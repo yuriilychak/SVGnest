@@ -50,11 +50,11 @@ export default class Phenotype {
     return false;
   }
 
-  public get placement() {
+  public get placement(): Array<ArrayPolygon> {
     return this._placemant;
   }
 
-  public get rotation() {
+  public get rotation(): Array<number> {
     return this._rotation;
   }
 
