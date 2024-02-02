@@ -431,9 +431,9 @@ export default class SvgNest {
     let individual = null;
 
     // evaluate all members of the population
-    for (i = 0; i < this.genethicAlgorithm.population.length; ++i) {
-      if (!this.genethicAlgorithm.population[i].fitness) {
-        individual = this.genethicAlgorithm.population[i];
+    for (i = 0; i < this.genethicAlgorithm._population.length; ++i) {
+      if (!this.genethicAlgorithm._population[i].fitness) {
+        individual = this.genethicAlgorithm._population[i];
         break;
       }
     }
@@ -441,7 +441,7 @@ export default class SvgNest {
     if (individual === null) {
       // all individuals have been evaluated, start next generation
       this.genethicAlgorithm.generation();
-      individual = this.genethicAlgorithm.population[1];
+      individual = this.genethicAlgorithm._population[1];
     }
 
     const placeList = individual.placement;
