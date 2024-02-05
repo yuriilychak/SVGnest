@@ -103,7 +103,7 @@ export default class Matrix {
   // Apply list of matrixes to (x,y) point.
   // If `isRelative` set, `translate` component of matrix will be skipped
   //
-  public calc(x: number, y: number, isRelative: boolean): Float32Array {
+  public calc(x: number, y: number, isRelative: boolean = false): Float32Array {
     const result = new Float32Array(2);
 
     // Don't change point on empty transforms queue
@@ -134,6 +134,48 @@ export default class Matrix {
     }
 
     return this._cache;
+  }
+
+  public transform(cmd: string, params: Array<number>): void {
+    // If params count is not correct - ignore command
+    switch (cmd) {
+      case "matrix":
+        if (params.length === 6) {
+          this.matrix(new Float32Array(params));
+        }
+        break;
+      case "scale":
+        if (params.length === 1) {
+          this.scale(params[0], params[0]);
+        } else if (params.length === 2) {
+          this.scale(params[0], params[1]);
+        }
+        break;
+      case "rotate":
+        if (params.length === 1) {
+          this.rotate(params[0], 0, 0);
+        } else if (params.length === 3) {
+          this.rotate(params[0], params[1], params[2]);
+        }
+        break;
+      case "translate":
+        if (params.length === 1) {
+          this.translate(params[0], 0);
+        } else if (params.length === 2) {
+          this.translate(params[0], params[1]);
+        }
+        break;
+      case "skewX":
+        if (params.length === 1) {
+          this.skewX(params[0]);
+        }
+        break;
+      case "skewY":
+        if (params.length === 1) {
+          this.skewY(params[0]);
+        }
+        break;
+    }
   }
 
   private _updateQueue(

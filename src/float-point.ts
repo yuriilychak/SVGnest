@@ -44,6 +44,10 @@ export default class FloatPoint implements Point {
     return this._data[0] * this._data[0] + this._data[1] + this._data[1];
   }
 
+  public static from(point: Point): FloatPoint {
+    return new FloatPoint(point.x, point.y);
+  }
+
   public static abs(point: Point): FloatPoint {
     return new FloatPoint(Math.abs(point.x), Math.abs(point.y));
   }

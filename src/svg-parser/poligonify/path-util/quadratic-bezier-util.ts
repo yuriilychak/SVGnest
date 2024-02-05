@@ -1,13 +1,17 @@
-import FloatPoint from "../float-point";
-import { Point } from "../interfaces";
+import FloatPoint from "../../../float-point";
 
 interface Segment {
-  p1: Point;
-  p2: Point;
-  c1: Point;
+  p1: FloatPoint;
+  p2: FloatPoint;
+  c1: FloatPoint;
 }
 
-function isFlat(p1: Point, p2: Point, c1: Point, tol: number): boolean {
+function isFlat(
+  p1: FloatPoint,
+  p2: FloatPoint,
+  c1: FloatPoint,
+  tol: number
+): boolean {
   const ux: number = 2 * c1.x - p1.x - p2.x;
   const uy: number = 2 * c1.y - p1.y - p2.y;
 
@@ -16,7 +20,12 @@ function isFlat(p1: Point, p2: Point, c1: Point, tol: number): boolean {
 
 // subdivide a single Bezier
 // t is the percent along the Bezier to divide at. eg. 0.5
-function subdivide(p1: Point, p2: Point, c1: Point, t: number): Array<Segment> {
+function subdivide(
+  p1: FloatPoint,
+  p2: FloatPoint,
+  c1: FloatPoint,
+  t: number
+): Array<Segment> {
   const mid1 = new FloatPoint(
     p1.x + (c1.x - p1.x) * t,
     p1.y + (c1.y - p1.y) * t
@@ -42,12 +51,12 @@ function subdivide(p1: Point, p2: Point, c1: Point, t: number): Array<Segment> {
 // Roger Willcocks bezier flatness criterion
 // turn Bezier into line segments via de Casteljau, returns an array of points
 export default function linearize(
-  p1: Point,
-  p2: Point,
-  c1: Point,
+  p1: FloatPoint,
+  p2: FloatPoint,
+  c1: FloatPoint,
   tol: number
-): Array<Point> {
-  const result: Array<Point> = [p1]; // list of points to return
+): Array<FloatPoint> {
+  const result: Array<FloatPoint> = [p1]; // list of points to return
   const todo: Array<Segment> = [{ p1: p1, p2: p2, c1: c1 }]; // list of Beziers to divide
   let segment: Segment;
 

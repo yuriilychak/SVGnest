@@ -1,21 +1,20 @@
-import FloatPoint from "../float-point";
-import { withinDistance } from "../geometry-util";
-import { Point } from "../interfaces";
+import FloatPoint from "../../../float-point";
+import { withinDistance } from "../../../geometry-util";
 
 const MAX_ANGLE: number = 360;
 const MID_ANGLE: number = 180;
 
 class SvgArcConfig {
-  private _begin: Point;
-  private _end: Point;
+  private _begin: FloatPoint;
+  private _end: FloatPoint;
   private _radius: FloatPoint;
   private _angle: number;
   private _sweep: number;
   private _sign: number;
 
   constructor(
-    begin: Point,
-    end: Point,
+    begin: FloatPoint,
+    end: FloatPoint,
     radius: FloatPoint,
     angle: number,
     largeArc: number,
@@ -41,21 +40,21 @@ class SvgArcConfig {
     return result % MAX_ANGLE;
   }
 
-  public get mid(): Point {
+  public get mid(): FloatPoint {
     const result: FloatPoint = FloatPoint.add(this._begin, this._end);
 
     result.scale(0.5);
 
     return result;
   }
-  public get diff(): Point {
+  public get diff(): FloatPoint {
     const result: FloatPoint = FloatPoint.sub(this._begin, this._end);
     result.scale(0.5);
 
     return result;
   }
 
-  public get p2(): Point {
+  public get p2(): FloatPoint {
     return this._end;
   }
 
@@ -73,14 +72,14 @@ class SvgArcConfig {
 }
 
 class ArcConfig {
-  private _center: Point;
+  private _center: FloatPoint;
   private _r: FloatPoint;
   private _theta: number;
   private _extent: number;
   private _angle: number;
 
   constructor(
-    center: Point,
+    center: FloatPoint,
     r: FloatPoint,
     theta: number,
     extent: number,
@@ -133,7 +132,7 @@ class ArcConfig {
   public toSvg(scale: number): SvgArcConfig {
     const scaledExtent: number = this._extent * scale;
     const angle: number = ArcConfig._degreesToRadians(this._angle);
-    const svgPoints: Array<Point> = this._getSvgPoints(scaledExtent);
+    const svgPoints: Array<FloatPoint> = this._getSvgPoints(scaledExtent);
     const largeArc: number = scaledExtent > MID_ANGLE ? 1 : 0;
     const sweep: number = scaledExtent > 0 ? 1 : 0;
 
@@ -149,8 +148,8 @@ class ArcConfig {
 
   // convert from SVG format arc to center point arc
   static svgToCenter(arc: SvgArcConfig): ArcConfig {
-    const mid: Point = arc.mid;
-    const diff: Point = arc.diff;
+    const mid: FloatPoint = arc.mid;
+    const diff: FloatPoint = arc.diff;
     const angleRadians: number = ArcConfig._degreesToRadians(arc.angle);
     const cos: number = Math.cos(angleRadians);
     const sin: number = Math.sin(angleRadians);
@@ -159,7 +158,7 @@ class ArcConfig {
       -sin * diff.x + cos * diff.y
     );
     const r = FloatPoint.abs(arc.r);
-    let Pr: Point = FloatPoint.square(r);
+    let Pr: FloatPoint = FloatPoint.square(r);
     const P1 = FloatPoint.square(point1);
     const radiiCheck: number = P1.x / Pr.x + P1.y / Pr.y;
     const radiiSqrt: number = Math.sqrt(radiiCheck);
@@ -180,7 +179,7 @@ class ArcConfig {
       coef * ((r.x * point1.y) / r.y),
       -coef * ((r.y * point1.x) / r.x)
     );
-    const center: Point = new FloatPoint(
+    const center: FloatPoint = new FloatPoint(
       mid.x + (cos * c.x - sin * c.y),
       mid.y + (sin * c.x + cos * c.y)
     );
@@ -214,16 +213,16 @@ class ArcConfig {
 }
 
 export default function linearize(
-  p1: Point,
-  p2: Point,
+  p1: FloatPoint,
+  p2: FloatPoint,
   rx: number,
   ry: number,
   angle: number,
   largearc: number,
   sweep: number,
   tol: number
-): Array<Point> {
-  const finished: Array<Point> = [p2]; // list of points to return
+): Array<FloatPoint> {
+  const finished: Array<FloatPoint> = [p2]; // list of points to return
   const svgArc = new SvgArcConfig(
     p1,
     p2,
@@ -236,8 +235,8 @@ export default function linearize(
   const todo: Array<ArcConfig> = [arc]; // list of arcs to divide
   let fullArc: SvgArcConfig;
   let subArc: SvgArcConfig;
-  let arcMid: Point;
-  let mid: Point;
+  let arcMid: FloatPoint;
+  let mid: FloatPoint;
   let arc1: ArcConfig;
   let arc2: ArcConfig;
 
