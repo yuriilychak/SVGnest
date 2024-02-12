@@ -10,38 +10,6 @@ export default class SharedPolygon {
     this._polygons = polygons;
   }
 
-  // use the clipper library to return an offset to the given polygon. Positive offset expands the polygon, negative contracts
-  // note that this returns an array of polygons
-  _polygonOffset(polygon, offset) {
-    if (almostEqual(offset, 0)) {
-      return polygon;
-    }
-
-    const p = this.svgToClipper(polygon);
-    const miterLimit = 2;
-    const co = new ClipperLib.ClipperOffset(
-      miterLimit,
-      this._curveTolerance * this._clipperScale
-    );
-    co.AddPath(
-      p,
-      ClipperLib.JoinType.jtRound,
-      ClipperLib.EndType.etClosedPolygon
-    );
-
-    const newPaths = new ClipperLib.Paths();
-    co.Execute(newPaths, offset * this._clipperScale);
-
-    const result = [];
-    let i = 0;
-
-    for (i = 0; i < newPaths.length; ++i) {
-      result.push(this.clipperToSvg(newPaths[i]));
-    }
-
-    return result;
-  }
-
   // returns a less complex polygon that satisfies the curve tolerance
   _cleanPolygon(polygon) {
     const p = this.svgToClipper(polygon);
