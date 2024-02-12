@@ -66,6 +66,20 @@ export default class GeneticAlgorithm {
     this._population = result;
   }
 
+  public get individual(): Phenotype | null {
+    let i: number = 0;
+    // evaluate all members of the population
+    for (i = 0; i < this._population.length; ++i) {
+      if (!this._population[i].fitness) {
+        return this._population[i];
+      }
+    }
+
+    // all individuals have been evaluated, start next generation
+    this.generation();
+    return this._population[1] || null;
+  }
+
   // returns a random angle of insertion
   private _randomAngle(part: ArrayPolygon): number {
     const angleCount: number = Math.max(this._config.rotations, 1);

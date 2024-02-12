@@ -7,7 +7,7 @@ import {
   noFitPolygonRectangle,
   noFitPolygon,
   pointInPolygon
-} from "../geometry-util";
+} from "../../geometry-util";
 
 // clipperjs uses alerts for warnings
 function alert(message) {
@@ -84,7 +84,7 @@ function placePaths(paths, self) {
 
   // rotate paths by given rotation
   var rotated = [];
-  for (i = 0; i < paths.length; i++) {
+  for (i = 0; i < paths.length; ++i) {
     var r = rotatePolygon(paths[i], paths[i].rotation);
     r.rotation = paths[i].rotation;
     r.source = paths[i].source;
@@ -482,7 +482,7 @@ function pairData(pair, env) {
     if (useHoles && A.childNodes && A.childNodes.length > 0) {
       var Bbounds = getPolygonBounds(B);
 
-      for (var i = 0; i < A.childNodes.length; i++) {
+      for (var i = 0; i < A.childNodes.length; ++i) {
         var Abounds = getPolygonBounds(A.childNodes[i]);
 
         // no need to find nfp if B's bounding box is too big

@@ -185,10 +185,10 @@ class ArcConfig {
     );
     const u = new FloatPoint((point1.x - c.x) / r.x, (point1.y - c.y) / r.y);
     const v = new FloatPoint(-(point1.x + c.x) / r.x, -(point1.y + c.y) / r.y);
-    const squear: number = u.squareDistance;
+    const squear: number = u.squareLength;
     const theta: number =
       ArcConfig._getTheta(u.y, u.x, Math.sqrt(squear)) % MAX_ANGLE;
-    const n = Math.sqrt(squear * v.squareDistance);
+    const n = Math.sqrt(squear * v.squareLength);
     const p = u.x * v.x + u.y * v.y;
     const extent: number = arc.getExtent(
       ArcConfig._getTheta(u.x * v.y - u.y * v.x, p, n)

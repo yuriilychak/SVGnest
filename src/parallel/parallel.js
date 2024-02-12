@@ -1,4 +1,4 @@
-﻿import Worker from "./shared.worker";
+﻿import { SharedWorker } from "./shared-worker";
 import Operation from "./opertaion";
 
 export default class Parallel {
@@ -15,7 +15,7 @@ export default class Parallel {
 
     if (!worker) {
       try {
-        worker = new Worker();
+        worker = new SharedWorker();
         worker.postMessage(this._options);
       } catch (e) {
         throw e;

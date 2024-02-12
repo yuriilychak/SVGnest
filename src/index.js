@@ -58,7 +58,7 @@ ready(function () {
 
   demo.onclick = function () {
     try {
-      var svg = svgNest.parsesvg(display.innerHTML);
+      var svg = svgNest.parseSvg(display.innerHTML);
       display.innerHTML = "";
       display.appendChild(svg);
     } catch (e) {
