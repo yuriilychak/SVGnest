@@ -8,6 +8,7 @@ import { SvgParser } from "../svg-parser";
 import { Parallel } from "../parallel";
 import { polygonArea, almostEqual } from "../geometry-util";
 import { TreePolygon, BinPolygon } from "./polygon";
+import { generateNFPCacheKey } from "../util";
 
 function getPlacementWorkerData(
   binPolygon,
@@ -232,9 +233,9 @@ export default class SvgNest {
     const ids = [];
     const nfpPairs = [];
     const newCache = {};
-    let stringKey = "";
     let key;
     let part;
+    let numKey = 0;
 
     const updateCache = (polygon1, polygon2, rotation1, rotation2, inside) => {
       key = {
@@ -245,12 +246,19 @@ export default class SvgNest {
         Brotation: rotation2
       };
 
-      stringKey = JSON.stringify(key);
+      numKey = generateNFPCacheKey(
+        polygon1.id,
+        polygon2.id,
+        rotation1,
+        rotation2,
+        inside,
+        this.configuration.rotations
+      );
 
-      if (!this.nfpCache[stringKey]) {
-        nfpPairs.push({ A: polygon1, B: polygon2, key: key });
+      if (!this.nfpCache[numKey]) {
+        nfpPairs.push({ A: polygon1, B: polygon2, key, numKey });
       } else {
-        newCache[stringKey] = this.nfpCache[stringKey];
+        newCache[numKey] = this.nfpCache[numKey];
       }
     };
 
@@ -307,7 +315,7 @@ export default class SvgNest {
 
             if (Nfp) {
               // a null nfp means the nfp could not be generated, either because the parts simply don't fit or an error in the nfp algo
-              key = JSON.stringify(Nfp.key);
+              key = Nfp.numKey;
               this.nfpCache[key] = Nfp.value;
             }
           }

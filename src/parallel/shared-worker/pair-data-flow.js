@@ -225,5 +225,5 @@ export default function pairData(pair, env) {
     }
   }
 
-  return { key: pair.key, value: nfp };
+  return { key: pair.key, value: nfp, numKey: pair.numKey };
 }

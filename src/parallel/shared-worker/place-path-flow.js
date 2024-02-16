@@ -4,6 +4,7 @@ import {
   getPolygonBounds,
   almostEqual
 } from "../../geometry-util";
+import { generateNFPCacheKey } from "../../util";
 
 // jsClipper uses X/Y instead of x/y...
 function toClipperCoordinates(polygon) {
@@ -89,6 +90,7 @@ export default function placePaths(paths, self) {
   var fitness = 0;
   var binarea = Math.abs(polygonArea(self.binPolygon));
   var key, nfp;
+  let numKey = 0;
 
   while (paths.length > 0) {
     var placed = [];
@@ -99,14 +101,15 @@ export default function placePaths(paths, self) {
       path = paths[i];
 
       // inner NFP
-      key = JSON.stringify({
-        A: -1,
-        B: path.id,
-        inside: true,
-        Arotation: 0,
-        Brotation: path.rotation
-      });
-      var binNfp = self.nfpCache[key];
+      numKey = generateNFPCacheKey(
+        -1,
+        path.id,
+        0,
+        path.rotation,
+        true,
+        self.config.rotations
+      );
+      var binNfp = self.nfpCache[numKey];
 
       // part unplaceable, skip
       if (!binNfp || binNfp.length == 0) {
@@ -116,14 +119,15 @@ export default function placePaths(paths, self) {
       // ensure all necessary NFPs exist
       var error = false;
       for (j = 0; j < placed.length; j++) {
-        key = JSON.stringify({
-          A: placed[j].id,
-          B: path.id,
-          inside: false,
-          Arotation: placed[j].rotation,
-          Brotation: path.rotation
-        });
-        nfp = self.nfpCache[key];
+        numKey = generateNFPCacheKey(
+          placed[j].id,
+          path.id,
+          placed[j].rotation,
+          path.rotation,
+          false,
+          self.config.rotations
+        );
+        nfp = self.nfpCache[numKey];
 
         if (!nfp) {
           error = true;
@@ -169,14 +173,15 @@ export default function placePaths(paths, self) {
       var combinedNfp = new ClipperLib.Paths();
 
       for (j = 0; j < placed.length; j++) {
-        key = JSON.stringify({
-          A: placed[j].id,
-          B: path.id,
-          inside: false,
-          Arotation: placed[j].rotation,
-          Brotation: path.rotation
-        });
-        nfp = self.nfpCache[key];
+        numKey = generateNFPCacheKey(
+          placed[j].id,
+          path.id,
+          placed[j].rotation,
+          path.rotation,
+          false,
+          self.config.rotations
+        );
+        nfp = self.nfpCache[numKey];
 
         if (!nfp) {
           continue;
