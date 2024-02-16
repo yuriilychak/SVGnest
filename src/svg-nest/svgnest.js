@@ -70,7 +70,11 @@ export default class SvgNest {
     this.style = this.svgParser.getStyle();
     this.svg = this.svgParser.clean();
     this.tree = new TreePolygon(
-      this.svgParser.svgToTreePolygon(this.svg.childNodes, this.configuration),
+      this.svgParser.svgToTreePolygon(
+        this.svg.childNodes,
+        this.configuration.curveTolerance,
+        this.configuration.clipperScale
+      ),
       this.configuration,
       false
     );
@@ -160,13 +164,21 @@ export default class SvgNest {
 
     // build tree without bin
     this.tree = new TreePolygon(
-      this.svgParser.svgToTreePolygon(this.parts.slice(), this.configuration),
+      this.svgParser.svgToTreePolygon(
+        this.parts.slice(),
+        this.configuration.curveTolerance,
+        this.configuration.clipperScale
+      ),
       this.configuration,
       true
     );
 
     this.binPolygon = new BinPolygon(
-      this.svgParser.svgToPolygon(this.bin, this.configuration),
+      this.svgParser.svgToPolygon(
+        this.bin,
+        this.configuration.curveTolerance,
+        this.configuration.clipperScale
+      ),
       this.configuration
     );
 
@@ -197,8 +209,7 @@ export default class SvgNest {
   }
 
   _launchWorkers(displayCallback) {
-    let i = 0;
-    let j = 0;
+    let i, j;
 
     if (this.genethicAlgorithm === null) {
       // initiate new GA
@@ -209,7 +220,7 @@ export default class SvgNest {
 
       this.genethicAlgorithm = new GeneticAlgorithm(
         adam,
-        this.binPolygon.first,
+        this.binPolygon.polygons,
         this.configuration
       );
     }
@@ -226,7 +237,6 @@ export default class SvgNest {
     let part;
 
     const updateCache = (polygon1, polygon2, rotation1, rotation2, inside) => {
-      console.log(polygon1.id, polygon2.id);
       key = {
         A: polygon1.id,
         B: polygon2.id,
@@ -249,7 +259,7 @@ export default class SvgNest {
       ids.push(part.id);
       part.rotation = rotations[i];
 
-      updateCache(this.binPolygon.first, part, 0, rotations[i], true);
+      updateCache(this.binPolygon.polygons, part, 0, rotations[i], true);
 
       for (j = 0; j < i; ++j) {
         updateCache(placeList[j], part, rotations[j], rotations[i], false);
@@ -260,7 +270,7 @@ export default class SvgNest {
     this.nfpCache = newCache;
 
     const placementWorkerData = getPlacementWorkerData(
-      this.binPolygon.first,
+      this.binPolygon.polygons,
       placeList.slice(0),
       ids,
       rotations,
@@ -278,7 +288,7 @@ export default class SvgNest {
       "pair",
       nfpPairs,
       {
-        binPolygon: this.binPolygon.first,
+        binPolygon: this.binPolygon.polygons,
         searchEdges: this.configuration.exploreConcave,
         useHoles: this.configuration.useHoles
       },
@@ -448,5 +458,26 @@ export default class SvgNest {
     }
 
     return svgList;
+  }
+
+  _svgToTreePolygon(paths) {
+    let i;
+    const result = [];
+    const numChildren = paths.length;
+    const trashold =
+      this.configuration.curveTolerance * this.configuration.curveTolerance;
+    let poly;
+
+    for (i = 0; i < numChildren; ++i) {
+      poly = this._cleanPolygon(this.svgParser.polygonify(paths[i]));
+
+      // todo: warn user if poly could not be processed and is excluded from the nest
+      if (poly && poly.length > 2 && Math.abs(polygonArea(poly)) > trashold) {
+        poly.source = i;
+        result.push(poly);
+      }
+    }
+
+    return result;
   }
 }
