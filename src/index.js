@@ -57,8 +57,9 @@ ready(function () {
   var display = document.getElementById("select");
 
   demo.onclick = function () {
+    let svg;
     try {
-      var svg = svgNest.parseSvg(display.innerHTML);
+      svg = svgNest.parseSvg(display.innerHTML);
       display.innerHTML = "";
       display.appendChild(svg);
     } catch (e) {
@@ -362,7 +363,7 @@ ready(function () {
 
       if (reader.result) {
         try {
-          var svg = svgNest.parsesvg(reader.result);
+          var svg = svgNest.parseSvg(reader.result);
           {
             var wholeSVG = document.createElementNS(
               "http://www.w3.org/2000/svg",
@@ -404,7 +405,7 @@ ready(function () {
 
   function attachSvgListeners(svg) {
     // attach event listeners
-    for (var i = 0; i < svg.childNodes.length; i++) {
+    for (var i = 0; i < svg.childNodes.length; ++i) {
       var node = svg.childNodes[i];
       if (node.nodeType == 1) {
         node.onclick = function () {
@@ -421,7 +422,7 @@ ready(function () {
             else currentbin.setAttribute("class", className);
           }
 
-          svgNest.setbin(this);
+          svgNest.setBin(this);
           this.setAttribute(
             "class",
             (this.getAttribute("class")

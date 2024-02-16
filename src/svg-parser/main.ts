@@ -1,3 +1,6 @@
+//@ts-ignore
+import ClipperLib from "js-clipper";
+
 /*!
  * SvgParser
  * A library to convert an SVG string to parse-able segments for CAD/CAM use
@@ -14,6 +17,8 @@ import {
   SVGSegList,
   SvgConfig
 } from "./interfaces";
+import { pointInPolygon, polygonArea } from "../geometry-util";
+import { ArrayPolygon, Point } from "../interfaces";
 
 export default class SvgParser {
   private allowedElements: Array<PrimitiveTagName> = [
@@ -709,8 +714,174 @@ export default class SvgParser {
     func(element);
   }
 
-  // return a polygon from the given SVG element in the form of an array of points
-  polygonify(element: Element): Array<FloatPoint> {
-    return poligonify(element, this.conf.tolerance, this.conf.toleranceSvg);
+  public svgToPolygon(
+    svgPolygon: Element,
+    curveTolerance: number,
+    clipperScale: number
+  ) {
+    //@ts-ignore
+    const polygon = poligonify(
+      svgPolygon,
+      this.conf.tolerance,
+      this.conf.toleranceSvg
+    ) as ArrayPolygon;
+    const p = this.svgToClipper(polygon, clipperScale);
+    // remove self-intersections and find the biggest polygon that's left
+    const simple = ClipperLib.Clipper.SimplifyPolygon(
+      p,
+      ClipperLib.PolyFillType.pftNonZero
+    );
+
+    if (!simple || simple.length == 0) {
+      return null;
+    }
+
+    let i = 0;
+    let biggest = simple[0];
+    let biggestArea = Math.abs(ClipperLib.Clipper.Area(biggest));
+    let area;
+
+    for (i = 1; i < simple.length; ++i) {
+      area = Math.abs(ClipperLib.Clipper.Area(simple[i]));
+
+      if (area > biggestArea) {
+        biggest = simple[i];
+        biggestArea = area;
+      }
+    }
+
+    // clean up singularities, coincident points and edges
+    const clean = ClipperLib.Clipper.CleanPolygon(
+      biggest,
+      curveTolerance * clipperScale
+    );
+
+    if (!clean || clean.length === 0) {
+      return null;
+    }
+
+    return this.clipperToSvg(clean, clipperScale);
+  }
+
+  public svgToTreePolygon(
+    paths: Array<Element>,
+    curveTolerance: number,
+    clipperScale: number
+  ): Array<ArrayPolygon> {
+    let i;
+    const result: Array<ArrayPolygon> = new Array<ArrayPolygon>();
+    const numChildren = paths.length;
+    const trashold: number = curveTolerance * curveTolerance;
+    let poly;
+
+    for (i = 0; i < numChildren; ++i) {
+      poly = this.svgToPolygon(paths[i], curveTolerance, clipperScale);
+
+      // todo: warn user if poly could not be processed and is excluded from the nest
+      if (poly && poly.length > 2 && Math.abs(polygonArea(poly)) > trashold) {
+        //@ts-ignore
+        poly.source = i;
+        //@ts-ignore
+        result.push(poly);
+      }
+    }
+
+    SvgParser.toTree(result);
+
+    return result;
+  }
+
+  // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
+  svgToClipper(
+    polygon: ArrayPolygon,
+    clipperScale: number
+  ): Array<{ X: number; Y: number }> {
+    const result = [];
+    let i = 0;
+
+    for (i = 0; i < polygon.length; ++i) {
+      result.push({
+        X: polygon[i].x,
+        Y: polygon[i].y
+      });
+    }
+
+    ClipperLib.JS.ScaleUpPath(result, clipperScale);
+
+    return result;
+  }
+
+  clipperToSvg(
+    polygon: Array<{ X: number; Y: number }>,
+    clipperScale: number
+  ): ArrayPolygon {
+    const count = polygon.length;
+    const result: ArrayPolygon = new Array<Point>() as ArrayPolygon;
+    let i = 0;
+
+    for (i = 0; i < count; ++i) {
+      result.push({
+        x: polygon[i].X / clipperScale,
+        y: polygon[i].Y / clipperScale
+      });
+    }
+
+    return result;
+  }
+
+  static toTree(list: Array<ArrayPolygon>, idStart = 0) {
+    const parents = [];
+    let i: number = 0;
+    let j: number = 0;
+    // assign a unique id to each leaf
+    let outerNode: ArrayPolygon;
+    let innerNode: ArrayPolygon;
+    let isChild: boolean = false;
+
+    for (i = 0; i < list.length; ++i) {
+      outerNode = list[i];
+      isChild = false;
+
+      for (j = 0; j < list.length; ++j) {
+        innerNode = list[j];
+
+        if (j !== i && pointInPolygon(outerNode[0], innerNode)) {
+          if (!innerNode.children) {
+            innerNode.children = [];
+          }
+
+          innerNode.children.push(outerNode);
+          outerNode.parent = innerNode;
+          isChild = true;
+          break;
+        }
+      }
+
+      if (!isChild) {
+        parents.push(outerNode);
+      }
+    }
+
+    for (i = 0; i < list.length; ++i) {
+      if (parents.indexOf(list[i]) < 0) {
+        list.splice(i, 1);
+        i--;
+      }
+    }
+
+    const parentCount = parents.length;
+    let childId = idStart + parentCount;
+    let parent;
+
+    for (i = 0; i < parentCount; ++i) {
+      parent = parents[i];
+      parent.id = idStart + i;
+
+      if (parent.children) {
+        childId = SvgParser.toTree(parent.children, childId);
+      }
+    }
+
+    return childId;
   }
 }

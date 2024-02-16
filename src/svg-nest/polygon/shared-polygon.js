@@ -1,53 +1,13 @@
 import ClipperLib from "js-clipper";
 
-import { almostEqual } from "../geometry-util";
+import { almostEqual } from "../../geometry-util";
 
 export default class SharedPolygon {
-  constructor(configuration, polygons = []) {
+  constructor(configuration, polygons) {
     this._curveTolerance = configuration.curveTolerance;
     this._clipperScale = configuration.clipperScale;
     this._spacing = configuration.spacing;
     this._polygons = polygons;
-  }
-
-  // returns a less complex polygon that satisfies the curve tolerance
-  _cleanPolygon(polygon) {
-    const p = this.svgToClipper(polygon);
-    // remove self-intersections and find the biggest polygon that's left
-    const simple = ClipperLib.Clipper.SimplifyPolygon(
-      p,
-      ClipperLib.PolyFillType.pftNonZero
-    );
-
-    if (!simple || simple.length == 0) {
-      return null;
-    }
-
-    let i = 0;
-    let biggest = simple[0];
-    let biggestArea = Math.abs(ClipperLib.Clipper.Area(biggest));
-    let area;
-
-    for (i = 1; i < simple.length; ++i) {
-      area = Math.abs(ClipperLib.Clipper.Area(simple[i]));
-
-      if (area > biggestArea) {
-        biggest = simple[i];
-        biggestArea = area;
-      }
-    }
-
-    // clean up singularities, coincident points and edges
-    const clean = ClipperLib.Clipper.CleanPolygon(
-      biggest,
-      this._curveTolerance * this._clipperScale
-    );
-
-    if (!clean || clean.length === 0) {
-      return null;
-    }
-
-    return this.clipperToSvg(clean);
   }
 
   // use the clipper library to return an offset to the given polygon. Positive offset expands the polygon, negative contracts

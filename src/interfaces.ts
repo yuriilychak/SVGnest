@@ -21,6 +21,8 @@ export interface BoundRect {
 
 export interface ArrayPolygon extends Array<Point>, BoundRect {
   id: number;
+  parent?: ArrayPolygon;
+  children?: Array<ArrayPolygon>;
   rotation: number;
   source: number;
   marked?: boolean;

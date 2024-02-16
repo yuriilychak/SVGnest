@@ -72,6 +72,18 @@ export default class FloatPoint implements Point {
     return this;
   }
 
+  public rotate(angle: number): FloatPoint {
+    const cos: number = Math.cos(angle);
+    const sin: number = Math.sin(angle);
+    const x: number = this._data[0];
+    const y: number = this._data[1];
+
+    this._data[0] = x * cos - y * sin;
+    this._data[1] = x * sin + y * cos;
+
+    return this;
+  }
+
   public clone(): FloatPoint {
     return new FloatPoint(this._data[0], this._data[1]);
   }

@@ -7,8 +7,7 @@ import { GeneticAlgorithm } from "../genetic-algorithm";
 import { SvgParser } from "../svg-parser";
 import { Parallel } from "../parallel";
 import { polygonArea, almostEqual } from "../geometry-util";
-import TreePolygon from "./tree-polygon";
-import BinPolygon from "./bin-polygon";
+import { TreePolygon, BinPolygon } from "./polygon";
 
 function getPlacementWorkerData(
   binPolygon,
@@ -71,8 +70,11 @@ export default class SvgNest {
     this.style = this.svgParser.getStyle();
     this.svg = this.svgParser.clean();
     this.tree = new TreePolygon(
-      this.svg.childNodes,
-      this.svgParser,
+      this.svgParser.svgToTreePolygon(
+        this.svg.childNodes,
+        this.configuration.curveTolerance,
+        this.configuration.clipperScale
+      ),
       this.configuration,
       false
     );
@@ -80,7 +82,7 @@ export default class SvgNest {
     return this.svg;
   }
 
-  setbin(element) {
+  setBin(element) {
     if (!this.svg) {
       return;
     }
@@ -162,15 +164,21 @@ export default class SvgNest {
 
     // build tree without bin
     this.tree = new TreePolygon(
-      this.parts.slice(0),
-      this.svgParser,
+      this.svgParser.svgToTreePolygon(
+        this.parts.slice(),
+        this.configuration.curveTolerance,
+        this.configuration.clipperScale
+      ),
       this.configuration,
       true
     );
 
     this.binPolygon = new BinPolygon(
-      this.bin,
-      this.svgParser,
+      this.svgParser.svgToPolygon(
+        this.bin,
+        this.configuration.curveTolerance,
+        this.configuration.clipperScale
+      ),
       this.configuration
     );
 
@@ -183,7 +191,7 @@ export default class SvgNest {
 
     this.workerTimer = setInterval(() => {
       if (!this.working) {
-        this.launchWorkers(displayCallback);
+        this._launchWorkers(displayCallback);
         this.working = true;
       }
 
@@ -191,7 +199,16 @@ export default class SvgNest {
     }, 100);
   }
 
-  launchWorkers(displayCallback) {
+  stop() {
+    this.working = false;
+
+    if (this.workerTimer) {
+      clearInterval(this.workerTimer);
+      this.workerTimer = null;
+    }
+  }
+
+  _launchWorkers(displayCallback) {
     let i, j;
 
     if (this.genethicAlgorithm === null) {
@@ -346,7 +363,7 @@ export default class SvgNest {
               }
 
               displayCallback(
-                this.applyPlacement(this.best.placements),
+                this._applyPlacement(this.best.placements),
                 placedArea / totalArea,
                 numPlacedParts,
                 numParts
@@ -368,7 +385,7 @@ export default class SvgNest {
   }
 
   // returns an array of SVG elements that represent the placement, for export or rendering
-  applyPlacement(placement) {
+  _applyPlacement(placement) {
     const clone = [];
     const partCount = this.parts.length;
     const placementCount = placement.length;
@@ -443,12 +460,24 @@ export default class SvgNest {
     return svgList;
   }
 
-  stop() {
-    this.working = false;
+  _svgToTreePolygon(paths) {
+    let i;
+    const result = [];
+    const numChildren = paths.length;
+    const trashold =
+      this.configuration.curveTolerance * this.configuration.curveTolerance;
+    let poly;
 
-    if (this.workerTimer) {
-      clearInterval(this.workerTimer);
-      this.workerTimer = null;
+    for (i = 0; i < numChildren; ++i) {
+      poly = this._cleanPolygon(this.svgParser.polygonify(paths[i]));
+
+      // todo: warn user if poly could not be processed and is excluded from the nest
+      if (poly && poly.length > 2 && Math.abs(polygonArea(poly)) > trashold) {
+        poly.source = i;
+        result.push(poly);
+      }
     }
+
+    return result;
   }
 }

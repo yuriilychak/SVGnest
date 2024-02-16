@@ -1,20 +1,25 @@
 export default class Operation {
-  constructor(result = null) {
+  private _successCallbacks: Array<Function>;
+  private _errorCallbacks: Array<Function>;
+  private _status: number;
+  private _result: any;
+
+  constructor(result: any = null) {
     this._successCallbacks = [];
     this._errorCallbacks = [];
     this._status = result ? 1 : 0;
     this._result = result;
   }
 
-  resolve(value) {
+  public resolve(value: any): void {
     this._proceed(1, value);
   }
 
-  reject(value) {
+  public reject(value: any): void {
     this._proceed(2, value);
   }
 
-  then(resolve, reject) {
+  public then(resolve?: Function, reject?: Function): void {
     switch (this._status) {
       case 1:
         return resolve && resolve(this._result);
@@ -25,11 +30,9 @@ export default class Operation {
         reject && this._errorCallbacks.push(reject);
       }
     }
-
-    return this;
   }
 
-  _proceed(status, result) {
+  private _proceed(status: number, result: any): void {
     this._status = status;
     this._result = result;
 

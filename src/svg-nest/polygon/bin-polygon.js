@@ -1,12 +1,11 @@
-import FloatPoint from "../float-point";
-import { getPolygonBounds, polygonArea } from "../geometry-util";
+import FloatPoint from "../../float-point";
+import { getPolygonBounds, polygonArea } from "../../geometry-util";
 import SharedPolygon from "./shared-polygon";
 
 export default class BinPolygon extends SharedPolygon {
-  constructor(bin, svgParser, configuration) {
-    super(configuration);
+  constructor(polygons, configuration) {
+    super(configuration, polygons);
 
-    this._polygons = this._cleanPolygon(svgParser.polygonify(bin));
     this._isValid = this._polygons && this._polygons.length >= 3;
     this._bounds = null;
 
