@@ -22,10 +22,28 @@ export interface BoundRect {
 export interface ArrayPolygon extends Array<Point>, BoundRect {
   id: number;
   parent?: ArrayPolygon;
+  childNodes?: Array<ArrayPolygon>;
   children?: Array<ArrayPolygon>;
   rotation: number;
+  hole?: boolean;
   source: number;
   marked?: boolean;
   offsetx?: number;
   offsety?: number;
+}
+
+export interface SvgNestConfiguration {
+  clipperScale: number;
+  curveTolerance: number;
+  spacing: number;
+  rotations: number;
+  populationSize: number;
+  mutationRate: number;
+  useHoles: boolean;
+  exploreConcave: boolean;
+}
+
+export interface ClipperPoint {
+  X: number;
+  Y: number;
 }

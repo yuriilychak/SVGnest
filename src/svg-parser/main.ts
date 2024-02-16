@@ -18,7 +18,7 @@ import {
   SvgConfig
 } from "./interfaces";
 import { pointInPolygon, polygonArea } from "../geometry-util";
-import { ArrayPolygon, Point } from "../interfaces";
+import { ArrayPolygon, Point, SvgNestConfiguration } from "../interfaces";
 
 export default class SvgParser {
   private allowedElements: Array<PrimitiveTagName> = [
@@ -716,8 +716,7 @@ export default class SvgParser {
 
   public svgToPolygon(
     svgPolygon: Element,
-    curveTolerance: number,
-    clipperScale: number
+    { curveTolerance, clipperScale }: SvgNestConfiguration
   ) {
     //@ts-ignore
     const polygon = poligonify(
@@ -765,17 +764,17 @@ export default class SvgParser {
 
   public svgToTreePolygon(
     paths: Array<Element>,
-    curveTolerance: number,
-    clipperScale: number
+    configuration: SvgNestConfiguration
   ): Array<ArrayPolygon> {
     let i;
     const result: Array<ArrayPolygon> = new Array<ArrayPolygon>();
     const numChildren = paths.length;
-    const trashold: number = curveTolerance * curveTolerance;
+    const trashold: number =
+      configuration.curveTolerance * configuration.curveTolerance;
     let poly;
 
     for (i = 0; i < numChildren; ++i) {
-      poly = this.svgToPolygon(paths[i], curveTolerance, clipperScale);
+      poly = this.svgToPolygon(paths[i], configuration);
 
       // todo: warn user if poly could not be processed and is excluded from the nest
       if (poly && poly.length > 2 && Math.abs(polygonArea(poly)) > trashold) {
