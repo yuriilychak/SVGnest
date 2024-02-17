@@ -29,3 +29,14 @@ export interface ArrayPolygon extends Array<Point>, BoundRect {
   offsetx?: number;
   offsety?: number;
 }
+
+export interface SvgNestConfiguration {
+  clipperScale: number;
+  curveTolerance: number;
+  spacing: number;
+  rotations: number;
+  populationSize: number;
+  mutationRate: number;
+  useHoles: boolean;
+  exploreConcave: boolean;
+}

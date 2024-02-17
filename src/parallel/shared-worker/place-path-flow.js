@@ -5,6 +5,7 @@ import {
   almostEqual
 } from "../../geometry-util";
 import { generateNFPCacheKey } from "../../util";
+import FloatPoint from "../../float-point";
 
 // jsClipper uses X/Y instead of x/y...
 function toClipperCoordinates(polygon) {
@@ -45,12 +46,7 @@ function rotatePolygon(polygon, degrees) {
   let i = 0;
 
   for (i = 0; i < size; ++i) {
-    var x = polygon[i].x;
-    var y = polygon[i].y;
-    var x1 = x * Math.cos(angle) - y * Math.sin(angle);
-    var y1 = x * Math.sin(angle) + y * Math.cos(angle);
-
-    result.push({ x: x1, y: y1 });
+    result.push(FloatPoint.from(polygon[i]).rotate(angle));
   }
 
   if (polygon.children && polygon.children.length > 0) {
@@ -89,7 +85,7 @@ export default function placePaths(paths, self) {
   var allplacements = [];
   var fitness = 0;
   var binarea = Math.abs(polygonArea(self.binPolygon));
-  var key, nfp;
+  var nfp;
   let numKey = 0;
 
   while (paths.length > 0) {
@@ -109,7 +105,7 @@ export default function placePaths(paths, self) {
         true,
         self.config.rotations
       );
-      var binNfp = self.nfpCache[numKey];
+      var binNfp = self.nfpCache.get(numKey);
 
       // part unplaceable, skip
       if (!binNfp || binNfp.length == 0) {
@@ -127,9 +123,9 @@ export default function placePaths(paths, self) {
           false,
           self.config.rotations
         );
-        nfp = self.nfpCache[numKey];
+        nfp = self.nfpCache.get(numKey);
 
-        if (!nfp) {
+        if (!self.nfpCache.has(numKey)) {
           error = true;
           break;
         }
@@ -172,7 +168,7 @@ export default function placePaths(paths, self) {
       var clipper = new ClipperLib.Clipper();
       var combinedNfp = new ClipperLib.Paths();
 
-      for (j = 0; j < placed.length; j++) {
+      for (j = 0; j < placed.length; ++j) {
         numKey = generateNFPCacheKey(
           placed[j].id,
           path.id,
@@ -181,11 +177,12 @@ export default function placePaths(paths, self) {
           false,
           self.config.rotations
         );
-        nfp = self.nfpCache[numKey];
 
-        if (!nfp) {
+        if (!self.nfpCache.has(numKey)) {
           continue;
         }
+
+        nfp = self.nfpCache.get(numKey);
 
         for (k = 0; k < nfp.length; k++) {
           var clone = toClipperCoordinates(nfp[k]);
@@ -258,7 +255,7 @@ export default function placePaths(paths, self) {
       }
 
       var f = [];
-      for (j = 0; j < finalNfp.length; j++) {
+      for (j = 0; j < finalNfp.length; ++j) {
         // back to normal scale
         f.push(toNestCoordinates(finalNfp[j], self.config.clipperScale));
       }

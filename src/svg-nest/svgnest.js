@@ -10,24 +10,6 @@ import { polygonArea, almostEqual } from "../geometry-util";
 import { TreePolygon, BinPolygon } from "./polygon";
 import { generateNFPCacheKey } from "../util";
 
-function getPlacementWorkerData(
-  binPolygon,
-  paths,
-  ids,
-  rotations,
-  config,
-  nfpCache = {}
-) {
-  return {
-    binPolygon,
-    paths,
-    ids,
-    rotations,
-    config,
-    nfpCache
-  };
-}
-
 export default class SvgNest {
   constructor() {
     this.svg = null;
@@ -37,7 +19,7 @@ export default class SvgNest {
     this.tree = null;
     this.bin = null;
     this.binPolygon = null;
-    this.nfpCache = {};
+    this.nfpCache = new Map();
     this.configuration = {
       clipperScale: 10000000,
       curveTolerance: 0.3,
@@ -49,13 +31,13 @@ export default class SvgNest {
       exploreConcave: false
     };
 
-    this.working = false;
+    this._isWorking = false;
 
-    this.genethicAlgorithm = null;
-    this.best = null;
-    this.workerTimer = null;
-    this.progress = 0;
-    this.svgParser = new SvgParser();
+    this._genethicAlgorithm = null;
+    this._best = null;
+    this._workerTimer = null;
+    this._progress = 0;
+    this._svgParser = new SvgParser();
   }
 
   parseSvg(svgstring) {
@@ -67,15 +49,11 @@ export default class SvgNest {
     this.tree = null;
 
     // parse svg
-    this.svg = this.svgParser.load(svgstring);
-    this.style = this.svgParser.getStyle();
-    this.svg = this.svgParser.clean();
+    this.svg = this._svgParser.load(svgstring);
+    this.style = this._svgParser.getStyle();
+    this.svg = this._svgParser.clean();
     this.tree = new TreePolygon(
-      this.svgParser.svgToTreePolygon(
-        this.svg.childNodes,
-        this.configuration.curveTolerance,
-        this.configuration.clipperScale
-      ),
+      this._svgParser.svgToTreePolygon(this.svg.childNodes, this.configuration),
       this.configuration,
       false
     );
@@ -138,12 +116,12 @@ export default class SvgNest {
       this.configuration.exploreConcave = !!configuration.exploreConcave;
     }
 
-    this.svgParser.config({ tolerance: this.configuration.curveTolerance });
+    this._svgParser.config({ tolerance: this.configuration.curveTolerance });
 
-    this.best = null;
-    this.nfpCache = {};
+    this._best = null;
+    this.nfpCache.clear();
     this.binPolygon = null;
-    this.genethicAlgorithm = null;
+    this._genethicAlgorithm = null;
 
     return this.configuration;
   }
@@ -165,21 +143,13 @@ export default class SvgNest {
 
     // build tree without bin
     this.tree = new TreePolygon(
-      this.svgParser.svgToTreePolygon(
-        this.parts.slice(),
-        this.configuration.curveTolerance,
-        this.configuration.clipperScale
-      ),
+      this._svgParser.svgToTreePolygon(this.parts.slice(), this.configuration),
       this.configuration,
       true
     );
 
     this.binPolygon = new BinPolygon(
-      this.svgParser.svgToPolygon(
-        this.bin,
-        this.configuration.curveTolerance,
-        this.configuration.clipperScale
-      ),
+      this._svgParser.svgToPolygon(this.bin, this.configuration),
       this.configuration
     );
 
@@ -188,64 +158,55 @@ export default class SvgNest {
     }
 
     this.tree.removeDuplicats();
-    this.working = false;
+    this._isWorking = false;
 
-    this.workerTimer = setInterval(() => {
-      if (!this.working) {
+    this._workerTimer = setInterval(() => {
+      if (!this._isWorking) {
         this._launchWorkers(displayCallback);
-        this.working = true;
+        this._isWorking = true;
       }
 
-      progressCallback(this.progress);
+      progressCallback(this._progress);
     }, 100);
   }
 
   stop() {
-    this.working = false;
+    this._isWorking = false;
 
-    if (this.workerTimer) {
-      clearInterval(this.workerTimer);
-      this.workerTimer = null;
+    if (this._workerTimer) {
+      clearInterval(this._workerTimer);
+      this._workerTimer = null;
     }
   }
 
   _launchWorkers(displayCallback) {
     let i, j;
 
-    if (this.genethicAlgorithm === null) {
+    if (this._genethicAlgorithm === null) {
       // initiate new GA
       const adam = this.tree.polygons;
 
       // seed with decreasing area
       adam.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
 
-      this.genethicAlgorithm = new GeneticAlgorithm(
+      this._genethicAlgorithm = new GeneticAlgorithm(
         adam,
         this.binPolygon.polygons,
         this.configuration
       );
     }
 
-    const individual = this.genethicAlgorithm.individual;
+    const individual = this._genethicAlgorithm.individual;
     const placeList = individual.placement;
     const rotations = individual.rotation;
     const placeCount = placeList.length;
     const ids = [];
     const nfpPairs = [];
-    const newCache = {};
-    let key;
+    const newCache = new Map();
     let part;
     let numKey = 0;
 
     const updateCache = (polygon1, polygon2, rotation1, rotation2, inside) => {
-      key = {
-        A: polygon1.id,
-        B: polygon2.id,
-        inside,
-        Arotation: rotation1,
-        Brotation: rotation2
-      };
-
       numKey = generateNFPCacheKey(
         polygon1.id,
         polygon2.id,
@@ -255,10 +216,10 @@ export default class SvgNest {
         this.configuration.rotations
       );
 
-      if (!this.nfpCache[numKey]) {
-        nfpPairs.push({ A: polygon1, B: polygon2, key, numKey });
+      if (!this.nfpCache.has(numKey)) {
+        nfpPairs.push({ A: polygon1, B: polygon2, numKey });
       } else {
-        newCache[numKey] = this.nfpCache[numKey];
+        newCache.set(numKey, this.nfpCache.get(numKey));
       }
     };
 
@@ -277,25 +238,26 @@ export default class SvgNest {
     // only keep cache for one cycle
     this.nfpCache = newCache;
 
-    const placementWorkerData = getPlacementWorkerData(
-      this.binPolygon.polygons,
-      placeList.slice(0),
+    const placementWorkerData = {
+      binPolygon: this.binPolygon.polygons,
+      paths: placeList.slice(),
       ids,
       rotations,
-      this.configuration,
-      this.nfpCache
-    );
+      config: this.configuration,
+      nfpCache: this.nfpCache
+    };
 
     let spawnCount = 0;
 
     const onSpawn = () => {
-      this.progress = spawnCount++ / nfpPairs.length;
+      this._progress = spawnCount++ / nfpPairs.length;
     };
 
     const parallel = new Parallel(
       "pair",
       nfpPairs,
       {
+        rotations: this.configuration.rotations,
         binPolygon: this.binPolygon.polygons,
         searchEdges: this.configuration.exploreConcave,
         useHoles: this.configuration.useHoles
@@ -308,15 +270,13 @@ export default class SvgNest {
         if (generatedNfp) {
           let i = 0;
           let Nfp;
-          let key;
 
           for (i = 0; i < generatedNfp.length; ++i) {
             Nfp = generatedNfp[i];
 
             if (Nfp) {
               // a null nfp means the nfp could not be generated, either because the parts simply don't fit or an error in the nfp algo
-              key = Nfp.numKey;
-              this.nfpCache[key] = Nfp.value;
+              this.nfpCache.set(Nfp.numKey, Nfp.value);
             }
           }
         }
@@ -348,8 +308,8 @@ export default class SvgNest {
               }
             }
 
-            if (!this.best || bestResult.fitness < this.best.fitness) {
-              this.best = bestResult;
+            if (!this._best || bestResult.fitness < this._best.fitness) {
+              this._best = bestResult;
 
               let placedArea = 0;
               let totalArea = 0;
@@ -357,9 +317,9 @@ export default class SvgNest {
               let bestPlacement;
               const numParts = placeList.length;
 
-              for (i = 0; i < this.best.placements.length; ++i) {
+              for (i = 0; i < this._best.placements.length; ++i) {
                 totalArea += Math.abs(this.binPolygon.area);
-                bestPlacement = this.best.placements[i];
+                bestPlacement = this._best.placements[i];
 
                 numPlacedParts += bestPlacement.length;
 
@@ -371,7 +331,7 @@ export default class SvgNest {
               }
 
               displayCallback(
-                this._applyPlacement(this.best.placements),
+                this._applyPlacement(),
                 placedArea / totalArea,
                 numPlacedParts,
                 numParts
@@ -379,7 +339,7 @@ export default class SvgNest {
             } else {
               displayCallback();
             }
-            this.working = false;
+            this._isWorking = false;
           },
           function (err) {
             console.log(err);
@@ -393,10 +353,11 @@ export default class SvgNest {
   }
 
   // returns an array of SVG elements that represent the placement, for export or rendering
-  _applyPlacement(placement) {
+  _applyPlacement() {
+    const placements = this._best.placements;
     const clone = [];
     const partCount = this.parts.length;
-    const placementCount = placement.length;
+    const placementCount = placements.length;
     const svgList = [];
     let i, j, k;
     let newSvg;
@@ -430,8 +391,8 @@ export default class SvgNest {
       );
       newSvg.appendChild(binClone);
 
-      for (j = 0; j < placement[i].length; ++j) {
-        p = placement[i][j];
+      for (j = 0; j < placements[i].length; ++j) {
+        p = placements[i][j];
         part = this.tree.at(p.id);
 
         // the original path could have transforms and stuff on it, so apply our transforms on a group
@@ -466,26 +427,5 @@ export default class SvgNest {
     }
 
     return svgList;
-  }
-
-  _svgToTreePolygon(paths) {
-    let i;
-    const result = [];
-    const numChildren = paths.length;
-    const trashold =
-      this.configuration.curveTolerance * this.configuration.curveTolerance;
-    let poly;
-
-    for (i = 0; i < numChildren; ++i) {
-      poly = this._cleanPolygon(this.svgParser.polygonify(paths[i]));
-
-      // todo: warn user if poly could not be processed and is excluded from the nest
-      if (poly && poly.length > 2 && Math.abs(polygonArea(poly)) > trashold) {
-        poly.source = i;
-        result.push(poly);
-      }
-    }
-
-    return result;
   }
 }

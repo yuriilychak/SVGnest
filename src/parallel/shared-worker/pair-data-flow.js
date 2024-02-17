@@ -8,6 +8,7 @@ import {
   pointInPolygon
 } from "../../geometry-util";
 import FloatPoint from "../../float-point";
+import { keyToNFPData } from "../../util";
 
 // clipperjs uses alerts for warnings
 function alert(message) {
@@ -51,17 +52,9 @@ function rotatePolygon(polygon, degrees) {
   const angle = (degrees * Math.PI) / 180;
   let size = polygon.length;
   let i = 0;
-  let point;
 
   for (i = 0; i < size; ++i) {
-    point = polygon[i];
-
-    result.push(
-      new FloatPoint(
-        point.x * Math.cos(angle) - point.y * Math.sin(angle),
-        point.x * Math.sin(angle) + point.y * Math.cos(angle)
-      )
-    );
+    result.push(FloatPoint.from(polygon[i]).rotate(angle));
   }
 
   size = polygon.children ? polygon.children.length : 0;
@@ -123,12 +116,14 @@ export default function pairData(pair, env) {
   const searchEdges = env.searchEdges;
   const useHoles = env.useHoles;
 
-  let A = rotatePolygon(pair.A, pair.key.Arotation);
-  let B = rotatePolygon(pair.B, pair.key.Brotation);
+  const nfpData = keyToNFPData(pair.numKey, env.rotations);
+
+  let A = rotatePolygon(pair.A, nfpData[2]);
+  let B = rotatePolygon(pair.B, nfpData[3]);
   let nfp;
   let i = 0;
 
-  if (pair.key.inside) {
+  if (nfpData[4] === 1) {
     if (isRectangle(A, 0.001)) {
       nfp = noFitPolygonRectangle(A, B);
     } else {
@@ -145,7 +140,7 @@ export default function pairData(pair, env) {
     } else {
       // warning on null inner NFP
       // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
-      console.log("NFP Warning: ", pair.key);
+      console.log("NFP Warning: ", nfpData);
     }
   } else {
     if (searchEdges) {
@@ -155,7 +150,7 @@ export default function pairData(pair, env) {
     }
     // sanity check
     if (!nfp || nfp.length == 0) {
-      console.log("NFP Error: ", pair.key);
+      console.log("NFP Error: ", nfpData);
       console.log("A: ", JSON.stringify(A));
       console.log("B: ", JSON.stringify(B));
       return null;
@@ -168,7 +163,7 @@ export default function pairData(pair, env) {
           console.log(
             "NFP Area Error: ",
             Math.abs(polygonArea(nfp[i])),
-            pair.key
+            nfpData
           );
           console.log("NFP:", JSON.stringify(nfp[i]));
           console.log("A: ", JSON.stringify(A));
@@ -225,5 +220,5 @@ export default function pairData(pair, env) {
     }
   }
 
-  return { key: pair.key, value: nfp, numKey: pair.numKey };
+  return { value: nfp, numKey: pair.numKey };
 }

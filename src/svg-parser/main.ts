@@ -18,7 +18,7 @@ import {
   SvgConfig
 } from "./interfaces";
 import { pointInPolygon, polygonArea } from "../geometry-util";
-import { ArrayPolygon, Point } from "../interfaces";
+import { ArrayPolygon, Point, SvgNestConfiguration } from "../interfaces";
 
 export default class SvgParser {
   private allowedElements: Array<PrimitiveTagName> = [
@@ -716,8 +716,7 @@ export default class SvgParser {
 
   public svgToPolygon(
     svgPolygon: Element,
-    curveTolerance: number,
-    clipperScale: number
+    { curveTolerance, clipperScale }: SvgNestConfiguration
   ) {
     //@ts-ignore
     const polygon = poligonify(
@@ -725,7 +724,7 @@ export default class SvgParser {
       this.conf.tolerance,
       this.conf.toleranceSvg
     ) as ArrayPolygon;
-    const p = this.svgToClipper(polygon, clipperScale);
+    const p = this._svgToClipper(polygon, clipperScale);
     // remove self-intersections and find the biggest polygon that's left
     const simple = ClipperLib.Clipper.SimplifyPolygon(
       p,
@@ -760,22 +759,22 @@ export default class SvgParser {
       return null;
     }
 
-    return this.clipperToSvg(clean, clipperScale);
+    return this._clipperToSvg(clean, clipperScale);
   }
 
   public svgToTreePolygon(
     paths: Array<Element>,
-    curveTolerance: number,
-    clipperScale: number
+    configuration: SvgNestConfiguration
   ): Array<ArrayPolygon> {
     let i;
     const result: Array<ArrayPolygon> = new Array<ArrayPolygon>();
     const numChildren = paths.length;
-    const trashold: number = curveTolerance * curveTolerance;
+    const trashold: number =
+      configuration.curveTolerance * configuration.curveTolerance;
     let poly;
 
     for (i = 0; i < numChildren; ++i) {
-      poly = this.svgToPolygon(paths[i], curveTolerance, clipperScale);
+      poly = this.svgToPolygon(paths[i], configuration);
 
       // todo: warn user if poly could not be processed and is excluded from the nest
       if (poly && poly.length > 2 && Math.abs(polygonArea(poly)) > trashold) {
@@ -792,7 +791,7 @@ export default class SvgParser {
   }
 
   // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
-  svgToClipper(
+  _svgToClipper(
     polygon: ArrayPolygon,
     clipperScale: number
   ): Array<{ X: number; Y: number }> {
@@ -811,7 +810,7 @@ export default class SvgParser {
     return result;
   }
 
-  clipperToSvg(
+  private _clipperToSvg(
     polygon: Array<{ X: number; Y: number }>,
     clipperScale: number
   ): ArrayPolygon {
