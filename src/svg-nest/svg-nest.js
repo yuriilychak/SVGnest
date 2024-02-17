@@ -12,15 +12,15 @@ import { generateNFPCacheKey } from "../util";
 
 export default class SvgNest {
   constructor() {
-    this.svg = null;
+    this._svg = null;
     // keep a reference to any style nodes, to maintain color/fill info
-    this.style = null;
-    this.parts = null;
-    this.tree = null;
-    this.bin = null;
-    this.binPolygon = null;
-    this.nfpCache = new Map();
-    this.configuration = {
+    this._style = null;
+    this._parts = null;
+    this._tree = null;
+    this._bin = null;
+    this._binPolygon = null;
+    this._nfpCache = new Map();
+    this._configuration = {
       clipperScale: 10000000,
       curveTolerance: 0.3,
       spacing: 0,
@@ -32,7 +32,6 @@ export default class SvgNest {
     };
 
     this._isWorking = false;
-
     this._genethicAlgorithm = null;
     this._best = null;
     this._workerTimer = null;
@@ -44,59 +43,62 @@ export default class SvgNest {
     // reset if in progress
     this.stop();
 
-    this.bin = null;
-    this.binPolygon = null;
-    this.tree = null;
+    this._bin = null;
+    this._binPolygon = null;
+    this._tree = null;
 
     // parse svg
-    this.svg = this._svgParser.load(svgstring);
-    this.style = this._svgParser.getStyle();
-    this.svg = this._svgParser.clean();
-    this.tree = new TreePolygon(
-      this._svgParser.svgToTreePolygon(this.svg.childNodes, this.configuration),
-      this.configuration,
+    this._svg = this._svgParser.load(svgstring);
+    this._style = this._svgParser.getStyle();
+    this._svg = this._svgParser.clean();
+    this._tree = new TreePolygon(
+      this._svgParser.svgToTreePolygon(
+        this._svg.childNodes,
+        this._configuration
+      ),
+      this._configuration,
       false
     );
 
-    return this.svg;
+    return this._svg;
   }
 
   setBin(element) {
-    if (!this.svg) {
+    if (!this._svg) {
       return;
     }
-    this.bin = element;
+    this._bin = element;
   }
 
   config(configuration) {
     // clean up inputs
 
     if (!configuration) {
-      return this.configuration;
+      return this._configuration;
     }
 
     if (
       configuration.curveTolerance &&
       !almostEqual(parseFloat(configuration.curveTolerance), 0)
     ) {
-      this.configuration.curveTolerance = parseFloat(
+      this._configuration.curveTolerance = parseFloat(
         configuration.curveTolerance
       );
     }
 
     if ("spacing" in configuration) {
-      this.configuration.spacing = parseFloat(configuration.spacing);
+      this._configuration.spacing = parseFloat(configuration.spacing);
     }
 
     if (configuration.rotations && parseInt(configuration.rotations) > 0) {
-      this.configuration.rotations = parseInt(configuration.rotations);
+      this._configuration.rotations = parseInt(configuration.rotations);
     }
 
     if (
       configuration.populationSize &&
       parseInt(configuration.populationSize) > 2
     ) {
-      this.configuration.populationSize = parseInt(
+      this._configuration.populationSize = parseInt(
         configuration.populationSize
       );
     }
@@ -105,59 +107,62 @@ export default class SvgNest {
       configuration.mutationRate &&
       parseInt(configuration.mutationRate) > 0
     ) {
-      this.configuration.mutationRate = parseInt(configuration.mutationRate);
+      this._configuration.mutationRate = parseInt(configuration.mutationRate);
     }
 
     if ("useHoles" in configuration) {
-      this.configuration.useHoles = !!configuration.useHoles;
+      this._configuration.useHoles = !!configuration.useHoles;
     }
 
     if ("exploreConcave" in configuration) {
-      this.configuration.exploreConcave = !!configuration.exploreConcave;
+      this._configuration.exploreConcave = !!configuration.exploreConcave;
     }
 
-    this._svgParser.config({ tolerance: this.configuration.curveTolerance });
+    this._svgParser.config({ tolerance: this._configuration.curveTolerance });
 
     this._best = null;
-    this.nfpCache.clear();
-    this.binPolygon = null;
+    this._nfpCache.clear();
+    this._binPolygon = null;
     this._genethicAlgorithm = null;
 
-    return this.configuration;
+    return this._configuration;
   }
 
   // progressCallback is called when progress is made
   // displayCallback is called when a new placement has been made
   start(progressCallback, displayCallback) {
-    if (!this.svg || !this.bin) {
+    if (!this._svg || !this._bin) {
       return false;
     }
 
-    this.parts = Array.prototype.slice.call(this.svg.childNodes);
-    const binIndex = this.parts.indexOf(this.bin);
+    this._parts = Array.prototype.slice.call(this._svg.childNodes);
+    const binIndex = this._parts.indexOf(this._bin);
 
     if (binIndex >= 0) {
       // don't process bin as a part of the tree
-      this.parts.splice(binIndex, 1);
+      this._parts.splice(binIndex, 1);
     }
 
     // build tree without bin
-    this.tree = new TreePolygon(
-      this._svgParser.svgToTreePolygon(this.parts.slice(), this.configuration),
-      this.configuration,
+    this._tree = new TreePolygon(
+      this._svgParser.svgToTreePolygon(
+        this._parts.slice(),
+        this._configuration
+      ),
+      this._configuration,
       true
     );
 
-    this.binPolygon = new BinPolygon(
-      this._svgParser.svgToPolygon(this.bin, this.configuration),
-      this.configuration
+    this._binPolygon = new BinPolygon(
+      this._svgParser.svgToPolygon(this._bin, this._configuration),
+      this._configuration
     );
 
-    if (!this.binPolygon.isValid) {
+    if (!this._binPolygon.isValid) {
       return false;
     }
 
-    this.tree.removeDuplicats();
+    this._tree.removeDuplicats();
     this._isWorking = false;
 
     this._workerTimer = setInterval(() => {
@@ -184,15 +189,15 @@ export default class SvgNest {
 
     if (this._genethicAlgorithm === null) {
       // initiate new GA
-      const adam = this.tree.polygons;
+      const adam = this._tree.polygons;
 
       // seed with decreasing area
       adam.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
 
       this._genethicAlgorithm = new GeneticAlgorithm(
         adam,
-        this.binPolygon.polygons,
-        this.configuration
+        this._binPolygon.polygons,
+        this._configuration
       );
     }
 
@@ -208,18 +213,18 @@ export default class SvgNest {
 
     const updateCache = (polygon1, polygon2, rotation1, rotation2, inside) => {
       numKey = generateNFPCacheKey(
-        polygon1.id,
-        polygon2.id,
-        rotation1,
-        rotation2,
+        this._configuration.rotations,
         inside,
-        this.configuration.rotations
+        polygon1,
+        polygon2,
+        rotation1,
+        rotation2
       );
 
-      if (!this.nfpCache.has(numKey)) {
+      if (!this._nfpCache.has(numKey)) {
         nfpPairs.push({ A: polygon1, B: polygon2, numKey });
       } else {
-        newCache.set(numKey, this.nfpCache.get(numKey));
+        newCache.set(numKey, this._nfpCache.get(numKey));
       }
     };
 
@@ -228,7 +233,7 @@ export default class SvgNest {
       ids.push(part.id);
       part.rotation = rotations[i];
 
-      updateCache(this.binPolygon.polygons, part, 0, rotations[i], true);
+      updateCache(this._binPolygon.polygons, part, 0, rotations[i], true);
 
       for (j = 0; j < i; ++j) {
         updateCache(placeList[j], part, rotations[j], rotations[i], false);
@@ -236,15 +241,15 @@ export default class SvgNest {
     }
 
     // only keep cache for one cycle
-    this.nfpCache = newCache;
+    this._nfpCache = newCache;
 
     const placementWorkerData = {
-      binPolygon: this.binPolygon.polygons,
+      binPolygon: this._binPolygon.polygons,
       paths: placeList.slice(),
       ids,
       rotations,
-      config: this.configuration,
-      nfpCache: this.nfpCache
+      config: this._configuration,
+      nfpCache: this._nfpCache
     };
 
     let spawnCount = 0;
@@ -257,10 +262,10 @@ export default class SvgNest {
       "pair",
       nfpPairs,
       {
-        rotations: this.configuration.rotations,
-        binPolygon: this.binPolygon.polygons,
-        searchEdges: this.configuration.exploreConcave,
-        useHoles: this.configuration.useHoles
+        rotations: this._configuration.rotations,
+        binPolygon: this._binPolygon.polygons,
+        searchEdges: this._configuration.exploreConcave,
+        useHoles: this._configuration.useHoles
       },
       onSpawn
     );
@@ -276,12 +281,12 @@ export default class SvgNest {
 
             if (Nfp) {
               // a null nfp means the nfp could not be generated, either because the parts simply don't fit or an error in the nfp algo
-              this.nfpCache.set(Nfp.numKey, Nfp.value);
+              this._nfpCache.set(Nfp.numKey, Nfp.value);
             }
           }
         }
 
-        placementWorkerData.nfpCache = this.nfpCache;
+        placementWorkerData.nfpCache = this._nfpCache;
 
         // can't use .spawn because our data is an array
         const p2 = new Parallel(
@@ -318,14 +323,14 @@ export default class SvgNest {
               const numParts = placeList.length;
 
               for (i = 0; i < this._best.placements.length; ++i) {
-                totalArea += Math.abs(this.binPolygon.area);
+                totalArea += Math.abs(this._binPolygon.area);
                 bestPlacement = this._best.placements[i];
 
                 numPlacedParts += bestPlacement.length;
 
                 for (j = 0; j < bestPlacement.length; ++j) {
                   placedArea += Math.abs(
-                    polygonArea(this.tree.at(bestPlacement[j].id))
+                    polygonArea(this._tree.at(bestPlacement[j].id))
                   );
                 }
               }
@@ -356,7 +361,7 @@ export default class SvgNest {
   _applyPlacement() {
     const placements = this._best.placements;
     const clone = [];
-    const partCount = this.parts.length;
+    const partCount = this._parts.length;
     const placementCount = placements.length;
     const svgList = [];
     let i, j, k;
@@ -369,20 +374,20 @@ export default class SvgNest {
     let c;
 
     for (i = 0; i < partCount; ++i) {
-      clone.push(this.parts[i].cloneNode(false));
+      clone.push(this._parts[i].cloneNode(false));
     }
 
-    const bounds = this.binPolygon.bounds;
+    const bounds = this._binPolygon.bounds;
 
     for (i = 0; i < placementCount; ++i) {
-      newSvg = this.svg.cloneNode(false);
+      newSvg = this._svg.cloneNode(false);
       newSvg.setAttribute(
         "viewBox",
         "0 0 " + bounds.width + " " + bounds.height
       );
       newSvg.setAttribute("width", bounds.width + "px");
       newSvg.setAttribute("height", bounds.height + "px");
-      binClone = this.bin.cloneNode(false);
+      binClone = this._bin.cloneNode(false);
 
       binClone.setAttribute("class", "bin");
       binClone.setAttribute(
@@ -393,17 +398,17 @@ export default class SvgNest {
 
       for (j = 0; j < placements[i].length; ++j) {
         p = placements[i][j];
-        part = this.tree.at(p.id);
+        part = this._tree.at(p.id);
 
         // the original path could have transforms and stuff on it, so apply our transforms on a group
-        partGroup = document.createElementNS(this.svg.namespaceURI, "g");
+        partGroup = document.createElementNS(this._svg.namespaceURI, "g");
         partGroup.setAttribute(
           "transform",
           "translate(" + p.x + " " + p.y + ") rotate(" + p.rotation + ")"
         );
         partGroup.appendChild(clone[part.source]);
 
-        flattened = this.tree.flat(p.id);
+        flattened = this._tree.flat(p.id);
 
         if (flattened !== null) {
           for (k = 0; k < flattened.length; ++k) {
@@ -427,5 +432,9 @@ export default class SvgNest {
     }
 
     return svgList;
+  }
+
+  get style() {
+    return this._style;
   }
 }

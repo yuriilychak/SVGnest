@@ -1,20 +1,22 @@
+import { ArrayPolygon } from "./interfaces";
+
 export function generateNFPCacheKey(
-  idA: number,
-  idB: number,
-  roationA: number,
-  rotationB: number,
+  rotationSplit: number,
   inside: boolean,
-  rotationSplit: number
+  polygon1: ArrayPolygon,
+  polygon2: ArrayPolygon,
+  rotation1: number = polygon1.rotation,
+  rotation2: number = polygon2.rotation
 ) {
   const rotationOffset: number = Math.round(360 / rotationSplit);
-  const rotationIndexA: number = Math.round(roationA / rotationOffset);
-  const rotationIndexB: number = Math.round(rotationB / rotationOffset);
+  const rotationIndex1: number = Math.round(rotation1 / rotationOffset);
+  const rotationIndex2: number = Math.round(rotation2 / rotationOffset);
 
   return (
-    ((idA + 1) << 0) +
-    ((idB + 1) << 10) +
-    (rotationIndexA << 19) +
-    (rotationIndexB << 23) +
+    ((polygon1.id + 1) << 0) +
+    ((polygon2.id + 1) << 10) +
+    (rotationIndex1 << 19) +
+    (rotationIndex2 << 23) +
     ((inside ? 1 : 0) << 27)
   );
 }

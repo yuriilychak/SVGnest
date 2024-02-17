@@ -1,8 +1,15 @@
 ﻿import { SharedWorker } from "./shared-worker";
 import Operation from "./opertaion";
+import { Options } from "./interfaces";
 
 export default class Parallel {
-  constructor(id, data, env, onSpawn) {
+  private _data: Array<object>;
+  private _options: Options;
+  private _maxWorkers: number;
+  private _operation: Operation;
+  private _onSpawn: Function;
+
+  constructor(id: string, data: Array<object>, env: object, onSpawn: Function) {
     this._data = data;
     this._maxWorkers = navigator.hardwareConcurrency || 4;
     this._options = { id, env };
@@ -10,7 +17,34 @@ export default class Parallel {
     this._onSpawn = onSpawn;
   }
 
-  _spawnWorker(inputWorker) {
+  public then(
+    successCallback: Function,
+    errorCallback: Function = () => {}
+  ): void {
+    const dataOperation = new Operation();
+    const chainOperation = new Operation();
+
+    this._triggerOperation(
+      dataOperation,
+      this._getDataResolveCallback(dataOperation),
+      (error: Error) => dataOperation.reject(error)
+    );
+
+    this._triggerOperation(
+      chainOperation,
+      () => {
+        try {
+          this._processResult(successCallback, chainOperation, this._data);
+        } catch (error) {
+          this._processResult(errorCallback, chainOperation, error);
+        }
+      },
+      (error: Error) =>
+        this._processResult(errorCallback, chainOperation, error)
+    );
+  }
+
+  private _spawnWorker(inputWorker?: Worker): Worker {
     let worker = inputWorker;
 
     if (!worker) {
@@ -25,7 +59,12 @@ export default class Parallel {
     return worker;
   }
 
-  _triggerWorker(worker, data, onMessage, onError) {
+  private _triggerWorker(
+    worker: Worker,
+    data: object,
+    onMessage: (message: MessageEvent) => void,
+    onError: (error: ErrorEvent) => void
+  ): void {
     if (!worker) {
       return;
     }
@@ -35,15 +74,15 @@ export default class Parallel {
     worker.postMessage(data);
   }
 
-  _spawnMapWorker(i, done, worker) {
+  private _spawnMapWorker(i: number, done: Function, worker?: Worker): void {
     this._onSpawn && this._onSpawn();
 
     const resultWorker = this._spawnWorker(worker);
-    const onMessage = (message) => {
+    const onMessage = (message: MessageEvent) => {
       this._data[i] = message.data;
       done(null, resultWorker);
     };
-    const onError = (error) => {
+    const onError = (error: ErrorEvent) => {
       resultWorker.terminate();
       done(error);
     };
@@ -51,12 +90,20 @@ export default class Parallel {
     this._triggerWorker(resultWorker, this._data[i], onMessage, onError);
   }
 
-  _triggerOperation(operation, resolve, reject) {
+  private _triggerOperation(
+    operation: Operation,
+    resolve: Function,
+    reject: Function
+  ): void {
     this._operation.then(resolve, reject);
     this._operation = operation;
   }
 
-  _processResult(callback, operation, data) {
+  private _processResult(
+    callback: Function,
+    operation: Operation,
+    data: any
+  ): void {
     if (callback) {
       const result = callback(data);
 
@@ -70,16 +117,16 @@ export default class Parallel {
     }
   }
 
-  _getDataResolveCallback(operation) {
+  private _getDataResolveCallback(operation: Operation): Function {
     if (!this._data.length) {
       return () => {
         const worker = this._spawnWorker();
-        const onMessage = (message) => {
+        const onMessage = (message: MessageEvent) => {
           worker.terminate();
           this._data = message.data;
           operation.resolve(this._data);
         };
-        const onError = (error) => {
+        const onError = (error: ErrorEvent) => {
           worker.terminate();
           operation.reject(error);
         };
@@ -91,7 +138,7 @@ export default class Parallel {
     let startedOps = 0;
     let doneOps = 0;
 
-    const done = (error, worker) => {
+    const done = (error: Error, worker: Worker): void => {
       if (error) {
         operation.reject(error);
       } else if (++doneOps === this._data.length) {
@@ -116,28 +163,5 @@ export default class Parallel {
         this._spawnMapWorker(startedOps, done);
       }
     };
-  }
-
-  then(successCallback, errorCallback = () => {}) {
-    const dataOperation = new Operation();
-    const chainOperation = new Operation();
-
-    this._triggerOperation(
-      dataOperation,
-      this._getDataResolveCallback(dataOperation),
-      (error) => dataOperation.reject(error)
-    );
-
-    this._triggerOperation(
-      chainOperation,
-      () => {
-        try {
-          this._processResult(successCallback, chainOperation, this._data);
-        } catch (error) {
-          this._processResult(errorCallback, chainOperation, error);
-        }
-      },
-      (error) => this._processResult(errorCallback, chainOperation, error)
-    );
   }
 }

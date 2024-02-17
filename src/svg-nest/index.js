@@ -1,1 +1,1 @@
-export { default as SvgNest } from "./svgnest";
+export { default as SvgNest } from "./svg-nest";

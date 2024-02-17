@@ -75,28 +75,28 @@ function minkowskiDifference(A, B) {
   let clipperNfp;
   let largestArea = null;
   let n;
-  let sarea;
-  const Ac = toClipperCoordinates(A);
-  const Bc = toClipperCoordinates(B);
+  let sArea;
+  const clippedA = toClipperCoordinates(A);
+  const clippedB = toClipperCoordinates(B);
 
-  ClipperLib.JS.ScaleUpPath(Ac, 10000000);
-  ClipperLib.JS.ScaleUpPath(Bc, 10000000);
+  ClipperLib.JS.ScaleUpPath(clippedA, 10000000);
+  ClipperLib.JS.ScaleUpPath(clippedB, 10000000);
 
-  for (i = 0; i < Bc.length; ++i) {
-    Bc[i].X *= -1;
-    Bc[i].Y *= -1;
+  for (i = 0; i < clippedB.length; ++i) {
+    clippedB[i].X *= -1;
+    clippedB[i].Y *= -1;
   }
 
-  const solutions = ClipperLib.Clipper.MinkowskiSum(Ac, Bc, true);
+  const solutions = ClipperLib.Clipper.MinkowskiSum(clippedA, clippedB, true);
   const solutionCount = solutions.length;
 
   for (i = 0; i < solutionCount; ++i) {
     n = toNestCoordinates(solutions[i], 10000000);
-    sarea = polygonArea(n);
+    sArea = polygonArea(n);
 
-    if (largestArea === null || largestArea > sarea) {
+    if (largestArea === null || largestArea > sArea) {
       clipperNfp = n;
-      largestArea = sarea;
+      largestArea = sArea;
     }
   }
 
@@ -132,7 +132,7 @@ export default function pairData(pair, env) {
 
     // ensure all interior NFPs have the same winding direction
     if (nfp && nfp.length > 0) {
-      for (i = 0; i < nfp.length; i++) {
+      for (i = 0; i < nfp.length; ++i) {
         if (polygonArea(nfp[i]) > 0) {
           nfp[i].reverse();
         }
@@ -156,7 +156,7 @@ export default function pairData(pair, env) {
       return null;
     }
 
-    for (i = 0; i < nfp.length; i++) {
+    for (i = 0; i < nfp.length; ++i) {
       if (!searchEdges || i == 0) {
         // if searchedges is active, only the first NFP is guaranteed to pass sanity check
         if (Math.abs(polygonArea(nfp[i])) < Math.abs(polygonArea(A))) {
@@ -184,12 +184,12 @@ export default function pairData(pair, env) {
         nfp[i].reverse();
       }
 
-      if (i > 0) {
-        if (pointInPolygon(nfp[i][0], nfp[0])) {
-          if (polygonArea(nfp[i]) < 0) {
-            nfp[i].reverse();
-          }
-        }
+      if (
+        i > 0 &&
+        pointInPolygon(nfp[i][0], nfp[0]) &&
+        polygonArea(nfp[i]) < 0
+      ) {
+        nfp[i].reverse();
       }
     }
 
