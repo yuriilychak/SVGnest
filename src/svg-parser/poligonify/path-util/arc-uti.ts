@@ -1,5 +1,4 @@
 import FloatPoint from "../../../float-point";
-import { withinDistance } from "../../../geometry-util";
 
 const MAX_ANGLE: number = 360;
 const MID_ANGLE: number = 180;
@@ -235,22 +234,19 @@ export default function linearize(
   const todo: Array<ArcConfig> = [arc]; // list of arcs to divide
   let fullArc: SvgArcConfig;
   let subArc: SvgArcConfig;
-  let arcMid: FloatPoint;
-  let mid: FloatPoint;
   let arc1: ArcConfig;
   let arc2: ArcConfig;
+  const squearTolerance = tol * tol;
 
   // recursion could stack overflow, loop instead
   while (todo.length > 0) {
     arc = todo[0];
     fullArc = arc.toSvg(1);
     subArc = arc.toSvg(0.5);
-    arcMid = subArc.p2;
-    mid = fullArc.mid;
 
     // compare midpoint of line with midpoint of arc
     // this is not 100% accurate, but should be a good heuristic for flatness in most cases
-    if (withinDistance(mid, arcMid, tol)) {
+    if (FloatPoint.sub(subArc.p2, fullArc.mid).squareLength < squearTolerance) {
       finished.unshift(fullArc.p2);
       todo.shift();
     } else {

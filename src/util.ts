@@ -1,5 +1,16 @@
 import { ArrayPolygon } from "./interfaces";
 
+// floating point comparison tolerance
+const TOLEARANCE: number = Math.pow(10, -9); // Floating point error is likely to be above 1 epsilon
+
+export function almostEqual(
+  a: number,
+  b: number,
+  tolerance: number = TOLEARANCE
+): boolean {
+  return Math.abs(a - b) < tolerance;
+}
+
 export function generateNFPCacheKey(
   rotationSplit: number,
   inside: boolean,

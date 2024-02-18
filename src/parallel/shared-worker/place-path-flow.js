@@ -1,11 +1,8 @@
 import ClipperLib from "js-clipper";
-import {
-  polygonArea,
-  getPolygonBounds,
-  almostEqual
-} from "../../geometry-util";
+import { polygonArea, getPolygonBounds } from "../../geometry-util";
 import { generateNFPCacheKey } from "../../util";
 import FloatPoint from "../../float-point";
+import { almostEqual } from "../../util";
 
 // jsClipper uses X/Y instead of x/y...
 function toClipperCoordinates(polygon) {

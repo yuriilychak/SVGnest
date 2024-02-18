@@ -1,6 +1,6 @@
 import ClipperLib from "js-clipper";
 
-import { almostEqual } from "../../geometry-util";
+import { almostEqual } from "../../util";
 
 export default class SharedPolygon {
   constructor(configuration, polygons) {

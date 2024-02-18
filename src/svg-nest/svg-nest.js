@@ -6,7 +6,8 @@
 import { GeneticAlgorithm } from "../genetic-algorithm";
 import { SvgParser } from "../svg-parser";
 import { Parallel } from "../parallel";
-import { polygonArea, almostEqual } from "../geometry-util";
+import { polygonArea } from "../geometry-util";
+import { almostEqual } from "../util";
 import { TreePolygon, BinPolygon } from "./polygon";
 import { generateNFPCacheKey } from "../util";
 
@@ -32,7 +33,7 @@ export default class SvgNest {
     };
 
     this._isWorking = false;
-    this._genethicAlgorithm = null;
+    this._genethicAlgorithm = new GeneticAlgorithm();
     this._best = null;
     this._workerTimer = null;
     this._progress = 0;
@@ -123,7 +124,7 @@ export default class SvgNest {
     this._best = null;
     this._nfpCache.clear();
     this._binPolygon = null;
-    this._genethicAlgorithm = null;
+    this._genethicAlgorithm.clear();
 
     return this._configuration;
   }
@@ -187,16 +188,16 @@ export default class SvgNest {
   _launchWorkers(displayCallback) {
     let i, j;
 
-    if (this._genethicAlgorithm === null) {
+    if (this._genethicAlgorithm.isEmpty) {
       // initiate new GA
       const adam = this._tree.polygons;
 
       // seed with decreasing area
       adam.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
 
-      this._genethicAlgorithm = new GeneticAlgorithm(
+      this._genethicAlgorithm.init(
         adam,
-        this._binPolygon.polygons,
+        this._binPolygon.bounds,
         this._configuration
       );
     }
@@ -321,9 +322,10 @@ export default class SvgNest {
               let numPlacedParts = 0;
               let bestPlacement;
               const numParts = placeList.length;
+              const binArea = Math.abs(this._binPolygon.area);
 
               for (i = 0; i < this._best.placements.length; ++i) {
-                totalArea += Math.abs(this._binPolygon.area);
+                totalArea += binArea;
                 bestPlacement = this._best.placements[i];
 
                 numPlacedParts += bestPlacement.length;

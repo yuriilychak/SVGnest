@@ -1,5 +1,5 @@
 import FloatPoint from "../../float-point";
-import { almostEqual } from "../../geometry-util";
+import { almostEqual } from "../../util";
 import { PrimitiveTagName } from "../enums";
 import { Arc, CubicBezier, QuadraticBezier } from "./path-util";
 

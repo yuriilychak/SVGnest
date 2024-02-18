@@ -1,4 +1,5 @@
-import { getPolygonBounds, rotatePolygon } from "../geometry-util";
+import FloatRect from "../float-rect";
+import { rotatePolygon } from "../geometry-util";
 import { ArrayPolygon, BoundRect, GeneticAlgorithmConfig } from "../interfaces";
 import Phenotype from "./phenotype";
 
@@ -8,23 +9,34 @@ const DEFAULT_CONFIG: GeneticAlgorithmConfig = {
   rotations: 4
 };
 
+const DEFAULT_BOUNDS: FloatRect = new FloatRect();
+
 export default class GeneticAlgorithm {
   private _population: Array<Phenotype>;
   private _config: GeneticAlgorithmConfig;
   private _binBounds: BoundRect;
+  private _isEmpty: boolean;
 
-  constructor(
+  constructor() {
+    this._isEmpty = true;
+    this._population = new Array<Phenotype>();
+    this._config = DEFAULT_CONFIG;
+    this._binBounds = DEFAULT_BOUNDS;
+  }
+
+  public init(
     adam: Array<ArrayPolygon>,
-    bin: ArrayPolygon,
+    binBounds: BoundRect,
     config: GeneticAlgorithmConfig = DEFAULT_CONFIG
-  ) {
+  ): void {
+    this._isEmpty = false;
     this._config = config;
-    this._binBounds = getPolygonBounds(bin);
+    this._binBounds = binBounds;
 
     // population is an array of individuals. Each individual is a object representing the order of insertion and the angle each part is rotated
-    const angles = [];
-    let i = 0;
-    let mutant;
+    const angles: Array<number> = [];
+    let i: number = 0;
+    let mutant: Phenotype;
     for (i = 0; i < adam.length; ++i) {
       angles.push(this._randomAngle(adam[i]));
     }
@@ -37,7 +49,16 @@ export default class GeneticAlgorithm {
     }
   }
 
-  public generation(): void {
+  public clear(): void {
+    if (!this._isEmpty) {
+      this._isEmpty = true;
+      this._population.length = 0;
+      this._binBounds = DEFAULT_BOUNDS;
+      this._config = DEFAULT_CONFIG;
+    }
+  }
+
+  private _generation(): void {
     // Individuals with higher fitness are more likely to be selected for mating
     this._population.sort((a, b) => a.fitness - b.fitness);
 
@@ -64,20 +85,6 @@ export default class GeneticAlgorithm {
     }
 
     this._population = result;
-  }
-
-  public get individual(): Phenotype | null {
-    let i: number = 0;
-    // evaluate all members of the population
-    for (i = 0; i < this._population.length; ++i) {
-      if (!this._population[i].fitness) {
-        return this._population[i];
-      }
-    }
-
-    // all individuals have been evaluated, start next generation
-    this.generation();
-    return this._population[1] || null;
   }
 
   // returns a random angle of insertion
@@ -185,6 +192,28 @@ export default class GeneticAlgorithm {
     return localPopulation[0];
   }
 
+  public get individual(): Phenotype | null {
+    let i: number = 0;
+    // evaluate all members of the population
+    for (i = 0; i < this._population.length; ++i) {
+      if (!this._population[i].fitness) {
+        return this._population[i];
+      }
+    }
+
+    // all individuals have been evaluated, start next generation
+    this._generation();
+    return this._population[1] || null;
+  }
+
+  public get population(): Array<Phenotype> {
+    return this._population;
+  }
+
+  public get isEmpty(): boolean {
+    return this._isEmpty;
+  }
+
   static shuffle(angleList: Array<number>): Array<number> {
     const lastIndex: number = angleList.length - 1;
     let i: number = 0;
@@ -199,9 +228,5 @@ export default class GeneticAlgorithm {
     }
 
     return angleList;
-  }
-
-  public get population(): Array<Phenotype> {
-    return this._population;
   }
 }

@@ -1,4 +1,5 @@
 import { Point } from "./interfaces";
+import { almostEqual } from "./util";
 
 export default class FloatPoint implements Point {
   private _data: Float32Array = new Float32Array(2);
@@ -92,6 +93,58 @@ export default class FloatPoint implements Point {
     return FloatPoint.almostEqual(this, point, tolerance);
   }
 
+  // returns true if p lies on the line segment defined by AB, but not at any endpoints
+  // may need work!
+  public onSegment(a: Point, b: Point): boolean {
+    const tolerance: number = Math.pow(10, -9);
+    const max: FloatPoint = FloatPoint.from(a).max(b);
+    const min: FloatPoint = FloatPoint.from(a).min(b);
+    const offsetAB: FloatPoint = FloatPoint.sub(a, b);
+    const offsetAP: FloatPoint = FloatPoint.sub(a, this);
+    // vertical line
+    if (Math.abs(offsetAB.x) < tolerance && Math.abs(offsetAP.x) < tolerance) {
+      return (
+        !almostEqual(this.y, b.y) &&
+        !almostEqual(this.y, a.y) &&
+        this.y < max.y &&
+        this.y > min.y
+      );
+    }
+
+    // horizontal line
+    if (Math.abs(offsetAB.x) < tolerance && Math.abs(offsetAP.x) < tolerance) {
+      return (
+        !almostEqual(this.x, b.x) &&
+        !almostEqual(this.x, a.x) &&
+        this.x < max.x &&
+        this.x > min.x
+      );
+    }
+
+    //range check
+    if (this.x < min.x || this.x > max.x || this.y < min.y || this.y > max.y) {
+      return false;
+    }
+
+    // exclude end points
+    if (
+      FloatPoint.almostEqual(this, a) ||
+      FloatPoint.almostEqual(this, b) ||
+      Math.abs(offsetAP.cross(offsetAB, -1)) > tolerance
+    ) {
+      return false;
+    }
+
+    const dot: number = offsetAP.dot(offsetAB);
+    const len2: number = offsetAB.squareLength;
+
+    if (dot < tolerance || dot > len2 || almostEqual(dot, len2)) {
+      return false;
+    }
+
+    return true;
+  }
+
   public get x(): number {
     return this._data[0];
   }
@@ -153,5 +206,15 @@ export default class FloatPoint implements Point {
 
   public static reverse(value: Point): FloatPoint {
     return new FloatPoint(-value.x, -value.y);
+  }
+
+  // normalize vector into a unit vector
+  public static normalizeVector(v: Point): FloatPoint {
+    const point = FloatPoint.from(v);
+
+    // given vector was already a unit vector
+    return almostEqual(point.squareLength, 1)
+      ? point
+      : point.scale(1 / point.length);
   }
 }

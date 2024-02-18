@@ -2,11 +2,10 @@ import ClipperLib from "js-clipper";
 import {
   polygonArea,
   getPolygonBounds,
-  isRectangle,
-  noFitPolygonRectangle,
-  noFitPolygon,
   pointInPolygon
 } from "../../geometry-util";
+import { noFitPolygonRectangle, noFitPolygon } from "./geometry-util";
+import { isRectangle } from "./util";
 import FloatPoint from "../../float-point";
 import { keyToNFPData } from "../../util";
 

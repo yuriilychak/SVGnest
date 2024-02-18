@@ -6,7 +6,12 @@ export default class FloatRect implements BoundRect {
   private _topRight: FloatPoint = new FloatPoint();
   private _size: FloatPoint = new FloatPoint();
 
-  constructor(x: number, y: number, width: number, height: number) {
+  constructor(
+    x: number = 0,
+    y: number = 0,
+    width: number = 0,
+    height: number = 0
+  ) {
     this._bottomLeft.update(x, y);
     this._topRight.update(x + width, y + height);
     this._size.update(width, height);
