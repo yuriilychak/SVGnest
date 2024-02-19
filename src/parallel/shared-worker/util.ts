@@ -1,3 +1,9 @@
+/*!
+ * General purpose geometry functions for polygon/Bezier calculations
+ * Copyright 2015 Jack Qiao
+ * Licensed under the MIT license
+ */
+
 import FloatPoint from "../../float-point";
 import FloatRect from "../../float-rect";
 import { getPolygonBounds, pointInPolygon } from "../../geometry-util";
@@ -374,8 +380,8 @@ function segmentDistance(
 }
 
 export function polygonSlideDistance(
-  A: ArrayPolygon,
-  B: ArrayPolygon,
+  a: ArrayPolygon,
+  b: ArrayPolygon,
   direction: Point,
   ignoreNegative: boolean
 ): number {
@@ -383,11 +389,11 @@ export function polygonSlideDistance(
   const a2: FloatPoint = new FloatPoint();
   const b1: FloatPoint = new FloatPoint();
   const b2: FloatPoint = new FloatPoint();
-  const offsetA: FloatPoint = new FloatPoint(A.offsetx || 0, A.offsety || 0);
-  const offsetB: FloatPoint = new FloatPoint(B.offsetx || 0, B.offsety || 0);
+  const offsetA: FloatPoint = new FloatPoint(a.offsetx || 0, a.offsety || 0);
+  const offsetB: FloatPoint = new FloatPoint(b.offsetx || 0, b.offsety || 0);
   const dir: FloatPoint = FloatPoint.normalizeVector(direction);
-  const edgeA: ArrayPolygon = A.slice(0) as ArrayPolygon;
-  const edgeB: ArrayPolygon = B.slice(0) as ArrayPolygon;
+  const edgeA: ArrayPolygon = a.slice(0) as ArrayPolygon;
+  const edgeB: ArrayPolygon = b.slice(0) as ArrayPolygon;
   let sizeA: number = edgeA.length;
   let sizeB: number = edgeB.length;
   let result: number | null = null;
@@ -407,15 +413,15 @@ export function polygonSlideDistance(
   }
 
   for (i = 0; i < sizeB - 1; ++i) {
-    b1.set(edgeB[i]).add(offsetB);
-    b2.set(edgeB[i + 1]).add(offsetB);
+    b1.set(edgeB.at(i)).add(offsetB);
+    b2.set(edgeB.at(i + 1)).add(offsetB);
 
     if (FloatPoint.almostEqual(b1, b2)) {
       continue;
     }
 
     for (j = 0; j < sizeA - 1; ++j) {
-      a1.set(edgeA[j]).add(offsetA);
+      a1.set(edgeA.at(j)).add(offsetA);
       a2.set(edgeA[j + 1]).add(offsetA);
 
       if (FloatPoint.almostEqual(a1, a2)) {
@@ -439,14 +445,14 @@ export function polygonSlideDistance(
 
 // project each point of B onto A in the given direction, and return the
 function polygonProjectionDistance(
-  A: ArrayPolygon,
-  B: ArrayPolygon,
+  a: ArrayPolygon,
+  b: ArrayPolygon,
   direction: Point
 ): number | null {
-  const offsetA = new FloatPoint(A.offsetx || 0, A.offsety || 0);
-  const offsetB = new FloatPoint(B.offsetx || 0, B.offsety || 0);
-  const edgeA: ArrayPolygon = A.slice(0) as ArrayPolygon;
-  const edgeB: ArrayPolygon = B.slice(0) as ArrayPolygon;
+  const offsetA = new FloatPoint(a.offsetx || 0, a.offsety || 0);
+  const offsetB = new FloatPoint(b.offsetx || 0, b.offsety || 0);
+  const edgeA: ArrayPolygon = a.slice(0) as ArrayPolygon;
+  const edgeB: ArrayPolygon = b.slice(0) as ArrayPolygon;
   const p: FloatPoint = new FloatPoint();
   const s1: FloatPoint = new FloatPoint();
   const s2: FloatPoint = new FloatPoint();
@@ -472,7 +478,7 @@ function polygonProjectionDistance(
   for (i = 0; i < sizeB; ++i) {
     // the shortest/most negative projection of B onto A
     minProjection = null;
-    p.set(edgeB[i]).add(offsetB);
+    p.set(edgeB.at(i)).add(offsetB);
 
     for (j = 0; j < sizeA - 1; ++j) {
       s1.set(edgeA.at(j)).add(offsetA);
@@ -538,7 +544,7 @@ export function searchStartPoint(
   }
 
   for (i = 0; i < sizeA - 1; ++i) {
-    if (!edgeA[i].marked) {
+    if (!edgeA.at(i).marked) {
       edgeA.at(i).marked = true;
       for (j = 0; j < sizeB; ++j) {
         offset.set(edgeA.at(i)).sub(edgeB.at(j));
@@ -640,4 +646,347 @@ export function searchStartPoint(
   }
 
   return null;
+}
+
+// given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
+// if the inside flag is set, B is orbited inside of A rather than outside
+// if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
+export function noFitPolygon(
+  a: ArrayPolygon,
+  b: ArrayPolygon,
+  inside: boolean,
+  searchEdges: boolean
+) {
+  if (a.length < 3 || b.length < 3) {
+    return null;
+  }
+
+  a.offsetx = 0;
+  a.offsety = 0;
+
+  const sizeA: number = a.length;
+  const sizeB: number = b.length;
+  let i: number = 0;
+  let j: number = 0;
+  let minA: number = a.at(0).y;
+  let minAIndex: number = 0;
+  let maxB: number = b.at(0).y;
+  let maxBIndex: number = 0;
+
+  for (i = 1; i < sizeA; ++i) {
+    a.at(i).marked = false;
+
+    if (a.at(i).y < minA) {
+      minA = a.at(i).y;
+      minAIndex = i;
+    }
+  }
+
+  for (i = 1; i < sizeB; ++i) {
+    b.at(i).marked = false;
+
+    if (b.at(i).y > maxB) {
+      maxB = b.at(i).y;
+      maxBIndex = i;
+    }
+  }
+
+  let startPoint: FloatPoint | null = !inside
+    ? // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
+      FloatPoint.sub(b[maxBIndex], a[minAIndex])
+    : // no reliable heuristic for inside
+      searchStartPoint(a, b, true);
+  let reference: FloatPoint = new FloatPoint();
+  let start: FloatPoint = new FloatPoint();
+  let offset: FloatPoint = new FloatPoint();
+  const point1: FloatPoint = new FloatPoint();
+  const point2: FloatPoint = new FloatPoint();
+  const point3: FloatPoint = new FloatPoint();
+  const prevUnit: FloatPoint = new FloatPoint();
+  const unitV: FloatPoint = new FloatPoint();
+  const nfpList: Array<Array<Point>> = [];
+  const sumSize: number = sizeA + sizeB;
+  let counter: number = 0;
+  // maintain a list of touching points/edges
+  let touching: Array<{ A: number; B: number; type: number }>;
+  let vectors: Array<Point>;
+  let vectorA1: Point;
+  let vectorA2: Point;
+  let vectorB1: Point;
+  let vectorB2: Point;
+  let looped: boolean = false;
+  let prevVector: Point | null = null;
+  let nfp: Array<FloatPoint> = null;
+  let vLength2: number = 0;
+  let prevAIndex: number = 0;
+  let nextAIndex: number = 0;
+  let prevBIndex: number = 0;
+  let nextBIndex: number = 0;
+  let distance: number = 0;
+  let maxDistance: number = 0;
+  let translate: Point | null;
+  let prevA: Point;
+  let nextA: Point;
+  let prevB: Point;
+  let nextB: Point;
+  let vertexA: Point;
+  let vertexB: Point;
+  let touchingItem: { A: number; B: number; type: number };
+
+  while (startPoint !== null) {
+    offset.set(startPoint);
+    b.offsetx = offset.x;
+    b.offsety = offset.y;
+
+    prevVector = null; // keep track of previous vector
+    nfp = [FloatPoint.add(b.at(0), startPoint)];
+
+    reference.set(b.at(0)).add(startPoint);
+    start.set(reference);
+    counter = 0;
+
+    while (counter < 10 * sumSize) {
+      // sanity check, prevent infinite loop
+      touching = [];
+      // find touching vertices/edges
+      for (i = 0; i < sizeA; ++i) {
+        for (j = 0; j < sizeB; ++j) {
+          point1.set(b.at(j)).add(offset);
+          point2.set(b.at((j + 1) % sizeB)).add(offset);
+          point3.set(a.at(i));
+
+          if (FloatPoint.almostEqual(a.at(i), point1)) {
+            touching.push({ type: 0, A: i, B: j });
+          } else if (point1.onSegment(a.at(i), a.at((i + 1) % sizeA))) {
+            touching.push({ type: 1, A: (i + 1) % sizeA, B: j });
+          } else if (point3.onSegment(point1, point2)) {
+            touching.push({ type: 2, A: i, B: (j + 1) % sizeB });
+          }
+        }
+      }
+
+      // generate translation vectors from touching vertices/edges
+      vectors = [];
+
+      for (i = 0; i < touching.length; ++i) {
+        touchingItem = touching.at(i);
+        vertexA = a.at(touchingItem.A);
+        vertexA.marked = true;
+
+        // adjacent A vertices
+        prevAIndex = (touchingItem.A - 1 + sizeA) % sizeA; // loop
+        nextAIndex = (touchingItem.A + 1) % sizeA; // loop
+
+        prevA = a.at(prevAIndex);
+        nextA = a.at(nextAIndex);
+
+        // adjacent B vertices
+        vertexB = b.at(touchingItem.B);
+        prevBIndex = (touchingItem.B - 1 + sizeB) % sizeB;
+        nextBIndex = (touchingItem.B + 1) % sizeB;
+
+        prevB = b.at(prevBIndex);
+        nextB = b.at(nextBIndex);
+
+        if (touchingItem.type == 0) {
+          vectorA1 = FloatPoint.sub(vertexA, prevA);
+          vectorA2 = FloatPoint.sub(vertexA, nextA);
+          // B vectors need to be inverted
+          vectorB1 = FloatPoint.sub(prevB, vertexB);
+          vectorB2 = FloatPoint.sub(nextB, vertexB);
+
+          (vectorA1.start = vertexA), (vectorA1.end = prevA);
+          (vectorA2.start = vertexA), (vectorA2.end = nextA);
+          (vectorB1.start = prevB), (vectorB1.end = vertexB);
+          (vectorB2.start = nextB), (vectorB2.end = vertexB);
+
+          vectors.push(vectorA1);
+          vectors.push(vectorA2);
+          vectors.push(vectorB1);
+          vectors.push(vectorB2);
+        } else if (touchingItem.type == 1) {
+          vectors.push({
+            x: vertexA.x - (vertexB.x + offset.x),
+            y: vertexA.y - (vertexB.y + offset.y),
+            start: prevA,
+            end: vertexA
+          });
+
+          vectors.push({
+            x: prevA.x - (vertexB.x + offset.x),
+            y: prevA.y - (vertexB.y + offset.y),
+            start: vertexA,
+            end: prevA
+          });
+        } else if (touchingItem.type == 2) {
+          vectors.push({
+            x: vertexA.x - (vertexB.x + offset.x),
+            y: vertexA.y - (vertexB.y + offset.y),
+            start: prevB,
+            end: vertexB
+          });
+
+          vectors.push({
+            x: vertexA.x - (prevB.x + offset.x),
+            y: vertexA.y - (prevB.y + offset.y),
+            start: vertexB,
+            end: prevB
+          });
+        }
+      }
+
+      // todo: there should be a faster way to reject vectors that will cause immediate intersection. For now just check them all
+
+      translate = null;
+      maxDistance = 0;
+
+      for (i = 0; i < vectors.length; ++i) {
+        if (vectors.at(i).x === 0 && vectors.at(i).y === 0) {
+          continue;
+        }
+
+        // if this vector points us back to where we came from, ignore it.
+        // ie cross product = 0, dot product < 0
+        point1.set(vectors.at(i));
+
+        if (prevVector && point1.dot(prevVector) < 0) {
+          point2.set(prevVector);
+          // compare magnitude with unit vectors
+          unitV.set(point1).scale(1 / point1.length);
+          prevUnit.set(prevVector).scale(1 / point2.length);
+
+          // we need to scale down to unit vectors to normalize vector length. Could also just do a tan here
+          if (Math.abs(unitV.cross(prevUnit, -1)) < 0.0001) {
+            continue;
+          }
+        }
+
+        distance = polygonSlideDistance(a, b, point1, true);
+
+        if (distance === null || distance * distance > point1.squareLength) {
+          distance = point1.length;
+        }
+
+        if (distance !== null && distance > maxDistance) {
+          maxDistance = distance;
+          translate = vectors.at(i);
+        }
+      }
+
+      if (translate === null || almostEqual(maxDistance, 0)) {
+        // didn't close the loop, something went wrong here
+        nfp = null;
+        break;
+      }
+
+      translate.start.marked = true;
+      translate.end.marked = true;
+
+      prevVector = translate;
+
+      // trim
+      vLength2 = translate.x * translate.x + translate.y * translate.y;
+
+      if (
+        maxDistance * maxDistance < vLength2 &&
+        !almostEqual(maxDistance * maxDistance, vLength2)
+      ) {
+        var scale = Math.sqrt((maxDistance * maxDistance) / vLength2);
+        translate.x *= scale;
+        translate.y *= scale;
+      }
+
+      reference.add(translate);
+
+      if (reference.almostEqual(start)) {
+        // we've made a full loop
+        break;
+      }
+
+      // if A and B start on a touching horizontal line, the end point may not be the start point
+      looped = false;
+
+      if (nfp.length > 0) {
+        for (i = 0; i < nfp.length - 1; ++i) {
+          if (reference.almostEqual(nfp.at(i))) {
+            looped = true;
+            break;
+          }
+        }
+      }
+
+      if (looped) {
+        // we've made a full loop
+        break;
+      }
+
+      nfp.push(reference.clone());
+
+      offset.add(translate);
+      b.offsetx = offset.x;
+      b.offsety = offset.y;
+
+      ++counter;
+    }
+
+    if (nfp && nfp.length > 0) {
+      nfpList.push(nfp);
+    }
+
+    if (!searchEdges) {
+      // only get outer NFP or first inner NFP
+      break;
+    }
+
+    startPoint = searchStartPoint(a, b, inside, nfpList);
+  }
+
+  return nfpList;
+}
+
+// returns an interior NFP for the special case where A is a rectangle
+export function noFitPolygonRectangle(
+  a: ArrayPolygon,
+  b: ArrayPolygon
+): Array<Array<Point>> | null {
+  const firstA: Point = a.at(0);
+  const firstB: Point = b.at(0);
+  const minA: FloatPoint = FloatPoint.from(firstA);
+  const maxA: FloatPoint = FloatPoint.from(firstA);
+  const minB: FloatPoint = FloatPoint.from(firstB);
+  const maxB: FloatPoint = FloatPoint.from(firstB);
+  let i: number = 0;
+  let point: Point;
+
+  for (i = 1; i < a.length; ++i) {
+    point = a.at(i);
+    minA.min(point);
+    maxA.max(point);
+  }
+
+  for (i = 1; i < b.length; ++i) {
+    point = b.at(i);
+    minB.min(point);
+    maxB.max(point);
+  }
+
+  const offsetA: FloatPoint = FloatPoint.sub(minA, maxA);
+  const offsetB: FloatPoint = FloatPoint.sub(minB, maxB);
+
+  if (offsetB.x > offsetA.x || offsetB.y > offsetA.y) {
+    return null;
+  }
+
+  const minABSum: FloatPoint = FloatPoint.add(minA, firstB);
+  const maxABSum: FloatPoint = FloatPoint.add(maxA, firstB);
+
+  //TODO: refactor when clipper logic will be removed
+  return [
+    [
+      { x: minABSum.x - minB.x, y: minABSum.y - minB.y },
+      { x: maxABSum.x - maxB.x, y: minABSum.y - minB.y },
+      { x: maxABSum.x - maxB.x, y: maxABSum.y - maxB.y },
+      { x: minABSum.x - minB.x, y: maxABSum.y - maxB.y }
+    ]
+  ];
 }

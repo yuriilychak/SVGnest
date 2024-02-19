@@ -4,8 +4,7 @@ import {
   getPolygonBounds,
   pointInPolygon
 } from "../../geometry-util";
-import { noFitPolygonRectangle, noFitPolygon } from "./geometry-util";
-import { isRectangle } from "./util";
+import { isRectangle, noFitPolygon, noFitPolygonRectangle } from "./util";
 import FloatPoint from "../../float-point";
 import { keyToNFPData } from "../../util";
 

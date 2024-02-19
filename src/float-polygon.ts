@@ -177,4 +177,28 @@ export default class FloatPolygon {
   public get offset(): FloatPoint {
     return this._offset;
   }
+
+  public get min(): FloatPoint {
+    const result = FloatPoint.from(this._points[0]);
+    let i: number = 0;
+    const pointCount = this._points.length;
+
+    for (i = 1; i < pointCount; ++i) {
+      result.min(this._points[i]);
+    }
+
+    return result;
+  }
+
+  public get max(): FloatPoint {
+    const result = FloatPoint.from(this._points[0]);
+    let i: number = 0;
+    const pointCount = this._points.length;
+
+    for (i = 1; i < pointCount; ++i) {
+      result.max(this._points[i]);
+    }
+
+    return result;
+  }
 }
