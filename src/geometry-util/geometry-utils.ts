@@ -45,7 +45,7 @@ export function getPolygonBounds(polygon: ArrayPolygon): FloatRect | null {
 }
 
 export function rotatePolygon(
-  polygon: Array<Point>,
+  polygon: ArrayPolygon,
   angle: number
 ): ArrayPolygon {
   const result: ArrayPolygon = new Array<Point>() as ArrayPolygon;
@@ -56,6 +56,17 @@ export function rotatePolygon(
   for (i = 0; i < pointCount; ++i) {
     result.push(FloatPoint.from(polygon.at(i)).rotate(radianAngle));
   }
+
+  if (polygon.children && polygon.children.length > 0) {
+    const childCount = polygon.children.length;
+
+    result.children = [];
+
+    for (i = 0; i < childCount; ++i) {
+      result.children.push(rotatePolygon(polygon.children[i], angle));
+    }
+  }
+
   // reset bounding box
   const bounds = getPolygonBounds(result);
   result.x = bounds.x;
@@ -107,6 +118,43 @@ export function pointInPolygon(point: Point, polygon: ArrayPolygon): boolean {
     ) {
       result = !result;
     }
+  }
+
+  return result;
+}
+
+// jsClipper uses X/Y instead of x/y...
+export function toClipperCoordinates(
+  polygon: ArrayPolygon
+): Array<{ X: number; Y: number }> {
+  const size: number = polygon.length;
+  const result: Array<{ X: number; Y: number }> = [];
+  let i: number = 0;
+  let point: Point;
+
+  for (i = 0; i < size; ++i) {
+    point = polygon[i];
+    result.push({ X: point.x, Y: point.y });
+  }
+
+  return result;
+}
+
+export function toNestCoordinates(
+  polygon: Array<{ X: number; Y: number }>,
+  scale: number
+): ArrayPolygon {
+  const size: number = polygon.length;
+  const result: ArrayPolygon = new Array<Point>() as ArrayPolygon;
+  let i: number = 0;
+  let point: { X: number; Y: number };
+
+  for (i = 0; i < size; ++i) {
+    point = polygon[i];
+    result.push({
+      x: point.X / scale,
+      y: point.Y / scale
+    });
   }
 
   return result;

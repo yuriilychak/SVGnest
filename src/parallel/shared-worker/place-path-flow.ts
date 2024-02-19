@@ -1,66 +1,21 @@
+//@ts-ignore
 import ClipperLib from "js-clipper";
-import { polygonArea, getPolygonBounds } from "../../geometry-util";
+import {
+  polygonArea,
+  getPolygonBounds,
+  rotatePolygon,
+  toClipperCoordinates,
+  toNestCoordinates
+} from "../../geometry-util";
 import { generateNFPCacheKey } from "../../util";
 import FloatPoint from "../../float-point";
 import { almostEqual } from "../../util";
+import { ArrayPolygon, PlacePairConfiguration, Point } from "../../interfaces";
 
-// jsClipper uses X/Y instead of x/y...
-function toClipperCoordinates(polygon) {
-  const size = polygon.length;
-  const result = [];
-  let i = 0;
-  let point;
-
-  for (i = 0; i < size; ++i) {
-    point = polygon[i];
-    result.push({ X: point.x, Y: point.y });
-  }
-
-  return result;
-}
-
-function toNestCoordinates(polygon, scale) {
-  const size = polygon.length;
-  const result = [];
-  let i = 0;
-  let point;
-
-  for (i = 0; i < size; ++i) {
-    point = polygon[i];
-    result.push({
-      x: point.X / scale,
-      y: point.Y / scale
-    });
-  }
-
-  return result;
-}
-
-function rotatePolygon(polygon, degrees) {
-  const result = [];
-  const angle = (degrees * Math.PI) / 180;
-  const size = polygon.length;
-  let i = 0;
-
-  for (i = 0; i < size; ++i) {
-    result.push(FloatPoint.from(polygon[i]).rotate(angle));
-  }
-
-  if (polygon.children && polygon.children.length > 0) {
-    let j = 0;
-    let childCount = polygon.children.length;
-
-    result.children = [];
-
-    for (j = 0; j < childCount; ++j) {
-      result.children.push(rotatePolygon(polygon.children[j], degrees));
-    }
-  }
-
-  return result;
-}
-
-export default function placePaths(inputPaths, env) {
+export default function placePaths(
+  inputPaths: Array<ArrayPolygon>,
+  env: PlacePairConfiguration
+) {
   if (!env.binPolygon) {
     return null;
   }
@@ -68,17 +23,17 @@ export default function placePaths(inputPaths, env) {
   // rotate paths by given rotation
   const paths = [];
   const allPlacements = [];
-  const binArea = Math.abs(polygonArea(env.binPolygon));
-  let i = 0;
-  let j = 0;
-  let k = 0;
-  let m = 0;
-  let n = 0;
-  let path;
-  let rotatedPath;
-  let fitness = 0;
+  const binArea: number = Math.abs(polygonArea(env.binPolygon));
+  let i: number = 0;
+  let j: number = 0;
+  let k: number = 0;
+  let m: number = 0;
+  let n: number = 0;
+  let path: ArrayPolygon;
+  let rotatedPath: ArrayPolygon;
+  let fitness: number = 0;
   let nfp;
-  let numKey = 0;
+  let numKey: number = 0;
   let placed;
   let placements;
   let binNfp;
@@ -89,23 +44,24 @@ export default function placePaths(inputPaths, env) {
   let combinedNfp;
   let finalNfp;
   let f;
-  let allPoints;
+  let allPoints: ArrayPolygon;
   let index;
   let rectBounds;
-  let minWidth = null;
-  let minArea = null;
-  let minX = null;
+  let minWidth: number | null = null;
+  let minArea: number | null = null;
+  let minX: number | null = null;
   let nf;
-  let area;
-  let shiftVector;
-  let clone;
-  const minScale = 0.1 * env.config.clipperScale * env.config.clipperScale;
-  const cleanTrashold = 0.0001 * env.config.clipperScale;
-  const emptyPath = { id: -1, rotation: 0 };
-  const rotations = env.config.rotations;
+  let area: number;
+  let shiftVector: Point;
+  let clone: Array<{ X: number; Y: number }>;
+  const minScale: number =
+    0.1 * env.config.clipperScale * env.config.clipperScale;
+  const cleanTrashold: number = 0.0001 * env.config.clipperScale;
+  const emptyPath: ArrayPolygon = { id: -1, rotation: 0 } as ArrayPolygon;
+  const rotations: number = env.config.rotations;
 
   for (i = 0; i < inputPaths.length; ++i) {
-    path = inputPaths[i];
+    path = inputPaths.at(i);
     rotatedPath = rotatePolygon(path, path.rotation);
     rotatedPath.rotation = path.rotation;
     rotatedPath.source = path.source;
@@ -119,7 +75,7 @@ export default function placePaths(inputPaths, env) {
     fitness += 1; // add 1 for each new bin opened (lower fitness is better)
 
     for (i = 0; i < paths.length; ++i) {
-      path = paths[i];
+      path = paths.at(i);
 
       // inner NFP
       numKey = generateNFPCacheKey(rotations, true, emptyPath, path);
@@ -134,7 +90,7 @@ export default function placePaths(inputPaths, env) {
       error = false;
 
       for (j = 0; j < placed.length; ++j) {
-        numKey = generateNFPCacheKey(rotations, false, placed[j], path);
+        numKey = generateNFPCacheKey(rotations, false, placed.at(j), path);
 
         if (!env.nfpCache.has(numKey)) {
           error = true;
@@ -152,11 +108,14 @@ export default function placePaths(inputPaths, env) {
       if (placed.length == 0) {
         // first placement, put it on the left
         for (j = 0; j < binNfp.length; ++j) {
-          for (k = 0; k < binNfp[j].length; ++k) {
-            if (position === null || binNfp[j][k].x - path[0].x < position.x) {
+          for (k = 0; k < binNfp.at(j).length; ++k) {
+            if (
+              position === null ||
+              binNfp.at(j).at(k).x - path.at(0).x < position.x
+            ) {
               position = {
-                x: binNfp[j][k].x - path[0].x,
-                y: binNfp[j][k].y - path[0].y,
+                x: binNfp.at(j).at(k).x - path.at(0).x,
+                y: binNfp.at(j).at(k).y - path.at(0).y,
                 id: path.id,
                 rotation: path.rotation
               };
@@ -173,7 +132,7 @@ export default function placePaths(inputPaths, env) {
       clipperBinNfp = [];
 
       for (j = 0; j < binNfp.length; ++j) {
-        clipperBinNfp.push(toClipperCoordinates(binNfp[j]));
+        clipperBinNfp.push(toClipperCoordinates(binNfp.at(j)));
       }
 
       ClipperLib.JS.ScaleUpPaths(clipperBinNfp, env.config.clipperScale);
@@ -182,7 +141,7 @@ export default function placePaths(inputPaths, env) {
       combinedNfp = new ClipperLib.Paths();
 
       for (j = 0; j < placed.length; ++j) {
-        numKey = generateNFPCacheKey(rotations, false, placed[j], path);
+        numKey = generateNFPCacheKey(rotations, false, placed.at(j), path);
 
         if (!env.nfpCache.has(numKey)) {
           continue;
@@ -191,10 +150,10 @@ export default function placePaths(inputPaths, env) {
         nfp = env.nfpCache.get(numKey);
 
         for (k = 0; k < nfp.length; ++k) {
-          clone = toClipperCoordinates(nfp[k]);
+          clone = toClipperCoordinates(nfp.at(k));
           for (m = 0; m < clone.length; ++m) {
-            clone[m].X += placements[j].x;
-            clone[m].Y += placements[j].y;
+            clone.at(m).X += placements.at(j).x;
+            clone.at(m).Y += placements.at(j).y;
           }
 
           ClipperLib.JS.ScaleUpPath(clone, env.config.clipperScale);
@@ -238,9 +197,9 @@ export default function placePaths(inputPaths, env) {
       finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, cleanTrashold);
 
       for (j = 0; j < finalNfp.length; ++j) {
-        area = Math.abs(ClipperLib.Clipper.Area(finalNfp[j]));
+        area = Math.abs(ClipperLib.Clipper.Area(finalNfp.at(j)));
 
-        if (finalNfp[j].length < 3 || area < minScale) {
+        if (finalNfp.at(j).length < 3 || area < minScale) {
           finalNfp.splice(j, 1);
           j--;
         }
@@ -254,7 +213,7 @@ export default function placePaths(inputPaths, env) {
 
       for (j = 0; j < finalNfp.length; ++j) {
         // back to normal scale
-        f.push(toNestCoordinates(finalNfp[j], env.config.clipperScale));
+        f.push(toNestCoordinates(finalNfp.at(j), env.config.clipperScale));
       }
 
       finalNfp = f;
@@ -267,30 +226,32 @@ export default function placePaths(inputPaths, env) {
       minX = null;
 
       for (j = 0; j < finalNfp.length; ++j) {
-        nf = finalNfp[j];
+        nf = finalNfp.at(j);
         if (Math.abs(polygonArea(nf)) < 2) {
           continue;
         }
 
         for (k = 0; k < nf.length; ++k) {
-          allPoints = [];
+          allPoints = new Array<Point>() as ArrayPolygon;
 
           for (m = 0; m < placed.length; ++m) {
-            for (n = 0; n < placed[m].length; ++n) {
-              allPoints.push(FloatPoint.from(placed[m][n]).add(placements[m]));
+            for (n = 0; n < placed.at(m).length; ++n) {
+              allPoints.push(
+                FloatPoint.from(placed.at(m).at(n)).add(placements.at(m))
+              );
             }
           }
 
           shiftVector = {
-            x: nf[k].x - path[0].x,
-            y: nf[k].y - path[0].y,
+            x: nf.at(k).x - path.at(0).x,
+            y: nf.at(k).y - path.at(0).y,
             id: path.id,
             rotation: path.rotation,
             nfp: combinedNfp
           };
 
           for (m = 0; m < path.length; ++m) {
-            allPoints.push(FloatPoint.from(path[m]).add(shiftVector));
+            allPoints.push(FloatPoint.from(path.at(m)).add(shiftVector));
           }
 
           rectBounds = getPolygonBounds(allPoints);
@@ -323,7 +284,7 @@ export default function placePaths(inputPaths, env) {
     }
 
     for (i = 0; i < placed.length; ++i) {
-      index = paths.indexOf(placed[i]);
+      index = paths.indexOf(placed.at(i));
 
       if (index >= 0) {
         paths.splice(index, 1);

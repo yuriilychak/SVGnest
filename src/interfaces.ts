@@ -1,9 +1,12 @@
 export interface Point {
   x: number;
   y: number;
+  id?: number;
   marked?: boolean;
+  rotation?: number;
   start?: Point;
   end?: Point;
+  nfp?: any;
 }
 
 export interface GeneticAlgorithmConfig {
@@ -22,7 +25,8 @@ export interface BoundRect {
 export interface ArrayPolygon extends Array<Point>, BoundRect {
   id: number;
   parent?: ArrayPolygon;
-  children?: Array<ArrayPolygon>;
+  children?: ArrayPolygon[];
+  childNodes?: ArrayPolygon[];
   rotation: number;
   source: number;
   marked?: boolean;
@@ -39,4 +43,27 @@ export interface SvgNestConfiguration {
   mutationRate: number;
   useHoles: boolean;
   exploreConcave: boolean;
+}
+
+export interface PairWorkerData {
+  rotations: number;
+  binPolygon: ArrayPolygon;
+  searchEdges: boolean;
+  useHoles: boolean;
+}
+
+export interface NfpPair {
+  A: ArrayPolygon;
+  B: ArrayPolygon;
+  length: number;
+  numKey: number;
+}
+
+export interface PlacePairConfiguration {
+  binPolygon: ArrayPolygon;
+  paths: ArrayPolygon[];
+  ids: number[];
+  rotations: number[];
+  config: SvgNestConfiguration;
+  nfpCache: Map<number, ArrayPolygon[]>;
 }

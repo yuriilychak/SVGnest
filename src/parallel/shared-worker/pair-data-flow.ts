@@ -1,14 +1,25 @@
+//@ts-ignore
+import ClipperLib from "js-clipper";
+
+import {
+  polygonArea,
+  getPolygonBounds,
+  pointInPolygon,
+  rotatePolygon,
+  toClipperCoordinates,
+  toNestCoordinates
+} from "../../geometry-util";
+import FloatPoint from "../../float-point";
+import FloatRect from "../../float-rect";
+import { keyToNFPData } from "../../util";
+import { ArrayPolygon, NfpPair, PairWorkerData, Point } from "../../interfaces";
+import { almostEqual } from "../../util";
+
 /*!
  * General purpose geometry functions for polygon/Bezier calculations
  * Copyright 2015 Jack Qiao
  * Licensed under the MIT license
  */
-
-import FloatPoint from "../../float-point";
-import FloatRect from "../../float-rect";
-import { getPolygonBounds, pointInPolygon } from "../../geometry-util";
-import { ArrayPolygon, Point } from "../../interfaces";
-import { almostEqual } from "../../util";
 
 // floating point comparison tolerance
 const TOL: number = Math.pow(10, -9); // Floating point error is likely to be above 1 epsilon
@@ -19,7 +30,7 @@ function checkIntersection(a: number, b: number, c: number): boolean {
   return offset >= Math.pow(10, -9) && Math.abs(2 * c - a - b) <= offset;
 }
 
-export function isRectangle(polygon: ArrayPolygon): boolean {
+function isRectangle(polygon: ArrayPolygon): boolean {
   const pointCount: number = polygon.length;
   const boundRect: FloatRect = getPolygonBounds(polygon);
   const bottomLeft: FloatPoint = boundRect.bottomLeft;
@@ -379,7 +390,7 @@ function segmentDistance(
   return distances.length ? Math.min(...distances) : null;
 }
 
-export function polygonSlideDistance(
+function polygonSlideDistance(
   a: ArrayPolygon,
   b: ArrayPolygon,
   direction: Point,
@@ -422,7 +433,7 @@ export function polygonSlideDistance(
 
     for (j = 0; j < sizeA - 1; ++j) {
       a1.set(edgeA.at(j)).add(offsetA);
-      a2.set(edgeA[j + 1]).add(offsetA);
+      a2.set(edgeA.at(j + 1)).add(offsetA);
 
       if (FloatPoint.almostEqual(a1, a2)) {
         continue; // ignore extremely small lines
@@ -467,7 +478,7 @@ function polygonProjectionDistance(
   // close the loop for polygons
   if (edgeA.at(0) != edgeA.at(sizeA - 1)) {
     ++sizeA;
-    edgeA.push(edgeA[0]);
+    edgeA.push(edgeA.at(0));
   }
 
   if (edgeB.at(0) != edgeB.at(sizeB - 1)) {
@@ -511,7 +522,7 @@ function polygonProjectionDistance(
 
 // searches for an arrangement of A and B such that they do not overlap
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
-export function searchStartPoint(
+function searchStartPoint(
   A: ArrayPolygon,
   B: ArrayPolygon,
   inside: boolean,
@@ -651,7 +662,7 @@ export function searchStartPoint(
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
-export function noFitPolygon(
+function noFitPolygon(
   a: ArrayPolygon,
   b: ArrayPolygon,
   inside: boolean,
@@ -693,7 +704,7 @@ export function noFitPolygon(
 
   let startPoint: FloatPoint | null = !inside
     ? // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
-      FloatPoint.sub(b[maxBIndex], a[minAIndex])
+      FloatPoint.sub(b.at(maxBIndex), a.at(minAIndex))
     : // no reliable heuristic for inside
       searchStartPoint(a, b, true);
   let reference: FloatPoint = new FloatPoint();
@@ -704,7 +715,7 @@ export function noFitPolygon(
   const point3: FloatPoint = new FloatPoint();
   const prevUnit: FloatPoint = new FloatPoint();
   const unitV: FloatPoint = new FloatPoint();
-  const nfpList: Array<Array<Point>> = [];
+  const nfpList: Array<ArrayPolygon> = [];
   const sumSize: number = sizeA + sizeB;
   let counter: number = 0;
   // maintain a list of touching points/edges
@@ -716,7 +727,7 @@ export function noFitPolygon(
   let vectorB2: Point;
   let looped: boolean = false;
   let prevVector: Point | null = null;
-  let nfp: Array<FloatPoint> = null;
+  let nfp: ArrayPolygon = null;
   let vLength2: number = 0;
   let prevAIndex: number = 0;
   let nextAIndex: number = 0;
@@ -739,7 +750,8 @@ export function noFitPolygon(
     b.offsety = offset.y;
 
     prevVector = null; // keep track of previous vector
-    nfp = [FloatPoint.add(b.at(0), startPoint)];
+    nfp = new Array<Point>() as ArrayPolygon;
+    nfp.push(FloatPoint.add(b.at(0), startPoint));
 
     reference.set(b.at(0)).add(startPoint);
     start.set(reference);
@@ -945,10 +957,10 @@ export function noFitPolygon(
 }
 
 // returns an interior NFP for the special case where A is a rectangle
-export function noFitPolygonRectangle(
+function noFitPolygonRectangle(
   a: ArrayPolygon,
   b: ArrayPolygon
-): Array<Array<Point>> | null {
+): Array<ArrayPolygon> | null {
   const firstA: Point = a.at(0);
   const firstB: Point = b.at(0);
   const minA: FloatPoint = FloatPoint.from(firstA);
@@ -987,6 +999,170 @@ export function noFitPolygonRectangle(
       { x: maxABSum.x - maxB.x, y: minABSum.y - minB.y },
       { x: maxABSum.x - maxB.x, y: maxABSum.y - maxB.y },
       { x: minABSum.x - minB.x, y: maxABSum.y - maxB.y }
-    ]
+    ] as ArrayPolygon
   ];
+}
+
+// clipperjs uses alerts for warnings
+function alert(message: string) {
+  console.log("alert: ", message);
+}
+
+function minkowskiDifference(
+  A: ArrayPolygon,
+  B: ArrayPolygon
+): Array<ArrayPolygon> {
+  let i: number = 0;
+  let clipperNfp;
+  let largestArea: number | null = null;
+  let n: ArrayPolygon;
+  let sArea: number;
+  const clippedA = toClipperCoordinates(A);
+  const clippedB = toClipperCoordinates(B);
+
+  ClipperLib.JS.ScaleUpPath(clippedA, 10000000);
+  ClipperLib.JS.ScaleUpPath(clippedB, 10000000);
+
+  for (i = 0; i < clippedB.length; ++i) {
+    clippedB.at(i).X *= -1;
+    clippedB.at(i).Y *= -1;
+  }
+
+  const solutions = ClipperLib.Clipper.MinkowskiSum(clippedA, clippedB, true);
+  const solutionCount: number = solutions.length;
+
+  for (i = 0; i < solutionCount; ++i) {
+    n = toNestCoordinates(solutions.at(i), 10000000);
+    sArea = polygonArea(n);
+
+    if (largestArea === null || largestArea > sArea) {
+      clipperNfp = n;
+      largestArea = sArea;
+    }
+  }
+
+  for (i = 0; i < clipperNfp.length; ++i) {
+    clipperNfp.at(i).x += B.at(0).x;
+    clipperNfp.at(i).y += B.at(0).y;
+  }
+
+  return [clipperNfp];
+}
+
+export default function pairData(
+  pair: NfpPair,
+  env: PairWorkerData
+): { value: Array<ArrayPolygon>; numKey: number } {
+  if (!pair) {
+    return null;
+  }
+
+  const searchEdges = env.searchEdges;
+  const useHoles = env.useHoles;
+
+  const nfpData = keyToNFPData(pair.numKey, env.rotations);
+
+  let A = rotatePolygon(pair.A, nfpData.at(2));
+  let B = rotatePolygon(pair.B, nfpData.at(3));
+  let nfp: Array<ArrayPolygon>;
+  let i = 0;
+
+  if (nfpData.at(4) === 1) {
+    if (isRectangle(A)) {
+      nfp = noFitPolygonRectangle(A, B);
+    } else {
+      nfp = noFitPolygon(A, B, true, searchEdges);
+    }
+
+    // ensure all interior NFPs have the same winding direction
+    if (nfp && nfp.length > 0) {
+      for (i = 0; i < nfp.length; ++i) {
+        if (polygonArea(nfp.at(i)) > 0) {
+          nfp.at(i).reverse();
+        }
+      }
+    } else {
+      // warning on null inner NFP
+      // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
+      console.log("NFP Warning: ", nfpData);
+    }
+  } else {
+    if (searchEdges) {
+      nfp = noFitPolygon(A, B, false, searchEdges);
+    } else {
+      nfp = minkowskiDifference(A, B);
+    }
+    // sanity check
+    if (!nfp || nfp.length == 0) {
+      console.log("NFP Error: ", nfpData);
+      console.log("A: ", JSON.stringify(A));
+      console.log("B: ", JSON.stringify(B));
+      return null;
+    }
+
+    for (i = 0; i < nfp.length; ++i) {
+      if (!searchEdges || i == 0) {
+        // if searchedges is active, only the first NFP is guaranteed to pass sanity check
+        if (Math.abs(polygonArea(nfp.at(i))) < Math.abs(polygonArea(A))) {
+          console.log(
+            "NFP Area Error: ",
+            Math.abs(polygonArea(nfp.at(i))),
+            nfpData
+          );
+          console.log("NFP:", JSON.stringify(nfp.at(i)));
+          console.log("A: ", JSON.stringify(A));
+          console.log("B: ", JSON.stringify(B));
+          nfp.splice(i, 1);
+          return null;
+        }
+      }
+    }
+
+    if (nfp.length == 0) {
+      return null;
+    }
+
+    // for outer NFPs, the first is guaranteed to be the largest. Any subsequent NFPs that lie inside the first are holes
+    for (i = 0; i < nfp.length; ++i) {
+      if (polygonArea(nfp.at(i)) > 0) {
+        nfp.at(i).reverse();
+      }
+
+      if (
+        i > 0 &&
+        pointInPolygon(nfp.at(i).at(0), nfp.at(0)) &&
+        polygonArea(nfp.at(i)) < 0
+      ) {
+        nfp.at(i).reverse();
+      }
+    }
+
+    // generate nfps for children (holes of parts) if any exist
+    if (useHoles && A.childNodes && A.childNodes.length > 0) {
+      const boundsB = getPolygonBounds(B);
+      let boundsA;
+      let cnfp;
+      let j = 0;
+
+      for (i = 0; i < A.childNodes.length; ++i) {
+        boundsA = getPolygonBounds(A.childNodes.at(i));
+
+        // no need to find nfp if B's bounding box is too big
+        if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
+          cnfp = noFitPolygon(A.childNodes.at(i), B, true, searchEdges);
+          // ensure all interior NFPs have the same winding direction
+          if (cnfp && cnfp.length > 0) {
+            for (j = 0; j < cnfp.length; ++j) {
+              if (polygonArea(cnfp.at(j)) < 0) {
+                cnfp.at(j).reverse();
+              }
+              nfp.push(cnfp.at(j));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { value: nfp, numKey: pair.numKey };
 }

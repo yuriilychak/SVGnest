@@ -9,10 +9,12 @@ export default class FloatPolygon {
   private _area: number = 0;
   private _isValid: boolean;
   private _offset: FloatPoint;
+  private _children: FloatPolygon[];
 
   constructor(points: Array<Point> = []) {
     this._points = points.map((point) => FloatPoint.from(point));
     this._isValid = this._points.length >= 3;
+    this._children = [];
 
     if (!this._isValid) {
       return;
@@ -28,16 +30,26 @@ export default class FloatPolygon {
   }
 
   public rotate(angle: number): FloatPolygon {
-    const result: Array<Point> = new Array<Point>();
+    const points: Array<Point> = new Array<Point>();
     const pointCount: number = this.length;
     const radianAngle: number = (angle * Math.PI) / 180;
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-      result.push(this._points[i].clone().rotate(radianAngle));
+      points.push(this._points[i].clone().rotate(radianAngle));
     }
 
-    return new FloatPolygon(result);
+    const result = new FloatPolygon(points);
+
+    if (this.hasChildren) {
+      const childCount: number = this.childCount;
+
+      for (i = 0; i < childCount; ++i) {
+        result.children.push(this._children[i].rotate(angle));
+      }
+    }
+
+    return result;
   }
 
   // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
@@ -200,5 +212,17 @@ export default class FloatPolygon {
     }
 
     return result;
+  }
+
+  public get children(): Array<FloatPolygon> {
+    return this._children;
+  }
+
+  public get hasChildren(): boolean {
+    return this._children.length > 0;
+  }
+
+  public get childCount(): number {
+    return this._children.length;
   }
 }

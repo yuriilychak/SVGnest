@@ -2,5 +2,7 @@ export {
   polygonArea,
   getPolygonBounds,
   rotatePolygon,
-  pointInPolygon
+  pointInPolygon,
+  toClipperCoordinates,
+  toNestCoordinates
 } from "./geometry-utils";
