@@ -1,14 +1,18 @@
-const path = require("path");
+import path from "path";
+import { URL } from "url";
 
-module.exports = {
+const __dirname = new URL(".", import.meta.url).pathname;
+
+export default {
   mode: "production",
   entry: "./src/index.ts",
   output: {
     filename: "main.js",
     path: path.resolve(__dirname, "dist")
   },
+  devtool: "source-map",
   resolve: {
-    extensions: [".tsx", ".ts", ".js"]
+    extensions: [".ts", ".js"]
   },
   module: {
     rules: [
@@ -16,13 +20,12 @@ module.exports = {
         test: /\.worker\.ts$/,
         loader: "worker-loader",
         options: {
-          filename: "[name].worker.js"
+          filename: "[name].js"
         }
       },
       {
-        test: /\.tsx?$/,
-        use: "ts-loader",
-        exclude: /node_modules/
+        test: /\.ts$/,
+        loader: "ts-loader"
       }
     ]
   }

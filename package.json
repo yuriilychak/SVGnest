@@ -4,6 +4,11 @@
   "description": "Type Script version of https://github.com/Jack000/SVGnest migrated to webpack",
   "private": true,
   "scripts": {
+    "asbuild:debug": "asc assembly/index.ts --target debug",
+    "asbuild:release": "asc assembly/index.ts --target release",
+    "asbuild": "npm run asbuild:debug && npm run asbuild:release",
+    "test": "node tests",
+    "start": "npx serve .",
     "build": "webpack"
   },
   "repository": {
@@ -13,6 +18,7 @@
   "keywords": [
     "poygon pack",
     "ts",
+    "assemblyscript",
     "algorithm"
   ],
   "author": "yurii.lychak",
@@ -23,6 +29,9 @@
   "homepage": "https://github.com/yuriilychak/SVGnest#readme",
   "devDependencies": {
     "@types/js-clipper": "0.0.32",
+    "as-loader": "^0.12.0",
+    "assemblyscript": "^0.27.24",
+    "assemblyscript-loader": "^0.3.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.3.3",
     "webpack": "^5.90.0",
@@ -30,6 +39,14 @@
     "worker-loader": "^3.0.8"
   },
   "dependencies": {
+    "@assemblyscript/loader": "^0.27.24",
     "js-clipper": "^1.0.1"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/assembly/release.js",
+      "types": "./src/assembly/release.d.ts"
+    }
   }
 }
