@@ -62,7 +62,7 @@ function isRectangle(polygon: ArrayPolygon): boolean {
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
-function _lineIntersect(
+function lineIntersect(
   A: Point,
   B: Point,
   E: Point,
@@ -186,7 +186,7 @@ function intersect(polygonA: ArrayPolygon, polygonB: ArrayPolygon): boolean {
         }
       }
 
-      if (_lineIntersect(b1, b2, a1, a2) !== null) {
+      if (lineIntersect(b1, b2, a1, a2) !== null) {
         return true;
       }
     }

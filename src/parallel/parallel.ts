@@ -1,4 +1,4 @@
-﻿import { SharedWorker } from "./shared-worker";
+﻿import { PairWorker, PlaceWorker } from "./shared-worker";
 import Operation from "./opertaion";
 import { Options } from "./interfaces";
 
@@ -54,7 +54,8 @@ export default class Parallel {
 
     if (!worker) {
       try {
-        worker = new SharedWorker();
+        worker =
+          this._options.id === "pair" ? new PairWorker() : new PlaceWorker();
         worker.postMessage(this._options);
       } catch (e) {
         throw e;

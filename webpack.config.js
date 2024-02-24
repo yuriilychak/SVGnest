@@ -14,7 +14,10 @@ module.exports = {
     rules: [
       {
         test: /\.worker\.ts$/,
-        use: { loader: "worker-loader" }
+        loader: "worker-loader",
+        options: {
+          filename: "[name].worker.js"
+        }
       },
       {
         test: /\.tsx?$/,

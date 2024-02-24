@@ -1,2 +1,4 @@
 //@ts-ignore
-export { default as SharedWorker } from "./shared.worker";
+export { default as PlaceWorker } from "./place.worker";
+//@ts-ignore
+export { default as PairWorker } from "./pair.worker";
