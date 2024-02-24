@@ -1,8 +1,11 @@
+//@ts-ignore
+import ClipperLib from "js-clipper";
+
 // returns the area of the polygon, assuming no self-intersections
 
 import FloatPoint from "../float-point";
 import FloatRect from "../float-rect";
-import { ArrayPolygon, Point } from "../interfaces";
+import { ArrayPolygon, ClipperPoint, Point } from "../interfaces";
 
 //TODO: depreacete when polygone will be moved to class
 
@@ -125,10 +128,11 @@ export function pointInPolygon(point: Point, polygon: ArrayPolygon): boolean {
 
 // jsClipper uses X/Y instead of x/y...
 export function toClipperCoordinates(
-  polygon: ArrayPolygon
-): Array<{ X: number; Y: number }> {
+  polygon: ArrayPolygon,
+  scale: number = 1
+): ClipperPoint[] {
   const size: number = polygon.length;
-  const result: Array<{ X: number; Y: number }> = [];
+  const result: ClipperPoint[] = [];
   let i: number = 0;
   let point: Point;
 
@@ -137,17 +141,21 @@ export function toClipperCoordinates(
     result.push({ X: point.x, Y: point.y });
   }
 
+  if (scale !== 1) {
+    ClipperLib.JS.ScaleUpPath(result, scale);
+  }
+
   return result;
 }
 
 export function toNestCoordinates(
-  polygon: Array<{ X: number; Y: number }>,
+  polygon: ClipperPoint[],
   scale: number
 ): ArrayPolygon {
   const size: number = polygon.length;
   const result: ArrayPolygon = new Array<Point>() as ArrayPolygon;
   let i: number = 0;
-  let point: { X: number; Y: number };
+  let point: ClipperPoint;
 
   for (i = 0; i < size; ++i) {
     point = polygon[i];

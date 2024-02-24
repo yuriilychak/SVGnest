@@ -111,9 +111,10 @@ Performs similarly to commercial software, after both have run for about 5 minut
 
 - ~~Recursive placement (putting parts in holes of other parts).~~
 - ~~Migrate repo to modern JS flow and Webpack.~~
-- Migrate full flow to OOP and Typescript.
+- ~~Migrate full flow to Typescript~~.
+- Migrate from forahand to library for SVG parsing, remove polyfill.
 - Isolate Front-end logic.
-- Migrate from forahand to library for SVG parsing.
+- Migrate full flow to OOP.
 - Add ability to use from command line via NodeJS.
 - Isolate SVG flow for ability to pass pure polygon data to algorythm.
 - Migrate algorythm to AssemblyScript.

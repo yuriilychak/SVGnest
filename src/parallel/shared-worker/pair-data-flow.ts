@@ -12,7 +12,13 @@ import {
 import FloatPoint from "../../float-point";
 import FloatRect from "../../float-rect";
 import { keyToNFPData } from "../../util";
-import { ArrayPolygon, NfpPair, PairWorkerData, Point } from "../../interfaces";
+import {
+  ArrayPolygon,
+  NfpPair,
+  PairDataResult,
+  PairWorkerData,
+  Point
+} from "../../interfaces";
 import { almostEqual } from "../../util";
 
 /*!
@@ -1052,7 +1058,7 @@ function minkowskiDifference(
 export default function pairData(
   pair: NfpPair,
   env: PairWorkerData
-): { value: Array<ArrayPolygon>; numKey: number } {
+): PairDataResult {
   if (!pair) {
     return null;
   }
@@ -1062,18 +1068,17 @@ export default function pairData(
 
   const nfpData = keyToNFPData(pair.numKey, env.rotations);
 
-  let A = rotatePolygon(pair.A, nfpData.at(2));
-  let B = rotatePolygon(pair.B, nfpData.at(3));
-  let nfp: Array<ArrayPolygon>;
+  let a = rotatePolygon(pair.A, nfpData.at(2));
+  let b = rotatePolygon(pair.B, nfpData.at(3));
+  let nfp: ArrayPolygon[];
   let i = 0;
 
   if (nfpData.at(4) === 1) {
-    if (isRectangle(A)) {
-      nfp = noFitPolygonRectangle(A, B);
+    if (isRectangle(a)) {
+      nfp = noFitPolygonRectangle(a, b);
     } else {
-      nfp = noFitPolygon(A, B, true, searchEdges);
+      nfp = noFitPolygon(a, b, true, searchEdges);
     }
-
     // ensure all interior NFPs have the same winding direction
     if (nfp && nfp.length > 0) {
       for (i = 0; i < nfp.length; ++i) {
@@ -1088,30 +1093,30 @@ export default function pairData(
     }
   } else {
     if (searchEdges) {
-      nfp = noFitPolygon(A, B, false, searchEdges);
+      nfp = noFitPolygon(a, b, false, searchEdges);
     } else {
-      nfp = minkowskiDifference(A, B);
+      nfp = minkowskiDifference(a, b);
     }
     // sanity check
     if (!nfp || nfp.length == 0) {
       console.log("NFP Error: ", nfpData);
-      console.log("A: ", JSON.stringify(A));
-      console.log("B: ", JSON.stringify(B));
+      console.log("A: ", JSON.stringify(a));
+      console.log("B: ", JSON.stringify(b));
       return null;
     }
 
     for (i = 0; i < nfp.length; ++i) {
       if (!searchEdges || i == 0) {
         // if searchedges is active, only the first NFP is guaranteed to pass sanity check
-        if (Math.abs(polygonArea(nfp.at(i))) < Math.abs(polygonArea(A))) {
+        if (Math.abs(polygonArea(nfp.at(i))) < Math.abs(polygonArea(a))) {
           console.log(
             "NFP Area Error: ",
             Math.abs(polygonArea(nfp.at(i))),
             nfpData
           );
           console.log("NFP:", JSON.stringify(nfp.at(i)));
-          console.log("A: ", JSON.stringify(A));
-          console.log("B: ", JSON.stringify(B));
+          console.log("A: ", JSON.stringify(a));
+          console.log("B: ", JSON.stringify(b));
           nfp.splice(i, 1);
           return null;
         }
@@ -1138,18 +1143,18 @@ export default function pairData(
     }
 
     // generate nfps for children (holes of parts) if any exist
-    if (useHoles && A.childNodes && A.childNodes.length > 0) {
-      const boundsB = getPolygonBounds(B);
+    if (useHoles && a.children && a.children.length > 0) {
+      const boundsB = getPolygonBounds(b);
       let boundsA;
       let cnfp;
       let j = 0;
 
-      for (i = 0; i < A.childNodes.length; ++i) {
-        boundsA = getPolygonBounds(A.childNodes.at(i));
+      for (i = 0; i < a.children.length; ++i) {
+        boundsA = getPolygonBounds(a.children.at(i));
 
         // no need to find nfp if B's bounding box is too big
         if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
-          cnfp = noFitPolygon(A.childNodes.at(i), B, true, searchEdges);
+          cnfp = noFitPolygon(a.children.at(i), b, true, searchEdges);
           // ensure all interior NFPs have the same winding direction
           if (cnfp && cnfp.length > 0) {
             for (j = 0; j < cnfp.length; ++j) {

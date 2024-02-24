@@ -9,7 +9,12 @@ export default class Parallel {
   private _operation: Operation;
   private _onSpawn: Function;
 
-  constructor(id: string, data: Array<object>, env: object, onSpawn: Function) {
+  constructor(
+    id: string,
+    data: Array<object>,
+    env: object,
+    onSpawn: Function = null
+  ) {
     this._data = data;
     this._maxWorkers = navigator.hardwareConcurrency || 4;
     this._options = { id, env };
@@ -17,9 +22,9 @@ export default class Parallel {
     this._onSpawn = onSpawn;
   }
 
-  public then(
-    successCallback: Function,
-    errorCallback: Function = () => {}
+  public then<T>(
+    successCallback: (result: T[]) => void,
+    errorCallback: (error: Error[]) => void = () => {}
   ): void {
     const dataOperation = new Operation();
     const chainOperation = new Operation();
@@ -34,18 +39,18 @@ export default class Parallel {
       chainOperation,
       () => {
         try {
-          this._processResult(successCallback, chainOperation, this._data);
+          this._processResult<T>(successCallback, chainOperation, this._data);
         } catch (error) {
-          this._processResult(errorCallback, chainOperation, error);
+          this._processResult<Error>(errorCallback, chainOperation, error);
         }
       },
       (error: Error) =>
-        this._processResult(errorCallback, chainOperation, error)
+        this._processResult<Error>(errorCallback, chainOperation, error)
     );
   }
 
   private _spawnWorker(inputWorker?: Worker): Worker {
-    let worker = inputWorker;
+    let worker: Worker = inputWorker;
 
     if (!worker) {
       try {
@@ -75,7 +80,7 @@ export default class Parallel {
   }
 
   private _spawnMapWorker(i: number, done: Function, worker?: Worker): void {
-    this._onSpawn && this._onSpawn();
+    this._onSpawn !== null && this._onSpawn();
 
     const resultWorker = this._spawnWorker(worker);
     const onMessage = (message: MessageEvent) => {
@@ -99,17 +104,13 @@ export default class Parallel {
     this._operation = operation;
   }
 
-  private _processResult(
-    callback: Function,
+  private _processResult<T>(
+    callback: (data: T[]) => void,
     operation: Operation,
     data: any
   ): void {
     if (callback) {
-      const result = callback(data);
-
-      if (result !== undefined) {
-        this._data = result;
-      }
+      callback(data);
 
       operation.resolve(this._data);
     } else {
@@ -123,6 +124,7 @@ export default class Parallel {
         const worker = this._spawnWorker();
         const onMessage = (message: MessageEvent) => {
           worker.terminate();
+          console.log();
           this._data = message.data;
           operation.resolve(this._data);
         };
@@ -135,8 +137,8 @@ export default class Parallel {
       };
     }
 
-    let startedOps = 0;
-    let doneOps = 0;
+    let startedOps: number = 0;
+    let doneOps: number = 0;
 
     const done = (error: Error, worker: Worker): void => {
       if (error) {

@@ -10,12 +10,18 @@ import {
 import { generateNFPCacheKey } from "../../util";
 import FloatPoint from "../../float-point";
 import { almostEqual } from "../../util";
-import { ArrayPolygon, PlacePairConfiguration, Point } from "../../interfaces";
+import {
+  ArrayPolygon,
+  ClipperPoint,
+  PlaceDataResult,
+  PlacePairConfiguration,
+  Point
+} from "../../interfaces";
 
 export default function placePaths(
   inputPaths: Array<ArrayPolygon>,
   env: PlacePairConfiguration
-) {
+): PlaceDataResult {
   if (!env.binPolygon) {
     return null;
   }
@@ -53,7 +59,7 @@ export default function placePaths(
   let nf;
   let area: number;
   let shiftVector: Point;
-  let clone: Array<{ X: number; Y: number }>;
+  let clone: ClipperPoint[];
   const minScale: number =
     0.1 * env.config.clipperScale * env.config.clipperScale;
   const cleanTrashold: number = 0.0001 * env.config.clipperScale;

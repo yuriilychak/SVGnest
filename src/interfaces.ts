@@ -26,9 +26,9 @@ export interface ArrayPolygon extends Array<Point>, BoundRect {
   id: number;
   parent?: ArrayPolygon;
   children?: ArrayPolygon[];
-  childNodes?: ArrayPolygon[];
   rotation: number;
   source: number;
+  hole?: boolean;
   marked?: boolean;
   offsetx?: number;
   offsety?: number;
@@ -55,7 +55,6 @@ export interface PairWorkerData {
 export interface NfpPair {
   A: ArrayPolygon;
   B: ArrayPolygon;
-  length: number;
   numKey: number;
 }
 
@@ -66,4 +65,21 @@ export interface PlacePairConfiguration {
   rotations: number[];
   config: SvgNestConfiguration;
   nfpCache: Map<number, ArrayPolygon[]>;
+}
+
+export interface ClipperPoint {
+  X: number;
+  Y: number;
+}
+
+export interface PairDataResult {
+  value: ArrayPolygon[];
+  numKey: number;
+}
+
+export interface PlaceDataResult {
+  placements: Point[][];
+  fitness: number;
+  paths: ArrayPolygon[];
+  area: number;
 }

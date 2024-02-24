@@ -18,7 +18,12 @@ import {
   SvgConfig
 } from "./interfaces";
 import { pointInPolygon, polygonArea } from "../geometry-util";
-import { ArrayPolygon, Point, SvgNestConfiguration } from "../interfaces";
+import {
+  ArrayPolygon,
+  ClipperPoint,
+  Point,
+  SvgNestConfiguration
+} from "../interfaces";
 
 export default class SvgParser {
   private allowedElements: Array<PrimitiveTagName> = [
@@ -715,12 +720,12 @@ export default class SvgParser {
   }
 
   public svgToPolygon(
-    svgPolygon: Element,
+    svgPolygon: ChildNode,
     { curveTolerance, clipperScale }: SvgNestConfiguration
   ) {
     //@ts-ignore
     const polygon = poligonify(
-      svgPolygon,
+      svgPolygon as Element,
       this.conf.tolerance,
       this.conf.toleranceSvg
     ) as ArrayPolygon;
@@ -763,9 +768,9 @@ export default class SvgParser {
   }
 
   public svgToTreePolygon(
-    paths: Array<Element>,
+    paths: ChildNode[],
     configuration: SvgNestConfiguration
-  ): Array<ArrayPolygon> {
+  ): ArrayPolygon[] {
     let i;
     const result: Array<ArrayPolygon> = new Array<ArrayPolygon>();
     const numChildren = paths.length;
@@ -791,10 +796,7 @@ export default class SvgParser {
   }
 
   // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
-  _svgToClipper(
-    polygon: ArrayPolygon,
-    clipperScale: number
-  ): Array<{ X: number; Y: number }> {
+  _svgToClipper(polygon: ArrayPolygon, clipperScale: number): ClipperPoint[] {
     const result = [];
     let i = 0;
 
@@ -811,7 +813,7 @@ export default class SvgParser {
   }
 
   private _clipperToSvg(
-    polygon: Array<{ X: number; Y: number }>,
+    polygon: ClipperPoint[],
     clipperScale: number
   ): ArrayPolygon {
     const count = polygon.length;

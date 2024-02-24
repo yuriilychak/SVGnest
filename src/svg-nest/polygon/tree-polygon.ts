@@ -1,21 +1,31 @@
-import { polygonArea, pointInPolygon } from "../../geometry-util";
+import { polygonArea } from "../../geometry-util";
 import FloatPoint from "../../float-point";
 import SharedPolygon from "./shared-polygon";
+import { ArrayPolygon, Point, SvgNestConfiguration } from "../../interfaces";
 
 export default class TreePolygon extends SharedPolygon {
-  constructor(polygons, configuration, isOffset) {
-    super(configuration, polygons);
+  private _polygons: ArrayPolygon[];
+
+  constructor(
+    polygons: ArrayPolygon[],
+    configuration: SvgNestConfiguration,
+    isOffset: boolean
+  ) {
+    super(configuration);
+
+    this._polygons = polygons;
 
     if (isOffset) {
       this._offsetTree(this._polygons, this.spacing * 0.5);
     }
   }
 
-  removeDuplicats() {
-    let start;
-    let end;
-    let node;
-    let i;
+  removeDuplicats(): void {
+    let start: Point;
+    let end: Point;
+    let node: ArrayPolygon;
+    let i: number = 0;
+
     // remove duplicate endpoints, ensure counterclockwise winding direction
     for (i = 0; i < this._polygons.length; ++i) {
       node = this._polygons[i];
@@ -32,11 +42,11 @@ export default class TreePolygon extends SharedPolygon {
     }
   }
 
-  at(index) {
+  at(index: number): ArrayPolygon {
     return this._polygons[index];
   }
 
-  flat(index) {
+  flat(index: number) {
     const part = this._polygons[index];
 
     return part.children && part.children.length > 0
@@ -45,11 +55,11 @@ export default class TreePolygon extends SharedPolygon {
   }
 
   // offset tree recursively
-  _offsetTree(tree, offset) {
-    let i = 0;
-    let node;
-    let offsetPaths;
-    const treeSize = tree.length;
+  _offsetTree(tree: ArrayPolygon[], offset: number) {
+    let i: number = 0;
+    let node: ArrayPolygon;
+    let offsetPaths: ArrayPolygon[];
+    const treeSize: number = tree.length;
 
     for (i = 0; i < treeSize; ++i) {
       node = tree[i];
@@ -59,12 +69,13 @@ export default class TreePolygon extends SharedPolygon {
         // replace array items in place
         Array.prototype.splice.apply(
           node,
+          //@ts-ignore
           [0, node.length].concat(offsetPaths[0])
         );
       }
 
-      if (node.childNodes && node.childNodes.length > 0) {
-        this._offsetTree(node.childNodes, -offset);
+      if (node.children && node.children.length > 0) {
+        this._offsetTree(node.children, -offset);
       }
     }
   }
@@ -73,7 +84,11 @@ export default class TreePolygon extends SharedPolygon {
     return this._polygons.slice();
   }
 
-  static flattenTree(tree, hole, result = []) {
+  static flattenTree(
+    tree: ArrayPolygon[],
+    hole: boolean,
+    result: ArrayPolygon[] = []
+  ): ArrayPolygon[] {
     const nodeCount = tree.length;
     let i = 0;
     let node;
@@ -87,7 +102,7 @@ export default class TreePolygon extends SharedPolygon {
       result.push(node);
 
       if (children && children.length > 0) {
-        flattenTree(children, !hole, result);
+        TreePolygon.flattenTree(children, !hole, result);
       }
     }
 

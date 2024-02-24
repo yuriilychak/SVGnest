@@ -10,16 +10,35 @@ import { polygonArea } from "../geometry-util";
 import { almostEqual } from "../util";
 import { TreePolygon, BinPolygon } from "./polygon";
 import { generateNFPCacheKey } from "../util";
+import {
+  ArrayPolygon,
+  NfpPair,
+  PairDataResult,
+  PlaceDataResult,
+  Point,
+  SvgNestConfiguration
+} from "../interfaces";
+import Phenotype from "../genetic-algorithm/phenotype";
 
 export default class SvgNest {
+  private _best: PlaceDataResult = null;
+  private _bin: Element = null;
+  private _svg: SVGElement = null;
+  private _style: SVGElement = null;
+  private _isWorking: boolean = false;
+  private _parts: ChildNode[];
+  private _genethicAlgorithm: GeneticAlgorithm;
+  private _progress: number = 0;
+  private _svgParser: SvgParser;
+  private _configuration: SvgNestConfiguration;
+  private _tree: TreePolygon = null;
+  private _binPolygon: BinPolygon = null;
+  private _nfpCache: Map<number, ArrayPolygon[]>;
+  private _workerTimer: NodeJS.Timeout = null;
+
   constructor() {
-    this._svg = null;
     // keep a reference to any style nodes, to maintain color/fill info
-    this._style = null;
-    this._parts = null;
-    this._tree = null;
-    this._bin = null;
-    this._binPolygon = null;
+    this._parts = [];
     this._nfpCache = new Map();
     this._configuration = {
       clipperScale: 10000000,
@@ -31,16 +50,11 @@ export default class SvgNest {
       useHoles: false,
       exploreConcave: false
     };
-
-    this._isWorking = false;
     this._genethicAlgorithm = new GeneticAlgorithm();
-    this._best = null;
-    this._workerTimer = null;
-    this._progress = 0;
     this._svgParser = new SvgParser();
   }
 
-  parseSvg(svgstring) {
+  public parseSvg(svgString: string): Element {
     // reset if in progress
     this.stop();
 
@@ -49,12 +63,12 @@ export default class SvgNest {
     this._tree = null;
 
     // parse svg
-    this._svg = this._svgParser.load(svgstring);
+    this._svg = this._svgParser.load(svgString);
     this._style = this._svgParser.getStyle();
     this._svg = this._svgParser.clean();
     this._tree = new TreePolygon(
       this._svgParser.svgToTreePolygon(
-        this._svg.childNodes,
+        Array.prototype.slice.call(this._svg.childNodes),
         this._configuration
       ),
       this._configuration,
@@ -64,14 +78,16 @@ export default class SvgNest {
     return this._svg;
   }
 
-  setBin(element) {
+  public setBin(element: Element): void {
     if (!this._svg) {
       return;
     }
     this._bin = element;
   }
 
-  config(configuration) {
+  public config(configuration: {
+    [key: string]: string;
+  }): SvgNestConfiguration {
     // clean up inputs
 
     if (!configuration) {
@@ -119,7 +135,10 @@ export default class SvgNest {
       this._configuration.exploreConcave = !!configuration.exploreConcave;
     }
 
-    this._svgParser.config({ tolerance: this._configuration.curveTolerance });
+    this._svgParser.config({
+      tolerance: this._configuration.curveTolerance,
+      toleranceSvg: 0.005
+    });
 
     this._best = null;
     this._nfpCache.clear();
@@ -131,7 +150,7 @@ export default class SvgNest {
 
   // progressCallback is called when progress is made
   // displayCallback is called when a new placement has been made
-  start(progressCallback, displayCallback) {
+  start(progressCallback: Function, displayCallback: Function): boolean {
     if (!this._svg || !this._bin) {
       return false;
     }
@@ -176,7 +195,7 @@ export default class SvgNest {
     }, 100);
   }
 
-  stop() {
+  public stop(): void {
     this._isWorking = false;
 
     if (this._workerTimer) {
@@ -185,15 +204,19 @@ export default class SvgNest {
     }
   }
 
-  _launchWorkers(displayCallback) {
-    let i, j;
+  private _launchWorkers(displayCallback: Function): void {
+    let i: number = 0;
+    let j: number = 0;
 
     if (this._genethicAlgorithm.isEmpty) {
       // initiate new GA
-      const adam = this._tree.polygons;
+      const adam: ArrayPolygon[] = this._tree.polygons;
 
       // seed with decreasing area
-      adam.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
+      adam.sort(
+        (a: ArrayPolygon, b: ArrayPolygon): number =>
+          Math.abs(polygonArea(b)) - Math.abs(polygonArea(a))
+      );
 
       this._genethicAlgorithm.init(
         adam,
@@ -202,17 +225,23 @@ export default class SvgNest {
       );
     }
 
-    const individual = this._genethicAlgorithm.individual;
-    const placeList = individual.placement;
-    const rotations = individual.rotation;
-    const placeCount = placeList.length;
-    const ids = [];
-    const nfpPairs = [];
-    const newCache = new Map();
-    let part;
-    let numKey = 0;
+    const individual: Phenotype = this._genethicAlgorithm.individual;
+    const placeList: ArrayPolygon[] = individual.placement;
+    const rotations: number[] = individual.rotation;
+    const placeCount: number = placeList.length;
+    const ids: number[] = [];
+    const nfpPairs: NfpPair[] = [];
+    const newCache: Map<number, ArrayPolygon[]> = new Map();
+    let part: ArrayPolygon;
+    let numKey: number = 0;
 
-    const updateCache = (polygon1, polygon2, rotation1, rotation2, inside) => {
+    const updateCache = (
+      polygon1: ArrayPolygon,
+      polygon2: ArrayPolygon,
+      rotation1: number,
+      rotation2: number,
+      inside: boolean
+    ) => {
       numKey = generateNFPCacheKey(
         this._configuration.rotations,
         inside,
@@ -253,13 +282,13 @@ export default class SvgNest {
       nfpCache: this._nfpCache
     };
 
-    let spawnCount = 0;
+    let spawnCount: number = 0;
 
     const onSpawn = () => {
       this._progress = spawnCount++ / nfpPairs.length;
     };
 
-    const parallel = new Parallel(
+    const parallel: Parallel = new Parallel(
       "pair",
       nfpPairs,
       {
@@ -271,18 +300,18 @@ export default class SvgNest {
       onSpawn
     );
 
-    parallel.then(
-      (generatedNfp) => {
+    parallel.then<PairDataResult>(
+      (generatedNfp: PairDataResult[]) => {
         if (generatedNfp) {
-          let i = 0;
-          let Nfp;
+          let i: number = 0;
+          let nfp: PairDataResult;
 
           for (i = 0; i < generatedNfp.length; ++i) {
-            Nfp = generatedNfp[i];
+            nfp = generatedNfp[i];
 
-            if (Nfp) {
+            if (nfp) {
               // a null nfp means the nfp could not be generated, either because the parts simply don't fit or an error in the nfp algo
-              this._nfpCache.set(Nfp.numKey, Nfp.value);
+              this._nfpCache.set(nfp.numKey, nfp.value);
             }
           }
         }
@@ -290,20 +319,20 @@ export default class SvgNest {
         placementWorkerData.nfpCache = this._nfpCache;
 
         // can't use .spawn because our data is an array
-        const p2 = new Parallel(
+        const p2: Parallel = new Parallel(
           "placement",
           [placeList.slice()],
           placementWorkerData
         );
 
-        p2.then(
-          (placements) => {
+        p2.then<PlaceDataResult>(
+          (placements: PlaceDataResult[]) => {
             if (!placements || placements.length == 0) {
               return;
             }
 
-            let i = 0;
-            let j = 0;
+            let i: number = 0;
+            let j: number = 0;
             let bestResult = placements[0];
 
             individual.fitness = bestResult.fitness;
@@ -317,12 +346,12 @@ export default class SvgNest {
             if (!this._best || bestResult.fitness < this._best.fitness) {
               this._best = bestResult;
 
-              let placedArea = 0;
-              let totalArea = 0;
-              let numPlacedParts = 0;
-              let bestPlacement;
-              const numParts = placeList.length;
-              const binArea = Math.abs(this._binPolygon.area);
+              let placedArea: number = 0;
+              let totalArea: number = 0;
+              let numPlacedParts: number = 0;
+              let bestPlacement: Point[];
+              const numParts: number = placeList.length;
+              const binArea: number = Math.abs(this._binPolygon.area);
 
               for (i = 0; i < this._best.placements.length; ++i) {
                 totalArea += binArea;
@@ -360,20 +389,22 @@ export default class SvgNest {
   }
 
   // returns an array of SVG elements that represent the placement, for export or rendering
-  _applyPlacement() {
-    const placements = this._best.placements;
-    const clone = [];
-    const partCount = this._parts.length;
-    const placementCount = placements.length;
+  private _applyPlacement() {
+    const placements: Point[][] = this._best.placements;
+    const clone: Node[] = [];
+    const partCount: number = this._parts.length;
+    const placementCount: number = placements.length;
     const svgList = [];
-    let i, j, k;
-    let newSvg;
-    let binClone;
-    let p;
-    let part;
-    let partGroup;
+    let i: number = 0;
+    let j: number = 0;
+    let k: number = 0;
+    let newSvg: Element;
+    let binClone: Element;
+    let point: Point;
+    let part: ArrayPolygon;
+    let partGroup: Element;
     let flattened;
-    let c;
+    let c: Element;
 
     for (i = 0; i < partCount; ++i) {
       clone.push(this._parts[i].cloneNode(false));
@@ -382,14 +413,14 @@ export default class SvgNest {
     const bounds = this._binPolygon.bounds;
 
     for (i = 0; i < placementCount; ++i) {
-      newSvg = this._svg.cloneNode(false);
+      newSvg = this._svg.cloneNode(false) as Element;
       newSvg.setAttribute(
         "viewBox",
         "0 0 " + bounds.width + " " + bounds.height
       );
       newSvg.setAttribute("width", bounds.width + "px");
       newSvg.setAttribute("height", bounds.height + "px");
-      binClone = this._bin.cloneNode(false);
+      binClone = this._bin.cloneNode(false) as Element;
 
       binClone.setAttribute("class", "bin");
       binClone.setAttribute(
@@ -399,22 +430,28 @@ export default class SvgNest {
       newSvg.appendChild(binClone);
 
       for (j = 0; j < placements[i].length; ++j) {
-        p = placements[i][j];
-        part = this._tree.at(p.id);
+        point = placements[i][j];
+        part = this._tree.at(point.id);
 
         // the original path could have transforms and stuff on it, so apply our transforms on a group
         partGroup = document.createElementNS(this._svg.namespaceURI, "g");
         partGroup.setAttribute(
           "transform",
-          "translate(" + p.x + " " + p.y + ") rotate(" + p.rotation + ")"
+          "translate(" +
+            point.x +
+            " " +
+            point.y +
+            ") rotate(" +
+            point.rotation +
+            ")"
         );
         partGroup.appendChild(clone[part.source]);
 
-        flattened = this._tree.flat(p.id);
+        flattened = this._tree.flat(point.id);
 
         if (flattened !== null) {
           for (k = 0; k < flattened.length; ++k) {
-            c = clone[flattened[k].source];
+            c = clone[flattened[k].source] as Element;
             // add class to indicate hole
             if (
               flattened[k].hole &&
@@ -436,7 +473,7 @@ export default class SvgNest {
     return svgList;
   }
 
-  get style() {
+  get style(): SVGElement {
     return this._style;
   }
 }
