@@ -1,10 +1,9 @@
 {
-  "name": "svgnest.es6",
-  "version": "1.0.0",
-  "description": "ES6 version of https://github.com/Jack000/SVGnest migrated to webpack",
+  "name": "svgnest.ts",
+  "version": "2.0.0",
+  "description": "Type Script version of https://github.com/Jack000/SVGnest migrated to webpack",
   "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack"
   },
   "repository": {
@@ -13,7 +12,7 @@
   },
   "keywords": [
     "poygon pack",
-    "es6",
+    "ts",
     "algorithm"
   ],
   "author": "yurii.lychak",
@@ -23,6 +22,9 @@
   },
   "homepage": "https://github.com/yuriilychak/SVGnest#readme",
   "devDependencies": {
+    "@types/js-clipper": "0.0.32",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
     "webpack": "^5.90.0",
     "webpack-cli": "^5.1.4",
     "worker-loader": "^3.0.8"
