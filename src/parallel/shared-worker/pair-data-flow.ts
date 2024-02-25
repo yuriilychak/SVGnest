@@ -280,7 +280,7 @@ function polygonProjectionDistance(
   a: ArrayPolygon,
   b: ArrayPolygon,
   direction: Point
-): number | null {
+): number {
   const offsetA = new FloatPoint(a.offsetx || 0, a.offsety || 0);
   const offsetB = new FloatPoint(b.offsetx || 0, b.offsety || 0);
   const edgeA: ArrayPolygon = a.slice(0) as ArrayPolygon;
@@ -288,11 +288,11 @@ function polygonProjectionDistance(
   const p: FloatPoint = new FloatPoint();
   const s1: FloatPoint = new FloatPoint();
   const s2: FloatPoint = new FloatPoint();
-  let result: number | null = null;
-  let distance: number | null = null;
+  let result: number = Number.NaN;
+  let distance: number = Number.NaN;
   let sizeA: number = edgeA.length;
   let sizeB: number = edgeB.length;
-  let minProjection: number | null = null;
+  let minProjection: number = Number.NaN;
   let i: number = 0;
   let j: number = 0;
 
@@ -309,7 +309,7 @@ function polygonProjectionDistance(
 
   for (i = 0; i < sizeB; ++i) {
     // the shortest/most negative projection of B onto A
-    minProjection = null;
+    minProjection = Number.NaN;
     p.set(edgeB.at(i)).add(offsetB);
 
     for (j = 0; j < sizeA - 1; ++j) {
@@ -326,14 +326,17 @@ function polygonProjectionDistance(
       distance = pointDistances(p, s1, s2, direction);
 
       if (
-        distance !== null &&
-        (minProjection === null || distance < minProjection)
+        !Number.isNaN(distance) &&
+        (Number.isNaN(minProjection) || distance < minProjection)
       ) {
         minProjection = distance;
       }
     }
 
-    if (minProjection !== null && (result === null || minProjection > result)) {
+    if (
+      !Number.isNaN(minProjection) &&
+      (Number.isNaN(result) || minProjection > result)
+    ) {
       result = minProjection;
     }
   }
@@ -341,6 +344,31 @@ function polygonProjectionDistance(
   return result;
 }
 
+// returns true if point already exists in the given nfp
+function inNfp(p: Point, nfp: Point[][] = []): boolean {
+  if (nfp.length == 0) {
+    return false;
+  }
+
+  const rootSize: number = nfp.length;
+  let nfpCount: number = 0;
+  let i: number = 0;
+  let j: number = 0;
+  let nfpItem: Array<Point>;
+
+  for (i = 0; i < rootSize; ++i) {
+    nfpItem = nfp.at(i);
+    nfpCount = nfpItem.length;
+
+    for (j = 0; j < nfpCount; ++j) {
+      if (FloatPoint.almostEqual(p, nfpItem.at(j))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 // searches for an arrangement of A and B such that they do not overlap
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
 function searchStartPoint(
@@ -403,19 +431,20 @@ function searchStartPoint(
         );
 
         // todo: clean this up
-        if (projectionDistance1 === null && projectionDistance2 === null) {
+        if (
+          Number.isNaN(projectionDistance1) &&
+          Number.isNaN(projectionDistance2)
+        ) {
           continue;
         }
 
-        projectionDistance1 =
-          projectionDistance1 === null
-            ? projectionDistance2
-            : projectionDistance1;
+        projectionDistance1 = Number.isNaN(projectionDistance1)
+          ? projectionDistance2
+          : projectionDistance1;
 
-        projectionDistance2 =
-          projectionDistance2 === null
-            ? projectionDistance1
-            : projectionDistance2;
+        projectionDistance2 = Number.isNaN(projectionDistance2)
+          ? projectionDistance1
+          : projectionDistance2;
 
         distance = Math.min(projectionDistance1, projectionDistance2);
 
@@ -448,32 +477,6 @@ function searchStartPoint(
     }
 
     return null;
-  }
-
-  // returns true if point already exists in the given nfp
-  function inNfp(p: Point, nfp: Point[][] = []): boolean {
-    if (nfp.length == 0) {
-      return false;
-    }
-
-    const rootSize: number = nfp.length;
-    let nfpCount: number = 0;
-    let i: number = 0;
-    let j: number = 0;
-    let nfpItem: Array<Point>;
-
-    for (i = 0; i < rootSize; ++i) {
-      nfpItem = nfp.at(i);
-      nfpCount = nfpItem.length;
-
-      for (j = 0; j < nfpCount; ++j) {
-        if (FloatPoint.almostEqual(p, nfpItem.at(j))) {
-          return true;
-        }
-      }
-    }
-
-    return false;
   }
 
   return null;
@@ -780,7 +783,7 @@ function noFitPolygon(
 function noFitPolygonRectangle(
   a: ArrayPolygon,
   b: ArrayPolygon
-): Array<ArrayPolygon> {
+): ArrayPolygon[] {
   const firstA: Point = a.at(0);
   const firstB: Point = b.at(0);
   const minA: FloatPoint = FloatPoint.from(firstA);
