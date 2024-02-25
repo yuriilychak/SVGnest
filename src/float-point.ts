@@ -217,4 +217,13 @@ export default class FloatPoint implements Point {
       ? point
       : point.scale(1 / point.length);
   }
+
+  public static export(point: Point): Float32Array {
+    const result: Float32Array = new Float32Array(2);
+
+    result[0] = point.x;
+    result[1] = point.y;
+
+    return result;
+  }
 }

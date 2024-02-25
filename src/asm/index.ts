@@ -1,1 +1,1 @@
-export * from "./wasm";
+export { segmentDistance, lineIntersect, ready } from "./wasm";

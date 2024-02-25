@@ -1,12 +1,8 @@
-import { add } from "./asm";
 import { SvgNest } from "./svg-nest";
 import "./svg-parser/pathsegpolyfill";
 
 // UI-specific stuff, button clicks go here
 const svgNest: SvgNest = new SvgNest();
-
-//@ts-ignore
-console.log(add(5, 4));
 
 function ready(fn: (e?: Event) => void) {
   if (document.readyState != "loading") {

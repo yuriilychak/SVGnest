@@ -11,7 +11,7 @@ import {
 } from "../../geometry-util";
 import FloatPoint from "../../float-point";
 import FloatRect from "../../float-rect";
-import { keyToNFPData } from "../../util";
+import { keyToNFPData, almostEqual } from "../../util";
 import {
   ArrayPolygon,
   NfpPair,
@@ -19,7 +19,7 @@ import {
   PairWorkerData,
   Point
 } from "../../interfaces";
-import { almostEqual } from "../../util";
+import { segmentDistance, lineIntersect, ready } from "../../asm";
 
 /*!
  * General purpose geometry functions for polygon/Bezier calculations
@@ -29,12 +29,6 @@ import { almostEqual } from "../../util";
 
 // floating point comparison tolerance
 const TOL: number = Math.pow(10, -9); // Floating point error is likely to be above 1 epsilon
-
-function checkIntersection(a: number, b: number, c: number): boolean {
-  const offset: number = Math.abs(a - b);
-
-  return offset >= Math.pow(10, -9) && Math.abs(2 * c - a - b) <= offset;
-}
 
 function isRectangle(polygon: ArrayPolygon): boolean {
   const pointCount: number = polygon.length;
@@ -57,43 +51,6 @@ function isRectangle(polygon: ArrayPolygon): boolean {
   }
 
   return true;
-}
-
-// returns the intersection of AB and EF
-// or null if there are no intersections or other numerical error
-// if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
-function lineIntersect(
-  A: Point,
-  B: Point,
-  E: Point,
-  F: Point,
-  infinite: boolean = false
-): Point | null {
-  const a1: number = B.y - A.y;
-  const b1: number = A.x - B.x;
-  const c1: number = B.x * A.y - A.x * B.y;
-  const a2: number = F.y - E.y;
-  const b2: number = E.x - F.x;
-  const c2: number = F.x * E.y - E.x * F.y;
-  const denom: number = a1 * b2 - a2 * b1;
-  const result: FloatPoint = new FloatPoint(
-    (b1 * c2 - b2 * c1) / denom,
-    (a2 * c1 - a1 * c2) / denom
-  );
-
-  if (
-    !isFinite(result.x) ||
-    !isFinite(result.y) ||
-    (!infinite &&
-      (checkIntersection(A.x, B.x, result.x) ||
-        checkIntersection(A.y, B.y, result.y) ||
-        checkIntersection(E.x, F.x, result.x) ||
-        checkIntersection(E.y, F.y, result.y)))
-  ) {
-    return null;
-  }
-
-  return result;
 }
 
 function checkPolygon(
@@ -186,7 +143,14 @@ function intersect(polygonA: ArrayPolygon, polygonB: ArrayPolygon): boolean {
         }
       }
 
-      if (lineIntersect(b1, b2, a1, a2) !== null) {
+      if (
+        lineIntersect(
+          FloatPoint.export(b1),
+          FloatPoint.export(b2),
+          FloatPoint.export(a1),
+          FloatPoint.export(a2)
+        )
+      ) {
         return true;
       }
     }
@@ -195,7 +159,7 @@ function intersect(polygonA: ArrayPolygon, polygonB: ArrayPolygon): boolean {
   return false;
 }
 
-function pointDistance(
+function pointDistances(
   p: Point,
   s1: Point,
   s2: Point,
@@ -239,161 +203,6 @@ function pointDistance(
   }
 
   return ((s1DotNorm - s2DotNorm) * diff1) / (s1Dot - s2Dot) - diffNorm1;
-}
-
-function segmentDistance(
-  A: FloatPoint,
-  B: FloatPoint,
-  E: FloatPoint,
-  F: FloatPoint,
-  direction: FloatPoint
-): number | null {
-  const normal: FloatPoint = FloatPoint.normal(direction);
-  const reverse: FloatPoint = FloatPoint.reverse(direction);
-  const dotA: number = normal.dot(A);
-  const dotB: number = normal.dot(B);
-  const dotE: number = normal.dot(E);
-  const dotF: number = normal.dot(F);
-  const crossA: number = direction.cross(A);
-  const crossB: number = direction.cross(B);
-  const crossE: number = direction.cross(E);
-  const crossF: number = direction.cross(F);
-  const minAB: number = Math.min(dotA, dotB);
-  const maxAB: number = Math.max(dotA, dotB);
-  const maxEF: number = Math.max(dotE, dotF);
-  const minEF: number = Math.min(dotE, dotF);
-  const offsetAB: FloatPoint = FloatPoint.sub(A, B);
-  const offsetEF: FloatPoint = FloatPoint.sub(E, F);
-
-  // segments that will merely touch at one point
-  // segments miss eachother completely
-  if (
-    almostEqual(maxAB, minEF) ||
-    almostEqual(minAB, maxEF) ||
-    maxAB < minEF ||
-    minAB > maxEF
-  ) {
-    return null;
-  }
-
-  let overlap: number = 1;
-  const maxOffset: number = maxAB - maxEF;
-  const minOffset: number = minAB - minEF;
-
-  if (Math.abs(maxOffset + minOffset) >= Math.abs(maxOffset - minOffset)) {
-    const minMax: number = Math.min(maxAB, maxEF);
-    const maxMin: number = Math.max(minAB, minEF);
-
-    const maxMax: number = Math.max(maxAB, maxEF);
-    const minMin: number = Math.min(minAB, minEF);
-
-    overlap = (minMax - maxMin) / (maxMax - minMin);
-  }
-
-  const offsetEA: FloatPoint = FloatPoint.sub(A, E);
-  const offsetFA: FloatPoint = FloatPoint.sub(A, F);
-  const crossABE: number = offsetEA.cross(offsetAB, -1);
-  const crossABF: number = offsetFA.cross(offsetAB, -1);
-
-  // lines are colinear
-  if (almostEqual(crossABE, 0) && almostEqual(crossABF, 0)) {
-    const normalAB: FloatPoint = FloatPoint.normal(offsetAB);
-    const normalEF: FloatPoint = FloatPoint.normal(offsetEF);
-
-    normalAB.scale(1 / normalAB.length);
-    normalEF.scale(1 / normalEF.length);
-
-    // segment normals must point in opposite directions
-    if (
-      Math.abs(normalAB.cross(normalEF, -1)) < TOL &&
-      normalAB.dot(normalEF) < 0
-    ) {
-      // normal of AB segment must point in same direction as given direction vector
-      const normalDot: number = direction.dot(normalAB);
-      // the segments merely slide along eachother
-      if (almostEqual(normalDot, 0)) {
-        return null;
-      }
-      if (normalDot < 0) {
-        return 0;
-      }
-    }
-    return null;
-  }
-
-  const distances: Array<number> = [];
-  let d: number | null = null;
-  let delat: number = 0;
-
-  // coincident points
-  if (almostEqual(dotA, dotE)) {
-    distances.push(crossA - crossE);
-  } else if (almostEqual(dotA, dotF)) {
-    distances.push(crossA - crossF);
-  } else if (dotA > minEF && dotA < maxEF) {
-    d = pointDistance(A, E, F, reverse);
-
-    if (d !== null && Math.abs(d) < TOL) {
-      //  A currently touches EF, but AB is moving away from EF
-      delat = pointDistance(B, E, F, reverse, true);
-      if (delat < 0 || Math.abs(delat * overlap) < TOL) {
-        d = null;
-      }
-    }
-
-    if (d !== null) {
-      distances.push(d);
-    }
-  }
-
-  if (almostEqual(dotB, dotE)) {
-    distances.push(crossB - crossE);
-  } else if (almostEqual(dotB, dotF)) {
-    distances.push(crossB - crossF);
-  } else if (dotB > minEF && dotB < maxEF) {
-    d = pointDistance(B, E, F, reverse);
-
-    if (d !== null && Math.abs(d) < TOL) {
-      // crossA>crossB A currently touches EF, but AB is moving away from EF
-      delat = pointDistance(A, E, F, reverse, true);
-      if (delat < 0 || Math.abs(delat * overlap) < TOL) {
-        d = null;
-      }
-    }
-    if (d !== null) {
-      distances.push(d);
-    }
-  }
-
-  if (dotE > minAB && dotE < maxAB) {
-    d = pointDistance(E, A, B, direction);
-    if (d !== null && Math.abs(d) < TOL) {
-      // crossF<crossE A currently touches EF, but AB is moving away from EF
-      delat = pointDistance(F, A, B, direction, true);
-      if (delat < 0 || Math.abs(delat * overlap) < TOL) {
-        d = null;
-      }
-    }
-    if (d !== null) {
-      distances.push(d);
-    }
-  }
-
-  if (dotF > minAB && dotF < maxAB) {
-    d = pointDistance(F, A, B, direction);
-    if (d !== null && Math.abs(d) < TOL) {
-      // && crossE<crossF A currently touches EF, but AB is moving away from EF
-      delat = pointDistance(E, A, B, direction, true);
-      if (delat < 0 || Math.abs(delat * overlap) < TOL) {
-        d = null;
-      }
-    }
-    if (d !== null) {
-      distances.push(d);
-    }
-  }
-
-  return distances.length ? Math.min(...distances) : null;
 }
 
 function polygonSlideDistance(
@@ -445,10 +254,16 @@ function polygonSlideDistance(
         continue; // ignore extremely small lines
       }
 
-      distance = segmentDistance(a1, a2, b1, b2, dir);
+      distance = segmentDistance(
+        FloatPoint.export(a1),
+        FloatPoint.export(a2),
+        FloatPoint.export(b1),
+        FloatPoint.export(b2),
+        FloatPoint.export(dir)
+      );
 
       if (
-        distance !== null &&
+        !Number.isNaN(distance) &&
         (result === null || distance < result) &&
         (!ignoreNegative || distance > 0 || almostEqual(distance, 0))
       ) {
@@ -508,7 +323,7 @@ function polygonProjectionDistance(
       }
 
       // project point, ignore edge boundaries
-      distance = pointDistance(p, s1, s2, direction);
+      distance = pointDistances(p, s1, s2, direction);
 
       if (
         distance !== null &&
@@ -578,7 +393,6 @@ function searchStartPoint(
         if (!inside && !intersect(edgeA, edgeB) && !inNfp(offset, NFP)) {
           return offset.clone();
         }
-
         // slide B along vector
         point.set(edgeA.at(i + 1)).sub(edgeA.at(i));
         projectionDistance1 = polygonProjectionDistance(edgeA, edgeB, point);
@@ -637,7 +451,7 @@ function searchStartPoint(
   }
 
   // returns true if point already exists in the given nfp
-  function inNfp(p: Point, nfp: Array<Array<Point>> = []): boolean {
+  function inNfp(p: Point, nfp: Point[][] = []): boolean {
     if (nfp.length == 0) {
       return false;
     }
@@ -673,9 +487,9 @@ function noFitPolygon(
   b: ArrayPolygon,
   inside: boolean,
   searchEdges: boolean
-) {
+): ArrayPolygon[] {
   if (a.length < 3 || b.length < 3) {
-    return null;
+    return [];
   }
 
   a.offsetx = 0;
@@ -966,7 +780,7 @@ function noFitPolygon(
 function noFitPolygonRectangle(
   a: ArrayPolygon,
   b: ArrayPolygon
-): Array<ArrayPolygon> | null {
+): Array<ArrayPolygon> {
   const firstA: Point = a.at(0);
   const firstB: Point = b.at(0);
   const minA: FloatPoint = FloatPoint.from(firstA);
@@ -992,7 +806,7 @@ function noFitPolygonRectangle(
   const offsetB: FloatPoint = FloatPoint.sub(minB, maxB);
 
   if (offsetB.x > offsetA.x || offsetB.y > offsetA.y) {
-    return null;
+    return [];
   }
 
   const minABSum: FloatPoint = FloatPoint.add(minA, firstB);
@@ -1055,13 +869,15 @@ function minkowskiDifference(
   return [clipperNfp];
 }
 
-export default function pairData(
+export default async function pairData(
   pair: NfpPair,
   env: PairWorkerData
-): PairDataResult {
+): Promise<PairDataResult> {
   if (!pair) {
     return null;
   }
+
+  await ready;
 
   const searchEdges = env.searchEdges;
   const useHoles = env.useHoles;
@@ -1080,7 +896,7 @@ export default function pairData(
       nfp = noFitPolygon(a, b, true, searchEdges);
     }
     // ensure all interior NFPs have the same winding direction
-    if (nfp && nfp.length > 0) {
+    if (nfp.length !== 0) {
       for (i = 0; i < nfp.length; ++i) {
         if (polygonArea(nfp.at(i)) > 0) {
           nfp.at(i).reverse();
@@ -1098,7 +914,7 @@ export default function pairData(
       nfp = minkowskiDifference(a, b);
     }
     // sanity check
-    if (!nfp || nfp.length == 0) {
+    if (nfp.length == 0) {
       console.log("NFP Error: ", nfpData);
       console.log("A: ", JSON.stringify(a));
       console.log("B: ", JSON.stringify(b));
@@ -1156,7 +972,7 @@ export default function pairData(
         if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
           cnfp = noFitPolygon(a.children.at(i), b, true, searchEdges);
           // ensure all interior NFPs have the same winding direction
-          if (cnfp && cnfp.length > 0) {
+          if (cnfp.length > 0) {
             for (j = 0; j < cnfp.length; ++j) {
               if (polygonArea(cnfp.at(j)) < 0) {
                 cnfp.at(j).reverse();
@@ -1169,5 +985,5 @@ export default function pairData(
     }
   }
 
-  return { value: nfp, numKey: pair.numKey };
+  return Promise.resolve({ value: nfp, numKey: pair.numKey });
 }
