@@ -11,7 +11,12 @@ import {
 } from "../../geometry-util";
 import FloatPoint from "../../float-point";
 import FloatRect from "../../float-rect";
-import { keyToNFPData, almostEqual } from "../../util";
+import {
+  keyToNFPData,
+  almostEqual,
+  exportPolygon,
+  importPolygon
+} from "../../util";
 import {
   ArrayPolygon,
   NfpPair,
@@ -19,7 +24,12 @@ import {
   PairWorkerData,
   Point
 } from "../../interfaces";
-import { segmentDistance, lineIntersect, ready } from "../../asm";
+import {
+  segmentDistance,
+  lineIntersect,
+  ready,
+  noFitPolygonRectangle
+} from "../../asm";
 
 /*!
  * General purpose geometry functions for polygon/Bezier calculations
@@ -211,6 +221,7 @@ function polygonSlideDistance(
   direction: Point,
   ignoreNegative: boolean
 ): number {
+  console.log("SIDE_DISTANCE");
   const a1: FloatPoint = new FloatPoint();
   const a2: FloatPoint = new FloatPoint();
   const b1: FloatPoint = new FloatPoint();
@@ -281,6 +292,7 @@ function polygonProjectionDistance(
   b: ArrayPolygon,
   direction: Point
 ): number {
+  console.log("PROJECTION");
   const offsetA = new FloatPoint(a.offsetx || 0, a.offsety || 0);
   const offsetB = new FloatPoint(b.offsetx || 0, b.offsety || 0);
   const edgeA: ArrayPolygon = a.slice(0) as ArrayPolygon;
@@ -485,7 +497,7 @@ function searchStartPoint(
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
-function noFitPolygon(
+function noFitPolygons(
   a: ArrayPolygon,
   b: ArrayPolygon,
   inside: boolean,
@@ -779,53 +791,6 @@ function noFitPolygon(
   return nfpList;
 }
 
-// returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle(
-  a: ArrayPolygon,
-  b: ArrayPolygon
-): ArrayPolygon[] {
-  const firstA: Point = a.at(0);
-  const firstB: Point = b.at(0);
-  const minA: FloatPoint = FloatPoint.from(firstA);
-  const maxA: FloatPoint = FloatPoint.from(firstA);
-  const minB: FloatPoint = FloatPoint.from(firstB);
-  const maxB: FloatPoint = FloatPoint.from(firstB);
-  let i: number = 0;
-  let point: Point;
-
-  for (i = 1; i < a.length; ++i) {
-    point = a.at(i);
-    minA.min(point);
-    maxA.max(point);
-  }
-
-  for (i = 1; i < b.length; ++i) {
-    point = b.at(i);
-    minB.min(point);
-    maxB.max(point);
-  }
-
-  const offsetA: FloatPoint = FloatPoint.sub(minA, maxA);
-  const offsetB: FloatPoint = FloatPoint.sub(minB, maxB);
-
-  if (offsetB.x > offsetA.x || offsetB.y > offsetA.y) {
-    return [];
-  }
-
-  const minABSum: FloatPoint = FloatPoint.add(minA, firstB);
-  const maxABSum: FloatPoint = FloatPoint.add(maxA, firstB);
-
-  //TODO: refactor when clipper logic will be removed
-  return [
-    [
-      { x: minABSum.x - minB.x, y: minABSum.y - minB.y },
-      { x: maxABSum.x - maxB.x, y: minABSum.y - minB.y },
-      { x: maxABSum.x - maxB.x, y: maxABSum.y - maxB.y },
-      { x: minABSum.x - minB.x, y: maxABSum.y - maxB.y }
-    ] as ArrayPolygon
-  ];
-}
-
 // clipperjs uses alerts for warnings
 function alert(message: string) {
   console.log("alert: ", message);
@@ -894,9 +859,11 @@ export default async function pairData(
 
   if (nfpData.at(4) === 1) {
     if (isRectangle(a)) {
-      nfp = noFitPolygonRectangle(a, b);
+      nfp = [
+        importPolygon(noFitPolygonRectangle(exportPolygon(a), exportPolygon(b)))
+      ];
     } else {
-      nfp = noFitPolygon(a, b, true, searchEdges);
+      nfp = noFitPolygons(a, b, true, searchEdges);
     }
     // ensure all interior NFPs have the same winding direction
     if (nfp.length !== 0) {
@@ -912,7 +879,7 @@ export default async function pairData(
     }
   } else {
     if (searchEdges) {
-      nfp = noFitPolygon(a, b, false, searchEdges);
+      nfp = noFitPolygons(a, b, false, searchEdges);
     } else {
       nfp = minkowskiDifference(a, b);
     }
@@ -973,7 +940,7 @@ export default async function pairData(
 
         // no need to find nfp if B's bounding box is too big
         if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
-          cnfp = noFitPolygon(a.children.at(i), b, true, searchEdges);
+          cnfp = noFitPolygons(a.children.at(i), b, true, searchEdges);
           // ensure all interior NFPs have the same winding direction
           if (cnfp.length > 0) {
             for (j = 0; j < cnfp.length; ++j) {

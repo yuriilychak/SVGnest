@@ -1,1 +1,6 @@
-export { segmentDistance, lineIntersect, ready } from "./wasm";
+export {
+  segmentDistance,
+  lineIntersect,
+  ready,
+  noFitPolygonRectangle
+} from "./wasm";

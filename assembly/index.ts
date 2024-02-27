@@ -1,7 +1,8 @@
 // The entry file of your WebAssembly module.
 
 import Point from "./point";
-import { almostEqual, TOLEARANCE } from "./util";
+import Polygon from "./polygon";
+import { almostEqual, POLYGON_CONFIG_SIZE, TOLEARANCE } from "./util";
 
 function checkIntersection(a: f32, b: f32, c: f32): boolean {
   const offset: f32 = f32(Math.abs(a - b));
@@ -265,4 +266,56 @@ export function segmentDistance(
   } else {
     return Number.NaN;
   }
+}
+
+// returns an interior NFP for the special case where A is a rectangle
+export function noFitPolygonRectangle(
+  dataA: Float32Array,
+  dataB: Float32Array
+): Float32Array {
+  const a: Polygon = new Polygon(dataA);
+  const b: Polygon = new Polygon(dataB);
+  const firstB: Point = b.firstPoint as Point;
+  const minA: Point = a.min;
+  const maxA: Point = a.max;
+  const minB: Point = b.min;
+  const maxB: Point = b.max;
+  const offsetA: Point = Point.sub(minA, maxA);
+  const offsetB: Point = Point.sub(minB, maxB);
+
+  if (offsetB.x > offsetA.x || offsetB.y > offsetA.y) {
+    return new Float32Array(0);
+  }
+
+  const minABSum: Point = Point.add(minA, firstB);
+  const maxABSum: Point = Point.add(maxA, firstB);
+  const size: u16 = POLYGON_CONFIG_SIZE + 8;
+  const result = new Float32Array(size);
+
+  result[0] = size;
+  result[1] = -1; //  id
+  result[2] = -1; //  source
+  result[3] = 0; //   hole
+  result[4] = 0; //   rotation
+  result[5] = 0; //   x
+  result[6] = 0; //   y
+  result[7] = 0; //   width
+  result[8] = 0; //   height
+  result[9] = 0; //   offset x
+  result[10] = 0; //  offset y
+  result[11] = 4; //  point count
+  result[12] = 0; //  has parent
+  result[13] = 0; //  child count
+
+  // Points
+  result[14] = minABSum.x - minB.x;
+  result[15] = minABSum.y - minB.y;
+  result[16] = maxABSum.x - maxB.x;
+  result[17] = minABSum.y - minB.y;
+  result[18] = maxABSum.x - maxB.x;
+  result[19] = maxABSum.y - maxB.y;
+  result[20] = minABSum.x - minB.x;
+  result[21] = maxABSum.y - maxB.y;
+
+  return result;
 }

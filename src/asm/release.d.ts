@@ -33,6 +33,16 @@ declare namespace __AdaptedExports {
     inputF: Float32Array,
     inputDirection: Float32Array
   ): number;
+  /**
+   * assembly/index/noFitPolygonRectangle
+   * @param dataA `~lib/typedarray/Float32Array`
+   * @param dataB `~lib/typedarray/Float32Array`
+   * @returns `~lib/typedarray/Float32Array`
+   */
+  export function noFitPolygonRectangle(
+    dataA: Float32Array,
+    dataB: Float32Array
+  ): Float32Array;
 }
 /** Instantiates the compiled WebAssembly module with the given imports. */
 export declare function instantiate(

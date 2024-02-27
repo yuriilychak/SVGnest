@@ -29,7 +29,6 @@ export interface ArrayPolygon extends Array<Point>, BoundRect {
   rotation: number;
   source: number;
   hole?: boolean;
-  marked?: boolean;
   offsetx?: number;
   offsety?: number;
 }

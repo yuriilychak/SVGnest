@@ -1,4 +1,4 @@
-import { ArrayPolygon } from "./interfaces";
+import { ArrayPolygon, Point } from "./interfaces";
 
 // floating point comparison tolerance
 const TOLEARANCE: number = Math.pow(10, -9); // Floating point error is likely to be above 1 epsilon
@@ -64,4 +64,82 @@ export function keyToNFPData(
   result[0] = idA - 1;
 
   return result;
+}
+
+export function importPolygon(
+  polygonData: Float32Array,
+  offset: number = 0
+): ArrayPolygon {
+  const innerOffset: number = 14 + offset;
+  const size: number = polygonData[0];
+  const pointCount: number = polygonData[11];
+  const result: ArrayPolygon = new Array<Point>(pointCount) as ArrayPolygon;
+  const hasParent: boolean = polygonData[offset + 12] === 1;
+  let i: number = 0;
+
+  result.id = polygonData[offset + 1];
+  result.source = polygonData[offset + 2];
+  result.hole = polygonData[offset + 3] === 1;
+  result.rotation = polygonData[offset + 4];
+  result.x = polygonData[offset + 5];
+  result.y = polygonData[offset + 6];
+  result.width = polygonData[offset + 7];
+  result.height = polygonData[offset + 8];
+  result.offsetx = polygonData[offset + 9];
+  result.offsety = polygonData[offset + 10];
+
+  for (i = 0; i < pointCount; ++i) {
+    result[i] = {
+      x: polygonData[innerOffset + (i << 1)],
+      y: polygonData[innerOffset + (i << 1) + 1]
+    };
+  }
+
+  if (hasParent) {
+    result.parent = importPolygon(polygonData, size);
+  }
+
+  return result;
+}
+
+export function exportPolygon(polygon: ArrayPolygon): Float32Array {
+  const offset: number = 14;
+  const pointCount: number = polygon.length;
+  const size: number = offset + (pointCount << 1);
+  const polygonData: Float32Array = new Float32Array(size);
+  let i: number = 0;
+  let result: Float32Array;
+
+  polygonData[0] = size;
+  polygonData[1] = polygon.id || -1;
+  polygonData[2] = polygon.source || -1;
+  polygonData[3] = polygon.hole ? 1 : 0;
+  polygonData[4] = polygon.rotation || 0;
+  polygonData[5] = polygon.x || 0;
+  polygonData[6] = polygon.y || 0;
+  polygonData[7] = polygon.width || 0;
+  polygonData[8] = polygon.height || 0;
+  polygonData[9] = polygon.offsetx || 0;
+  polygonData[10] = polygon.offsety || 0;
+  polygonData[11] = pointCount;
+  polygonData[12] = polygon.parent ? 1 : 0;
+  polygonData[13] = polygon.children ? polygon.children.length : 0;
+
+  for (i = 0; i < pointCount; ++i) {
+    polygonData[offset + (i << 1)] = polygon.at(i).x;
+    polygonData[offset + (i << 1) + 1] = polygon.at(i).y;
+  }
+
+  if (polygon.parent) {
+    const parentData: Float32Array = exportPolygon(polygon.parent);
+
+    result = new Float32Array(size + parentData.length);
+
+    result.set(polygonData);
+    result.set(parentData, size);
+
+    return result;
+  } else {
+    return polygonData;
+  }
 }

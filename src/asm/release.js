@@ -13,6 +13,11 @@ export async function instantiate(module, imports = {}) {
             `${message} in ${fileName}:${lineNumber}:${columnNumber}`
           );
         })();
+      },
+      "console.log"(text) {
+        // ~lib/bindings/dom/console.log(~lib/string/String) => void
+        text = __liftString(text >>> 0);
+        console.log(text);
       }
     })
   };
@@ -81,6 +86,21 @@ export async function instantiate(module, imports = {}) {
           __release(inputE);
           __release(inputF);
         }
+      },
+      noFitPolygonRectangle(dataA, dataB) {
+        // assembly/index/noFitPolygonRectangle(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array) => ~lib/typedarray/Float32Array
+        dataA = __retain(
+          __lowerTypedArray(Float32Array, 4, 2, dataA) || __notnull()
+        );
+        dataB = __lowerTypedArray(Float32Array, 4, 2, dataB) || __notnull();
+        try {
+          return __liftTypedArray(
+            Float32Array,
+            exports.noFitPolygonRectangle(dataA, dataB) >>> 0
+          );
+        } finally {
+          __release(dataA);
+        }
       }
     },
     exports
@@ -97,6 +117,14 @@ export async function instantiate(module, imports = {}) {
         ...memoryU16.subarray(start, (start += 1024))
       );
     return string + String.fromCharCode(...memoryU16.subarray(start, end));
+  }
+  function __liftTypedArray(constructor, pointer) {
+    if (!pointer) return null;
+    return new constructor(
+      memory.buffer,
+      __getU32(pointer + 4),
+      __dataview.getUint32(pointer + 8, true) / constructor.BYTES_PER_ELEMENT
+    ).slice();
   }
   function __lowerTypedArray(constructor, id, align, values) {
     if (values == null) return 0;
@@ -140,6 +168,14 @@ export async function instantiate(module, imports = {}) {
     } catch {
       __dataview = new DataView(memory.buffer);
       __dataview.setUint32(pointer, value, true);
+    }
+  }
+  function __getU32(pointer) {
+    try {
+      return __dataview.getUint32(pointer, true);
+    } catch {
+      __dataview = new DataView(memory.buffer);
+      return __dataview.getUint32(pointer, true);
     }
   }
   return adaptedExports;

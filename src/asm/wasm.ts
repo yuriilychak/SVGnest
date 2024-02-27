@@ -52,3 +52,10 @@ export function lineIntersect(
 
   return exports.lineIntersect(importA, importB, importE, importF, infinite);
 }
+
+export function noFitPolygonRectangle(
+  dataA: Float32Array,
+  dataB: Float32Array
+): Float32Array {
+  return exports.noFitPolygonRectangle(dataA, dataB);
+}
