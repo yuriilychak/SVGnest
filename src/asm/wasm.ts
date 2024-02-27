@@ -1,4 +1,4 @@
-import { __AdaptedExports, instantiate } from "./release";
+import { __AdaptedExports, instantiate } from "./glue-code";
 
 // Initialization.
 

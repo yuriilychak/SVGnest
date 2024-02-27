@@ -10,13 +10,7 @@ declare namespace __AdaptedExports {
    * @param infinite `bool`
    * @returns `bool`
    */
-  export function lineIntersect(
-    importA: Float32Array,
-    importB: Float32Array,
-    importE: Float32Array,
-    importF: Float32Array,
-    infinite?: boolean
-  ): boolean;
+  export function lineIntersect(importA: Float32Array, importB: Float32Array, importE: Float32Array, importF: Float32Array, infinite?: boolean): boolean;
   /**
    * assembly/index/segmentDistance
    * @param inputA `~lib/typedarray/Float32Array`
@@ -26,28 +20,22 @@ declare namespace __AdaptedExports {
    * @param inputDirection `~lib/typedarray/Float32Array`
    * @returns `f64`
    */
-  export function segmentDistance(
-    inputA: Float32Array,
-    inputB: Float32Array,
-    inputE: Float32Array,
-    inputF: Float32Array,
-    inputDirection: Float32Array
-  ): number;
+  export function segmentDistance(inputA: Float32Array, inputB: Float32Array, inputE: Float32Array, inputF: Float32Array, inputDirection: Float32Array): number;
   /**
    * assembly/index/noFitPolygonRectangle
    * @param dataA `~lib/typedarray/Float32Array`
    * @param dataB `~lib/typedarray/Float32Array`
    * @returns `~lib/typedarray/Float32Array`
    */
-  export function noFitPolygonRectangle(
-    dataA: Float32Array,
-    dataB: Float32Array
-  ): Float32Array;
+  export function noFitPolygonRectangle(dataA: Float32Array, dataB: Float32Array): Float32Array;
+  /**
+   * assembly/index/isRectangle
+   * @param data `~lib/typedarray/Float32Array`
+   * @returns `bool`
+   */
+  export function isRectangle(data: Float32Array): boolean;
 }
 /** Instantiates the compiled WebAssembly module with the given imports. */
-export declare function instantiate(
-  module: WebAssembly.Module,
-  imports?: {
-    env: unknown;
-  }
-): Promise<typeof __AdaptedExports>;
+export declare function instantiate(module: WebAssembly.Module, imports?: {
+  env: unknown,
+}): Promise<typeof __AdaptedExports>;

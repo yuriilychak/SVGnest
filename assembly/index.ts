@@ -2,6 +2,7 @@
 
 import Point from "./point";
 import Polygon from "./polygon";
+import Rect from "./rect";
 import { almostEqual, POLYGON_CONFIG_SIZE, TOLEARANCE } from "./util";
 
 function checkIntersection(a: f32, b: f32, c: f32): boolean {
@@ -318,4 +319,33 @@ export function noFitPolygonRectangle(
   result[21] = maxABSum.y - maxB.y;
 
   return result;
+}
+
+export function isRectangle(data: Float32Array): boolean {
+  const polygon: Polygon = new Polygon(data);
+
+  if (!polygon.isValid) {
+    return false;
+  }
+
+  const pointCount: u16 = polygon.length;
+  const boundRect: Rect = polygon.bound as Rect;
+  const bottomLeft: Point = boundRect.bottomLeft;
+  const topRight: Point = boundRect.topRight;
+  let i: u16 = 0;
+  let point: Point;
+
+  for (i = 0; i < pointCount; ++i) {
+    point = polygon.at(i) as Point;
+
+    if (
+      (!almostEqual(point.x, bottomLeft.x) &&
+        !almostEqual(point.x, topRight.x)) ||
+      (!almostEqual(point.y, bottomLeft.y) && !almostEqual(point.y, topRight.y))
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }

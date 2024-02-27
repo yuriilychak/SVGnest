@@ -387,7 +387,7 @@ function searchStartPoint(
   A: ArrayPolygon,
   B: ArrayPolygon,
   inside: boolean,
-  NFP: Array<Array<Point>> = []
+  NFP: Point[][] = []
 ): FloatPoint | null {
   // clone arrays
   const edgeA: ArrayPolygon = A.slice() as ArrayPolygon;
