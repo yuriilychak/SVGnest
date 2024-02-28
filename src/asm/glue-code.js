@@ -18,52 +18,28 @@ export async function instantiate(module, imports = {}) {
   const { exports } = instantiated.instance;
   const memory = exports.memory || imports.env.memory;
   const adaptedExports = Object.setPrototypeOf({
-    lineIntersect(importA, importB, importE, importF, infinite) {
-      // assembly/index/lineIntersect(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, bool?) => bool
-      importA = __retain(__lowerTypedArray(Float32Array, 4, 2, importA) || __notnull());
-      importB = __retain(__lowerTypedArray(Float32Array, 4, 2, importB) || __notnull());
-      importE = __retain(__lowerTypedArray(Float32Array, 4, 2, importE) || __notnull());
-      importF = __lowerTypedArray(Float32Array, 4, 2, importF) || __notnull();
-      infinite = infinite ? 1 : 0;
-      try {
-        exports.__setArgumentsLength(arguments.length);
-        return exports.lineIntersect(importA, importB, importE, importF, infinite) != 0;
-      } finally {
-        __release(importA);
-        __release(importB);
-        __release(importE);
-      }
-    },
-    segmentDistance(inputA, inputB, inputE, inputF, inputDirection) {
-      // assembly/index/segmentDistance(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array) => f64
-      inputA = __retain(__lowerTypedArray(Float32Array, 4, 2, inputA) || __notnull());
-      inputB = __retain(__lowerTypedArray(Float32Array, 4, 2, inputB) || __notnull());
-      inputE = __retain(__lowerTypedArray(Float32Array, 4, 2, inputE) || __notnull());
-      inputF = __retain(__lowerTypedArray(Float32Array, 4, 2, inputF) || __notnull());
-      inputDirection = __lowerTypedArray(Float32Array, 4, 2, inputDirection) || __notnull();
-      try {
-        return exports.segmentDistance(inputA, inputB, inputE, inputF, inputDirection);
-      } finally {
-        __release(inputA);
-        __release(inputB);
-        __release(inputE);
-        __release(inputF);
-      }
-    },
-    noFitPolygonRectangle(dataA, dataB) {
-      // assembly/index/noFitPolygonRectangle(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array) => ~lib/typedarray/Float32Array
+    getNfp(dataA, dataB, searchEdges) {
+      // assembly/index/getNfp(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, bool) => ~lib/typedarray/Float32Array
       dataA = __retain(__lowerTypedArray(Float32Array, 4, 2, dataA) || __notnull());
       dataB = __lowerTypedArray(Float32Array, 4, 2, dataB) || __notnull();
+      searchEdges = searchEdges ? 1 : 0;
       try {
-        return __liftTypedArray(Float32Array, exports.noFitPolygonRectangle(dataA, dataB) >>> 0);
+        return __liftTypedArray(Float32Array, exports.getNfp(dataA, dataB, searchEdges) >>> 0);
       } finally {
         __release(dataA);
       }
     },
-    isRectangle(data) {
-      // assembly/index/isRectangle(~lib/typedarray/Float32Array) => bool
-      data = __lowerTypedArray(Float32Array, 4, 2, data) || __notnull();
-      return exports.isRectangle(data) != 0;
+    noFitPolygon(a, b, inside, searchEdges) {
+      // assembly/index/noFitPolygon(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, bool, bool) => ~lib/typedarray/Float32Array
+      a = __retain(__lowerTypedArray(Float32Array, 4, 2, a) || __notnull());
+      b = __lowerTypedArray(Float32Array, 4, 2, b) || __notnull();
+      inside = inside ? 1 : 0;
+      searchEdges = searchEdges ? 1 : 0;
+      try {
+        return __liftTypedArray(Float32Array, exports.noFitPolygon(a, b, inside, searchEdges) >>> 0);
+      } finally {
+        __release(a);
+      }
     },
   }, exports);
   function __liftString(pointer) {

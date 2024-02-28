@@ -309,7 +309,7 @@ export default class SvgNest {
           for (i = 0; i < generatedNfp.length; ++i) {
             nfp = generatedNfp[i];
 
-            if (nfp) {
+            if (nfp && nfp.value.length) {
               // a null nfp means the nfp could not be generated, either because the parts simply don't fit or an error in the nfp algo
               this._nfpCache.set(nfp.numKey, nfp.value);
             }

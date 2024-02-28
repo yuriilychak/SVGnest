@@ -1,6 +1,7 @@
 import { TOLEARANCE, almostEqual } from "./util";
 
 export default class Point {
+  public marked: boolean = false;
   private _data: Float32Array = new Float32Array(2);
 
   constructor(x: f32 = 0, y: f32 = 0) {
@@ -88,20 +89,22 @@ export default class Point {
     return new Point(this._data[0], this._data[1]);
   }
 
-  public almostEqual(point: Point, tolerance?: f32): boolean {
+  public almostEqual(point: Point, tolerance: f64 = TOLEARANCE): boolean {
     return Point.almostEqual(this, point, tolerance);
   }
 
   // returns true if p lies on the line segment defined by AB, but not at any endpoints
   // may need work!
   public onSegment(a: Point, b: Point): boolean {
-    const tolerance: f32 = Math.pow(10, -9);
     const max: Point = Point.from(a).max(b);
     const min: Point = Point.from(a).min(b);
     const offsetAB: Point = Point.sub(a, b);
     const offsetAP: Point = Point.sub(a, this);
     // vertical line
-    if (Math.abs(offsetAB.x) < tolerance && Math.abs(offsetAP.x) < tolerance) {
+    if (
+      Math.abs(offsetAB.x) < TOLEARANCE &&
+      Math.abs(offsetAP.x) < TOLEARANCE
+    ) {
       return (
         !almostEqual(this.y, b.y) &&
         !almostEqual(this.y, a.y) &&
@@ -111,7 +114,10 @@ export default class Point {
     }
 
     // horizontal line
-    if (Math.abs(offsetAB.x) < tolerance && Math.abs(offsetAP.x) < tolerance) {
+    if (
+      Math.abs(offsetAB.x) < TOLEARANCE &&
+      Math.abs(offsetAP.x) < TOLEARANCE
+    ) {
       return (
         !almostEqual(this.x, b.x) &&
         !almostEqual(this.x, a.x) &&
@@ -129,7 +135,7 @@ export default class Point {
     if (
       Point.almostEqual(this, a) ||
       Point.almostEqual(this, b) ||
-      Math.abs(offsetAP.cross(offsetAB, -1)) > tolerance
+      Math.abs(offsetAP.cross(offsetAB, -1)) > TOLEARANCE
     ) {
       return false;
     }
@@ -137,7 +143,7 @@ export default class Point {
     const dot: f32 = offsetAP.dot(offsetAB);
     const len2: f32 = offsetAB.squareLength;
 
-    if (dot < tolerance || dot > len2 || almostEqual(dot, len2)) {
+    if (dot < TOLEARANCE || dot > len2 || almostEqual(dot, len2)) {
       return false;
     }
 
@@ -195,7 +201,7 @@ export default class Point {
   public static almostEqual(
     point1: Point,
     point2: Point,
-    tolerance: f32 = TOLEARANCE
+    tolerance: f64 = TOLEARANCE
   ): boolean {
     return (
       Math.abs(point1.x - point2.x) < tolerance &&

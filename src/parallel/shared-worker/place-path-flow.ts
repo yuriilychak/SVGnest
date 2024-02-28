@@ -19,7 +19,7 @@ import {
 } from "../../interfaces";
 
 export default function placePaths(
-  inputPaths: Array<ArrayPolygon>,
+  inputPaths: ArrayPolygon[],
   env: PlacePairConfiguration
 ): PlaceDataResult {
   if (!env.binPolygon) {
@@ -74,15 +74,12 @@ export default function placePaths(
     rotatedPath.id = path.id;
     paths.push(rotatedPath);
   }
-
   while (paths.length > 0) {
     placed = [];
     placements = [];
     fitness += 1; // add 1 for each new bin opened (lower fitness is better)
-
     for (i = 0; i < paths.length; ++i) {
       path = paths.at(i);
-
       // inner NFP
       numKey = generateNFPCacheKey(rotations, true, emptyPath, path);
       binNfp = env.nfpCache.get(numKey);
@@ -94,7 +91,6 @@ export default function placePaths(
 
       // ensure all necessary NFPs exist
       error = false;
-
       for (j = 0; j < placed.length; ++j) {
         numKey = generateNFPCacheKey(rotations, false, placed.at(j), path);
 
@@ -110,7 +106,6 @@ export default function placePaths(
       }
 
       position = null;
-
       if (placed.length == 0) {
         // first placement, put it on the left
         for (j = 0; j < binNfp.length; ++j) {
@@ -134,7 +129,6 @@ export default function placePaths(
 
         continue;
       }
-
       clipperBinNfp = [];
 
       for (j = 0; j < binNfp.length; ++j) {

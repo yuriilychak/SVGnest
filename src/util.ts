@@ -71,8 +71,8 @@ export function importPolygon(
   offset: number = 0
 ): ArrayPolygon {
   const innerOffset: number = 14 + offset;
-  const size: number = polygonData[0];
-  const pointCount: number = polygonData[11];
+  const size: number = polygonData[offset];
+  const pointCount: number = polygonData[11 + offset];
   const result: ArrayPolygon = new Array<Point>(pointCount) as ArrayPolygon;
   const hasParent: boolean = polygonData[offset + 12] === 1;
   let i: number = 0;
@@ -142,4 +142,22 @@ export function exportPolygon(polygon: ArrayPolygon): Float32Array {
   } else {
     return polygonData;
   }
+}
+
+export function importPolygons(data: Float32Array): ArrayPolygon[] {
+  if (data.length === 0) {
+    return [];
+  }
+
+  const polygonCount: number = data[0];
+  const result: ArrayPolygon[] = [];
+  let offset = polygonCount + 1;
+  let i: number = 0;
+
+  for (i = 0; i < polygonCount; ++i) {
+    result.push(importPolygon(data, offset));
+    offset += data[i + 1];
+  }
+
+  return result;
 }

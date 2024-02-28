@@ -1,6 +1,6 @@
 import Point from "./point";
 import Rect from "./rect";
-import { POLYGON_CONFIG_SIZE } from "./util";
+import { POLYGON_CONFIG_SIZE, almostEqual } from "./util";
 
 export default class Polygon {
   private _id: i16;
@@ -42,7 +42,7 @@ export default class Polygon {
   }
 
   public at(index: u16): Point | null {
-    return this._points[index] || null;
+    return this.length <= index ? this._points[index] : null;
   }
 
   public rotate(angle: f32): Polygon {
@@ -126,6 +126,10 @@ export default class Polygon {
     }
   }
 
+  public clone(): Polygon {
+    return new Polygon(this.export());
+  }
+
   public export(): Float32Array {
     const pointCount: u16 = this.length;
     const size: u16 = POLYGON_CONFIG_SIZE + (pointCount << 1);
@@ -145,13 +149,18 @@ export default class Polygon {
     result[10] = this._offset.y;
     result[11] = pointCount;
     result[12] = this._parent !== null ? 1 : 0;
-    result[13] = this._children.length;
+    result[13] = f32(this._children.length);
 
     for (i = 0; i < pointCount; ++i) {
       Polygon.updatePoint(result, i, this._points[i]);
     }
 
     return result;
+  }
+
+  public reverse(): void {
+    this._points.reverse();
+    this._area = this._getArea();
   }
 
   private _getBounds(): Rect {
@@ -222,14 +231,6 @@ export default class Polygon {
     return this._id;
   }
 
-  public get offsetx(): f32 {
-    return this._offset.x;
-  }
-
-  public get offsety(): f32 {
-    return this._offset.y;
-  }
-
   public get offset(): Point {
     return this._offset;
   }
@@ -290,6 +291,33 @@ export default class Polygon {
     this._rotation = value;
   }
 
+  public get isRectangle(): bool {
+    if (!this._isValid) {
+      return false;
+    }
+
+    const pointCount: u16 = this.length;
+    const bottomLeft: Point = this._bounds.bottomLeft;
+    const topRight: Point = this._bounds.topRight;
+    let i: u16 = 0;
+    let point: Point;
+
+    for (i = 0; i < pointCount; ++i) {
+      point = this._points[i];
+
+      if (
+        (!almostEqual(point.x, bottomLeft.x) &&
+          !almostEqual(point.x, topRight.x)) ||
+        (!almostEqual(point.y, bottomLeft.y) &&
+          !almostEqual(point.y, topRight.y))
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   public static updatePoint(
     data: Float32Array,
     index: u16,
@@ -300,6 +328,61 @@ export default class Polygon {
 
     data[innerOffset] = point.x;
     data[innerOffset + 1] = point.y;
+  }
+
+  public static fromPoints(points: Point[]): Polygon {
+    const pointCount: u16 = u16(points.length);
+    const size: u16 = POLYGON_CONFIG_SIZE + (pointCount << 1);
+    const data = new Float32Array(size);
+    let i: u16 = 0;
+
+    data[0] = size;
+    data[1] = -1; //  id
+    data[2] = -1; //  source
+    data[3] = 0; //   hole
+    data[4] = 0; //   rotation
+    data[5] = 0; //   x
+    data[6] = 0; //   y
+    data[7] = 0; //   width
+    data[8] = 0; //   height
+    data[9] = 0; //   offset x
+    data[10] = 0; //  offset y
+    data[11] = pointCount; //  point count
+    data[12] = 0; //  has parent
+    data[13] = 0; //  child count
+    // Points
+    for (i = 0; i < pointCount; ++i) {
+      Polygon.updatePoint(data, i, points[i]);
+    }
+
+    return new Polygon(data);
+  }
+
+  public static exportPolygons(polygons: Polygon[]): Float32Array {
+    const polygonCount: u16 = u16(polygons.length);
+    const polygonData: Float32Array[] = new Array<Float32Array>(polygonCount);
+    const sizes: Float32Array = new Float32Array(polygonCount);
+    let currentOffset: u32 = polygonCount + 1;
+    let totalSize: u32 = currentOffset;
+    let i: u16 = 0;
+
+    for (i = 0; i < polygonCount; ++i) {
+      polygonData[i] = polygons[i].export();
+      sizes[i] = polygonData[i][0];
+      totalSize += u32(sizes[i]);
+    }
+
+    const result: Float32Array = new Float32Array(totalSize);
+
+    result[0] = polygonCount;
+    result.set(sizes, 1);
+
+    for (i = 0; i < polygonCount; ++i) {
+      result.set(polygonData[i], currentOffset);
+      currentOffset += u32(sizes[i]);
+    }
+
+    return result;
   }
 
   private static _getBounds(points: Point[]): Rect {
