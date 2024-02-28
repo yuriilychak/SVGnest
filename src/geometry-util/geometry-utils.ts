@@ -1,6 +1,4 @@
 //@ts-ignore
-import ClipperLib from "js-clipper";
-
 // returns the area of the polygon, assuming no self-intersections
 
 import FloatPoint from "../float-point";
@@ -138,11 +136,7 @@ export function toClipperCoordinates(
 
   for (i = 0; i < size; ++i) {
     point = polygon[i];
-    result.push({ X: point.x, Y: point.y });
-  }
-
-  if (scale !== 1) {
-    ClipperLib.JS.ScaleUpPath(result, scale);
+    result.push({ X: point.x * scale, Y: point.y * scale });
   }
 
   return result;
