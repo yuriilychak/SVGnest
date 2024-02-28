@@ -10,9 +10,9 @@ import {
 } from "../geometry-util";
 
 // clipperjs uses alerts for warnings
-window.alert = function (message) {
+function alert(message) {
   console.log("alert: ", message);
-};
+}
 
 // jsClipper uses X/Y instead of x/y...
 function toClipperCoordinates(polygon) {
