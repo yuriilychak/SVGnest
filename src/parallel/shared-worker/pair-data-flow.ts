@@ -1,5 +1,5 @@
 //@ts-ignore
-import ClipperLib from "js-clipper";
+import { Clipper } from "js-clipper";
 
 import {
   polygonArea,
@@ -12,6 +12,7 @@ import {
 import { keyToNFPData } from "../../util";
 import {
   ArrayPolygon,
+  ClipperPoint,
   NfpPair,
   PairDataResult,
   PairWorkerData,
@@ -19,36 +20,20 @@ import {
 } from "../../interfaces";
 import { ready, noFitPolygon, getNfp } from "../../asm";
 
-// clipperjs uses alerts for warnings
-function alert(message: string) {
-  console.log("alert: ", message);
-}
-
-function minkowskiDifference(
-  A: ArrayPolygon,
-  B: ArrayPolygon
-): Array<ArrayPolygon> {
+function minkowskiDifference(A: ArrayPolygon, B: ArrayPolygon): ArrayPolygon[] {
+  const scale: number = 10000000;
   let i: number = 0;
   let clipperNfp;
   let largestArea: number | null = null;
   let n: ArrayPolygon;
   let sArea: number;
-  const clippedA = toClipperCoordinates(A);
-  const clippedB = toClipperCoordinates(B);
-
-  ClipperLib.JS.ScaleUpPath(clippedA, 10000000);
-  ClipperLib.JS.ScaleUpPath(clippedB, 10000000);
-
-  for (i = 0; i < clippedB.length; ++i) {
-    clippedB.at(i).X *= -1;
-    clippedB.at(i).Y *= -1;
-  }
-
-  const solutions = ClipperLib.Clipper.MinkowskiSum(clippedA, clippedB, true);
+  const clippedA = toClipperCoordinates(A, scale);
+  const clippedB = toClipperCoordinates(B, -scale);
+  const solutions = Clipper.MinkowskiSum(clippedA, clippedB, true);
   const solutionCount: number = solutions.length;
 
   for (i = 0; i < solutionCount; ++i) {
-    n = toNestCoordinates(solutions.at(i), 10000000);
+    n = toNestCoordinates(solutions.at(i), scale);
     sArea = polygonArea(n);
 
     if (largestArea === null || largestArea > sArea) {
@@ -75,7 +60,7 @@ export default async function pairData(
 
   await ready;
 
-  const searchEdges = env.searchEdges;
+  const searchEdges: boolean = !!env.searchEdges;
   const useHoles = env.useHoles;
 
   const nfpData = keyToNFPData(pair.numKey, env.rotations);
