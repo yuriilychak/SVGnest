@@ -20,6 +20,19 @@ import {
 } from "../interfaces";
 import Phenotype from "../genetic-algorithm/phenotype";
 
+let asm: ArrayBuffer;
+
+const ready = /* #__PURE__ */ new Promise<void>(async (resolve, reject) => {
+  try {
+    asm = await fetch("dist/release.wasm").then((response) =>
+      response.arrayBuffer()
+    );
+    resolve();
+  } catch (e) {
+    reject(e);
+  }
+});
+
 export default class SvgNest {
   private _best: PlaceDataResult = null;
   private _bin: Element = null;
@@ -204,7 +217,9 @@ export default class SvgNest {
     }
   }
 
-  private _launchWorkers(displayCallback: Function): void {
+  private async _launchWorkers(displayCallback: Function): Promise<void> {
+    await ready;
+
     let i: number = 0;
     let j: number = 0;
 
@@ -292,6 +307,7 @@ export default class SvgNest {
       "pair",
       nfpPairs,
       {
+        asm,
         rotations: this._configuration.rotations,
         binPolygon: this._binPolygon.polygons,
         searchEdges: this._configuration.exploreConcave,
@@ -386,6 +402,8 @@ export default class SvgNest {
         console.log(err);
       }
     );
+
+    return Promise.resolve();
   }
 
   // returns an array of SVG elements that represent the placement, for export or rendering

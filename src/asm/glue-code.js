@@ -18,25 +18,17 @@ export async function instantiate(module, imports = {}) {
   const { exports } = instantiated.instance;
   const memory = exports.memory || imports.env.memory;
   const adaptedExports = Object.setPrototypeOf({
-    getNfp(dataA, dataB, searchEdges) {
-      // assembly/index/getNfp(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, bool) => ~lib/typedarray/Float32Array
-      dataA = __retain(__lowerTypedArray(Float32Array, 4, 2, dataA) || __notnull());
-      dataB = __lowerTypedArray(Float32Array, 4, 2, dataB) || __notnull();
-      searchEdges = searchEdges ? 1 : 0;
-      try {
-        return __liftTypedArray(Float32Array, exports.getNfp(dataA, dataB, searchEdges) >>> 0);
-      } finally {
-        __release(dataA);
-      }
+    isRectangle(polygon) {
+      // assembly/index/isRectangle(~lib/typedarray/Float64Array) => bool
+      polygon = __lowerTypedArray(Float64Array, 4, 3, polygon) || __notnull();
+      return exports.isRectangle(polygon) != 0;
     },
-    noFitPolygon(a, b, inside, searchEdges) {
-      // assembly/index/noFitPolygon(~lib/typedarray/Float32Array, ~lib/typedarray/Float32Array, bool, bool) => ~lib/typedarray/Float32Array
-      a = __retain(__lowerTypedArray(Float32Array, 4, 2, a) || __notnull());
-      b = __lowerTypedArray(Float32Array, 4, 2, b) || __notnull();
-      inside = inside ? 1 : 0;
-      searchEdges = searchEdges ? 1 : 0;
+    tmpNoFitPolygonRectangle(a, b) {
+      // assembly/index/tmpNoFitPolygonRectangle(~lib/typedarray/Float64Array, ~lib/typedarray/Float64Array) => ~lib/typedarray/Float64Array
+      a = __retain(__lowerTypedArray(Float64Array, 4, 3, a) || __notnull());
+      b = __lowerTypedArray(Float64Array, 4, 3, b) || __notnull();
       try {
-        return __liftTypedArray(Float32Array, exports.noFitPolygon(a, b, inside, searchEdges) >>> 0);
+        return __liftTypedArray(Float64Array, exports.tmpNoFitPolygonRectangle(a, b) >>> 0);
       } finally {
         __release(a);
       }

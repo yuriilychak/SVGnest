@@ -18,6 +18,10 @@ import {
   Point
 } from "../../interfaces";
 
+self.alert = function (message: string): void {
+  console.log(message);
+};
+
 export default function placePaths(
   inputPaths: ArrayPolygon[],
   env: PlacePairConfiguration

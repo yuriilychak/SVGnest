@@ -2,22 +2,18 @@ declare namespace __AdaptedExports {
   /** Exported memory */
   export const memory: WebAssembly.Memory;
   /**
-   * assembly/index/getNfp
-   * @param dataA `~lib/typedarray/Float32Array`
-   * @param dataB `~lib/typedarray/Float32Array`
-   * @param searchEdges `bool`
-   * @returns `~lib/typedarray/Float32Array`
+   * assembly/index/isRectangle
+   * @param polygon `~lib/typedarray/Float64Array`
+   * @returns `bool`
    */
-  export function getNfp(dataA: Float32Array, dataB: Float32Array, searchEdges: boolean): Float32Array;
+  export function isRectangle(polygon: Float64Array): boolean;
   /**
-   * assembly/index/noFitPolygon
-   * @param a `~lib/typedarray/Float32Array`
-   * @param b `~lib/typedarray/Float32Array`
-   * @param inside `bool`
-   * @param searchEdges `bool`
-   * @returns `~lib/typedarray/Float32Array`
+   * assembly/index/tmpNoFitPolygonRectangle
+   * @param a `~lib/typedarray/Float64Array`
+   * @param b `~lib/typedarray/Float64Array`
+   * @returns `~lib/typedarray/Float64Array`
    */
-  export function noFitPolygon(a: Float32Array, b: Float32Array, inside: boolean, searchEdges: boolean): Float32Array;
+  export function tmpNoFitPolygonRectangle(a: Float64Array, b: Float64Array): Float64Array;
 }
 /** Instantiates the compiled WebAssembly module with the given imports. */
 export declare function instantiate(module: WebAssembly.Module, imports?: {

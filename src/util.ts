@@ -67,7 +67,7 @@ export function keyToNFPData(
 }
 
 export function importPolygon(
-  polygonData: Float32Array,
+  polygonData: Float64Array,
   offset: number = 0
 ): ArrayPolygon {
   const innerOffset: number = 14 + offset;
@@ -102,13 +102,13 @@ export function importPolygon(
   return result;
 }
 
-export function exportPolygon(polygon: ArrayPolygon): Float32Array {
+export function exportPolygon(polygon: ArrayPolygon): Float64Array {
   const offset: number = 14;
   const pointCount: number = polygon.length;
   const size: number = offset + (pointCount << 1);
-  const polygonData: Float32Array = new Float32Array(size);
+  const polygonData: Float64Array = new Float64Array(size);
   let i: number = 0;
-  let result: Float32Array;
+  let result: Float64Array;
 
   polygonData[0] = size;
   polygonData[1] = polygon.id || -1;
@@ -131,9 +131,9 @@ export function exportPolygon(polygon: ArrayPolygon): Float32Array {
   }
 
   if (polygon.parent) {
-    const parentData: Float32Array = exportPolygon(polygon.parent);
+    const parentData: Float64Array = exportPolygon(polygon.parent);
 
-    result = new Float32Array(size + parentData.length);
+    result = new Float64Array(size + parentData.length);
 
     result.set(polygonData);
     result.set(parentData, size);
@@ -144,7 +144,7 @@ export function exportPolygon(polygon: ArrayPolygon): Float32Array {
   }
 }
 
-export function importPolygons(data: Float32Array): ArrayPolygon[] {
+export function importPolygons(data: Float64Array): ArrayPolygon[] {
   if (data.length === 0) {
     return [];
   }

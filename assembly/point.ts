@@ -2,14 +2,14 @@ import { TOLEARANCE, almostEqual } from "./util";
 
 export default class Point {
   public marked: boolean = false;
-  private _data: Float32Array = new Float32Array(2);
+  private _data: Float64Array = new Float64Array(2);
 
-  constructor(x: f32 = 0, y: f32 = 0) {
+  constructor(x: f64 = 0, y: f64 = 0) {
     this._data[0] = x;
     this._data[1] = y;
   }
 
-  public scale(multiplier: f32): Point {
+  public scale(multiplier: f64): Point {
     this._data[0] *= multiplier;
     this._data[1] *= multiplier;
 
@@ -37,7 +37,7 @@ export default class Point {
     return this;
   }
 
-  public update(x: f32, y: f32): Point {
+  public update(x: f64, y: f64): Point {
     this._data[0] = x;
     this._data[1] = y;
 
@@ -45,24 +45,24 @@ export default class Point {
   }
 
   public max(value: Point): Point {
-    this._data[0] = f32(Math.max(value.x, this._data[0]));
-    this._data[1] = f32(Math.max(value.y, this._data[1]));
+    this._data[0] = Math.max(value.x, this._data[0]);
+    this._data[1] = Math.max(value.y, this._data[1]);
 
     return this;
   }
 
   public min(value: Point): Point {
-    this._data[0] = f32(Math.min(value.x, this._data[0]));
-    this._data[1] = f32(Math.min(value.y, this._data[1]));
+    this._data[0] = Math.min(value.x, this._data[0]);
+    this._data[1] = Math.min(value.y, this._data[1]);
 
     return this;
   }
 
-  public dot(value: Point): f32 {
+  public dot(value: Point): f64 {
     return value.x * this._data[0] + value.y * this._data[1];
   }
 
-  public cross(value: Point, sign: f32 = 1): f32 {
+  public cross(value: Point, sign: f64 = 1): f64 {
     return this._data[1] * value.x + sign * this._data[0] * value.y;
   }
 
@@ -73,11 +73,11 @@ export default class Point {
     return this;
   }
 
-  public rotate(angle: f32): Point {
-    const cos: f32 = Math.cos(angle);
-    const sin: f32 = Math.sin(angle);
-    const x: f32 = this._data[0];
-    const y: f32 = this._data[1];
+  public rotate(angle: f64): Point {
+    const cos: f64 = Math.cos(angle);
+    const sin: f64 = Math.sin(angle);
+    const x: f64 = this._data[0];
+    const y: f64 = this._data[1];
 
     this._data[0] = x * cos - y * sin;
     this._data[1] = x * sin + y * cos;
@@ -93,89 +93,95 @@ export default class Point {
     return Point.almostEqual(this, point, tolerance);
   }
 
+  public normalize(distance: f64 = 1): Point {
+    return this.scale(distance / this.length);
+  }
+
   // returns true if p lies on the line segment defined by AB, but not at any endpoints
   // may need work!
-  public onSegment(a: Point, b: Point): boolean {
-    const max: Point = Point.from(a).max(b);
-    const min: Point = Point.from(a).min(b);
-    const offsetAB: Point = Point.sub(a, b);
-    const offsetAP: Point = Point.sub(a, this);
+  onSegment(a: Point, b: Point): bool {
     // vertical line
-    if (
-      Math.abs(offsetAB.x) < TOLEARANCE &&
-      Math.abs(offsetAP.x) < TOLEARANCE
-    ) {
+    if (almostEqual(a.x, b.x) && almostEqual(this.x, a.x)) {
       return (
         !almostEqual(this.y, b.y) &&
         !almostEqual(this.y, a.y) &&
-        this.y < max.y &&
-        this.y > min.y
+        this.y < Math.max(b.y, a.y) &&
+        this.y > Math.min(b.y, a.y)
       );
     }
 
     // horizontal line
-    if (
-      Math.abs(offsetAB.x) < TOLEARANCE &&
-      Math.abs(offsetAP.x) < TOLEARANCE
-    ) {
+    if (almostEqual(a.y, b.y) && almostEqual(this.y, a.y)) {
       return (
         !almostEqual(this.x, b.x) &&
         !almostEqual(this.x, a.x) &&
-        this.x < max.x &&
-        this.x > min.x
+        this.x < Math.max(b.x, a.x) &&
+        this.x > Math.min(b.x, a.x)
       );
     }
 
     //range check
-    if (this.x < min.x || this.x > max.x || this.y < min.y || this.y > max.y) {
-      return false;
-    }
-
-    // exclude end points
     if (
-      Point.almostEqual(this, a) ||
-      Point.almostEqual(this, b) ||
-      Math.abs(offsetAP.cross(offsetAB, -1)) > TOLEARANCE
+      this.x < Math.min(a.x, b.x) ||
+      this.x > Math.max(a.x, b.x) ||
+      this.y < Math.min(a.y, b.y) ||
+      this.y > Math.max(a.y, b.y) ||
+      // exclude end points
+      this.almostEqual(a) ||
+      this.almostEqual(b)
     ) {
       return false;
     }
 
-    const dot: f32 = offsetAP.dot(offsetAB);
-    const len2: f32 = offsetAB.squareLength;
+    const baDiff: Point = Point.sub(a, b);
+    const paDiff: Point = Point.sub(a, this);
+    const cross: f64 = paDiff.cross(baDiff, -1);
 
-    if (dot < TOLEARANCE || dot > len2 || almostEqual(dot, len2)) {
+    if (Math.abs(cross) > TOLEARANCE) {
+      return false;
+    }
+
+    const dot: f64 = paDiff.dot(baDiff);
+
+    if (dot < 0 || almostEqual(dot, 0)) {
+      return false;
+    }
+
+    const squareLength: f64 = baDiff.squareLength;
+
+    if (dot > squareLength || almostEqual(dot, squareLength)) {
       return false;
     }
 
     return true;
   }
 
-  public export(): Float32Array {
+  public export(): Float64Array {
     return this._data.slice();
   }
 
-  public get x(): f32 {
+  public get x(): f64 {
     return this._data[0];
   }
 
-  public set x(value: f32) {
+  public set x(value: f64) {
     this._data[0] = value;
   }
 
-  public get y(): f32 {
+  public get y(): f64 {
     return this._data[1];
   }
 
-  public set y(value: f32) {
+  public set y(value: f64) {
     this._data[1] = value;
   }
 
-  public get squareLength(): f32 {
+  public get squareLength(): f64 {
     return this._data[0] * this._data[0] + this._data[1] * this._data[1];
   }
 
-  public get length(): f32 {
-    return f32(Math.sqrt(this.squareLength));
+  public get length(): f64 {
+    return Math.sqrt(this.squareLength);
   }
 
   public static from(point: Point): Point {
@@ -217,17 +223,15 @@ export default class Point {
     return new Point(-value.x, -value.y);
   }
 
-  public static import(data: Float32Array): Point {
+  public static import(data: Float64Array): Point {
     return new Point(data[0], data[1]);
   }
 
   // normalize vector into a unit vector
-  public static normalizeVector(v: Point): Point {
-    const point = Point.from(v);
+  public static normalizeVector(value: Point): Point {
+    const point = Point.from(value);
 
     // given vector was already a unit vector
-    return almostEqual(point.squareLength, 1)
-      ? point
-      : point.scale(1 / point.length);
+    return almostEqual(point.squareLength, 1) ? point : point.normalize();
   }
 }

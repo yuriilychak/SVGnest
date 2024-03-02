@@ -7,15 +7,15 @@ export default class Polygon {
   private _points: Point[];
   private _bounds: Rect;
   private _source: i16;
-  private _area: f32;
+  private _area: f64;
   private _parent: Polygon | null = null;
   private _isValid: boolean;
   private _offset: Point;
   private _children: Polygon[];
   private _isHole: boolean;
-  private _rotation: f32;
+  private _rotation: f64;
 
-  constructor(data: Float32Array, offset: u16 = 0) {
+  constructor(data: Float64Array, offset: u16 = 0) {
     const currentOffset: u16 = offset + POLYGON_CONFIG_SIZE;
     const pointCount: u16 = u16(data[offset + 11]);
     let i: u16 = 0;
@@ -41,15 +41,15 @@ export default class Polygon {
     this._area = this._getArea();
   }
 
-  public at(index: u16): Point | null {
-    return this.length <= index ? this._points[index] : null;
+  public at(index: u16): Point {
+    return this._points[index];
   }
 
-  public rotate(angle: f32): Polygon {
+  public rotate(angle: f64): Polygon {
     const pointCount: u16 = this.length;
-    const radianAngle: f32 = f32((angle * Math.PI) / 180);
+    const radianAngle: f64 = f64((angle * Math.PI) / 180);
     let i: u16 = 0;
-    const data: Float32Array = this.export();
+    const data: Float64Array = this.export();
     const point: Point = new Point();
 
     for (i = 0; i < pointCount; ++i) {
@@ -130,10 +130,10 @@ export default class Polygon {
     return new Polygon(this.export());
   }
 
-  public export(): Float32Array {
+  public export(): Float64Array {
     const pointCount: u16 = this.length;
     const size: u16 = POLYGON_CONFIG_SIZE + (pointCount << 1);
-    const result = new Float32Array(size);
+    const result = new Float64Array(size);
     let i: u16 = 0;
 
     result[0] = size;
@@ -149,7 +149,7 @@ export default class Polygon {
     result[10] = this._offset.y;
     result[11] = pointCount;
     result[12] = this._parent !== null ? 1 : 0;
-    result[13] = f32(this._children.length);
+    result[13] = this._children.length;
 
     for (i = 0; i < pointCount; ++i) {
       Polygon.updatePoint(result, i, this._points[i]);
@@ -167,13 +167,13 @@ export default class Polygon {
     return Polygon._getBounds(this._points);
   }
 
-  private _getArea(): f32 {
+  private _getArea(): f64 {
     if (!this._isValid) {
       return 0;
     }
 
     const pointCount: u16 = this.length;
-    let result: f32 = 0;
+    let result: f64 = 0;
     let i: u16 = 0;
     let currentPoint: Point;
     let prevPoint: Point;
@@ -199,31 +199,31 @@ export default class Polygon {
     return this._bounds;
   }
 
-  public get area(): f32 {
+  public get area(): f64 {
     return this._area;
   }
 
-  public get firstPoint(): Point | null {
-    return this._points[0] || null;
+  public get firstPoint(): Point {
+    return this._points[0];
   }
 
-  public get lastPoint(): Point | null {
-    return this._points[this._points.length - 1] || null;
+  public get lastPoint(): Point {
+    return this._points[this._points.length - 1];
   }
 
-  public get x(): f32 {
+  public get x(): f64 {
     return this._bounds.x;
   }
 
-  public get y(): f32 {
+  public get y(): f64 {
     return this._bounds.y;
   }
 
-  public get width(): f32 {
+  public get width(): f64 {
     return this._bounds.width;
   }
 
-  public get height(): f32 {
+  public get height(): f64 {
     return this._bounds.height;
   }
 
@@ -283,15 +283,15 @@ export default class Polygon {
     return this._source;
   }
 
-  public get rotation(): f32 {
+  public get rotation(): f64 {
     return this._rotation;
   }
 
-  public set rotation(value: f32) {
+  public set rotation(value: f64) {
     this._rotation = value;
   }
 
-  public get isRectangle(): bool {
+  public get isRectangle(): boolean {
     if (!this._isValid) {
       return false;
     }
@@ -319,7 +319,7 @@ export default class Polygon {
   }
 
   public static updatePoint(
-    data: Float32Array,
+    data: Float64Array,
     index: u16,
     point: Point,
     offset: u16 = 0
@@ -333,7 +333,7 @@ export default class Polygon {
   public static fromPoints(points: Point[]): Polygon {
     const pointCount: u16 = u16(points.length);
     const size: u16 = POLYGON_CONFIG_SIZE + (pointCount << 1);
-    const data = new Float32Array(size);
+    const data = new Float64Array(size);
     let i: u16 = 0;
 
     data[0] = size;
@@ -358,10 +358,10 @@ export default class Polygon {
     return new Polygon(data);
   }
 
-  public static exportPolygons(polygons: Polygon[]): Float32Array {
+  public static exportPolygons(polygons: Polygon[]): Float64Array {
     const polygonCount: u16 = u16(polygons.length);
-    const polygonData: Float32Array[] = new Array<Float32Array>(polygonCount);
-    const sizes: Float32Array = new Float32Array(polygonCount);
+    const polygonData: Float64Array[] = new Array<Float64Array>(polygonCount);
+    const sizes: Float64Array = new Float64Array(polygonCount);
     let currentOffset: u32 = polygonCount + 1;
     let totalSize: u32 = currentOffset;
     let i: u16 = 0;
@@ -372,7 +372,7 @@ export default class Polygon {
       totalSize += u32(sizes[i]);
     }
 
-    const result: Float32Array = new Float32Array(totalSize);
+    const result: Float64Array = new Float64Array(totalSize);
 
     result[0] = polygonCount;
     result.set(sizes, 1);

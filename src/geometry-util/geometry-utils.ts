@@ -79,9 +79,9 @@ export function rotatePolygon(
 }
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-export function pointInPolygon(point: Point, polygon: ArrayPolygon): boolean {
+export function pointInPolygon(point: Point, polygon: ArrayPolygon): number {
   if (polygon.length < 3) {
-    return false;
+    return -1;
   }
 
   const innerPoint: FloatPoint = FloatPoint.from(point);
@@ -103,7 +103,7 @@ export function pointInPolygon(point: Point, polygon: ArrayPolygon): boolean {
       innerPoint.almostEqual(currentPoint) ||
       innerPoint.onSegment(currentPoint, prevPoint)
     ) {
-      return false; // no result or exactly on the segment
+      return -1; // no result or exactly on the segment
     }
 
     if (FloatPoint.almostEqual(currentPoint, prevPoint)) {
@@ -121,7 +121,7 @@ export function pointInPolygon(point: Point, polygon: ArrayPolygon): boolean {
     }
   }
 
-  return result;
+  return result ? 1 : 0;
 }
 
 // jsClipper uses X/Y instead of x/y...

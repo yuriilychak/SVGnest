@@ -45,10 +45,12 @@ export interface SvgNestConfiguration {
 }
 
 export interface PairWorkerData {
+  asm: ArrayBuffer;
   rotations: number;
   binPolygon: ArrayPolygon;
   searchEdges: boolean;
   useHoles: boolean;
+  debug?: boolean;
 }
 
 export interface NfpPair {

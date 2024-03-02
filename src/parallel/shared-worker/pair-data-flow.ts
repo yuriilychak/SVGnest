@@ -3,22 +3,23 @@ import { Clipper } from "js-clipper";
 
 import {
   polygonArea,
-  getPolygonBounds,
-  pointInPolygon,
   rotatePolygon,
   toClipperCoordinates,
-  toNestCoordinates
+  toNestCoordinates,
+  pointInPolygon
 } from "../../geometry-util";
-import { keyToNFPData } from "../../util";
+import { exportPolygon, importPolygons, keyToNFPData } from "../../util";
 import {
   ArrayPolygon,
-  ClipperPoint,
   NfpPair,
   PairDataResult,
-  PairWorkerData,
-  Point
+  PairWorkerData
 } from "../../interfaces";
-import { ready, noFitPolygon, getNfp } from "../../asm";
+import { instantiate, __AdaptedExports } from "../../asm";
+
+self.alert = function (message: string): void {
+  console.log(message);
+};
 
 function minkowskiDifference(A: ArrayPolygon, B: ArrayPolygon): ArrayPolygon[] {
   const scale: number = 10000000;
@@ -58,10 +59,11 @@ export default async function pairData(
     return null;
   }
 
-  await ready;
+  const bin: typeof __AdaptedExports = await instantiate(env.asm);
+
+  const errors: any[][] = [];
 
   const searchEdges: boolean = !!env.searchEdges;
-  const useHoles = env.useHoles;
 
   const nfpData = keyToNFPData(pair.numKey, env.rotations);
 
@@ -71,24 +73,32 @@ export default async function pairData(
   let i = 0;
 
   if (nfpData.at(4) === 1) {
-    nfp = getNfp(a, b, searchEdges);
+    if (bin.isRectangle(exportPolygon(a))) {
+      nfp = importPolygons(
+        bin.tmpNoFitPolygonRectangle(exportPolygon(a), exportPolygon(b))
+      );
+    } else {
+      return null;
+    }
     // ensure all interior NFPs have the same winding direction
-    if (nfp.length === 0) {
+    if (nfp.length !== 0) {
+      for (i = 0; i < nfp.length; ++i) {
+        if (polygonArea(nfp.at(i)) > 0) {
+          nfp.at(i).reverse();
+        }
+      }
+    } else {
       // warning on null inner NFP
       // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
-      console.log("NFP Warning: ", nfpData);
+      errors.push(["NFP Warning: ", nfpData]);
     }
   } else {
-    if (searchEdges) {
-      nfp = noFitPolygon(a, b, false, searchEdges);
-    } else {
-      nfp = minkowskiDifference(a, b);
-    }
+    nfp = minkowskiDifference(a, b);
     // sanity check
     if (!nfp || nfp.length == 0) {
-      console.log("NFP Error: ", nfpData);
-      console.log("A: ", JSON.stringify(a));
-      console.log("B: ", JSON.stringify(b));
+      errors.push(["NFP Error: ", nfpData]);
+      errors.push(["A: ", JSON.stringify(a)]);
+      errors.push(["B: ", JSON.stringify(b)]);
       return null;
     }
 
@@ -96,14 +106,14 @@ export default async function pairData(
       if (!searchEdges || i == 0) {
         // if searchedges is active, only the first NFP is guaranteed to pass sanity check
         if (Math.abs(polygonArea(nfp.at(i))) < Math.abs(polygonArea(a))) {
-          console.log(
+          errors.push([
             "NFP Area Error: ",
             Math.abs(polygonArea(nfp.at(i))),
             nfpData
-          );
-          console.log("NFP:", JSON.stringify(nfp.at(i)));
-          console.log("A: ", JSON.stringify(a));
-          console.log("B: ", JSON.stringify(b));
+          ]);
+          errors.push(["NFP:", JSON.stringify(nfp.at(i))]);
+          errors.push(["A: ", JSON.stringify(a)]);
+          errors.push(["B: ", JSON.stringify(b)]);
           nfp.splice(i, 1);
           return null;
         }
@@ -128,31 +138,15 @@ export default async function pairData(
         nfp.at(i).reverse();
       }
     }
+  }
 
-    // generate nfps for children (holes of parts) if any exist
-    if (useHoles && a.children && a.children.length > 0) {
-      const boundsB = getPolygonBounds(b);
-      let boundsA;
-      let cnfp;
-      let j = 0;
+  const errorCount: number = errors.length;
 
-      for (i = 0; i < a.children.length; ++i) {
-        boundsA = getPolygonBounds(a.children.at(i));
+  if (env.debug && errors.length !== 0) {
+    let i: number = 0;
 
-        // no need to find nfp if B's bounding box is too big
-        if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
-          cnfp = noFitPolygon(a.children.at(i), b, true, searchEdges);
-          // ensure all interior NFPs have the same winding direction
-          if (cnfp && cnfp.length > 0) {
-            for (j = 0; j < cnfp.length; ++j) {
-              if (polygonArea(cnfp.at(j)) < 0) {
-                cnfp.at(j).reverse();
-              }
-              nfp.push(cnfp.at(j));
-            }
-          }
-        }
-      }
+    for (i = 0; i < errorCount; ++i) {
+      console.log(...errors[i]);
     }
   }
 

@@ -2,7 +2,7 @@ import { Point } from "./interfaces";
 import { almostEqual } from "./util";
 
 export default class FloatPoint implements Point {
-  private _data: Float32Array = new Float32Array(2);
+  private _data: Float64Array = new Float64Array(2);
 
   constructor(x: number = 0, y: number = 0) {
     this._data[0] = x;
@@ -91,6 +91,10 @@ export default class FloatPoint implements Point {
 
   public almostEqual(point: Point, tolerance?: number): boolean {
     return FloatPoint.almostEqual(this, point, tolerance);
+  }
+
+  public normalize(scale: number = 1): FloatPoint {
+    return this.scale(scale / this.length);
   }
 
   // returns true if p lies on the line segment defined by AB, but not at any endpoints
@@ -218,8 +222,8 @@ export default class FloatPoint implements Point {
       : point.scale(1 / point.length);
   }
 
-  public static export(point: Point): Float32Array {
-    const result: Float32Array = new Float32Array(2);
+  public static export(point: Point): Float64Array {
+    const result: Float64Array = new Float64Array(2);
 
     result[0] = point.x;
     result[1] = point.y;
