@@ -85,180 +85,167 @@ export function lineIntersect(a: Point, b: Point, e: Point, f: Point): boolean {
 }
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-export function pointInPolygon(
-  point: IPoint,
-  polygon: IPolygon
-): boolean | null {
+export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
   if (!polygon || polygon.length < 3) {
-    return null;
+    return -1;
   }
 
-  var inside = false;
-  var offsetx = polygon.offsetx || 0;
-  var offsety = polygon.offsety || 0;
+  const offset: Point = new Point(polygon.offsetx || 0, polygon.offsety || 0);
+  const currentPoint: Point = new Point();
+  const prevPoint: Point = new Point();
+  const neighboarDiff: Point = new Point();
+  const pointDiff: Point = new Point();
+  const pointCount: number = polygon.length;
+  let inside: boolean = false;
+  let i: number = 0;
 
-  for (var i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    var xi = polygon[i].x + offsetx;
-    var yi = polygon[i].y + offsety;
-    var xj = polygon[j].x + offsetx;
-    var yj = polygon[j].y + offsety;
+  for (i = 0; i < pointCount; ++i) {
+    currentPoint.set(polygon[i]).add(offset);
+    prevPoint.set(polygon[(i + pointCount - 1) % pointCount]).add(offset);
 
-    if (almostEqual(xi, point.x) && almostEqual(yi, point.y)) {
-      return null; // no result
+    if (
+      // no result
+      Point.almostEqual(currentPoint, point) ||
+      // exactly on the segment
+      onSegment(currentPoint, prevPoint, point)
+    ) {
+      return -1; // no result
     }
 
-    if (onSegment({ x: xi, y: yi }, { x: xj, y: yj }, point)) {
-      return null; // exactly on the segment
-    }
-
-    if (almostEqual(xi, xj) && almostEqual(yi, yj)) {
+    if (Point.almostEqual(currentPoint, prevPoint)) {
       // ignore very small lines
       continue;
     }
 
-    var intersect =
-      yi > point.y != yj > point.y &&
-      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
-    if (intersect) inside = !inside;
+    neighboarDiff.set(prevPoint).sub(currentPoint);
+    pointDiff.set(point).sub(currentPoint);
+
+    if (
+      0 > pointDiff.y != prevPoint.y > point.y &&
+      neighboarDiff.cross(pointDiff) / neighboarDiff.y < 0
+    ) {
+      inside = !inside;
+    }
   }
 
-  return inside;
+  return inside ? 1 : 0;
+}
+
+function updateIntersectPoints(
+  polygon: IPolygon,
+  offset: Point,
+  points: Point[],
+  index: number
+): void {
+  const pointCount: number = polygon.length;
+  const currentPoint: IPoint = polygon.at(index);
+  const nextPoint: IPoint = polygon.at(index + 1);
+
+  // go even further back if we happen to hit on a loop end point
+  const prevOffset: number = Point.almostEqual(
+    polygon.at((index + pointCount - 1) % pointCount),
+    currentPoint
+  )
+    ? 2
+    : 1;
+
+  // go even further forward if we happen to hit on a loop end point
+  const nextOffset: number = Point.almostEqual(
+    polygon.at((index + 2) % pointCount),
+    nextPoint
+  )
+    ? 3
+    : 2;
+
+  points[0]
+    .set(polygon.at((index + pointCount - prevOffset) % pointCount))
+    .add(offset);
+  points[1].set(currentPoint).add(offset);
+  points[2].set(nextPoint).add(offset);
+  points[3].set(polygon.at((index + nextOffset) % pointCount)).add(offset);
+}
+
+function checkIntersect(
+  polygon: IPolygon,
+  points: Point[],
+  index1: number,
+  index2: number
+): boolean {
+  const point1In: number = pointInPolygon(points[index1], polygon);
+  const point2In: number = pointInPolygon(points[index2], polygon);
+
+  return (
+    (point1In === 1 && point2In === 0) || (point1In === 0 && point2In === 1)
+  );
+}
+
+function checkIntersectCondition(
+  points1: Point[],
+  points2: Point[],
+  index0: number,
+  index3: number
+): boolean {
+  return (
+    points1[index0].onSegment(points2[1], points2[2]) ||
+    points1[index0].almostEqual(points2[index3])
+  );
 }
 
 // todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
+export function intersect(a: IPolygon, b: IPolygon): boolean {
+  const offsetA: Point = new Point(a.offsetx || 0, a.offsety || 0);
+  const offsetB: Point = new Point(b.offsetx || 0, b.offsety || 0);
+  const pointsA: Point[] = [new Point(), new Point(), new Point(), new Point()];
+  const pointsB: Point[] = [new Point(), new Point(), new Point(), new Point()];
+  const sizeA: number = a.length;
+  const sizeB: number = b.length;
+  let i: number = 0;
+  let j: number = 0;
 
-export function intersect(A: IPolygon, B: IPolygon): boolean {
-  var Aoffsetx = A.offsetx || 0;
-  var Aoffsety = A.offsety || 0;
+  for (i = 0; i < sizeA - 1; ++i) {
+    updateIntersectPoints(a, offsetA, pointsA, i);
 
-  var Boffsetx = B.offsetx || 0;
-  var Boffsety = B.offsety || 0;
+    for (j = 0; j < sizeB - 1; ++j) {
+      updateIntersectPoints(b, offsetB, pointsB, j);
 
-  A = A.slice(0) as IPolygon;
-  B = B.slice(0) as IPolygon;
-
-  for (var i = 0; i < A.length - 1; i++) {
-    for (var j = 0; j < B.length - 1; j++) {
-      var a1 = { x: A[i].x + Aoffsetx, y: A[i].y + Aoffsety };
-      var a2 = { x: A[i + 1].x + Aoffsetx, y: A[i + 1].y + Aoffsety };
-      var b1 = { x: B[j].x + Boffsetx, y: B[j].y + Boffsety };
-      var b2 = { x: B[j + 1].x + Boffsetx, y: B[j + 1].y + Boffsety };
-
-      var prevbindex = j == 0 ? B.length - 1 : j - 1;
-      var prevaindex = i == 0 ? A.length - 1 : i - 1;
-      var nextbindex = j + 1 == B.length - 1 ? 0 : j + 2;
-      var nextaindex = i + 1 == A.length - 1 ? 0 : i + 2;
-
-      // go even further back if we happen to hit on a loop end point
-      if (B[prevbindex] == B[j] || Point.almostEqual(B[prevbindex], B[j])) {
-        prevbindex = prevbindex == 0 ? B.length - 1 : prevbindex - 1;
-      }
-
-      if (A[prevaindex] == A[i] || Point.almostEqual(A[prevaindex], A[i])) {
-        prevaindex = prevaindex == 0 ? A.length - 1 : prevaindex - 1;
-      }
-
-      // go even further forward if we happen to hit on a loop end point
-      if (
-        B[nextbindex] == B[j + 1] ||
-        Point.almostEqual(B[nextbindex], B[j + 1])
-      ) {
-        nextbindex = nextbindex == B.length - 1 ? 0 : nextbindex + 1;
-      }
-
-      if (
-        A[nextaindex] == A[i + 1] ||
-        Point.almostEqual(A[nextaindex], A[i + 1])
-      ) {
-        nextaindex = nextaindex == A.length - 1 ? 0 : nextaindex + 1;
-      }
-
-      var a0 = {
-        x: A[prevaindex].x + Aoffsetx,
-        y: A[prevaindex].y + Aoffsety
-      };
-      var b0 = {
-        x: B[prevbindex].x + Boffsetx,
-        y: B[prevbindex].y + Boffsety
-      };
-
-      var a3 = {
-        x: A[nextaindex].x + Aoffsetx,
-        y: A[nextaindex].y + Aoffsety
-      };
-      var b3 = {
-        x: B[nextbindex].x + Boffsetx,
-        y: B[nextbindex].y + Boffsety
-      };
-
-      if (onSegment(a1, a2, b1) || Point.almostEqual(a1, b1)) {
+      if (checkIntersectCondition(pointsB, pointsA, 1, 1)) {
         // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        var b0in = pointInPolygon(b0, A);
-        var b2in = pointInPolygon(b2, A);
-        if (
-          (b0in === true && b2in === false) ||
-          (b0in === false && b2in === true)
-        ) {
+        if (checkIntersect(a, pointsB, 0, 2)) {
           return true;
         } else {
           continue;
         }
       }
 
-      if (onSegment(a1, a2, b2) || Point.almostEqual(a2, b2)) {
+      if (checkIntersectCondition(pointsB, pointsA, 2, 2)) {
         // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        var b1in = pointInPolygon(b1, A);
-        var b3in = pointInPolygon(b3, A);
-
-        if (
-          (b1in === true && b3in === false) ||
-          (b1in === false && b3in === true)
-        ) {
+        if (checkIntersect(a, pointsB, 1, 3)) {
           return true;
         } else {
           continue;
         }
       }
 
-      if (onSegment(b1, b2, a1) || Point.almostEqual(a1, b2)) {
+      if (checkIntersectCondition(pointsA, pointsB, 1, 2)) {
         // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        var a0in = pointInPolygon(a0, B);
-        var a2in = pointInPolygon(a2, B);
-
-        if (
-          (a0in === true && a2in === false) ||
-          (a0in === false && a2in === true)
-        ) {
+        if (checkIntersect(b, pointsA, 0, 2)) {
           return true;
         } else {
           continue;
         }
       }
 
-      if (onSegment(b1, b2, a2) || Point.almostEqual(a2, b1)) {
+      if (checkIntersectCondition(pointsA, pointsB, 2, 1)) {
         // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        var a1in = pointInPolygon(a1, B);
-        var a3in = pointInPolygon(a3, B);
-
-        if (
-          (a1in === true && a3in === false) ||
-          (a1in === false && a3in === true)
-        ) {
+        if (checkIntersect(b, pointsA, 1, 3)) {
           return true;
         } else {
           continue;
         }
       }
 
-      if (
-        lineIntersect(
-          Point.from(b1),
-          Point.from(b2),
-          Point.from(a1),
-          Point.from(a2)
-        )
-      ) {
+      if (lineIntersect(pointsB[1], pointsB[2], pointsA[1], pointsA[2])) {
         return true;
       }
     }
@@ -648,8 +635,8 @@ export function searchStartPoint(
             { x: B[k].x + B.offsetx, y: B[k].y + B.offsety },
             A
           );
-          if (inpoly !== null) {
-            Binside = inpoly;
+          if (inpoly !== -1) {
+            Binside = inpoly === 1;
             break;
           }
         }
@@ -711,8 +698,8 @@ export function searchStartPoint(
             { x: B[k].x + B.offsetx, y: B[k].y + B.offsety },
             A
           );
-          if (inpoly !== null) {
-            Binside = inpoly;
+          if (inpoly !== -1) {
+            Binside = inpoly === 1;
             break;
           }
         }
