@@ -1,10 +1,10 @@
-import FloatPoint from "./float-point";
-import { BoundRect } from "./interfaces";
+import Point from "./point";
+import { IRect } from "./interfaces";
 
-export default class FloatRect implements BoundRect {
-  private _bottomLeft: FloatPoint = new FloatPoint();
-  private _topRight: FloatPoint = new FloatPoint();
-  private _size: FloatPoint = new FloatPoint();
+export default class Rect implements IRect {
+  private _bottomLeft: Point = new Point();
+  private _topRight: Point = new Point();
+  private _size: Point = new Point();
 
   constructor(
     x: number = 0,
@@ -53,23 +53,20 @@ export default class FloatRect implements BoundRect {
     this._topRight.y = this._bottomLeft.y + value;
   }
 
-  public get bottomLeft(): FloatPoint {
+  public get bottomLeft(): Point {
     return this._bottomLeft.clone();
   }
 
-  public get topRight(): FloatPoint {
+  public get topRight(): Point {
     return this._topRight.clone();
   }
 
-  public get size(): FloatPoint {
+  public get size(): Point {
     return this._size.clone();
   }
 
-  public static fromPoints(
-    bottomLeft: FloatPoint,
-    topRight: FloatPoint
-  ): FloatRect {
-    return new FloatRect(
+  public static fromPoints(bottomLeft: Point, topRight: Point): Rect {
+    return new Rect(
       bottomLeft.x,
       bottomLeft.y,
       topRight.x - bottomLeft.x,

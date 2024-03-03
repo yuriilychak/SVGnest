@@ -8,7 +8,7 @@ import ClipperLib from "js-clipper";
  */
 
 import Matrix from "./matrix";
-import FloatPoint from "../float-point";
+import Point from "../point";
 import { poligonify } from "./poligonify";
 import { PrimitiveTagName } from "./enums";
 import {
@@ -313,8 +313,8 @@ export default class SvgParser {
     } else if (transform && !transform.isIdentity()) {
       const id = element.getAttribute("id");
       const className = element.getAttribute("class");
-      const point1: FloatPoint = new FloatPoint();
-      const point2: FloatPoint = new FloatPoint();
+      const point1: Point = new Point();
+      const point2: Point = new Point();
       let transformProperty: string;
       let transformed: Float32Array;
       let i: number = 0;
@@ -372,7 +372,7 @@ export default class SvgParser {
         case PrimitiveTagName.Path:
           this.pathToAbsolute(element);
           const segList: SVGSegList = element.pathSegList;
-          const prev: FloatPoint = new FloatPoint();
+          const prev: Point = new Point();
           const itemCount: number = segList.numberOfItems;
           let transformedPath = "";
           let s: DOMSegment;
@@ -413,9 +413,9 @@ export default class SvgParser {
               s = segList.getItem(i);
             }
 
-            const transPoint: FloatPoint = new FloatPoint();
-            const transPoint1: FloatPoint = new FloatPoint();
-            const transPoint2: FloatPoint = new FloatPoint();
+            const transPoint: Point = new Point();
+            const transPoint1: Point = new Point();
+            const transPoint2: Point = new Point();
             let transformed: Float32Array;
 
             if ("x" in s && "y" in s) {
@@ -830,7 +830,7 @@ export default class SvgParser {
     return result;
   }
 
-  static toTree(list: Array<IPolygon>, idStart = 0) {
+  static toTree(list: IPolygon[], idStart = 0) {
     const parents = [];
     let i: number = 0;
     let j: number = 0;
@@ -846,7 +846,7 @@ export default class SvgParser {
       for (j = 0; j < list.length; ++j) {
         innerNode = list[j];
 
-        if (j !== i && pointInPolygon(outerNode[0], innerNode)) {
+        if (j !== i && pointInPolygon(outerNode[0], innerNode) > 0) {
           if (!innerNode.children) {
             innerNode.children = [];
           }

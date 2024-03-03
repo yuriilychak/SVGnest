@@ -5,7 +5,7 @@ const TOLEARANCE: number = Math.pow(10, -9); // Floating point error is likely t
 
 export function almostEqual(
   a: number,
-  b: number,
+  b: number = 0,
   tolerance: number = TOLEARANCE
 ): boolean {
   return Math.abs(a - b) < tolerance;

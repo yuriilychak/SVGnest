@@ -1,5 +1,5 @@
-import FloatPoint from "../../float-point";
-import FloatRect from "../../float-rect";
+import Point from "../../point";
+import Rect from "../../rect";
 import { getPolygonBounds, polygonArea } from "../../geometry-util";
 import { IPolygon, SvgNestConfiguration } from "../../interfaces";
 import SharedPolygon from "./shared-polygon";
@@ -7,7 +7,7 @@ import SharedPolygon from "./shared-polygon";
 export default class BinPolygon extends SharedPolygon {
   private _polygons: IPolygon;
   private _isValid: boolean = false;
-  private _bounds: FloatRect | null = null;
+  private _bounds: Rect | null = null;
   private _area: number = 0;
 
   constructor(polygons: IPolygon, configuration: SvgNestConfiguration) {
@@ -38,8 +38,8 @@ export default class BinPolygon extends SharedPolygon {
 
     let point = this._polygons[0];
     // put bin on origin
-    let max = FloatPoint.from(point);
-    let min = FloatPoint.from(point);
+    let max = Point.from(point);
+    let min = Point.from(point);
 
     let i = 0;
     const binSize = this._polygons.length;
@@ -72,7 +72,7 @@ export default class BinPolygon extends SharedPolygon {
     return this._isValid;
   }
 
-  public get bounds(): FloatRect | null {
+  public get bounds(): Rect | null {
     return this._bounds;
   }
 

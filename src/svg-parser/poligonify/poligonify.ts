@@ -1,10 +1,10 @@
-import FloatPoint from "../../float-point";
+import Point from "../../point";
 import { almostEqual } from "../../util";
 import { PrimitiveTagName } from "../enums";
 import { Arc, CubicBezier, QuadraticBezier } from "./path-util";
 
-function parseElipse(element: Element, tolerance: number): Array<FloatPoint> {
-  const result: Array<FloatPoint> = [];
+function parseElipse(element: Element, tolerance: number): Array<Point> {
+  const result: Array<Point> = [];
   // same as circle case. There is probably a way to reduce points but for convenience we will just flatten the equivalent circular polygon
   const rx: number = parseFloat(element.getAttribute("rx"));
   const ry: number = parseFloat(element.getAttribute("ry"));
@@ -22,15 +22,15 @@ function parseElipse(element: Element, tolerance: number): Array<FloatPoint> {
   for (i = 0; i < count; ++i) {
     theta = i * step;
     result.push(
-      new FloatPoint(rx * Math.cos(theta) + cx, ry * Math.sin(theta) + cy)
+      new Point(rx * Math.cos(theta) + cx, ry * Math.sin(theta) + cy)
     );
   }
 
   return result;
 }
 
-function parseCircle(element: Element, tolerance: number): Array<FloatPoint> {
-  const result: Array<FloatPoint> = [];
+function parseCircle(element: Element, tolerance: number): Array<Point> {
+  const result: Array<Point> = [];
   const radius: number = parseFloat(element.getAttribute("r"));
   const cx: number = parseFloat(element.getAttribute("cx"));
   const cy: number = parseFloat(element.getAttribute("cy"));
@@ -47,51 +47,45 @@ function parseCircle(element: Element, tolerance: number): Array<FloatPoint> {
     theta = i * step;
 
     result.push(
-      new FloatPoint(
-        radius * Math.cos(theta) + cx,
-        radius * Math.sin(theta) + cy
-      )
+      new Point(radius * Math.cos(theta) + cx, radius * Math.sin(theta) + cy)
     );
   }
 
   return result;
 }
 
-function parseRect(element: Element): Array<FloatPoint> {
-  const p1: FloatPoint = new FloatPoint(
+function parseRect(element: Element): Array<Point> {
+  const p1: Point = new Point(
     parseFloat(element.getAttribute("x")) || 0,
     parseFloat(element.getAttribute("y")) || 0
   );
-  const p2: FloatPoint = new FloatPoint(
+  const p2: Point = new Point(
     p1.x + parseFloat(element.getAttribute("width")),
     p1.y
   );
-  const p3: FloatPoint = new FloatPoint(
+  const p3: Point = new Point(
     p2.x,
     p1.y + parseFloat(element.getAttribute("height"))
   );
-  const p4: FloatPoint = new FloatPoint(p1.x, p3.y);
+  const p4: Point = new Point(p1.x, p3.y);
 
   return [p1, p2, p3, p4];
 }
 
-function parsePolygon(element: SVGPolygonElement): Array<FloatPoint> {
-  const result: Array<FloatPoint> = [];
+function parsePolygon(element: SVGPolygonElement): Array<Point> {
+  const result: Array<Point> = [];
   const count: number = element.points.numberOfItems;
   let i: number = 0;
 
   for (i = 0; i < count; ++i) {
-    result.push(FloatPoint.from(element.points.getItem(i)));
+    result.push(Point.from(element.points.getItem(i)));
   }
 
   return result;
 }
 
-function parsePath(
-  element: SVGPathElement,
-  tolerance: number
-): Array<FloatPoint> {
-  const result: Array<FloatPoint> = [];
+function parsePath(element: SVGPathElement, tolerance: number): Array<Point> {
+  const result: Array<Point> = [];
   let i: number = 0;
   let j: number = 0;
   // we'll assume that splitpath has already been run on this path, and it only has one M/m command
@@ -112,7 +106,7 @@ function parsePath(
     prevx2 = 0,
     prevy2 = 0;
 
-  let pointList: Array<FloatPoint>;
+  let pointList: Array<Point>;
 
   for (i = 0; i < segList.numberOfItems; ++i) {
     var s = segList.getItem(i);
@@ -152,7 +146,7 @@ function parsePath(
       case "H":
       case "v":
       case "V":
-        result.push(new FloatPoint(x, y));
+        result.push(new Point(x, y));
         break;
       // Quadratic Beziers
       case "t":
@@ -171,14 +165,14 @@ function parsePath(
       case "q":
       case "Q":
         pointList = QuadraticBezier(
-          new FloatPoint(prevx, prevy),
-          new FloatPoint(x, y),
-          new FloatPoint(x1, y1),
+          new Point(prevx, prevy),
+          new Point(x, y),
+          new Point(x1, y1),
           tolerance
         );
         pointList.shift(); // firstpoint would already be in the poly
         for (j = 0; j < pointList.length; ++j) {
-          result.push(FloatPoint.from(pointList[j]));
+          result.push(Point.from(pointList[j]));
         }
         break;
       case "s":
@@ -196,22 +190,22 @@ function parsePath(
       case "c":
       case "C":
         pointList = CubicBezier(
-          new FloatPoint(prevx, prevy),
-          new FloatPoint(x, y),
-          new FloatPoint(x1, y1),
-          new FloatPoint(x2, y2),
+          new Point(prevx, prevy),
+          new Point(x, y),
+          new Point(x1, y1),
+          new Point(x2, y2),
           tolerance
         );
         pointList.shift(); // firstpoint would already be in the poly
         for (j = 0; j < pointList.length; ++j) {
-          result.push(FloatPoint.from(pointList[j]));
+          result.push(Point.from(pointList[j]));
         }
         break;
       case "a":
       case "A":
         pointList = Arc(
-          new FloatPoint(prevx, prevy),
-          new FloatPoint(x, y),
+          new Point(prevx, prevy),
+          new Point(x, y),
           s.r1,
           s.r2,
           s.angle,
@@ -222,7 +216,7 @@ function parsePath(
         pointList.shift();
 
         for (j = 0; j < pointList.length; ++j) {
-          result.push(FloatPoint.from(pointList[j]));
+          result.push(Point.from(pointList[j]));
         }
         break;
       case "z":
@@ -238,10 +232,7 @@ function parsePath(
   return result;
 }
 
-function elementToPolygon(
-  element: Element,
-  tolerance: number
-): Array<FloatPoint> {
+function elementToPolygon(element: Element, tolerance: number): Array<Point> {
   switch (element.tagName) {
     case PrimitiveTagName.Polygon:
     case PrimitiveTagName.Polyline:
@@ -264,8 +255,8 @@ export default function polygonify(
   element: Element,
   tolerance: number,
   toleranceSvg: number
-): Array<FloatPoint> {
-  const result: Array<FloatPoint> = elementToPolygon(element, tolerance);
+): Array<Point> {
+  const result: Array<Point> = elementToPolygon(element, tolerance);
 
   // do not include last point if coincident with starting point
   while (

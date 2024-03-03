@@ -1,8 +1,8 @@
 //@ts-ignore
 // returns the area of the polygon, assuming no self-intersections
 
-import FloatPoint from "../float-point";
-import FloatRect from "../float-rect";
+import Point from "../point";
+import Rect from "../rect";
 import { IPolygon, ClipperPoint, IPoint } from "../interfaces";
 
 //TODO: depreacete when polygone will be moved to class
@@ -27,14 +27,14 @@ export function polygonArea(polygon: IPolygon): number {
 }
 
 // returns the rectangular bounding box of the given polygon
-export function getPolygonBounds(polygon: IPolygon): FloatRect | null {
+export function getPolygonBounds(polygon: IPolygon): Rect | null {
   if (polygon.length < 3) {
     return null;
   }
 
   const pointCount: number = polygon.length;
-  const min: FloatPoint = FloatPoint.from(polygon.at(0));
-  const max: FloatPoint = FloatPoint.from(polygon.at(0));
+  const min: Point = Point.from(polygon.at(0));
+  const max: Point = Point.from(polygon.at(0));
   let i: number = 0;
 
   for (i = 1; i < pointCount; ++i) {
@@ -42,7 +42,7 @@ export function getPolygonBounds(polygon: IPolygon): FloatRect | null {
     min.min(polygon.at(i));
   }
 
-  return FloatRect.fromPoints(min, max);
+  return Rect.fromPoints(min, max);
 }
 
 export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
@@ -52,7 +52,7 @@ export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
   let i: number = 0;
 
   for (i = 0; i < pointCount; ++i) {
-    result.push(FloatPoint.from(polygon.at(i)).rotate(radianAngle));
+    result.push(Point.from(polygon.at(i)).rotate(radianAngle));
   }
 
   if (polygon.children && polygon.children.length > 0) {
@@ -81,15 +81,12 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
     return -1;
   }
 
-  const innerPoint: FloatPoint = FloatPoint.from(point);
+  const innerPoint: Point = Point.from(point);
   const pointCount = polygon.length;
   let result: boolean = false;
-  let offset: FloatPoint = new FloatPoint(
-    polygon.offsetx || 0,
-    polygon.offsety || 0
-  );
-  const currentPoint: FloatPoint = new FloatPoint();
-  const prevPoint: FloatPoint = new FloatPoint();
+  let offset: Point = new Point(polygon.offsetx || 0, polygon.offsety || 0);
+  const currentPoint: Point = new Point();
+  const prevPoint: Point = new Point();
   let i: number = 0;
 
   for (i = 0; i < pointCount; ++i) {
@@ -103,7 +100,7 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
       return -1; // no result or exactly on the segment
     }
 
-    if (FloatPoint.almostEqual(currentPoint, prevPoint)) {
+    if (Point.almostEqual(currentPoint, prevPoint)) {
       // ignore very small lines
       continue;
     }

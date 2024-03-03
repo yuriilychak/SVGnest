@@ -1,6 +1,6 @@
-import FloatRect from "../float-rect";
+import Rect from "../rect";
 import { rotatePolygon } from "../geometry-util";
-import { IPolygon, BoundRect, GeneticAlgorithmConfig } from "../interfaces";
+import { IPolygon, IRect, GeneticAlgorithmConfig } from "../interfaces";
 import Phenotype from "./phenotype";
 
 const DEFAULT_CONFIG: GeneticAlgorithmConfig = {
@@ -9,12 +9,12 @@ const DEFAULT_CONFIG: GeneticAlgorithmConfig = {
   rotations: 4
 };
 
-const DEFAULT_BOUNDS: FloatRect = new FloatRect();
+const DEFAULT_BOUNDS: Rect = new Rect();
 
 export default class GeneticAlgorithm {
   private _population: Array<Phenotype>;
   private _config: GeneticAlgorithmConfig;
-  private _binBounds: BoundRect;
+  private _binBounds: IRect;
   private _isEmpty: boolean;
 
   constructor() {
@@ -26,7 +26,7 @@ export default class GeneticAlgorithm {
 
   public init(
     adam: Array<IPolygon>,
-    binBounds: BoundRect,
+    binBounds: IRect,
     config: GeneticAlgorithmConfig = DEFAULT_CONFIG
   ): void {
     this._isEmpty = false;
@@ -92,7 +92,7 @@ export default class GeneticAlgorithm {
     const angleCount: number = Math.max(this._config.rotations, 1);
     let angleList: Array<number> = [];
     let i: number = 0;
-    let rotatedPart: BoundRect;
+    let rotatedPart: IRect;
 
     for (i = 0; i < angleCount; ++i) {
       angleList.push(i * (360 / angleCount));

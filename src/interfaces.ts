@@ -15,14 +15,14 @@ export interface GeneticAlgorithmConfig {
   rotations: number;
 }
 
-export interface BoundRect {
+export interface IRect {
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
-export interface IPolygon extends Array<IPoint>, BoundRect {
+export interface IPolygon extends Array<IPoint>, IRect {
   id: number;
   parent?: IPolygon;
   children?: IPolygon[];

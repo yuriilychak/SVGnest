@@ -1,17 +1,17 @@
-import FloatPoint from "../../../float-point";
+import Point from "../../../point";
 
 interface Segment {
-  p1: FloatPoint;
-  p2: FloatPoint;
-  c1: FloatPoint;
-  c2: FloatPoint;
+  p1: Point;
+  p2: Point;
+  c1: Point;
+  c2: Point;
 }
 
 function isFlat(
-  p1: FloatPoint,
-  p2: FloatPoint,
-  c1: FloatPoint,
-  c2: FloatPoint,
+  p1: Point,
+  p2: Point,
+  c1: Point,
+  c2: Point,
   tol: number
 ): boolean {
   const ux: number = 3 * c1.x - 2 * p1.x - p2.x;
@@ -25,33 +25,33 @@ function isFlat(
 }
 
 function subdivide(
-  p1: FloatPoint,
-  p2: FloatPoint,
-  c1: FloatPoint,
-  c2: FloatPoint,
+  p1: Point,
+  p2: Point,
+  c1: Point,
+  c2: Point,
   t: number
 ): Array<Segment> {
-  const mid1: FloatPoint = new FloatPoint(
+  const mid1: Point = new Point(
     p1.x + (c1.x - p1.x) * t,
     p1.y + (c1.y - p1.y) * t
   );
-  const mid2: FloatPoint = new FloatPoint(
+  const mid2: Point = new Point(
     c2.x + (p2.x - c2.x) * t,
     c2.y + (p2.y - c2.y) * t
   );
-  const mid3: FloatPoint = new FloatPoint(
+  const mid3: Point = new Point(
     c1.x + (c2.x - c1.x) * t,
     c1.y + (c2.y - c1.y) * t
   );
-  const mida: FloatPoint = new FloatPoint(
+  const mida: Point = new Point(
     mid1.x + (mid3.x - mid1.x) * t,
     mid1.y + (mid3.y - mid1.y) * t
   );
-  const midb: FloatPoint = new FloatPoint(
+  const midb: Point = new Point(
     mid3.x + (mid2.x - mid3.x) * t,
     mid3.y + (mid2.y - mid3.y) * t
   );
-  const midx: FloatPoint = new FloatPoint(
+  const midx: Point = new Point(
     mida.x + (midb.x - mida.x) * t,
     mida.y + (midb.y - mida.y) * t
   );
@@ -63,13 +63,13 @@ function subdivide(
 }
 
 export default function linearize(
-  p1: FloatPoint,
-  p2: FloatPoint,
-  c1: FloatPoint,
-  c2: FloatPoint,
+  p1: Point,
+  p2: Point,
+  c1: Point,
+  c2: Point,
   tol: number
-): Array<FloatPoint> {
-  const result: Array<FloatPoint> = [p1]; // list of points to return
+): Array<Point> {
+  const result: Array<Point> = [p1]; // list of points to return
   const todo: Array<Segment> = [{ p1: p1, p2: p2, c1: c1, c2: c2 }]; // list of Beziers to divide
   let segment: Segment;
 
@@ -80,7 +80,7 @@ export default function linearize(
 
     if (isFlat(segment.p1, segment.p2, segment.c1, segment.c2, tol)) {
       // reached subdivision limit
-      result.push(new FloatPoint(segment.p2.x, segment.p2.y));
+      result.push(new Point(segment.p2.x, segment.p2.y));
       todo.shift();
     } else {
       var divided = subdivide(

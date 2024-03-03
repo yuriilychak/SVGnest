@@ -1,5 +1,5 @@
 import { polygonArea } from "../../geometry-util";
-import FloatPoint from "../../float-point";
+import Point from "../../point";
 import SharedPolygon from "./shared-polygon";
 import { IPolygon, IPoint, SvgNestConfiguration } from "../../interfaces";
 
@@ -32,7 +32,7 @@ export default class TreePolygon extends SharedPolygon {
       start = node[0];
       end = node[node.length - 1];
 
-      if (start === end || FloatPoint.almostEqual(start, end)) {
+      if (start === end || Point.almostEqual(start, end)) {
         node.pop();
       }
 

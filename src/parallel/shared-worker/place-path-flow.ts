@@ -8,7 +8,7 @@ import {
   toNestCoordinates
 } from "../../geometry-util";
 import { generateNFPCacheKey } from "../../util";
-import FloatPoint from "../../float-point";
+import Point from "../../point";
 import { almostEqual } from "../../util";
 import {
   IPolygon,
@@ -241,7 +241,7 @@ export default function placePaths(
           for (m = 0; m < placed.length; ++m) {
             for (n = 0; n < placed.at(m).length; ++n) {
               allPoints.push(
-                FloatPoint.from(placed.at(m).at(n)).add(placements.at(m))
+                Point.from(placed.at(m).at(n)).add(placements.at(m))
               );
             }
           }
@@ -255,7 +255,7 @@ export default function placePaths(
           };
 
           for (m = 0; m < path.length; ++m) {
-            allPoints.push(FloatPoint.from(path.at(m)).add(shiftVector));
+            allPoints.push(Point.from(path.at(m)).add(shiftVector));
           }
 
           rectBounds = getPolygonBounds(allPoints);

@@ -1,20 +1,20 @@
-import FloatPoint from "../../../float-point";
+import Point from "../../../point";
 
 const MAX_ANGLE: number = 360;
 const MID_ANGLE: number = 180;
 
 class SvgArcConfig {
-  private _begin: FloatPoint;
-  private _end: FloatPoint;
-  private _radius: FloatPoint;
+  private _begin: Point;
+  private _end: Point;
+  private _radius: Point;
   private _angle: number;
   private _sweep: number;
   private _sign: number;
 
   constructor(
-    begin: FloatPoint,
-    end: FloatPoint,
-    radius: FloatPoint,
+    begin: Point,
+    end: Point,
+    radius: Point,
     angle: number,
     largeArc: number,
     sweep: number
@@ -39,25 +39,25 @@ class SvgArcConfig {
     return result % MAX_ANGLE;
   }
 
-  public get mid(): FloatPoint {
-    const result: FloatPoint = FloatPoint.add(this._begin, this._end);
+  public get mid(): Point {
+    const result: Point = Point.add(this._begin, this._end);
 
     result.scale(0.5);
 
     return result;
   }
-  public get diff(): FloatPoint {
-    const result: FloatPoint = FloatPoint.sub(this._begin, this._end);
+  public get diff(): Point {
+    const result: Point = Point.sub(this._begin, this._end);
     result.scale(0.5);
 
     return result;
   }
 
-  public get p2(): FloatPoint {
+  public get p2(): Point {
     return this._end;
   }
 
-  public get r(): FloatPoint {
+  public get r(): Point {
     return this._radius;
   }
 
@@ -71,15 +71,15 @@ class SvgArcConfig {
 }
 
 class ArcConfig {
-  private _center: FloatPoint;
-  private _r: FloatPoint;
+  private _center: Point;
+  private _r: Point;
   private _theta: number;
   private _extent: number;
   private _angle: number;
 
   constructor(
-    center: FloatPoint,
-    r: FloatPoint,
+    center: Point,
+    r: Point,
     theta: number,
     extent: number,
     angle: number
@@ -101,7 +101,7 @@ class ArcConfig {
     );
   }
 
-  private _getSvgPoints(scaledExtent: number): Array<FloatPoint> {
+  private _getSvgPoints(scaledExtent: number): Array<Point> {
     const angle: number = ArcConfig._degreesToRadians(this._angle);
     const theta1: number = ArcConfig._degreesToRadians(this._theta);
     const theta2: number = ArcConfig._degreesToRadians(
@@ -115,11 +115,11 @@ class ArcConfig {
     const rSin = this._r.clone().scale(Math.sin(angle));
 
     return [
-      new FloatPoint(
+      new Point(
         this._center.x + rCos.x * t1cos - rSin.y * t1sin,
         this._center.y + rSin.x * t1cos + rCos.y * t1sin
       ),
-      new FloatPoint(
+      new Point(
         this._center.x + rCos.x * t2cos - rSin.y * t2sin,
         this._center.y + rSin.x * t2cos + rCos.y * t2sin
       )
@@ -131,7 +131,7 @@ class ArcConfig {
   public toSvg(scale: number): SvgArcConfig {
     const scaledExtent: number = this._extent * scale;
     const angle: number = ArcConfig._degreesToRadians(this._angle);
-    const svgPoints: Array<FloatPoint> = this._getSvgPoints(scaledExtent);
+    const svgPoints: Array<Point> = this._getSvgPoints(scaledExtent);
     const largeArc: number = scaledExtent > MID_ANGLE ? 1 : 0;
     const sweep: number = scaledExtent > 0 ? 1 : 0;
 
@@ -147,24 +147,24 @@ class ArcConfig {
 
   // convert from SVG format arc to center point arc
   static svgToCenter(arc: SvgArcConfig): ArcConfig {
-    const mid: FloatPoint = arc.mid;
-    const diff: FloatPoint = arc.diff;
+    const mid: Point = arc.mid;
+    const diff: Point = arc.diff;
     const angleRadians: number = ArcConfig._degreesToRadians(arc.angle);
     const cos: number = Math.cos(angleRadians);
     const sin: number = Math.sin(angleRadians);
-    const point1 = new FloatPoint(
+    const point1 = new Point(
       cos * diff.x + sin * diff.y,
       -sin * diff.x + cos * diff.y
     );
-    const r = FloatPoint.abs(arc.r);
-    let Pr: FloatPoint = FloatPoint.square(r);
-    const P1 = FloatPoint.square(point1);
+    const r = Point.abs(arc.r);
+    let Pr: Point = Point.square(r);
+    const P1 = Point.square(point1);
     const radiiCheck: number = P1.x / Pr.x + P1.y / Pr.y;
     const radiiSqrt: number = Math.sqrt(radiiCheck);
 
     if (radiiCheck > 1) {
       r.scale(radiiSqrt);
-      Pr = FloatPoint.square(r);
+      Pr = Point.square(r);
     }
 
     const sq: number = Math.sqrt(
@@ -174,16 +174,16 @@ class ArcConfig {
       )
     );
     const coef: number = arc.sign * sq;
-    const c = new FloatPoint(
+    const c = new Point(
       coef * ((r.x * point1.y) / r.y),
       -coef * ((r.y * point1.x) / r.x)
     );
-    const center: FloatPoint = new FloatPoint(
+    const center: Point = new Point(
       mid.x + (cos * c.x - sin * c.y),
       mid.y + (sin * c.x + cos * c.y)
     );
-    const u = new FloatPoint((point1.x - c.x) / r.x, (point1.y - c.y) / r.y);
-    const v = new FloatPoint(-(point1.x + c.x) / r.x, -(point1.y + c.y) / r.y);
+    const u = new Point((point1.x - c.x) / r.x, (point1.y - c.y) / r.y);
+    const v = new Point(-(point1.x + c.x) / r.x, -(point1.y + c.y) / r.y);
     const squear: number = u.squareLength;
     const theta: number =
       ArcConfig._getTheta(u.y, u.x, Math.sqrt(squear)) % MAX_ANGLE;
@@ -212,20 +212,20 @@ class ArcConfig {
 }
 
 export default function linearize(
-  p1: FloatPoint,
-  p2: FloatPoint,
+  p1: Point,
+  p2: Point,
   rx: number,
   ry: number,
   angle: number,
   largearc: number,
   sweep: number,
   tol: number
-): Array<FloatPoint> {
-  const finished: Array<FloatPoint> = [p2]; // list of points to return
+): Array<Point> {
+  const finished: Array<Point> = [p2]; // list of points to return
   const svgArc = new SvgArcConfig(
     p1,
     p2,
-    new FloatPoint(rx, ry),
+    new Point(rx, ry),
     angle,
     largearc,
     sweep
@@ -246,7 +246,7 @@ export default function linearize(
 
     // compare midpoint of line with midpoint of arc
     // this is not 100% accurate, but should be a good heuristic for flatness in most cases
-    if (FloatPoint.sub(subArc.p2, fullArc.mid).squareLength < squearTolerance) {
+    if (Point.sub(subArc.p2, fullArc.mid).squareLength < squearTolerance) {
       finished.unshift(fullArc.p2);
       todo.shift();
     } else {

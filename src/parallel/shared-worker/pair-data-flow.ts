@@ -5,7 +5,8 @@ import {
   polygonArea,
   rotatePolygon,
   toClipperCoordinates,
-  toNestCoordinates
+  toNestCoordinates,
+  getPolygonBounds
 } from "../../geometry-util";
 import { exportPolygon, importPolygons, keyToNFPData } from "../../util";
 import {
@@ -15,7 +16,7 @@ import {
   PairWorkerData
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
-import { noFitPolygon, pointInPolygon, getPolygonBounds } from "./util";
+import { noFitPolygon, pointInPolygon } from "./util";
 
 self.alert = function (message: string): void {
   console.log(message);
