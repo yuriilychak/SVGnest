@@ -3,19 +3,19 @@
 
 import FloatPoint from "../float-point";
 import FloatRect from "../float-rect";
-import { ArrayPolygon, ClipperPoint, Point } from "../interfaces";
+import { IPolygon, ClipperPoint, IPoint } from "../interfaces";
 
 //TODO: depreacete when polygone will be moved to class
 
 // private shared variables/methods
 
 // a negative area indicates counter-clockwise winding direction
-export function polygonArea(polygon: ArrayPolygon): number {
+export function polygonArea(polygon: IPolygon): number {
   const pointCount: number = polygon.length;
   let result: number = 0;
   let i: number = 0;
-  let currentPoint: Point;
-  let prevPoint: Point;
+  let currentPoint: IPoint;
+  let prevPoint: IPoint;
 
   for (i = 0; i < pointCount; ++i) {
     prevPoint = polygon.at((i - 1 + pointCount) % pointCount);
@@ -27,7 +27,7 @@ export function polygonArea(polygon: ArrayPolygon): number {
 }
 
 // returns the rectangular bounding box of the given polygon
-export function getPolygonBounds(polygon: ArrayPolygon): FloatRect | null {
+export function getPolygonBounds(polygon: IPolygon): FloatRect | null {
   if (polygon.length < 3) {
     return null;
   }
@@ -45,11 +45,8 @@ export function getPolygonBounds(polygon: ArrayPolygon): FloatRect | null {
   return FloatRect.fromPoints(min, max);
 }
 
-export function rotatePolygon(
-  polygon: ArrayPolygon,
-  angle: number
-): ArrayPolygon {
-  const result: ArrayPolygon = new Array<Point>() as ArrayPolygon;
+export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
+  const result: IPolygon = new Array<IPoint>() as IPolygon;
   const pointCount: number = polygon.length;
   const radianAngle: number = (angle * Math.PI) / 180;
   let i: number = 0;
@@ -79,7 +76,7 @@ export function rotatePolygon(
 }
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-export function pointInPolygon(point: Point, polygon: ArrayPolygon): number {
+export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
   if (polygon.length < 3) {
     return -1;
   }
@@ -126,13 +123,13 @@ export function pointInPolygon(point: Point, polygon: ArrayPolygon): number {
 
 // jsClipper uses X/Y instead of x/y...
 export function toClipperCoordinates(
-  polygon: ArrayPolygon,
+  polygon: IPolygon,
   scale: number = 1
 ): ClipperPoint[] {
   const size: number = polygon.length;
   const result: ClipperPoint[] = [];
   let i: number = 0;
-  let point: Point;
+  let point: IPoint;
 
   for (i = 0; i < size; ++i) {
     point = polygon[i];
@@ -145,9 +142,9 @@ export function toClipperCoordinates(
 export function toNestCoordinates(
   polygon: ClipperPoint[],
   scale: number
-): ArrayPolygon {
+): IPolygon {
   const size: number = polygon.length;
-  const result: ArrayPolygon = new Array<Point>() as ArrayPolygon;
+  const result: IPolygon = new Array<IPoint>() as IPolygon;
   let i: number = 0;
   let point: ClipperPoint;
 

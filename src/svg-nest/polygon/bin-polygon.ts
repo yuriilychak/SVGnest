@@ -1,16 +1,16 @@
 import FloatPoint from "../../float-point";
 import FloatRect from "../../float-rect";
 import { getPolygonBounds, polygonArea } from "../../geometry-util";
-import { ArrayPolygon, SvgNestConfiguration } from "../../interfaces";
+import { IPolygon, SvgNestConfiguration } from "../../interfaces";
 import SharedPolygon from "./shared-polygon";
 
 export default class BinPolygon extends SharedPolygon {
-  private _polygons: ArrayPolygon;
+  private _polygons: IPolygon;
   private _isValid: boolean = false;
   private _bounds: FloatRect | null = null;
   private _area: number = 0;
 
-  constructor(polygons: ArrayPolygon, configuration: SvgNestConfiguration) {
+  constructor(polygons: IPolygon, configuration: SvgNestConfiguration) {
     super(configuration);
 
     this._polygons = polygons;
@@ -76,7 +76,7 @@ export default class BinPolygon extends SharedPolygon {
     return this._bounds;
   }
 
-  public get polygons(): ArrayPolygon {
+  public get polygons(): IPolygon {
     return this._polygons;
   }
 

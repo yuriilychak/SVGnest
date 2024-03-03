@@ -2,11 +2,7 @@
 import ClipperLib from "js-clipper";
 
 import { almostEqual } from "../../util";
-import {
-  ArrayPolygon,
-  ClipperPoint,
-  SvgNestConfiguration
-} from "../../interfaces";
+import { IPolygon, ClipperPoint, SvgNestConfiguration } from "../../interfaces";
 import { toNestCoordinates, toClipperCoordinates } from "../../geometry-util";
 
 export default class SharedPolygon {
@@ -18,10 +14,7 @@ export default class SharedPolygon {
 
   // use the clipper library to return an offset to the given polygon. Positive offset expands the polygon, negative contracts
   // note that this returns an array of polygons
-  protected _polygonOffset(
-    polygon: ArrayPolygon,
-    offset: number
-  ): ArrayPolygon[] {
+  protected _polygonOffset(polygon: IPolygon, offset: number): IPolygon[] {
     if (almostEqual(offset, 0)) {
       return [polygon];
     }
@@ -41,7 +34,7 @@ export default class SharedPolygon {
     const newPaths = new ClipperLib.Paths();
     co.Execute(newPaths, offset * this._configuration.clipperScale);
 
-    const result: ArrayPolygon[] = [];
+    const result: IPolygon[] = [];
     let i: number = 0;
 
     for (i = 0; i < newPaths.length; ++i) {
@@ -52,11 +45,11 @@ export default class SharedPolygon {
   }
 
   // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
-  protected svgToClipper(polygon: ArrayPolygon): ClipperPoint[] {
+  protected svgToClipper(polygon: IPolygon): ClipperPoint[] {
     return toClipperCoordinates(polygon, this._configuration.clipperScale);
   }
 
-  protected clipperToSvg(polygon: ClipperPoint[]): ArrayPolygon {
+  protected clipperToSvg(polygon: ClipperPoint[]): IPolygon {
     return toNestCoordinates(polygon, this._configuration.clipperScale);
   }
 

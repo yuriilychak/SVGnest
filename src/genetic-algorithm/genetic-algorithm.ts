@@ -1,6 +1,6 @@
 import FloatRect from "../float-rect";
 import { rotatePolygon } from "../geometry-util";
-import { ArrayPolygon, BoundRect, GeneticAlgorithmConfig } from "../interfaces";
+import { IPolygon, BoundRect, GeneticAlgorithmConfig } from "../interfaces";
 import Phenotype from "./phenotype";
 
 const DEFAULT_CONFIG: GeneticAlgorithmConfig = {
@@ -25,7 +25,7 @@ export default class GeneticAlgorithm {
   }
 
   public init(
-    adam: Array<ArrayPolygon>,
+    adam: Array<IPolygon>,
     binBounds: BoundRect,
     config: GeneticAlgorithmConfig = DEFAULT_CONFIG
   ): void {
@@ -88,7 +88,7 @@ export default class GeneticAlgorithm {
   }
 
   // returns a random angle of insertion
-  private _randomAngle(part: ArrayPolygon): number {
+  private _randomAngle(part: IPolygon): number {
     const angleCount: number = Math.max(this._config.rotations, 1);
     let angleList: Array<number> = [];
     let i: number = 0;
@@ -101,7 +101,7 @@ export default class GeneticAlgorithm {
     angleList = GeneticAlgorithm.shuffle(angleList);
 
     for (i = 0; i < angleCount; ++i) {
-      rotatedPart = rotatePolygon(part, angleList[i]) as ArrayPolygon;
+      rotatedPart = rotatePolygon(part, angleList[i]) as IPolygon;
 
       // don't use obviously bad angles where the part doesn't fit in the bin
       if (

@@ -1,13 +1,13 @@
 import { polygonArea } from "../../geometry-util";
 import FloatPoint from "../../float-point";
 import SharedPolygon from "./shared-polygon";
-import { ArrayPolygon, Point, SvgNestConfiguration } from "../../interfaces";
+import { IPolygon, IPoint, SvgNestConfiguration } from "../../interfaces";
 
 export default class TreePolygon extends SharedPolygon {
-  private _polygons: ArrayPolygon[];
+  private _polygons: IPolygon[];
 
   constructor(
-    polygons: ArrayPolygon[],
+    polygons: IPolygon[],
     configuration: SvgNestConfiguration,
     isOffset: boolean
   ) {
@@ -21,9 +21,9 @@ export default class TreePolygon extends SharedPolygon {
   }
 
   removeDuplicats(): void {
-    let start: Point;
-    let end: Point;
-    let node: ArrayPolygon;
+    let start: IPoint;
+    let end: IPoint;
+    let node: IPolygon;
     let i: number = 0;
 
     // remove duplicate endpoints, ensure counterclockwise winding direction
@@ -42,7 +42,7 @@ export default class TreePolygon extends SharedPolygon {
     }
   }
 
-  at(index: number): ArrayPolygon {
+  at(index: number): IPolygon {
     return this._polygons[index];
   }
 
@@ -55,10 +55,10 @@ export default class TreePolygon extends SharedPolygon {
   }
 
   // offset tree recursively
-  _offsetTree(tree: ArrayPolygon[], offset: number) {
+  _offsetTree(tree: IPolygon[], offset: number) {
     let i: number = 0;
-    let node: ArrayPolygon;
-    let offsetPaths: ArrayPolygon[];
+    let node: IPolygon;
+    let offsetPaths: IPolygon[];
     const treeSize: number = tree.length;
 
     for (i = 0; i < treeSize; ++i) {
@@ -85,10 +85,10 @@ export default class TreePolygon extends SharedPolygon {
   }
 
   static flattenTree(
-    tree: ArrayPolygon[],
+    tree: IPolygon[],
     hole: boolean,
-    result: ArrayPolygon[] = []
-  ): ArrayPolygon[] {
+    result: IPolygon[] = []
+  ): IPolygon[] {
     const nodeCount = tree.length;
     let i = 0;
     let node;

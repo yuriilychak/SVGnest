@@ -19,9 +19,9 @@ import {
 } from "./interfaces";
 import { pointInPolygon, polygonArea } from "../geometry-util";
 import {
-  ArrayPolygon,
+  IPolygon,
   ClipperPoint,
-  Point,
+  IPoint,
   SvgNestConfiguration
 } from "../interfaces";
 
@@ -728,7 +728,7 @@ export default class SvgParser {
       svgPolygon as Element,
       this.conf.tolerance,
       this.conf.toleranceSvg
-    ) as ArrayPolygon;
+    ) as IPolygon;
     const p = this._svgToClipper(polygon, clipperScale);
     // remove self-intersections and find the biggest polygon that's left
     const simple = ClipperLib.Clipper.SimplifyPolygon(
@@ -770,9 +770,9 @@ export default class SvgParser {
   public svgToTreePolygon(
     paths: ChildNode[],
     configuration: SvgNestConfiguration
-  ): ArrayPolygon[] {
+  ): IPolygon[] {
     let i;
-    const result: Array<ArrayPolygon> = new Array<ArrayPolygon>();
+    const result: Array<IPolygon> = new Array<IPolygon>();
     const numChildren = paths.length;
     const trashold: number =
       configuration.curveTolerance * configuration.curveTolerance;
@@ -796,7 +796,7 @@ export default class SvgParser {
   }
 
   // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
-  _svgToClipper(polygon: ArrayPolygon, clipperScale: number): ClipperPoint[] {
+  _svgToClipper(polygon: IPolygon, clipperScale: number): ClipperPoint[] {
     const result = [];
     let i = 0;
 
@@ -815,9 +815,9 @@ export default class SvgParser {
   private _clipperToSvg(
     polygon: ClipperPoint[],
     clipperScale: number
-  ): ArrayPolygon {
+  ): IPolygon {
     const count = polygon.length;
-    const result: ArrayPolygon = new Array<Point>() as ArrayPolygon;
+    const result: IPolygon = new Array<IPoint>() as IPolygon;
     let i = 0;
 
     for (i = 0; i < count; ++i) {
@@ -830,13 +830,13 @@ export default class SvgParser {
     return result;
   }
 
-  static toTree(list: Array<ArrayPolygon>, idStart = 0) {
+  static toTree(list: Array<IPolygon>, idStart = 0) {
     const parents = [];
     let i: number = 0;
     let j: number = 0;
     // assign a unique id to each leaf
-    let outerNode: ArrayPolygon;
-    let innerNode: ArrayPolygon;
+    let outerNode: IPolygon;
+    let innerNode: IPolygon;
     let isChild: boolean = false;
 
     for (i = 0; i < list.length; ++i) {

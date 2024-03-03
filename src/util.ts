@@ -1,4 +1,4 @@
-import { ArrayPolygon, Point } from "./interfaces";
+import { IPolygon, IPoint } from "./interfaces";
 
 // floating point comparison tolerance
 const TOLEARANCE: number = Math.pow(10, -9); // Floating point error is likely to be above 1 epsilon
@@ -14,8 +14,8 @@ export function almostEqual(
 export function generateNFPCacheKey(
   rotationSplit: number,
   inside: boolean,
-  polygon1: ArrayPolygon,
-  polygon2: ArrayPolygon,
+  polygon1: IPolygon,
+  polygon2: IPolygon,
   rotation1: number = polygon1.rotation,
   rotation2: number = polygon2.rotation
 ) {
@@ -69,11 +69,11 @@ export function keyToNFPData(
 export function importPolygon(
   polygonData: Float64Array,
   offset: number = 0
-): ArrayPolygon {
+): IPolygon {
   const innerOffset: number = 14 + offset;
   const size: number = polygonData[offset];
   const pointCount: number = polygonData[11 + offset];
-  const result: ArrayPolygon = new Array<Point>(pointCount) as ArrayPolygon;
+  const result: IPolygon = new Array<IPoint>(pointCount) as IPolygon;
   const hasParent: boolean = polygonData[offset + 12] === 1;
   let i: number = 0;
 
@@ -102,7 +102,7 @@ export function importPolygon(
   return result;
 }
 
-export function exportPolygon(polygon: ArrayPolygon): Float64Array {
+export function exportPolygon(polygon: IPolygon): Float64Array {
   const offset: number = 14;
   const pointCount: number = polygon.length;
   const size: number = offset + (pointCount << 1);
@@ -144,13 +144,13 @@ export function exportPolygon(polygon: ArrayPolygon): Float64Array {
   }
 }
 
-export function importPolygons(data: Float64Array): ArrayPolygon[] {
+export function importPolygons(data: Float64Array): IPolygon[] {
   if (data.length === 0) {
     return [];
   }
 
   const polygonCount: number = data[0];
-  const result: ArrayPolygon[] = [];
+  const result: IPolygon[] = [];
   let offset = polygonCount + 1;
   let i: number = 0;
 

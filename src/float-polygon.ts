@@ -1,6 +1,6 @@
 import FloatPoint from "./float-point";
 import FloatRect from "./float-rect";
-import { Point } from "./interfaces";
+import { IPoint } from "./interfaces";
 
 export default class FloatPolygon {
   private _id: number = -1;
@@ -11,7 +11,7 @@ export default class FloatPolygon {
   private _offset: FloatPoint;
   private _children: FloatPolygon[];
 
-  constructor(points: Array<Point> = []) {
+  constructor(points: Array<IPoint> = []) {
     this._points = points.map((point) => FloatPoint.from(point));
     this._isValid = this._points.length >= 3;
     this._children = [];
@@ -30,7 +30,7 @@ export default class FloatPolygon {
   }
 
   public rotate(angle: number): FloatPolygon {
-    const points: Array<Point> = new Array<Point>();
+    const points: Array<IPoint> = new Array<IPoint>();
     const pointCount: number = this.length;
     const radianAngle: number = (angle * Math.PI) / 180;
     let i: number = 0;
@@ -53,7 +53,7 @@ export default class FloatPolygon {
   }
 
   // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-  public pointIn(point: Point): boolean {
+  public pointIn(point: IPoint): boolean {
     if (!this._isValid) {
       return false;
     }
@@ -126,8 +126,8 @@ export default class FloatPolygon {
     const pointCount: number = this._points.length;
     let result: number = 0;
     let i: number = 0;
-    let currentPoint: Point;
-    let prevPoint: Point;
+    let currentPoint: IPoint;
+    let prevPoint: IPoint;
 
     for (i = 0; i < pointCount; ++i) {
       prevPoint = this._points[(i - 1 + pointCount) % pointCount];

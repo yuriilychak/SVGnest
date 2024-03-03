@@ -11,11 +11,11 @@ import { almostEqual } from "../util";
 import { TreePolygon, BinPolygon } from "./polygon";
 import { generateNFPCacheKey } from "../util";
 import {
-  ArrayPolygon,
+  IPolygon,
   NfpPair,
   PairDataResult,
   PlaceDataResult,
-  Point,
+  IPoint,
   SvgNestConfiguration
 } from "../interfaces";
 import Phenotype from "../genetic-algorithm/phenotype";
@@ -46,7 +46,7 @@ export default class SvgNest {
   private _configuration: SvgNestConfiguration;
   private _tree: TreePolygon = null;
   private _binPolygon: BinPolygon = null;
-  private _nfpCache: Map<number, ArrayPolygon[]>;
+  private _nfpCache: Map<number, IPolygon[]>;
   private _workerTimer: NodeJS.Timeout = null;
 
   constructor() {
@@ -225,11 +225,11 @@ export default class SvgNest {
 
     if (this._genethicAlgorithm.isEmpty) {
       // initiate new GA
-      const adam: ArrayPolygon[] = this._tree.polygons;
+      const adam: IPolygon[] = this._tree.polygons;
 
       // seed with decreasing area
       adam.sort(
-        (a: ArrayPolygon, b: ArrayPolygon): number =>
+        (a: IPolygon, b: IPolygon): number =>
           Math.abs(polygonArea(b)) - Math.abs(polygonArea(a))
       );
 
@@ -241,18 +241,18 @@ export default class SvgNest {
     }
 
     const individual: Phenotype = this._genethicAlgorithm.individual;
-    const placeList: ArrayPolygon[] = individual.placement;
+    const placeList: IPolygon[] = individual.placement;
     const rotations: number[] = individual.rotation;
     const placeCount: number = placeList.length;
     const ids: number[] = [];
     const nfpPairs: NfpPair[] = [];
-    const newCache: Map<number, ArrayPolygon[]> = new Map();
-    let part: ArrayPolygon;
+    const newCache: Map<number, IPolygon[]> = new Map();
+    let part: IPolygon;
     let numKey: number = 0;
 
     const updateCache = (
-      polygon1: ArrayPolygon,
-      polygon2: ArrayPolygon,
+      polygon1: IPolygon,
+      polygon2: IPolygon,
       rotation1: number,
       rotation2: number,
       inside: boolean
@@ -365,7 +365,7 @@ export default class SvgNest {
               let placedArea: number = 0;
               let totalArea: number = 0;
               let numPlacedParts: number = 0;
-              let bestPlacement: Point[];
+              let bestPlacement: IPoint[];
               const numParts: number = placeList.length;
               const binArea: number = Math.abs(this._binPolygon.area);
 
@@ -408,7 +408,7 @@ export default class SvgNest {
 
   // returns an array of SVG elements that represent the placement, for export or rendering
   private _applyPlacement() {
-    const placements: Point[][] = this._best.placements;
+    const placements: IPoint[][] = this._best.placements;
     const clone: Node[] = [];
     const partCount: number = this._parts.length;
     const placementCount: number = placements.length;
@@ -418,8 +418,8 @@ export default class SvgNest {
     let k: number = 0;
     let newSvg: Element;
     let binClone: Element;
-    let point: Point;
-    let part: ArrayPolygon;
+    let point: IPoint;
+    let part: IPolygon;
     let partGroup: Element;
     let flattened;
     let c: Element;

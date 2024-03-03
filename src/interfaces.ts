@@ -1,11 +1,11 @@
-export interface Point {
+export interface IPoint {
   x: number;
   y: number;
   id?: number;
   marked?: boolean;
   rotation?: number;
-  start?: Point;
-  end?: Point;
+  start?: IPoint;
+  end?: IPoint;
   nfp?: any;
 }
 
@@ -22,10 +22,10 @@ export interface BoundRect {
   height: number;
 }
 
-export interface ArrayPolygon extends Array<Point>, BoundRect {
+export interface IPolygon extends Array<IPoint>, BoundRect {
   id: number;
-  parent?: ArrayPolygon;
-  children?: ArrayPolygon[];
+  parent?: IPolygon;
+  children?: IPolygon[];
   rotation: number;
   source: number;
   hole?: boolean;
@@ -47,25 +47,25 @@ export interface SvgNestConfiguration {
 export interface PairWorkerData {
   asm: ArrayBuffer;
   rotations: number;
-  binPolygon: ArrayPolygon;
+  binPolygon: IPolygon;
   searchEdges: boolean;
   useHoles: boolean;
   debug?: boolean;
 }
 
 export interface NfpPair {
-  A: ArrayPolygon;
-  B: ArrayPolygon;
+  A: IPolygon;
+  B: IPolygon;
   numKey: number;
 }
 
 export interface PlacePairConfiguration {
-  binPolygon: ArrayPolygon;
-  paths: ArrayPolygon[];
+  binPolygon: IPolygon;
+  paths: IPolygon[];
   ids: number[];
   rotations: number[];
   config: SvgNestConfiguration;
-  nfpCache: Map<number, ArrayPolygon[]>;
+  nfpCache: Map<number, IPolygon[]>;
 }
 
 export interface ClipperPoint {
@@ -74,13 +74,13 @@ export interface ClipperPoint {
 }
 
 export interface PairDataResult {
-  value: ArrayPolygon[];
+  value: IPolygon[];
   numKey: number;
 }
 
 export interface PlaceDataResult {
-  placements: Point[][];
+  placements: IPoint[][];
   fitness: number;
-  paths: ArrayPolygon[];
+  paths: IPolygon[];
   area: number;
 }

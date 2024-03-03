@@ -11,11 +11,11 @@ import { generateNFPCacheKey } from "../../util";
 import FloatPoint from "../../float-point";
 import { almostEqual } from "../../util";
 import {
-  ArrayPolygon,
+  IPolygon,
   ClipperPoint,
   PlaceDataResult,
   PlacePairConfiguration,
-  Point
+  IPoint
 } from "../../interfaces";
 
 self.alert = function (message: string): void {
@@ -23,7 +23,7 @@ self.alert = function (message: string): void {
 };
 
 export default function placePaths(
-  inputPaths: ArrayPolygon[],
+  inputPaths: IPolygon[],
   env: PlacePairConfiguration
 ): PlaceDataResult {
   if (!env.binPolygon) {
@@ -39,8 +39,8 @@ export default function placePaths(
   let k: number = 0;
   let m: number = 0;
   let n: number = 0;
-  let path: ArrayPolygon;
-  let rotatedPath: ArrayPolygon;
+  let path: IPolygon;
+  let rotatedPath: IPolygon;
   let fitness: number = 0;
   let nfp;
   let numKey: number = 0;
@@ -54,7 +54,7 @@ export default function placePaths(
   let combinedNfp;
   let finalNfp;
   let f;
-  let allPoints: ArrayPolygon;
+  let allPoints: IPolygon;
   let index;
   let rectBounds;
   let minWidth: number | null = null;
@@ -62,12 +62,12 @@ export default function placePaths(
   let minX: number | null = null;
   let nf;
   let area: number;
-  let shiftVector: Point;
+  let shiftVector: IPoint;
   let clone: ClipperPoint[];
   const minScale: number =
     0.1 * env.config.clipperScale * env.config.clipperScale;
   const cleanTrashold: number = 0.0001 * env.config.clipperScale;
-  const emptyPath: ArrayPolygon = { id: -1, rotation: 0 } as ArrayPolygon;
+  const emptyPath: IPolygon = { id: -1, rotation: 0 } as IPolygon;
   const rotations: number = env.config.rotations;
 
   for (i = 0; i < inputPaths.length; ++i) {
@@ -236,7 +236,7 @@ export default function placePaths(
         }
 
         for (k = 0; k < nf.length; ++k) {
-          allPoints = new Array<Point>() as ArrayPolygon;
+          allPoints = new Array<IPoint>() as IPolygon;
 
           for (m = 0; m < placed.length; ++m) {
             for (n = 0; n < placed.at(m).length; ++n) {

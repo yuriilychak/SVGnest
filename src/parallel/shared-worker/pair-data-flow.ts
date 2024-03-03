@@ -5,28 +5,28 @@ import {
   polygonArea,
   rotatePolygon,
   toClipperCoordinates,
-  toNestCoordinates,
-  pointInPolygon
+  toNestCoordinates
 } from "../../geometry-util";
 import { exportPolygon, importPolygons, keyToNFPData } from "../../util";
 import {
-  ArrayPolygon,
+  IPolygon,
   NfpPair,
   PairDataResult,
   PairWorkerData
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
+import { noFitPolygon, pointInPolygon, getPolygonBounds } from "./util";
 
 self.alert = function (message: string): void {
   console.log(message);
 };
 
-function minkowskiDifference(A: ArrayPolygon, B: ArrayPolygon): ArrayPolygon[] {
+function minkowskiDifference(A: IPolygon, B: IPolygon): IPolygon[] {
   const scale: number = 10000000;
   let i: number = 0;
   let clipperNfp;
   let largestArea: number | null = null;
-  let n: ArrayPolygon;
+  let n: IPolygon;
   let sArea: number;
   const clippedA = toClipperCoordinates(A, scale);
   const clippedB = toClipperCoordinates(B, -scale);
@@ -63,13 +63,14 @@ export default async function pairData(
 
   const errors: any[][] = [];
 
-  const searchEdges: boolean = !!env.searchEdges;
+  const searchEdges = env.searchEdges;
+  const useHoles = env.useHoles;
 
   const nfpData = keyToNFPData(pair.numKey, env.rotations);
 
   let a = rotatePolygon(pair.A, nfpData.at(2));
   let b = rotatePolygon(pair.B, nfpData.at(3));
-  let nfp: ArrayPolygon[];
+  let nfp: IPolygon[];
   let i = 0;
 
   if (nfpData.at(4) === 1) {
@@ -78,10 +79,10 @@ export default async function pairData(
         bin.tmpNoFitPolygonRectangle(exportPolygon(a), exportPolygon(b))
       );
     } else {
-      return null;
+      nfp = noFitPolygon(a, b, true, searchEdges) as IPolygon[];
     }
     // ensure all interior NFPs have the same winding direction
-    if (nfp.length !== 0) {
+    if (nfp && nfp.length > 0) {
       for (i = 0; i < nfp.length; ++i) {
         if (polygonArea(nfp.at(i)) > 0) {
           nfp.at(i).reverse();
@@ -93,7 +94,11 @@ export default async function pairData(
       errors.push(["NFP Warning: ", nfpData]);
     }
   } else {
-    nfp = minkowskiDifference(a, b);
+    if (searchEdges) {
+      nfp = noFitPolygon(a, b, false, searchEdges) as IPolygon[];
+    } else {
+      nfp = minkowskiDifference(a, b);
+    }
     // sanity check
     if (!nfp || nfp.length == 0) {
       errors.push(["NFP Error: ", nfpData]);
@@ -120,7 +125,7 @@ export default async function pairData(
       }
     }
 
-    if (nfp.length === 0) {
+    if (nfp.length == 0) {
       return null;
     }
 
@@ -138,14 +143,45 @@ export default async function pairData(
         nfp.at(i).reverse();
       }
     }
+
+    // generate nfps for children (holes of parts) if any exist
+    if (useHoles && a.children && a.children.length > 0) {
+      const boundsB = getPolygonBounds(b);
+      let boundsA;
+      let cnfp: IPolygon[];
+      let j = 0;
+
+      for (i = 0; i < a.children.length; ++i) {
+        boundsA = getPolygonBounds(a.children.at(i));
+
+        // no need to find nfp if B's bounding box is too big
+        if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
+          cnfp = noFitPolygon(
+            a.children.at(i),
+            b,
+            true,
+            searchEdges
+          ) as IPolygon[];
+          // ensure all interior NFPs have the same winding direction
+          if (cnfp && cnfp.length > 0) {
+            for (j = 0; j < cnfp.length; ++j) {
+              if (polygonArea(cnfp.at(j)) < 0) {
+                cnfp.at(j).reverse();
+              }
+              nfp.push(cnfp.at(j));
+            }
+          }
+        }
+      }
+    }
   }
 
-  const errorCount: number = errors.length;
+  const errorsCount: number = errors.length;
 
-  if (env.debug && errors.length !== 0) {
+  if (errorsCount !== 0 && env.debug) {
     let i: number = 0;
 
-    for (i = 0; i < errorCount; ++i) {
+    for (i = 0; i < errorsCount; ++i) {
       console.log(...errors[i]);
     }
   }

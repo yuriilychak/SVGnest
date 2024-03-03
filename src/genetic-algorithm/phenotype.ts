@@ -1,11 +1,11 @@
-import { ArrayPolygon } from "../interfaces";
+import { IPolygon } from "../interfaces";
 
 export default class Phenotype {
-  private _placemant: Array<ArrayPolygon>;
+  private _placemant: Array<IPolygon>;
   private _rotation: Array<number>;
   private _fitness: number = 0;
 
-  constructor(placement: Array<ArrayPolygon>, rotation: Array<number>) {
+  constructor(placement: Array<IPolygon>, rotation: Array<number>) {
     this._placemant = placement;
     this._rotation = rotation;
   }
@@ -50,7 +50,7 @@ export default class Phenotype {
     return false;
   }
 
-  public get placement(): Array<ArrayPolygon> {
+  public get placement(): Array<IPolygon> {
     return this._placemant;
   }
 
