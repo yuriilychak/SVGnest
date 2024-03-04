@@ -91,7 +91,7 @@ function lineIntersect(a: Point, b: Point, e: Point, f: Point): boolean {
 }
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-export function pointInPolygon(point: IPoint, polygon: IPolygon): TripleStatus {
+export function pointInPolygon(point: Point, polygon: IPolygon): TripleStatus {
   if (!polygon || polygon.length < 3) {
     return TripleStatus.Error;
   }
@@ -111,14 +111,14 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): TripleStatus {
 
     if (
       // no result
-      Point.almostEqual(currentPoint, point) ||
+      point.almostEqual(currentPoint) ||
       // exactly on the segment
-      onSegment(currentPoint, prevPoint, point)
+      point.onSegment(currentPoint, prevPoint)
     ) {
       return TripleStatus.Error; // no result
     }
 
-    if (Point.almostEqual(currentPoint, prevPoint)) {
+    if (currentPoint.almostEqual(prevPoint)) {
       // ignore very small lines
       continue;
     }
@@ -748,109 +748,128 @@ function searchStartPoint(
   return null;
 }
 
+function getTouch(type: number, a: number, b: number): Int16Array {
+  const result = new Int16Array(3);
+  result[0] = type;
+  result[1] = a;
+  result[2] = b;
+
+  return result;
+}
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
 export function noFitPolygon(
-  A: IPolygon,
-  B: IPolygon,
+  a: IPolygon,
+  b: IPolygon,
   inside: boolean,
   searchEdges: boolean
 ): IPolygon[] {
-  if (!A || A.length < 3 || !B || B.length < 3) {
-    return null;
+  const sizeA: number = a.length;
+  const sizeB: number = b.length;
+
+  if (sizeA < 3 || sizeB < 3) {
+    return [];
   }
 
-  A.offsetx = 0;
-  A.offsety = 0;
+  a.offsetx = 0;
+  a.offsety = 0;
 
-  var i, j;
+  let i: number = 0;
+  let j: number = 0;
 
-  var minA = A[0].y;
-  var minAindex = 0;
+  let minA: number = a.at(0).y;
+  let minIndexA = 0;
 
-  var maxB = B[0].y;
-  var maxBindex = 0;
+  let maxB: number = b.at(0).y;
+  let maxIndexB: number = 0;
 
-  for (i = 1; i < A.length; ++i) {
-    A[i].marked = false;
-    if (A[i].y < minA) {
-      minA = A[i].y;
-      minAindex = i;
+  for (i = 1; i < sizeA; ++i) {
+    a.at(i).marked = false;
+    if (a.at(i).y < minA) {
+      minA = a.at(i).y;
+      minIndexA = i;
     }
   }
 
-  for (i = 1; i < B.length; ++i) {
-    B[i].marked = false;
-    if (B[i].y > maxB) {
-      maxB = B[i].y;
-      maxBindex = i;
+  for (i = 1; i < sizeB; ++i) {
+    b.at(i).marked = false;
+    if (b.at(i).y > maxB) {
+      maxB = b.at(i).y;
+      maxIndexB = i;
     }
   }
-
-  let startPoint: IPoint | null = !inside
-    ? // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
-      Point.sub(B[maxBindex], A[minAindex])
-    : // no reliable heuristic for inside
-      searchStartPoint(A, B, true);
 
   const result: IPolygon[] = [];
   const vectorNormal: Point = new Point();
   const prevVectorNormal: Point = new Point();
   const reference: Point = new Point();
   const start: Point = new Point();
+  const offsetB: Point = new Point();
+  const localPrimaryB: Point = new Point();
+  const localSecondaryB: Point = new Point();
+  const counterCondition: number = 10 * (sizeA + sizeB);
   let vectors: Vector[];
   let vector: Vector;
   let translate: Vector | null = null;
+  let nfp: IPoint[] = [];
+  let prevVector: Vector | null = null;
+  let vlength2: number = 0;
+  let looped: boolean = false;
+  let distance: number = Number.NaN;
+  let vectorDistance2: number = 0;
+  let maxDistance: number = 0;
+  let counter: number = 0;
+  let currentA: IPoint;
+  let currentB: IPoint;
+  let nextA: IPoint;
+  let prevA: IPoint;
+  let nextB: IPoint;
+  let prevB: IPoint;
+  let touches: Int16Array[];
+  let touch: Int16Array;
+  let indexA: number = 0;
+  let indexB: number = 0;
+
+  let startPoint: IPoint | null = !inside
+    ? // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
+      Point.sub(b.at(maxIndexB), a.at(minIndexA))
+    : // no reliable heuristic for inside
+      searchStartPoint(a, b, true);
 
   while (startPoint !== null) {
-    B.offsetx = startPoint.x;
-    B.offsety = startPoint.y;
+    offsetB.set(startPoint);
+    b.offsetx = offsetB.x;
+    b.offsety = offsetB.y;
 
     // maintain a list of touching points/edges
-    var touching;
 
-    var prevVector: Vector | null = null; // keep track of previous vector
-    var nfp: IPoint[] = [
-      {
-        x: B[0].x + B.offsetx,
-        y: B[0].y + B.offsety
-      }
-    ];
+    localPrimaryB.set(b.at(0)).add(startPoint);
+    prevVector = null; // keep track of previous vector
+    nfp = [{ x: localPrimaryB.x, y: localPrimaryB.y }];
 
-    reference.x = B[0].x + B.offsetx;
-    reference.y = B[0].y + B.offsety;
+    reference.set(b.at(0)).add(startPoint);
     start.set(reference);
-    var counter = 0;
+    counter = 0;
 
-    while (counter < 10 * (A.length + B.length)) {
+    while (counter < counterCondition) {
       // sanity check, prevent infinite loop
-      touching = [];
+      touches = [];
       // find touching vertices/edges
-      for (i = 0; i < A.length; i++) {
-        var nexti = i == A.length - 1 ? 0 : i + 1;
-        for (j = 0; j < B.length; j++) {
-          var nextj = j == B.length - 1 ? 0 : j + 1;
-          if (
-            almostEqual(A[i].x, B[j].x + B.offsetx) &&
-            almostEqual(A[i].y, B[j].y + B.offsety)
-          ) {
-            touching.push({ type: 0, A: i, B: j });
-          } else if (
-            onSegment(A[i], A[nexti], {
-              x: B[j].x + B.offsetx,
-              y: B[j].y + B.offsety
-            })
-          ) {
-            touching.push({ type: 1, A: nexti, B: j });
-          } else if (
-            onSegment(
-              { x: B[j].x + B.offsetx, y: B[j].y + B.offsety },
-              { x: B[nextj].x + B.offsetx, y: B[nextj].y + B.offsety },
-              A[i]
-            )
-          ) {
-            touching.push({ type: 2, A: i, B: nextj });
+      for (i = 0; i < sizeA; ++i) {
+        currentA = a.at(i);
+        nextA = a.at((i + 1) % sizeA);
+
+        for (j = 0; j < sizeB; ++j) {
+          localPrimaryB.set(b.at(j)).add(offsetB);
+          localSecondaryB.set(b.at((j + 1) % sizeB)).add(offsetB);
+
+          if (Point.almostEqual(currentA, localPrimaryB)) {
+            touches.push(getTouch(0, i, j));
+          } else if (onSegment(currentA, nextA, localPrimaryB)) {
+            touches.push(getTouch(1, (i + 1) % sizeA, j));
+          } else if (onSegment(localPrimaryB, localSecondaryB, currentA)) {
+            touches.push(getTouch(2, i, (j + 1) % sizeB));
           }
         }
       }
@@ -858,100 +877,69 @@ export function noFitPolygon(
       // generate translation vectors from touching vertices/edges
       vectors = [];
 
-      for (i = 0; i < touching.length; i++) {
-        var vertexA = A[touching[i].A];
-        vertexA.marked = true;
+      for (i = 0; i < touches.length; ++i) {
+        touch = touches.at(i);
+        indexA = touch.at(1);
+        indexB = touch.at(2);
 
-        // adjacent A vertices
-        var prevAindex = touching[i].A - 1;
-        var nextAindex = touching[i].A + 1;
-
-        prevAindex = prevAindex < 0 ? A.length - 1 : prevAindex; // loop
-        nextAindex = nextAindex >= A.length ? 0 : nextAindex; // loop
-
-        var prevA = A[prevAindex];
-        var nextA = A[nextAindex];
+        currentA = a.at(indexA);
+        prevA = a.at((indexA + sizeA - 1) % sizeA);
+        nextA = a.at((indexA + 1) % sizeA);
 
         // adjacent B vertices
-        var vertexB = B[touching[i].B];
+        currentB = b.at(indexB);
+        prevB = b.at((indexB + sizeB - 1) % sizeB);
+        nextB = b.at((indexB + 1) % sizeB);
 
-        var prevBindex = touching[i].B - 1;
-        var nextBindex = touching[i].B + 1;
+        localPrimaryB.set(currentB).add(offsetB);
+        localSecondaryB.set(prevB).add(offsetB);
 
-        prevBindex = prevBindex < 0 ? B.length - 1 : prevBindex; // loop
-        nextBindex = nextBindex >= B.length ? 0 : nextBindex; // loop
+        currentA.marked = true;
 
-        var prevB = B[prevBindex];
-        var nextB = B[nextBindex];
+        switch (touch[0]) {
+          case 0:
+            vectors.push(
+              new Vector(Point.sub(currentA, prevA), currentA, prevA)
+            );
+            vectors.push(
+              new Vector(Point.sub(currentA, nextA), currentA, nextA)
+            );
+            // B vectors need to be inverted
+            vectors.push(
+              new Vector(Point.sub(prevB, currentB), prevB, currentB)
+            );
+            vectors.push(
+              new Vector(Point.sub(nextB, currentB), nextB, currentB)
+            );
+            break;
+          case 1:
+            vectors.push(
+              new Vector(Point.sub(localPrimaryB, currentA), prevA, currentA)
+            );
 
-        if (touching[i].type == 0) {
-          vectors.push(
-            new Vector(Point.from(prevA).sub(vertexA), vertexA, prevA)
-          );
-          vectors.push(
-            new Vector(Point.from(nextA).sub(vertexA), vertexA, nextA)
-          );
-          // B vectors need to be inverted
-          vectors.push(
-            new Vector(Point.from(vertexB).sub(prevB), prevB, vertexB)
-          );
-          vectors.push(
-            new Vector(Point.from(vertexB).sub(nextB), nextB, vertexB)
-          );
-        } else if (touching[i].type == 1) {
-          vectors.push(
-            new Vector(
-              new Point(
-                vertexA.x - (vertexB.x + B.offsetx),
-                vertexA.y - (vertexB.y + B.offsety)
-              ),
-              prevA,
-              vertexA
-            )
-          );
+            vectors.push(
+              new Vector(Point.sub(localPrimaryB, prevA), currentA, prevA)
+            );
+            break;
+          case 2:
+            vectors.push(
+              new Vector(Point.sub(localPrimaryB, currentA), prevB, currentB)
+            );
 
-          vectors.push(
-            new Vector(
-              new Point(
-                prevA.x - (vertexB.x + B.offsetx),
-                prevA.y - (vertexB.y + B.offsety)
-              ),
-              vertexA,
-              prevA
-            )
-          );
-        } else if (touching[i].type == 2) {
-          vectors.push(
-            new Vector(
-              new Point(
-                vertexA.x - (vertexB.x + B.offsetx),
-                vertexA.y - (vertexB.y + B.offsety)
-              ),
-              prevB,
-              vertexB
-            )
-          );
-
-          vectors.push(
-            new Vector(
-              new Point(
-                vertexA.x - (prevB.x + B.offsetx),
-                vertexA.y - (prevB.y + B.offsety)
-              ),
-              vertexB,
-              prevB
-            )
-          );
+            vectors.push(
+              new Vector(Point.sub(localSecondaryB, currentA), currentB, prevB)
+            );
+            break;
         }
       }
 
       // todo: there should be a faster way to reject vectors that will cause immediate intersection. For now just check them all
 
       translate = null;
-      var maxd = 0;
+      maxDistance = 0;
 
       for (i = 0; i < vectors.length; ++i) {
-        vector = vectors[i];
+        vector = vectors.at(i);
         if (vector.x == 0 && vector.y == 0) {
           continue;
         }
@@ -970,22 +958,22 @@ export function noFitPolygon(
           }
         }
 
-        var d = polygonSlideDistance(A, B, vector);
-        var vecd2 = vector.squareLength;
+        distance = polygonSlideDistance(a, b, vector);
+        vectorDistance2 = vector.squareLength;
 
-        if (Number.isNaN(d) || d * d > vecd2) {
-          d = vector.length;
+        if (Number.isNaN(distance) || distance * distance > vectorDistance2) {
+          distance = vector.length;
         }
 
-        if (d !== null && d > maxd) {
-          maxd = d;
+        if (!Number.isNaN(distance) && distance > maxDistance) {
+          maxDistance = distance;
           translate = vector;
         }
       }
 
-      if (translate === null || almostEqual(maxd, 0)) {
+      if (translate === null || almostEqual(maxDistance, 0)) {
         // didn't close the loop, something went wrong here
-        nfp = null;
+        nfp = [];
         break;
       }
 
@@ -995,10 +983,13 @@ export function noFitPolygon(
       prevVector = translate;
 
       // trim
-      const vlength2 = translate.squareLength;
+      vlength2 = translate.squareLength;
 
-      if (maxd * maxd < vlength2 && !almostEqual(maxd * maxd, vlength2)) {
-        translate.normalize(Math.abs(maxd));
+      if (
+        maxDistance * maxDistance < vlength2 &&
+        !almostEqual(maxDistance * maxDistance, vlength2)
+      ) {
+        translate.normalize(Math.abs(maxDistance));
       }
 
       reference.add(translate);
@@ -1009,10 +1000,11 @@ export function noFitPolygon(
       }
 
       // if A and B start on a touching horizontal line, the end point may not be the start point
-      var looped = false;
-      if (nfp.length > 0) {
-        for (i = 0; i < nfp.length - 1; i++) {
-          if (Point.almostEqual(reference, nfp[i])) {
+      looped = false;
+
+      if (nfp.length !== 0) {
+        for (i = 0; i < nfp.length - 1; ++i) {
+          if (Point.almostEqual(reference, nfp.at(i))) {
             looped = true;
           }
         }
@@ -1023,18 +1015,16 @@ export function noFitPolygon(
         break;
       }
 
-      nfp.push({
-        x: reference.x,
-        y: reference.y
-      });
+      nfp.push({ x: reference.x, y: reference.y });
 
-      B.offsetx += translate.x;
-      B.offsety += translate.y;
+      offsetB.add(translate);
+      b.offsetx = offsetB.x;
+      b.offsety = offsetB.y;
 
       counter++;
     }
 
-    if (nfp && nfp.length > 0) {
+    if (nfp.length !== 0) {
       result.push(nfp as IPolygon);
     }
 
@@ -1043,7 +1033,7 @@ export function noFitPolygon(
       break;
     }
 
-    startPoint = searchStartPoint(A, B, inside, result as IPolygon[]);
+    startPoint = searchStartPoint(a, b, inside, result as IPolygon[]);
   }
 
   return result;

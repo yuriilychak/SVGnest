@@ -17,6 +17,7 @@ import {
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
 import { noFitPolygon, pointInPolygon } from "./util";
+import Point from "../../point";
 
 self.alert = function (message: string): void {
   console.log(message);
@@ -138,7 +139,7 @@ export default async function pairData(
 
       if (
         i > 0 &&
-        pointInPolygon(nfp.at(i).at(0), nfp.at(0)) &&
+        pointInPolygon(Point.from(nfp.at(i).at(0)), nfp.at(0)) &&
         polygonArea(nfp.at(i)) < 0
       ) {
         nfp.at(i).reverse();
