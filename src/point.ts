@@ -73,6 +73,13 @@ export default class Point implements IPoint {
     return this;
   }
 
+  public reverse(): Point {
+    this._data[0] = -this._data[0];
+    this._data[1] = -this._data[1];
+
+    return this;
+  }
+
   public rotate(angle: number): Point {
     const cos: number = Math.cos(angle);
     const sin: number = Math.sin(angle);

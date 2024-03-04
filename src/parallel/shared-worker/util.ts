@@ -13,7 +13,13 @@ import Vector from "../../vector";
 // floating point comparison tolerance
 const TOLERANCE: number = Math.pow(10, -9); // Floating point error is likely to be above 1 epsilon
 
-export function almostEqual(
+enum TripleStatus {
+  True = 1,
+  False = 0,
+  Error = -1
+}
+
+function almostEqual(
   a: number,
   b: number = 0,
   tolerance: number = TOLERANCE
@@ -66,7 +72,7 @@ function onSegment(a: IPoint, b: IPoint, p: IPoint): boolean {
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
-export function lineIntersect(a: Point, b: Point, e: Point, f: Point): boolean {
+function lineIntersect(a: Point, b: Point, e: Point, f: Point): boolean {
   const diffAB: Point = Point.sub(a, b);
   const diffEF: Point = Point.sub(e, f);
   const denom: number = diffEF.cross(diffAB);
@@ -85,9 +91,9 @@ export function lineIntersect(a: Point, b: Point, e: Point, f: Point): boolean {
 }
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
+export function pointInPolygon(point: IPoint, polygon: IPolygon): TripleStatus {
   if (!polygon || polygon.length < 3) {
-    return -1;
+    return TripleStatus.Error;
   }
 
   const offset: Point = new Point(polygon.offsetx || 0, polygon.offsety || 0);
@@ -109,7 +115,7 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
       // exactly on the segment
       onSegment(currentPoint, prevPoint, point)
     ) {
-      return -1; // no result
+      return TripleStatus.Error; // no result
     }
 
     if (Point.almostEqual(currentPoint, prevPoint)) {
@@ -128,7 +134,7 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
     }
   }
 
-  return inside ? 1 : 0;
+  return inside ? TripleStatus.True : TripleStatus.False;
 }
 
 function updateIntersectPoints(
@@ -166,34 +172,46 @@ function updateIntersectPoints(
 }
 
 function checkIntersect(
-  polygon: IPolygon,
-  points: Point[],
-  index1: number,
-  index2: number
-): boolean {
-  const point1In: number = pointInPolygon(points[index1], polygon);
-  const point2In: number = pointInPolygon(points[index2], polygon);
+  a: IPolygon,
+  b: IPolygon,
+  pointsA: Point[],
+  pointsB: Point[],
+  indexData: number
+): TripleStatus {
+  const inputIndex: number = indexData >> 1;
+  const outputIndex: number = indexData - (inputIndex << 1);
+  const isReversed: boolean = inputIndex !== outputIndex;
+  const inputPoints: Point[] = isReversed ? pointsA : pointsB;
+  const outputPoints: Point[] = isReversed ? pointsB : pointsA;
+  const polygon: IPolygon = isReversed ? b : a;
+  const checkPoint: Point = inputPoints.at(inputIndex + 1);
 
-  return (
-    (point1In === 1 && point2In === 0) || (point1In === 0 && point2In === 1)
-  );
-}
+  if (
+    checkPoint.onSegment(outputPoints.at(1), outputPoints.at(2)) ||
+    checkPoint.almostEqual(outputPoints.at(outputIndex + 1))
+  ) {
+    // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
+    const point1In: TripleStatus = pointInPolygon(
+      inputPoints.at(inputIndex),
+      polygon
+    );
+    const point2In: TripleStatus = pointInPolygon(
+      inputPoints.at(2 + inputIndex),
+      polygon
+    );
+    const condition: boolean =
+      (point1In === TripleStatus.True && point2In === TripleStatus.False) ||
+      (point1In === TripleStatus.False && point2In === TripleStatus.True);
 
-function checkIntersectCondition(
-  points1: Point[],
-  points2: Point[],
-  index0: number,
-  index3: number
-): boolean {
-  return (
-    points1[index0].onSegment(points2[1], points2[2]) ||
-    points1[index0].almostEqual(points2[index3])
-  );
+    return condition ? TripleStatus.True : TripleStatus.False;
+  }
+
+  return TripleStatus.Error;
 }
 
 // todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
-export function intersect(a: IPolygon, b: IPolygon): boolean {
+function intersect(a: IPolygon, b: IPolygon): boolean {
   const offsetA: Point = new Point(a.offsetx || 0, a.offsety || 0);
   const offsetB: Point = new Point(b.offsetx || 0, b.offsety || 0);
   const pointsA: Point[] = [new Point(), new Point(), new Point(), new Point()];
@@ -202,6 +220,8 @@ export function intersect(a: IPolygon, b: IPolygon): boolean {
   const sizeB: number = b.length;
   let i: number = 0;
   let j: number = 0;
+  let k: number = 0;
+  let condition: number = 0;
 
   for (i = 0; i < sizeA - 1; ++i) {
     updateIntersectPoints(a, offsetA, pointsA, i);
@@ -209,43 +229,28 @@ export function intersect(a: IPolygon, b: IPolygon): boolean {
     for (j = 0; j < sizeB - 1; ++j) {
       updateIntersectPoints(b, offsetB, pointsB, j);
 
-      if (checkIntersectCondition(pointsB, pointsA, 1, 1)) {
-        // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        if (checkIntersect(a, pointsB, 0, 2)) {
+      for (k = 0; k < 4; ++k) {
+        condition = checkIntersect(a, b, pointsA, pointsB, k);
+
+        if (condition === 1) {
           return true;
-        } else {
-          continue;
+        } else if (condition === 0) {
+          break;
         }
       }
 
-      if (checkIntersectCondition(pointsB, pointsA, 2, 2)) {
-        // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        if (checkIntersect(a, pointsB, 1, 3)) {
-          return true;
-        } else {
-          continue;
-        }
+      if (condition === 0) {
+        continue;
       }
 
-      if (checkIntersectCondition(pointsA, pointsB, 1, 2)) {
-        // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        if (checkIntersect(b, pointsA, 0, 2)) {
-          return true;
-        } else {
-          continue;
-        }
-      }
-
-      if (checkIntersectCondition(pointsA, pointsB, 2, 1)) {
-        // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        if (checkIntersect(b, pointsA, 1, 3)) {
-          return true;
-        } else {
-          continue;
-        }
-      }
-
-      if (lineIntersect(pointsB[1], pointsB[2], pointsA[1], pointsA[2])) {
+      if (
+        lineIntersect(
+          pointsB.at(1),
+          pointsB.at(2),
+          pointsA.at(1),
+          pointsA.at(2)
+        )
+      ) {
         return true;
       }
     }
@@ -254,173 +259,163 @@ export function intersect(a: IPolygon, b: IPolygon): boolean {
   return false;
 }
 
-export function pointDistance(
-  p: IPoint,
-  s1: IPoint,
-  s2: IPoint,
-  normal: IPoint,
-  infinite: boolean = false
+function pointDistance(
+  point: Point,
+  segment1: Point,
+  segment2: Point,
+  normal: Point,
+  infinite: boolean
 ): number {
-  normal = Point.normalize(normal);
-
-  var dir = {
-    x: normal.y,
-    y: -normal.x
-  };
-
-  var pdot = p.x * dir.x + p.y * dir.y;
-  var s1dot = s1.x * dir.x + s1.y * dir.y;
-  var s2dot = s2.x * dir.x + s2.y * dir.y;
-
-  var pdotnorm = p.x * normal.x + p.y * normal.y;
-  var s1dotnorm = s1.x * normal.x + s1.y * normal.y;
-  var s2dotnorm = s2.x * normal.x + s2.y * normal.y;
+  const innerNormal: Point = Point.normalize(normal);
+  const dir: Point = Point.normal(innerNormal);
+  const pointDot: number = point.dot(dir);
+  const pointDotNorm: number = point.dot(innerNormal);
+  const segment1Diff: number = pointDot - segment1.dot(dir);
+  const segment2Diff: number = pointDot - segment2.dot(dir);
+  const segment1DotDiff: number = pointDotNorm - segment1.dot(innerNormal);
+  const segment2DotDiff: number = pointDotNorm - segment2.dot(innerNormal);
 
   if (!infinite) {
     if (
-      ((pdot < s1dot || almostEqual(pdot, s1dot)) &&
-        (pdot < s2dot || almostEqual(pdot, s2dot))) ||
-      ((pdot > s1dot || almostEqual(pdot, s1dot)) &&
-        (pdot > s2dot || almostEqual(pdot, s2dot)))
+      !(
+        Math.max(segment1Diff, segment2Diff) >= TOLERANCE &&
+        Math.min(segment1Diff, segment2Diff) <= -TOLERANCE
+      )
     ) {
-      return null; // dot doesn't collide with segment, or lies directly on the vertex
+      return Number.NaN; // dot doesn't collide with segment, or lies directly on the vertex
     }
-    if (
-      almostEqual(pdot, s1dot) &&
-      almostEqual(pdot, s2dot) &&
-      pdotnorm > s1dotnorm &&
-      pdotnorm > s2dotnorm
-    ) {
-      return Math.min(pdotnorm - s1dotnorm, pdotnorm - s2dotnorm);
-    }
-    if (
-      almostEqual(pdot, s1dot) &&
-      almostEqual(pdot, s2dot) &&
-      pdotnorm < s1dotnorm &&
-      pdotnorm < s2dotnorm
-    ) {
-      return -Math.min(s1dotnorm - pdotnorm, s2dotnorm - pdotnorm);
+
+    if (almostEqual(segment1Diff) && almostEqual(segment2Diff)) {
+      let result: number = Math.min(segment1DotDiff, segment2DotDiff);
+
+      if (result > 0) {
+        return result;
+      }
+
+      result = Math.max(segment1DotDiff, segment2DotDiff);
+      if (result < 0) {
+        return result;
+      }
     }
   }
 
-  return -(
-    pdotnorm -
-    s1dotnorm +
-    ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot)
+  return (
+    (segment2DotDiff * segment1Diff - segment1DotDiff * segment2Diff) /
+    (segment2Diff - segment1Diff)
   );
 }
 
-export function segmentDistance(
-  A: IPoint,
-  B: IPoint,
-  E: IPoint,
-  F: IPoint,
-  direction: IPoint
+function getPointDistance(
+  point1: Point,
+  point2: Point,
+  point3: Point,
+  point4: Point,
+  direction: Point,
+  overlap: number
 ): number {
-  var normal = {
-    x: direction.y,
-    y: -direction.x
-  };
+  let result: number = pointDistance(point1, point3, point4, direction, false);
 
-  var reverse = {
-    x: -direction.x,
-    y: -direction.y
-  };
+  if (!Number.isNaN(result) && almostEqual(result, 0)) {
+    //  A currently touches EF, but AB is moving away from EF
+    const distance: number = pointDistance(
+      point2,
+      point3,
+      point4,
+      direction,
+      true
+    );
 
-  var dotA = A.x * normal.x + A.y * normal.y;
-  var dotB = B.x * normal.x + B.y * normal.y;
-  var dotE = E.x * normal.x + E.y * normal.y;
-  var dotF = F.x * normal.x + F.y * normal.y;
+    if (distance < 0 || almostEqual(distance * overlap)) {
+      return Number.NaN;
+    }
+  }
 
-  var crossA = A.x * direction.x + A.y * direction.y;
-  var crossB = B.x * direction.x + B.y * direction.y;
-  var crossE = E.x * direction.x + E.y * direction.y;
-  var crossF = F.x * direction.x + F.y * direction.y;
+  return result;
+}
 
-  var ABmin = Math.min(dotA, dotB);
-  var ABmax = Math.max(dotA, dotB);
+function segmentDistance(
+  a: Point,
+  b: Point,
+  e: Point,
+  f: Point,
+  direction: Point
+): number {
+  const normal: Point = Point.normal(direction);
+  const reverse: Point = Point.reverse(direction);
 
-  var EFmax = Math.max(dotE, dotF);
-  var EFmin = Math.min(dotE, dotF);
+  const dotA: number = a.dot(normal);
+  const dotB: number = b.dot(normal);
+  const dotE: number = e.dot(normal);
+  const dotF: number = f.dot(normal);
 
-  // segments that will merely touch at one point
+  const crossA: number = a.dot(direction);
+  const crossB: number = b.dot(direction);
+  const crossE: number = e.dot(direction);
+  const crossF: number = f.dot(direction);
+
+  const minAB: number = Math.min(dotA, dotB);
+  const maxAB: number = Math.max(dotA, dotB);
+  const minEF: number = Math.min(dotE, dotF);
+  const maxEF: number = Math.max(dotE, dotF);
+
   if (
-    almostEqual(ABmax, EFmin, TOLERANCE) ||
-    almostEqual(ABmin, EFmax, TOLERANCE)
+    // segments that will merely touch at one point
+    almostEqual(maxAB, minEF) ||
+    almostEqual(minAB, maxEF) ||
+    // segments miss eachother completely
+    maxAB < minEF ||
+    minAB > maxEF
   ) {
-    return null;
-  }
-  // segments miss eachother completely
-  if (ABmax < EFmin || ABmin > EFmax) {
-    return null;
+    return Number.NaN;
   }
 
-  var overlap;
+  const overlap: number =
+    (maxAB > maxEF && minAB < minEF) || (maxEF > maxAB && minEF < minAB)
+      ? 1
+      : (Math.min(maxAB, maxEF) - Math.max(minAB, minEF)) /
+        (Math.max(maxAB, maxEF) - Math.min(minAB, minEF));
 
-  if ((ABmax > EFmax && ABmin < EFmin) || (EFmax > ABmax && EFmin < ABmin)) {
-    overlap = 1;
-  } else {
-    var minMax = Math.min(ABmax, EFmax);
-    var maxMin = Math.max(ABmin, EFmin);
-
-    var maxMax = Math.max(ABmax, EFmax);
-    var minMin = Math.min(ABmin, EFmin);
-
-    overlap = (minMax - maxMin) / (maxMax - minMin);
-  }
-
-  var crossABE = (E.y - A.y) * (B.x - A.x) - (E.x - A.x) * (B.y - A.y);
-  var crossABF = (F.y - A.y) * (B.x - A.x) - (F.x - A.x) * (B.y - A.y);
+  const diffAB: Point = Point.sub(a, b);
+  const diffEF: Point = Point.sub(e, f);
+  const diffAE: Point = Point.sub(a, e);
+  const diffAF: Point = Point.sub(a, f);
+  const crossABE: number = diffAE.cross(diffAB);
+  const crossABF: number = diffAF.cross(diffAB);
 
   // lines are colinear
-  if (almostEqual(crossABE, 0) && almostEqual(crossABF, 0)) {
-    var ABnorm = { x: B.y - A.y, y: A.x - B.x };
-    var EFnorm = { x: F.y - E.y, y: E.x - F.x };
-
-    var ABnormlength = Math.sqrt(ABnorm.x * ABnorm.x + ABnorm.y * ABnorm.y);
-    ABnorm.x /= ABnormlength;
-    ABnorm.y /= ABnormlength;
-
-    var EFnormlength = Math.sqrt(EFnorm.x * EFnorm.x + EFnorm.y * EFnorm.y);
-    EFnorm.x /= EFnormlength;
-    EFnorm.y /= EFnormlength;
+  if (almostEqual(crossABE) && almostEqual(crossABF)) {
+    const normAB: Point = Point.normal(diffAB).normalize();
+    const normEF: Point = Point.normal(diffEF).normalize();
 
     // segment normals must point in opposite directions
-    if (
-      Math.abs(ABnorm.y * EFnorm.x - ABnorm.x * EFnorm.y) < TOLERANCE &&
-      ABnorm.y * EFnorm.y + ABnorm.x * EFnorm.x < 0
-    ) {
+    if (almostEqual(normAB.cross(normEF)) && normAB.dot(normEF) < 0) {
       // normal of AB segment must point in same direction as given direction vector
-      var normdot = ABnorm.y * direction.y + ABnorm.x * direction.x;
+      const normDot: number = normAB.dot(direction);
       // the segments merely slide along eachother
-      if (almostEqual(normdot, 0)) {
-        return null;
+      if (almostEqual(normDot)) {
+        return Number.NaN;
       }
-      if (normdot < 0) {
+
+      if (normDot < 0) {
         return 0;
       }
     }
-    return null;
+    return Number.NaN;
   }
 
-  var distances = [];
+  const distances: number[] = [];
+  let distance: number;
 
   // coincident points
   if (almostEqual(dotA, dotE)) {
     distances.push(crossA - crossE);
   } else if (almostEqual(dotA, dotF)) {
     distances.push(crossA - crossF);
-  } else if (dotA > EFmin && dotA < EFmax) {
-    var d = pointDistance(A, E, F, reverse);
-    if (d !== null && almostEqual(d, 0)) {
-      //  A currently touches EF, but AB is moving away from EF
-      var dB = pointDistance(B, E, F, reverse, true);
-      if (dB < 0 || almostEqual(dB * overlap, 0)) {
-        d = null;
-      }
-    }
-    if (d !== null) {
-      distances.push(d);
+  } else if (dotA > minEF && dotA < maxEF) {
+    distance = getPointDistance(a, b, e, f, reverse, overlap);
+
+    if (!Number.isNaN(distance)) {
+      distances.push(distance);
     }
   }
 
@@ -428,309 +423,327 @@ export function segmentDistance(
     distances.push(crossB - crossE);
   } else if (almostEqual(dotB, dotF)) {
     distances.push(crossB - crossF);
-  } else if (dotB > EFmin && dotB < EFmax) {
-    var d = pointDistance(B, E, F, reverse);
+  } else if (dotB > minEF && dotB < maxEF) {
+    distance = getPointDistance(b, a, e, f, reverse, overlap);
 
-    if (d !== null && almostEqual(d, 0)) {
-      // crossA>crossB A currently touches EF, but AB is moving away from EF
-      var dA = pointDistance(A, E, F, reverse, true);
-      if (dA < 0 || almostEqual(dA * overlap, 0)) {
-        d = null;
-      }
-    }
-    if (d !== null) {
-      distances.push(d);
+    if (!Number.isNaN(distance)) {
+      distances.push(distance);
     }
   }
 
-  if (dotE > ABmin && dotE < ABmax) {
-    var d = pointDistance(E, A, B, direction);
-    if (d !== null && almostEqual(d, 0)) {
-      // crossF<crossE A currently touches EF, but AB is moving away from EF
-      var dF = pointDistance(F, A, B, direction, true);
-      if (dF < 0 || almostEqual(dF * overlap, 0)) {
-        d = null;
-      }
-    }
-    if (d !== null) {
-      distances.push(d);
+  if (dotE > minAB && dotE < maxAB) {
+    distance = getPointDistance(e, f, a, b, direction, overlap);
+
+    if (!Number.isNaN(distance)) {
+      distances.push(distance);
     }
   }
 
-  if (dotF > ABmin && dotF < ABmax) {
-    var d = pointDistance(F, A, B, direction);
-    if (d !== null && almostEqual(d, 0)) {
-      // && crossE<crossF A currently touches EF, but AB is moving away from EF
-      var dE = pointDistance(E, A, B, direction, true);
-      if (dE < 0 || almostEqual(dE * overlap, 0)) {
-        d = null;
-      }
-    }
-    if (d !== null) {
-      distances.push(d);
+  if (dotF > minAB && dotF < maxAB) {
+    distance = getPointDistance(f, e, a, b, direction, overlap);
+
+    if (!Number.isNaN(distance)) {
+      distances.push(distance);
     }
   }
 
   if (distances.length == 0) {
-    return null;
+    return Number.NaN;
   }
 
-  return Math.min.apply(Math, distances);
+  let i: number = 0;
+  const distanceCount: number = distances.length;
+  let result: number = distances[0];
+
+  for (i = 1; i < distanceCount; ++i) {
+    result = Math.min(result, distances.at(i));
+  }
+
+  return result;
 }
 
-export function polygonSlideDistance(
-  A: IPolygon,
-  B: IPolygon,
-  direction: IPoint,
-  ignoreNegative: boolean
+function polygonSlideDistance(
+  a: IPolygon,
+  b: IPolygon,
+  direction: Point
 ): number {
-  var A1, A2, B1, B2, Aoffsetx, Aoffsety, Boffsetx, Boffsety;
+  const sizeA: number = a.length;
+  const sizeB: number = b.length;
+  const offsetA: Point = new Point(a.offsetx || 0, a.offsety || 0);
+  const offsetB: Point = new Point(b.offsetx || 0, b.offsety || 0);
+  const lastAIndex: number = a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
+  const lastBIndex: number = b.at(0) !== b.at(sizeB - 1) ? sizeB : sizeB - 1;
+  const a1: Point = new Point();
+  const a2: Point = new Point();
+  const b1: Point = new Point();
+  const b2: Point = new Point();
+  const dir: Point = Point.normalize(direction);
+  let i: number = 0;
+  let j: number = 0;
+  let result: number = Number.NaN;
+  let distance: number = 0;
 
-  Aoffsetx = A.offsetx || 0;
-  Aoffsety = A.offsety || 0;
+  for (i = 0; i < lastBIndex; ++i) {
+    b1.set(b.at(i)).add(offsetB);
+    b2.set(b.at((i + 1) % sizeB)).add(offsetB);
 
-  Boffsetx = B.offsetx || 0;
-  Boffsety = B.offsety || 0;
+    if (b1.almostEqual(b2)) {
+      continue; // ignore extremely small lines
+    }
 
-  A = A.slice(0) as IPolygon;
-  B = B.slice(0) as IPolygon;
+    for (j = 0; j < lastAIndex; ++j) {
+      a1.set(a.at(j)).add(offsetA);
+      a2.set(a.at((j + 1) % sizeA)).add(offsetA);
 
-  // close the loop for polygons
-  if (A[0] != A[A.length - 1]) {
-    A.push(A[0]);
-  }
-
-  if (B[0] != B[B.length - 1]) {
-    B.push(B[0]);
-  }
-
-  var edgeA = A;
-  var edgeB = B;
-
-  var distance = null;
-  var d;
-
-  var dir = Point.normalize(direction);
-
-  for (var i = 0; i < edgeB.length - 1; i++) {
-    for (var j = 0; j < edgeA.length - 1; j++) {
-      A1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety };
-      A2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety };
-      B1 = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety };
-      B2 = { x: edgeB[i + 1].x + Boffsetx, y: edgeB[i + 1].y + Boffsety };
-
-      if (
-        (almostEqual(A1.x, A2.x) && almostEqual(A1.y, A2.y)) ||
-        (almostEqual(B1.x, B2.x) && almostEqual(B1.y, B2.y))
-      ) {
+      if (a1.almostEqual(a2)) {
         continue; // ignore extremely small lines
       }
 
-      d = segmentDistance(A1, A2, B1, B2, dir);
+      distance = segmentDistance(a1, a2, b1, b2, dir);
 
-      if (d !== null && (distance === null || d < distance)) {
-        if (!ignoreNegative || d > 0 || almostEqual(d, 0)) {
-          distance = d;
+      if (
+        !Number.isNaN(distance) &&
+        (Number.isNaN(result) || distance < result)
+      ) {
+        if (distance > 0 || almostEqual(distance, 0)) {
+          result = distance;
         }
       }
     }
   }
-  return distance;
+  return result;
 }
 
 // project each point of B onto A in the given direction, and return the
-export function polygonProjectionDistance(
-  A: IPolygon,
-  B: IPolygon,
+function polygonProjectionDistance(
+  a: IPolygon,
+  b: IPolygon,
   direction: IPoint
 ): number {
-  var Boffsetx = B.offsetx || 0;
-  var Boffsety = B.offsety || 0;
+  const sizeA: number = a.length;
+  const sizeB: number = b.length;
+  const offsetA: Point = new Point(a.offsetx || 0, a.offsety || 0);
+  const offsetB: Point = new Point(b.offsetx || 0, b.offsety || 0);
+  const lastAIndex: number = a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
+  const segmentDiff: Point = new Point();
+  const point: Point = new Point();
+  const s1: Point = new Point();
+  const s2: Point = new Point();
+  let i: number = 0;
+  let j: number = 0;
+  let minProjection: number = Number.NaN;
+  let result: number = Number.NaN;
+  let distance: number;
 
-  var Aoffsetx = A.offsetx || 0;
-  var Aoffsety = A.offsety || 0;
-
-  A = A.slice(0) as IPolygon;
-  B = B.slice(0) as IPolygon;
-
-  // close the loop for polygons
-  if (A[0] != A[A.length - 1]) {
-    A.push(A[0]);
-  }
-
-  if (B[0] != B[B.length - 1]) {
-    B.push(B[0]);
-  }
-
-  var edgeA = A;
-  var edgeB = B;
-
-  var distance = null;
-  var p, d, s1, s2;
-
-  for (var i = 0; i < edgeB.length; i++) {
+  for (i = 0; i < sizeB; ++i) {
     // the shortest/most negative projection of B onto A
-    var minprojection = null;
-    for (var j = 0; j < edgeA.length - 1; j++) {
-      p = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety };
-      s1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety };
-      s2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety };
+    minProjection = Number.NaN;
+    point.set(b.at(i)).add(offsetB);
 
-      if (
-        Math.abs((s2.y - s1.y) * direction.x - (s2.x - s1.x) * direction.y) <
-        TOLERANCE
-      ) {
+    for (j = 0; j < lastAIndex; ++j) {
+      s1.set(a.at(j)).add(offsetA);
+      s2.set(a.at((j + 1) % sizeA)).add(offsetA);
+
+      segmentDiff.set(s2).sub(s1);
+
+      if (almostEqual(segmentDiff.cross(direction))) {
         continue;
       }
 
       // project point, ignore edge boundaries
-      d = pointDistance(p, s1, s2, direction);
+      distance = pointDistance(point, s1, s2, Point.from(direction), false);
 
-      if (d !== null && (minprojection === null || d < minprojection)) {
-        minprojection = d;
+      if (
+        !Number.isNaN(distance) &&
+        (Number.isNaN(minProjection) || distance < minProjection)
+      ) {
+        minProjection = distance;
       }
     }
     if (
-      minprojection !== null &&
-      (distance === null || minprojection > distance)
+      !Number.isNaN(minProjection) &&
+      (Number.isNaN(result) || minProjection > result)
     ) {
-      distance = minprojection;
+      result = minProjection;
     }
   }
 
-  return distance;
+  return result;
 }
 
-// searches for an arrangement of A and B such that they do not overlap
-// if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
-export function searchStartPoint(
-  A: IPolygon,
-  B: IPolygon,
-  inside: boolean,
-  NFP: IPolygon[] = []
-): IPoint | null {
-  // clone arrays
-  A = A.slice(0) as IPolygon;
-  B = B.slice(0) as IPolygon;
-
-  // close the loop for polygons
-  if (A[0] != A[A.length - 1]) {
-    A.push(A[0]);
-  }
-
-  if (B[0] != B[B.length - 1]) {
-    B.push(B[0]);
-  }
-
-  for (var i = 0; i < A.length - 1; i++) {
-    if (!A[i].marked) {
-      A[i].marked = true;
-      for (var j = 0; j < B.length; j++) {
-        B.offsetx = A[i].x - B[j].x;
-        B.offsety = A[i].y - B[j].y;
-
-        var Binside = null;
-        for (var k = 0; k < B.length; k++) {
-          var inpoly = pointInPolygon(
-            { x: B[k].x + B.offsetx, y: B[k].y + B.offsety },
-            A
-          );
-          if (inpoly !== -1) {
-            Binside = inpoly === 1;
-            break;
-          }
-        }
-
-        if (Binside === null) {
-          // A and B are the same
-          return null;
-        }
-
-        var startPoint = { x: B.offsetx, y: B.offsety };
-        if (
-          ((Binside && inside) || (!Binside && !inside)) &&
-          !intersect(A, B) &&
-          !inNfp(startPoint, NFP)
-        ) {
-          return startPoint;
-        }
-
-        // slide B along vector
-        var vx = A[i + 1].x - A[i].x;
-        var vy = A[i + 1].y - A[i].y;
-
-        var d1 = polygonProjectionDistance(A, B, { x: vx, y: vy });
-        var d2 = polygonProjectionDistance(B, A, { x: -vx, y: -vy });
-
-        var d = null;
-
-        // todo: clean this up
-        if (d1 === null && d2 === null) {
-          // nothin
-        } else if (d1 === null) {
-          d = d2;
-        } else if (d2 === null) {
-          d = d1;
-        } else {
-          d = Math.min(d1, d2);
-        }
-
-        // only slide until no longer negative
-        // todo: clean this up
-        if (d !== null && !almostEqual(d, 0) && d > 0) {
-        } else {
-          continue;
-        }
-
-        var vd2 = vx * vx + vy * vy;
-
-        if (d * d < vd2 && !almostEqual(d * d, vd2)) {
-          var vd = Math.sqrt(vx * vx + vy * vy);
-          vx *= d / vd;
-          vy *= d / vd;
-        }
-
-        B.offsetx += vx;
-        B.offsety += vy;
-
-        for (k = 0; k < B.length; k++) {
-          var inpoly = pointInPolygon(
-            { x: B[k].x + B.offsetx, y: B[k].y + B.offsety },
-            A
-          );
-          if (inpoly !== -1) {
-            Binside = inpoly === 1;
-            break;
-          }
-        }
-        startPoint = { x: B.offsetx, y: B.offsety };
-        if (
-          ((Binside && inside) || (!Binside && !inside)) &&
-          !intersect(A, B) &&
-          !inNfp(startPoint, NFP)
-        ) {
-          return startPoint;
-        }
-      }
-    }
-  }
-
-  // returns true if point already exists in the given nfp
-  function inNfp(p: IPoint, nfp: IPolygon[]) {
-    if (nfp.length == 0) {
-      return false;
-    }
-
-    for (var i = 0; i < nfp.length; i++) {
-      for (var j = 0; j < nfp[i].length; j++) {
-        if (almostEqual(p.x, nfp[i][j].x) && almostEqual(p.y, nfp[i][j].y)) {
-          return true;
-        }
-      }
-    }
-
+// returns true if point already exists in the given nfp
+function inNfp(p: IPoint, nfp: IPolygon[]) {
+  if (nfp.length == 0) {
     return false;
   }
+
+  let i: number = 0;
+  let j: number = 0;
+  let polygon: IPolygon;
+
+  for (i = 0; i < nfp.length; ++i) {
+    polygon = nfp.at(i);
+    for (j = 0; j < nfp[i].length; ++j) {
+      if (Point.almostEqual(p, polygon.at(j))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+// searches for an arrangement of A and B such that they do not overlap
+// if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
+function searchStartPoint(
+  a: IPolygon,
+  b: IPolygon,
+  inside: boolean,
+  nfp: IPolygon[] = []
+): Point | null {
+  const sizeA: number = a.length;
+  const iterationCountA: number =
+    a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
+  // clone arrays
+  a = a.slice(0) as IPolygon;
+  b = b.slice(0) as IPolygon;
+
+  // close the loop for polygons
+  if (a[0] != a[a.length - 1]) {
+    a.push(a[0]);
+  }
+
+  if (b[0] != b[b.length - 1]) {
+    b.push(b[0]);
+  }
+
+  const initialOffset: Point = new Point(b.offsetx || 0, b.offsety || 0);
+  const vector: Point = new Point();
+  const vectorReversed: Point = new Point();
+  const offset: Point = new Point();
+  const startPoint: Point = new Point();
+  const tmpPoint: Point = new Point();
+  let i: number = 0;
+  let j: number = 0;
+  let k: number = 0;
+  let distance1: number = 0;
+  let distance2: number = 0;
+  let distance: number = 0;
+  let vectorSquareLength: number = 0;
+  let insideB: TripleStatus = TripleStatus.Error;
+  let inPoly: TripleStatus = TripleStatus.Error;
+  let currentA: IPoint;
+
+  for (i = 0; i < iterationCountA; ++i) {
+    currentA = a.at(i);
+
+    if (currentA.marked) {
+      continue;
+    }
+
+    vector.set(a.at((i + 1) % sizeA)).sub(currentA);
+    vectorReversed.set(vector).reverse();
+    currentA.marked = true;
+
+    for (j = 0; j < b.length; ++j) {
+      offset.set(currentA).sub(b.at(j));
+      b.offsetx = offset.x;
+      b.offsety = offset.y;
+
+      insideB = TripleStatus.Error;
+
+      for (k = 0; k < b.length; ++k) {
+        tmpPoint.set(b.at(k)).add(offset);
+        inPoly = pointInPolygon(tmpPoint, a);
+
+        if (inPoly !== TripleStatus.Error) {
+          insideB = inPoly;
+          break;
+        }
+      }
+
+      if (insideB === TripleStatus.Error) {
+        // A and B are the same
+        b.offsetx = initialOffset.x;
+        b.offsety = initialOffset.y;
+
+        return null;
+      }
+
+      startPoint.set(offset);
+
+      if (
+        ((insideB && inside) || (!insideB && !inside)) &&
+        !intersect(a, b) &&
+        !inNfp(startPoint, nfp)
+      ) {
+        b.offsetx = initialOffset.x;
+        b.offsety = initialOffset.y;
+
+        return startPoint;
+      }
+
+      // slide B along vector
+      distance1 = polygonProjectionDistance(a, b, vector);
+      distance2 = polygonProjectionDistance(b, a, vectorReversed);
+
+      // todo: clean this up
+      if (Number.isNaN(distance1) && Number.isNaN(distance2)) {
+        // nothin
+        distance = Number.NaN;
+      } else if (Number.isNaN(distance1)) {
+        distance = distance2;
+      } else if (Number.isNaN(distance2)) {
+        distance = distance1;
+      } else {
+        distance = Math.min(distance1, distance2);
+      }
+
+      // only slide until no longer negative
+      // todo: clean this up
+      if (Number.isNaN(distance) || almostEqual(distance) || distance <= 0) {
+        continue;
+      }
+
+      vectorSquareLength = vector.squareLength;
+
+      if (
+        distance * distance < vectorSquareLength &&
+        !almostEqual(distance * distance, vectorSquareLength)
+      ) {
+        vector.normalize(distance);
+      }
+
+      offset.add(vector);
+      b.offsetx = offset.x;
+      b.offsety = offset.y;
+
+      for (k = 0; k < b.length; ++k) {
+        tmpPoint.set(b.at(k)).add(offset);
+        inPoly = pointInPolygon(tmpPoint, a);
+
+        if (inPoly !== TripleStatus.Error) {
+          insideB = inPoly;
+          break;
+        }
+      }
+
+      startPoint.set(offset);
+
+      if (
+        ((insideB && inside) || (!insideB && !inside)) &&
+        !intersect(a, b) &&
+        !inNfp(startPoint, nfp)
+      ) {
+        b.offsetx = initialOffset.x;
+        b.offsety = initialOffset.y;
+
+        return startPoint;
+      }
+    }
+  }
+
+  b.offsetx = initialOffset.x;
+  b.offsety = initialOffset.y;
 
   return null;
 }
@@ -957,10 +970,10 @@ export function noFitPolygon(
           }
         }
 
-        var d = polygonSlideDistance(A, B, vector, true);
+        var d = polygonSlideDistance(A, B, vector);
         var vecd2 = vector.squareLength;
 
-        if (d === null || d * d > vecd2) {
+        if (Number.isNaN(d) || d * d > vecd2) {
           d = vector.length;
         }
 
