@@ -27,48 +27,6 @@ function almostEqual(
   return Math.abs(a - b) < tolerance;
 }
 
-// returns true if p lies on the line segment defined by AB, but not at any endpoints
-// may need work!
-function onSegment(a: IPoint, b: IPoint, p: IPoint): boolean {
-  const diffAB: Point = Point.sub(a, b);
-  const diffAP: Point = Point.sub(a, p);
-  const diffBP: Point = Point.sub(b, p);
-  const minDiff: Point = Point.min(diffAP, diffBP);
-  const maxDiff: Point = Point.max(diffAP, diffBP);
-  // vertical line
-  if (almostEqual(diffAB.x) && almostEqual(diffAP.x)) {
-    return (
-      !almostEqual(diffBP.y) &&
-      !almostEqual(diffAP.y) &&
-      minDiff.y < 0 &&
-      maxDiff.y > 0
-    );
-  }
-
-  // horizontal line
-  if (almostEqual(diffAB.y) && almostEqual(diffAP.y)) {
-    return (
-      !almostEqual(diffBP.x) &&
-      !almostEqual(diffAP.x) &&
-      minDiff.x < 0 &&
-      maxDiff.x > 0
-    );
-  }
-
-  return (
-    //range check
-    maxDiff.x >= 0 &&
-    minDiff.x <= 0 &&
-    maxDiff.y >= 0 &&
-    minDiff.y <= 0 &&
-    // exclude end points
-    !Point.almostEqual(p, a) &&
-    !Point.almostEqual(p, b) &&
-    almostEqual(diffAP.cross(diffAB)) &&
-    !almostEqual(diffAP.dot(diffAB) - diffAB.squareLength)
-  );
-}
-
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
@@ -806,6 +764,7 @@ export function noFitPolygon(
   const reference: Point = new Point();
   const start: Point = new Point();
   const offsetB: Point = new Point();
+  const localA: Point = new Point();
   const localPrimaryB: Point = new Point();
   const localSecondaryB: Point = new Point();
   const counterCondition: number = 10 * (sizeA + sizeB);
@@ -830,7 +789,8 @@ export function noFitPolygon(
   let touch: Int16Array;
   let indexA: number = 0;
   let indexB: number = 0;
-
+  let vectorCount: number = 0;
+  let nfpPointCount: number = 0;
   let startPoint: IPoint | null = !inside
     ? // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
       Point.sub(b.at(maxIndexB), a.at(minIndexA))
@@ -859,16 +819,17 @@ export function noFitPolygon(
       for (i = 0; i < sizeA; ++i) {
         currentA = a.at(i);
         nextA = a.at((i + 1) % sizeA);
+        localA.set(currentA);
 
         for (j = 0; j < sizeB; ++j) {
           localPrimaryB.set(b.at(j)).add(offsetB);
           localSecondaryB.set(b.at((j + 1) % sizeB)).add(offsetB);
 
-          if (Point.almostEqual(currentA, localPrimaryB)) {
+          if (localPrimaryB.almostEqual(currentA)) {
             touches.push(getTouch(0, i, j));
-          } else if (onSegment(currentA, nextA, localPrimaryB)) {
+          } else if (localPrimaryB.onSegment(currentA, nextA)) {
             touches.push(getTouch(1, (i + 1) % sizeA, j));
-          } else if (onSegment(localPrimaryB, localSecondaryB, currentA)) {
+          } else if (localA.onSegment(localPrimaryB, localSecondaryB)) {
             touches.push(getTouch(2, i, (j + 1) % sizeB));
           }
         }
@@ -937,8 +898,9 @@ export function noFitPolygon(
 
       translate = null;
       maxDistance = 0;
+      vectorCount = vectors.length;
 
-      for (i = 0; i < vectors.length; ++i) {
+      for (i = 0; i < vectorCount; ++i) {
         vector = vectors.at(i);
         if (vector.x == 0 && vector.y == 0) {
           continue;
@@ -971,7 +933,7 @@ export function noFitPolygon(
         }
       }
 
-      if (translate === null || almostEqual(maxDistance, 0)) {
+      if (translate === null || almostEqual(maxDistance)) {
         // didn't close the loop, something went wrong here
         nfp = [];
         break;
@@ -1001,10 +963,11 @@ export function noFitPolygon(
 
       // if A and B start on a touching horizontal line, the end point may not be the start point
       looped = false;
+      nfpPointCount = nfp.length;
 
-      if (nfp.length !== 0) {
-        for (i = 0; i < nfp.length - 1; ++i) {
-          if (Point.almostEqual(reference, nfp.at(i))) {
+      if (nfpPointCount !== 0) {
+        for (i = 0; i < nfpPointCount - 1; ++i) {
+          if (reference.almostEqual(nfp.at(i))) {
             looped = true;
           }
         }
@@ -1021,7 +984,7 @@ export function noFitPolygon(
       b.offsetx = offsetB.x;
       b.offsety = offsetB.y;
 
-      counter++;
+      ++counter;
     }
 
     if (nfp.length !== 0) {

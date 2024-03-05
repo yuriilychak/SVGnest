@@ -18,6 +18,7 @@ import {
 import { instantiate, __AdaptedExports } from "../../asm";
 import { noFitPolygon, pointInPolygon } from "./util";
 import Point from "../../point";
+import Rect from "../../rect";
 
 self.alert = function (message: string): void {
   console.log(message);
@@ -76,15 +77,13 @@ export default async function pairData(
   let i = 0;
 
   if (nfpData.at(4) === 1) {
-    if (bin.isRectangle(exportPolygon(a))) {
-      nfp = importPolygons(
-        bin.tmpNoFitPolygonRectangle(exportPolygon(a), exportPolygon(b))
-      );
-    } else {
-      nfp = noFitPolygon(a, b, true, searchEdges) as IPolygon[];
-    }
+    nfp = bin.isRectangle(exportPolygon(a))
+      ? importPolygons(
+          bin.tmpNoFitPolygonRectangle(exportPolygon(a), exportPolygon(b))
+        )
+      : (noFitPolygon(a, b, true, searchEdges) as IPolygon[]);
     // ensure all interior NFPs have the same winding direction
-    if (nfp && nfp.length > 0) {
+    if (nfp.length > 0) {
       for (i = 0; i < nfp.length; ++i) {
         if (polygonArea(nfp.at(i)) > 0) {
           nfp.at(i).reverse();
@@ -96,11 +95,9 @@ export default async function pairData(
       errors.push(["NFP Warning: ", nfpData]);
     }
   } else {
-    if (searchEdges) {
-      nfp = noFitPolygon(a, b, false, searchEdges) as IPolygon[];
-    } else {
-      nfp = minkowskiDifference(a, b);
-    }
+    nfp = searchEdges
+      ? (noFitPolygon(a, b, false, searchEdges) as IPolygon[])
+      : minkowskiDifference(a, b);
     // sanity check
     if (!nfp || nfp.length == 0) {
       errors.push(["NFP Error: ", nfpData]);
@@ -148,8 +145,8 @@ export default async function pairData(
 
     // generate nfps for children (holes of parts) if any exist
     if (useHoles && a.children && a.children.length > 0) {
-      const boundsB = getPolygonBounds(b);
-      let boundsA;
+      const boundsB: Rect = getPolygonBounds(b);
+      let boundsA: Rect;
       let cnfp: IPolygon[];
       let j = 0;
 
