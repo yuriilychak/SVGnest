@@ -54,7 +54,6 @@ export function pointInPolygon(point: Point, polygon: IPolygon): TripleStatus {
     return TripleStatus.Error;
   }
 
-  const offset: Point = new Point(polygon.offsetx || 0, polygon.offsety || 0);
   const currentPoint: Point = new Point();
   const prevPoint: Point = new Point();
   const neighboarDiff: Point = new Point();
@@ -64,8 +63,10 @@ export function pointInPolygon(point: Point, polygon: IPolygon): TripleStatus {
   let i: number = 0;
 
   for (i = 0; i < pointCount; ++i) {
-    currentPoint.set(polygon[i]).add(offset);
-    prevPoint.set(polygon[(i + pointCount - 1) % pointCount]).add(offset);
+    currentPoint.set(polygon[i]).add(polygon.offset);
+    prevPoint
+      .set(polygon[(i + pointCount - 1) % pointCount])
+      .add(polygon.offset);
 
     if (
       // no result
@@ -170,8 +171,6 @@ function checkIntersect(
 // todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
 function intersect(a: IPolygon, b: IPolygon): boolean {
-  const offsetA: Point = new Point(a.offsetx || 0, a.offsety || 0);
-  const offsetB: Point = new Point(b.offsetx || 0, b.offsety || 0);
   const pointsA: Point[] = [new Point(), new Point(), new Point(), new Point()];
   const pointsB: Point[] = [new Point(), new Point(), new Point(), new Point()];
   const sizeA: number = a.length;
@@ -182,10 +181,10 @@ function intersect(a: IPolygon, b: IPolygon): boolean {
   let condition: number = 0;
 
   for (i = 0; i < sizeA - 1; ++i) {
-    updateIntersectPoints(a, offsetA, pointsA, i);
+    updateIntersectPoints(a, Point.from(a.offset), pointsA, i);
 
     for (j = 0; j < sizeB - 1; ++j) {
-      updateIntersectPoints(b, offsetB, pointsB, j);
+      updateIntersectPoints(b, Point.from(b.offset), pointsB, j);
 
       for (k = 0; k < 4; ++k) {
         condition = checkIntersect(a, b, pointsA, pointsB, k);
@@ -427,8 +426,6 @@ function polygonSlideDistance(
 ): number {
   const sizeA: number = a.length;
   const sizeB: number = b.length;
-  const offsetA: Point = new Point(a.offsetx || 0, a.offsety || 0);
-  const offsetB: Point = new Point(b.offsetx || 0, b.offsety || 0);
   const lastAIndex: number = a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
   const lastBIndex: number = b.at(0) !== b.at(sizeB - 1) ? sizeB : sizeB - 1;
   const a1: Point = new Point();
@@ -442,16 +439,16 @@ function polygonSlideDistance(
   let distance: number = 0;
 
   for (i = 0; i < lastBIndex; ++i) {
-    b1.set(b.at(i)).add(offsetB);
-    b2.set(b.at((i + 1) % sizeB)).add(offsetB);
+    b1.set(b.at(i)).add(b.offset);
+    b2.set(b.at((i + 1) % sizeB)).add(b.offset);
 
     if (b1.almostEqual(b2)) {
       continue; // ignore extremely small lines
     }
 
     for (j = 0; j < lastAIndex; ++j) {
-      a1.set(a.at(j)).add(offsetA);
-      a2.set(a.at((j + 1) % sizeA)).add(offsetA);
+      a1.set(a.at(j)).add(a.offset);
+      a2.set(a.at((j + 1) % sizeA)).add(a.offset);
 
       if (a1.almostEqual(a2)) {
         continue; // ignore extremely small lines
@@ -480,8 +477,6 @@ function polygonProjectionDistance(
 ): number {
   const sizeA: number = a.length;
   const sizeB: number = b.length;
-  const offsetA: Point = new Point(a.offsetx || 0, a.offsety || 0);
-  const offsetB: Point = new Point(b.offsetx || 0, b.offsety || 0);
   const lastAIndex: number = a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
   const segmentDiff: Point = new Point();
   const point: Point = new Point();
@@ -496,11 +491,11 @@ function polygonProjectionDistance(
   for (i = 0; i < sizeB; ++i) {
     // the shortest/most negative projection of B onto A
     minProjection = Number.NaN;
-    point.set(b.at(i)).add(offsetB);
+    point.set(b.at(i)).add(b.offset);
 
     for (j = 0; j < lastAIndex; ++j) {
-      s1.set(a.at(j)).add(offsetA);
-      s2.set(a.at((j + 1) % sizeA)).add(offsetA);
+      s1.set(a.at(j)).add(a.offset);
+      s2.set(a.at((j + 1) % sizeA)).add(a.offset);
 
       segmentDiff.set(s2).sub(s1);
 
@@ -574,10 +569,11 @@ function searchStartPoint(
     b.push(b[0]);
   }
 
-  const initialOffset: Point = new Point(b.offsetx || 0, b.offsety || 0);
+  a.offset = new Point();
+  b.offset = new Point();
+
   const vector: Point = new Point();
   const vectorReversed: Point = new Point();
-  const offset: Point = new Point();
   const startPoint: Point = new Point();
   const tmpPoint: Point = new Point();
   let i: number = 0;
@@ -603,14 +599,12 @@ function searchStartPoint(
     currentA.marked = true;
 
     for (j = 0; j < b.length; ++j) {
-      offset.set(currentA).sub(b.at(j));
-      b.offsetx = offset.x;
-      b.offsety = offset.y;
+      (b.offset as Point).set(currentA).sub(b.at(j));
 
       insideB = TripleStatus.Error;
 
       for (k = 0; k < b.length; ++k) {
-        tmpPoint.set(b.at(k)).add(offset);
+        tmpPoint.set(b.at(k)).add(b.offset);
         inPoly = pointInPolygon(tmpPoint, a);
 
         if (inPoly !== TripleStatus.Error) {
@@ -621,22 +615,16 @@ function searchStartPoint(
 
       if (insideB === TripleStatus.Error) {
         // A and B are the same
-        b.offsetx = initialOffset.x;
-        b.offsety = initialOffset.y;
-
         return null;
       }
 
-      startPoint.set(offset);
+      startPoint.set(b.offset);
 
       if (
         ((insideB && inside) || (!insideB && !inside)) &&
         !intersect(a, b) &&
         !inNfp(startPoint, nfp)
       ) {
-        b.offsetx = initialOffset.x;
-        b.offsety = initialOffset.y;
-
         return startPoint;
       }
 
@@ -671,12 +659,10 @@ function searchStartPoint(
         vector.normalize(distance);
       }
 
-      offset.add(vector);
-      b.offsetx = offset.x;
-      b.offsety = offset.y;
+      (b.offset as Point).add(vector);
 
       for (k = 0; k < b.length; ++k) {
-        tmpPoint.set(b.at(k)).add(offset);
+        tmpPoint.set(b.at(k)).add(b.offset);
         inPoly = pointInPolygon(tmpPoint, a);
 
         if (inPoly !== TripleStatus.Error) {
@@ -685,23 +671,17 @@ function searchStartPoint(
         }
       }
 
-      startPoint.set(offset);
+      startPoint.set(b.offset);
 
       if (
         ((insideB && inside) || (!insideB && !inside)) &&
         !intersect(a, b) &&
         !inNfp(startPoint, nfp)
       ) {
-        b.offsetx = initialOffset.x;
-        b.offsety = initialOffset.y;
-
         return startPoint;
       }
     }
   }
-
-  b.offsetx = initialOffset.x;
-  b.offsety = initialOffset.y;
 
   return null;
 }
@@ -730,8 +710,8 @@ export function noFitPolygon(
     return [];
   }
 
-  a.offsetx = 0;
-  a.offsety = 0;
+  a.offset = new Point();
+  b.offset = new Point();
 
   let i: number = 0;
   let j: number = 0;
@@ -763,7 +743,6 @@ export function noFitPolygon(
   const prevVectorNormal: Point = new Point();
   const reference: Point = new Point();
   const start: Point = new Point();
-  const offsetB: Point = new Point();
   const localA: Point = new Point();
   const localPrimaryB: Point = new Point();
   const localSecondaryB: Point = new Point();
@@ -773,10 +752,9 @@ export function noFitPolygon(
   let translate: Vector | null = null;
   let nfp: IPoint[] = [];
   let prevVector: Vector | null = null;
-  let vlength2: number = 0;
+  let vectorLength: number = 0;
   let looped: boolean = false;
   let distance: number = Number.NaN;
-  let vectorDistance2: number = 0;
   let maxDistance: number = 0;
   let counter: number = 0;
   let currentA: IPoint;
@@ -798,9 +776,7 @@ export function noFitPolygon(
       searchStartPoint(a, b, true);
 
   while (startPoint !== null) {
-    offsetB.set(startPoint);
-    b.offsetx = offsetB.x;
-    b.offsety = offsetB.y;
+    (b.offset as Point).set(startPoint);
 
     // maintain a list of touching points/edges
 
@@ -822,8 +798,8 @@ export function noFitPolygon(
         localA.set(currentA);
 
         for (j = 0; j < sizeB; ++j) {
-          localPrimaryB.set(b.at(j)).add(offsetB);
-          localSecondaryB.set(b.at((j + 1) % sizeB)).add(offsetB);
+          localPrimaryB.set(b.at(j)).add(b.offset);
+          localSecondaryB.set(b.at((j + 1) % sizeB)).add(b.offset);
 
           if (localPrimaryB.almostEqual(currentA)) {
             touches.push(getTouch(0, i, j));
@@ -852,8 +828,8 @@ export function noFitPolygon(
         prevB = b.at((indexB + sizeB - 1) % sizeB);
         nextB = b.at((indexB + 1) % sizeB);
 
-        localPrimaryB.set(currentB).add(offsetB);
-        localSecondaryB.set(prevB).add(offsetB);
+        localPrimaryB.set(currentB).add(b.offset);
+        localSecondaryB.set(prevB).add(b.offset);
 
         currentA.marked = true;
 
@@ -902,6 +878,7 @@ export function noFitPolygon(
 
       for (i = 0; i < vectorCount; ++i) {
         vector = vectors.at(i);
+
         if (vector.x == 0 && vector.y == 0) {
           continue;
         }
@@ -921,10 +898,10 @@ export function noFitPolygon(
         }
 
         distance = polygonSlideDistance(a, b, vector);
-        vectorDistance2 = vector.squareLength;
+        vectorLength = vector.length;
 
-        if (Number.isNaN(distance) || distance * distance > vectorDistance2) {
-          distance = vector.length;
+        if (Number.isNaN(distance) || Math.abs(distance) > vectorLength) {
+          distance = vectorLength;
         }
 
         if (!Number.isNaN(distance) && distance > maxDistance) {
@@ -945,11 +922,11 @@ export function noFitPolygon(
       prevVector = translate;
 
       // trim
-      vlength2 = translate.squareLength;
+      vectorLength = translate.length;
 
       if (
-        maxDistance * maxDistance < vlength2 &&
-        !almostEqual(maxDistance * maxDistance, vlength2)
+        Math.abs(maxDistance) < vectorLength &&
+        !almostEqual(maxDistance, vectorLength)
       ) {
         translate.normalize(Math.abs(maxDistance));
       }
@@ -980,9 +957,7 @@ export function noFitPolygon(
 
       nfp.push({ x: reference.x, y: reference.y });
 
-      offsetB.add(translate);
-      b.offsetx = offsetB.x;
-      b.offsety = offsetB.y;
+      (b.offset as Point).add(translate);
 
       ++counter;
     }

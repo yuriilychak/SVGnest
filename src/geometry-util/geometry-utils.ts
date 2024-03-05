@@ -81,17 +81,22 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
     return -1;
   }
 
+  if (!polygon.offset) {
+    polygon.offset = new Point();
+  }
+
   const innerPoint: Point = Point.from(point);
   const pointCount = polygon.length;
   let result: boolean = false;
-  let offset: Point = new Point(polygon.offsetx || 0, polygon.offsety || 0);
   const currentPoint: Point = new Point();
   const prevPoint: Point = new Point();
   let i: number = 0;
 
   for (i = 0; i < pointCount; ++i) {
-    currentPoint.set(polygon.at(i)).add(offset);
-    prevPoint.set(polygon.at((i - 1 + pointCount) % pointCount)).add(offset);
+    currentPoint.set(polygon.at(i)).add(polygon.offset);
+    prevPoint
+      .set(polygon.at((i - 1 + pointCount) % pointCount))
+      .add(polygon.offset);
 
     if (
       innerPoint.almostEqual(currentPoint) ||

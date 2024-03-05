@@ -29,8 +29,7 @@ export interface IPolygon extends Array<IPoint>, IRect {
   rotation: number;
   source: number;
   hole?: boolean;
-  offsetx?: number;
-  offsety?: number;
+  offset?: IPoint;
 }
 
 export interface SvgNestConfiguration {

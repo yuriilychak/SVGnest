@@ -85,8 +85,7 @@ export function importPolygon(
   result.y = polygonData[offset + 6];
   result.width = polygonData[offset + 7];
   result.height = polygonData[offset + 8];
-  result.offsetx = polygonData[offset + 9];
-  result.offsety = polygonData[offset + 10];
+  result.offset = { x: polygonData[offset + 9], y: polygonData[offset + 10] };
 
   for (i = 0; i < pointCount; ++i) {
     result[i] = {
@@ -119,8 +118,8 @@ export function exportPolygon(polygon: IPolygon): Float64Array {
   polygonData[6] = polygon.y || 0;
   polygonData[7] = polygon.width || 0;
   polygonData[8] = polygon.height || 0;
-  polygonData[9] = polygon.offsetx || 0;
-  polygonData[10] = polygon.offsety || 0;
+  polygonData[9] = polygon.offset ? polygon.offset.x : 0;
+  polygonData[10] = polygon.offset ? polygon.offset.y : 0;
   polygonData[11] = pointCount;
   polygonData[12] = polygon.parent ? 1 : 0;
   polygonData[13] = polygon.children ? polygon.children.length : 0;
