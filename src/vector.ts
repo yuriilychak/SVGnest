@@ -6,7 +6,10 @@ export default class Vector extends Point {
   private _end: IPoint;
 
   constructor(point: Point, start: IPoint, end: IPoint) {
-    super(point.x, point.y);
+    super();
+
+    this.x = point.x;
+    this.y = point.y;
 
     this._start = start;
     this._end = end;

@@ -31,27 +31,27 @@ function subdivide(
   c2: Point,
   t: number
 ): Array<Segment> {
-  const mid1: Point = new Point(
+  const mid1: Point = Point.fromCords(
     p1.x + (c1.x - p1.x) * t,
     p1.y + (c1.y - p1.y) * t
   );
-  const mid2: Point = new Point(
+  const mid2: Point = Point.fromCords(
     c2.x + (p2.x - c2.x) * t,
     c2.y + (p2.y - c2.y) * t
   );
-  const mid3: Point = new Point(
+  const mid3: Point = Point.fromCords(
     c1.x + (c2.x - c1.x) * t,
     c1.y + (c2.y - c1.y) * t
   );
-  const mida: Point = new Point(
+  const mida: Point = Point.fromCords(
     mid1.x + (mid3.x - mid1.x) * t,
     mid1.y + (mid3.y - mid1.y) * t
   );
-  const midb: Point = new Point(
+  const midb: Point = Point.fromCords(
     mid3.x + (mid2.x - mid3.x) * t,
     mid3.y + (mid2.y - mid3.y) * t
   );
-  const midx: Point = new Point(
+  const midx: Point = Point.fromCords(
     mida.x + (midb.x - mida.x) * t,
     mida.y + (midb.y - mida.y) * t
   );
@@ -80,7 +80,7 @@ export default function linearize(
 
     if (isFlat(segment.p1, segment.p2, segment.c1, segment.c2, tol)) {
       // reached subdivision limit
-      result.push(new Point(segment.p2.x, segment.p2.y));
+      result.push(Point.fromCords(segment.p2.x, segment.p2.y));
       todo.shift();
     } else {
       var divided = subdivide(

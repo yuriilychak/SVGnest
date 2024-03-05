@@ -8,7 +8,7 @@ import {
   toNestCoordinates,
   getPolygonBounds
 } from "../../geometry-util";
-import { exportPolygon, importPolygons, keyToNFPData } from "../../util";
+import { exportPolygon, keyToNFPData } from "../../util";
 import {
   IPolygon,
   NfpPair,
@@ -16,7 +16,7 @@ import {
   PairWorkerData
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
-import { noFitPolygon, pointInPolygon } from "./util";
+import { noFitPolygon, pointInPolygon, importPolygons } from "./util";
 import Point from "../../point";
 import Rect from "../../rect";
 

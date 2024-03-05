@@ -313,8 +313,8 @@ export default class SvgParser {
     } else if (transform && !transform.isIdentity()) {
       const id = element.getAttribute("id");
       const className = element.getAttribute("class");
-      const point1: Point = new Point();
-      const point2: Point = new Point();
+      const point1: Point = Point.empty();
+      const point2: Point = Point.empty();
       let transformProperty: string;
       let transformed: Float32Array;
       let i: number = 0;
@@ -372,7 +372,7 @@ export default class SvgParser {
         case PrimitiveTagName.Path:
           this.pathToAbsolute(element);
           const segList: SVGSegList = element.pathSegList;
-          const prev: Point = new Point();
+          const prev: Point = Point.empty();
           const itemCount: number = segList.numberOfItems;
           let transformedPath = "";
           let s: DOMSegment;
@@ -413,9 +413,9 @@ export default class SvgParser {
               s = segList.getItem(i);
             }
 
-            const transPoint: Point = new Point();
-            const transPoint1: Point = new Point();
-            const transPoint2: Point = new Point();
+            const transPoint: Point = Point.empty();
+            const transPoint1: Point = Point.empty();
+            const transPoint2: Point = Point.empty();
             let transformed: Float32Array;
 
             if ("x" in s && "y" in s) {

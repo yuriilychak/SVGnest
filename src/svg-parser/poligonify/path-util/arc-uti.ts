@@ -115,11 +115,11 @@ class ArcConfig {
     const rSin = this._r.clone().scale(Math.sin(angle));
 
     return [
-      new Point(
+      Point.fromCords(
         this._center.x + rCos.x * t1cos - rSin.y * t1sin,
         this._center.y + rSin.x * t1cos + rCos.y * t1sin
       ),
-      new Point(
+      Point.fromCords(
         this._center.x + rCos.x * t2cos - rSin.y * t2sin,
         this._center.y + rSin.x * t2cos + rCos.y * t2sin
       )
@@ -152,7 +152,7 @@ class ArcConfig {
     const angleRadians: number = ArcConfig._degreesToRadians(arc.angle);
     const cos: number = Math.cos(angleRadians);
     const sin: number = Math.sin(angleRadians);
-    const point1 = new Point(
+    const point1 = Point.fromCords(
       cos * diff.x + sin * diff.y,
       -sin * diff.x + cos * diff.y
     );
@@ -174,16 +174,16 @@ class ArcConfig {
       )
     );
     const coef: number = arc.sign * sq;
-    const c = new Point(
+    const c = Point.fromCords(
       coef * ((r.x * point1.y) / r.y),
       -coef * ((r.y * point1.x) / r.x)
     );
-    const center: Point = new Point(
+    const center: Point = Point.fromCords(
       mid.x + (cos * c.x - sin * c.y),
       mid.y + (sin * c.x + cos * c.y)
     );
-    const u = new Point((point1.x - c.x) / r.x, (point1.y - c.y) / r.y);
-    const v = new Point(-(point1.x + c.x) / r.x, -(point1.y + c.y) / r.y);
+    const u = Point.fromCords((point1.x - c.x) / r.x, (point1.y - c.y) / r.y);
+    const v = Point.fromCords(-(point1.x + c.x) / r.x, -(point1.y + c.y) / r.y);
     const squear: number = u.squareLength;
     const theta: number =
       ArcConfig._getTheta(u.y, u.x, Math.sqrt(squear)) % MAX_ANGLE;
@@ -225,7 +225,7 @@ export default function linearize(
   const svgArc = new SvgArcConfig(
     p1,
     p2,
-    new Point(rx, ry),
+    Point.fromCords(rx, ry),
     angle,
     largearc,
     sweep

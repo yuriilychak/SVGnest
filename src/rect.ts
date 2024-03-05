@@ -2,9 +2,9 @@ import Point from "./point";
 import { IRect } from "./interfaces";
 
 export default class Rect implements IRect {
-  private _bottomLeft: Point = new Point();
-  private _topRight: Point = new Point();
-  private _size: Point = new Point();
+  private _bottomLeft: Point = Point.empty();
+  private _topRight: Point = Point.empty();
+  private _size: Point = Point.empty();
 
   constructor(
     x: number = 0,

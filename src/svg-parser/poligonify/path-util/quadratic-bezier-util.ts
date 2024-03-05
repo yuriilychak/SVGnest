@@ -16,11 +16,17 @@ function isFlat(p1: Point, p2: Point, c1: Point, tol: number): boolean {
 // subdivide a single Bezier
 // t is the percent along the Bezier to divide at. eg. 0.5
 function subdivide(p1: Point, p2: Point, c1: Point, t: number): Array<Segment> {
-  const mid1 = new Point(p1.x + (c1.x - p1.x) * t, p1.y + (c1.y - p1.y) * t);
+  const mid1 = Point.fromCords(
+    p1.x + (c1.x - p1.x) * t,
+    p1.y + (c1.y - p1.y) * t
+  );
 
-  const mid2 = new Point(c1.x + (p2.x - c1.x) * t, c1.y + (p2.y - c1.y) * t);
+  const mid2 = Point.fromCords(
+    c1.x + (p2.x - c1.x) * t,
+    c1.y + (p2.y - c1.y) * t
+  );
 
-  const mid3 = new Point(
+  const mid3 = Point.fromCords(
     mid1.x + (mid2.x - mid1.x) * t,
     mid1.y + (mid2.y - mid1.y) * t
   );
@@ -50,7 +56,7 @@ export default function linearize(
 
     if (isFlat(segment.p1, segment.p2, segment.c1, tol)) {
       // reached subdivision limit
-      result.push(new Point(segment.p2.x, segment.p2.y));
+      result.push(Point.from(segment.p2));
       todo.shift();
     } else {
       var divided = subdivide(segment.p1, segment.p2, segment.c1, 0.5);

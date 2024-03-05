@@ -54,10 +54,14 @@ export function pointInPolygon(point: Point, polygon: IPolygon): TripleStatus {
     return TripleStatus.Error;
   }
 
-  const currentPoint: Point = new Point();
-  const prevPoint: Point = new Point();
-  const neighboarDiff: Point = new Point();
-  const pointDiff: Point = new Point();
+  if (!polygon.offset) {
+    polygon.offset = Point.empty();
+  }
+
+  const currentPoint: Point = Point.empty();
+  const prevPoint: Point = Point.empty();
+  const neighboarDiff: Point = Point.empty();
+  const pointDiff: Point = Point.empty();
   const pointCount: number = polygon.length;
   let inside: boolean = false;
   let i: number = 0;
@@ -171,8 +175,18 @@ function checkIntersect(
 // todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
 function intersect(a: IPolygon, b: IPolygon): boolean {
-  const pointsA: Point[] = [new Point(), new Point(), new Point(), new Point()];
-  const pointsB: Point[] = [new Point(), new Point(), new Point(), new Point()];
+  const pointsA: Point[] = [
+    Point.empty(),
+    Point.empty(),
+    Point.empty(),
+    Point.empty()
+  ];
+  const pointsB: Point[] = [
+    Point.empty(),
+    Point.empty(),
+    Point.empty(),
+    Point.empty()
+  ];
   const sizeA: number = a.length;
   const sizeB: number = b.length;
   let i: number = 0;
@@ -428,10 +442,10 @@ function polygonSlideDistance(
   const sizeB: number = b.length;
   const lastAIndex: number = a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
   const lastBIndex: number = b.at(0) !== b.at(sizeB - 1) ? sizeB : sizeB - 1;
-  const a1: Point = new Point();
-  const a2: Point = new Point();
-  const b1: Point = new Point();
-  const b2: Point = new Point();
+  const a1: Point = Point.empty();
+  const a2: Point = Point.empty();
+  const b1: Point = Point.empty();
+  const b2: Point = Point.empty();
   const dir: Point = Point.normalize(direction);
   let i: number = 0;
   let j: number = 0;
@@ -478,10 +492,10 @@ function polygonProjectionDistance(
   const sizeA: number = a.length;
   const sizeB: number = b.length;
   const lastAIndex: number = a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
-  const segmentDiff: Point = new Point();
-  const point: Point = new Point();
-  const s1: Point = new Point();
-  const s2: Point = new Point();
+  const segmentDiff: Point = Point.empty();
+  const point: Point = Point.empty();
+  const s1: Point = Point.empty();
+  const s2: Point = Point.empty();
   let i: number = 0;
   let j: number = 0;
   let minProjection: number = Number.NaN;
@@ -569,13 +583,13 @@ function searchStartPoint(
     b.push(b[0]);
   }
 
-  a.offset = new Point();
-  b.offset = new Point();
+  a.offset = Point.empty();
+  b.offset = Point.empty();
 
-  const vector: Point = new Point();
-  const vectorReversed: Point = new Point();
-  const startPoint: Point = new Point();
-  const tmpPoint: Point = new Point();
+  const vector: Point = Point.empty();
+  const vectorReversed: Point = Point.empty();
+  const startPoint: Point = Point.empty();
+  const tmpPoint: Point = Point.empty();
   let i: number = 0;
   let j: number = 0;
   let k: number = 0;
@@ -710,8 +724,8 @@ export function noFitPolygon(
     return [];
   }
 
-  a.offset = new Point();
-  b.offset = new Point();
+  a.offset = Point.empty();
+  b.offset = Point.empty();
 
   let i: number = 0;
   let j: number = 0;
@@ -739,13 +753,13 @@ export function noFitPolygon(
   }
 
   const result: IPolygon[] = [];
-  const vectorNormal: Point = new Point();
-  const prevVectorNormal: Point = new Point();
-  const reference: Point = new Point();
-  const start: Point = new Point();
-  const localA: Point = new Point();
-  const localPrimaryB: Point = new Point();
-  const localSecondaryB: Point = new Point();
+  const vectorNormal: Point = Point.empty();
+  const prevVectorNormal: Point = Point.empty();
+  const reference: Point = Point.empty();
+  const start: Point = Point.empty();
+  const localA: Point = Point.empty();
+  const localPrimaryB: Point = Point.empty();
+  const localSecondaryB: Point = Point.empty();
   const counterCondition: number = 10 * (sizeA + sizeB);
   let vectors: Vector[];
   let vector: Vector;
@@ -972,6 +986,62 @@ export function noFitPolygon(
     }
 
     startPoint = searchStartPoint(a, b, inside, result as IPolygon[]);
+  }
+
+  return result;
+}
+
+export function importPolygon(
+  polygonData: Float64Array,
+  offset: number = 0
+): IPolygon {
+  const innerOffset: number = 14 + offset;
+  const size: number = polygonData[offset];
+  const pointCount: number = polygonData[11 + offset];
+  const result: IPolygon = new Array<IPoint>(pointCount) as IPolygon;
+  const hasParent: boolean = polygonData[offset + 12] === 1;
+  let i: number = 0;
+
+  result.id = polygonData[offset + 1];
+  result.source = polygonData[offset + 2];
+  result.hole = polygonData[offset + 3] === 1;
+  result.rotation = polygonData[offset + 4];
+  result.x = polygonData[offset + 5];
+  result.y = polygonData[offset + 6];
+  result.width = polygonData[offset + 7];
+  result.height = polygonData[offset + 8];
+  result.offset = Point.fromCords(
+    polygonData[offset + 9],
+    polygonData[offset + 10]
+  );
+
+  for (i = 0; i < pointCount; ++i) {
+    result[i] = {
+      x: polygonData[innerOffset + (i << 1)],
+      y: polygonData[innerOffset + (i << 1) + 1]
+    };
+  }
+
+  if (hasParent) {
+    result.parent = importPolygon(polygonData, size);
+  }
+
+  return result;
+}
+
+export function importPolygons(data: Float64Array): IPolygon[] {
+  if (data.length === 0) {
+    return [];
+  }
+
+  const polygonCount: number = data[0];
+  const result: IPolygon[] = [];
+  let offset = polygonCount + 1;
+  let i: number = 0;
+
+  for (i = 0; i < polygonCount; ++i) {
+    result.push(importPolygon(data, offset));
+    offset += data[i + 1];
   }
 
   return result;

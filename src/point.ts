@@ -2,80 +2,81 @@ import { IPoint } from "./interfaces";
 import { almostEqual } from "./util";
 
 export default class Point implements IPoint {
+  private _offset: number = 0;
   private _data: Float64Array = new Float64Array(2);
 
-  constructor(x: number = 0, y: number = 0) {
-    this._data[0] = x;
-    this._data[1] = y;
+  constructor(data: Float64Array = new Float64Array(2), offset: number = 0) {
+    this._data = data;
+    this._offset = offset;
   }
 
   public scale(multiplier: number): Point {
-    this._data[0] *= multiplier;
-    this._data[1] *= multiplier;
+    this.x *= multiplier;
+    this.y *= multiplier;
 
     return this;
   }
 
   public add(value: IPoint): Point {
-    this._data[0] += value.x;
-    this._data[1] += value.y;
+    this.x += value.x;
+    this.y += value.y;
 
     return this;
   }
 
   public sub(value: IPoint): Point {
-    this._data[0] -= value.x;
-    this._data[1] -= value.y;
+    this.x -= value.x;
+    this.y -= value.y;
 
     return this;
   }
 
   public set(value: IPoint): Point {
-    this._data[0] = value.x;
-    this._data[1] = value.y;
+    this.x = value.x;
+    this.y = value.y;
 
     return this;
   }
 
   public update(x: number, y: number): Point {
-    this._data[0] = x;
-    this._data[1] = y;
+    this.x = x;
+    this.y = y;
 
     return this;
   }
 
   public max(value: IPoint): Point {
-    this._data[0] = Math.max(value.x, this._data[0]);
-    this._data[1] = Math.max(value.y, this._data[1]);
+    this.x = Math.max(value.x, this.x);
+    this.y = Math.max(value.y, this.y);
 
     return this;
   }
 
   public min(value: IPoint): Point {
-    this._data[0] = Math.min(value.x, this._data[0]);
-    this._data[1] = Math.min(value.y, this._data[1]);
+    this.x = Math.min(value.x, this.x);
+    this.y = Math.min(value.y, this.y);
 
     return this;
   }
 
   public dot(value: IPoint): number {
-    return value.x * this._data[0] + value.y * this._data[1];
+    return value.x * this.x + value.y * this.y;
   }
 
   public cross(value: IPoint): number {
-    return this._data[1] * value.x - this._data[0] * value.y;
+    return this.y * value.x - this.x * value.y;
   }
 
   public abs(): Point {
-    this._data[0] = Math.abs(this._data[0]);
-    this._data[1] = Math.abs(this._data[1]);
+    this.x = Math.abs(this.x);
+    this.y = Math.abs(this.y);
 
     return this;
   }
 
   public reverse(): Point {
-    this._data[0] = -this._data[0];
-    this._data[1] = -this._data[1];
+    this.x = -this.x;
+    this.y = -this.y;
 
     return this;
   }
@@ -83,17 +84,17 @@ export default class Point implements IPoint {
   public rotate(angle: number): Point {
     const cos: number = Math.cos(angle);
     const sin: number = Math.sin(angle);
-    const x: number = this._data[0];
-    const y: number = this._data[1];
+    const x: number = this.x;
+    const y: number = this.y;
 
-    this._data[0] = x * cos - y * sin;
-    this._data[1] = x * sin + y * cos;
+    this.x = x * cos - y * sin;
+    this.y = x * sin + y * cos;
 
     return this;
   }
 
   public clone(): Point {
-    return new Point(this._data[0], this._data[1]);
+    return new Point(this._data.slice(this._offset, this._offset + 2));
   }
 
   public almostEqual(point: IPoint, tolerance?: number): boolean {
@@ -106,8 +107,8 @@ export default class Point implements IPoint {
 
   public checkIntersect(point1: IPoint, point2: IPoint): boolean {
     return (
-      Point._checkIntersect(this._data[0], point1.x, point2.x) &&
-      Point._checkIntersect(this._data[1], point1.y, point2.y)
+      Point._checkIntersect(this.x, point1.x, point2.x) &&
+      Point._checkIntersect(this.y, point1.y, point2.y)
     );
   }
 
@@ -154,23 +155,23 @@ export default class Point implements IPoint {
   }
 
   public get x(): number {
-    return this._data[0];
+    return this._data[this._offset];
   }
 
   public set x(value) {
-    this._data[0] = value;
+    this._data[this._offset] = value;
   }
 
   public get y(): number {
-    return this._data[1];
+    return this._data[this._offset + 1];
   }
 
   public set y(value) {
-    this._data[1] = value;
+    this._data[this._offset + 1] = value;
   }
 
   public get squareLength(): number {
-    return this._data[0] * this._data[0] + this._data[1] * this._data[1];
+    return this.x * this.x + this.y * this.y;
   }
 
   public get length(): number {
@@ -178,37 +179,37 @@ export default class Point implements IPoint {
   }
 
   public static min(point1: IPoint, point2: IPoint): Point {
-    return new Point(
+    return Point.fromCords(
       Math.min(point1.x, point2.x),
       Math.min(point1.y, point2.y)
     );
   }
 
   public static max(point1: IPoint, point2: IPoint): Point {
-    return new Point(
+    return Point.fromCords(
       Math.max(point1.x, point2.x),
       Math.max(point1.y, point2.y)
     );
   }
 
   public static from(point: IPoint): Point {
-    return new Point(point.x, point.y);
+    return Point.fromCords(point.x, point.y);
   }
 
   public static abs(point: IPoint): Point {
-    return new Point(Math.abs(point.x), Math.abs(point.y));
+    return Point.fromCords(Math.abs(point.x), Math.abs(point.y));
   }
 
   public static square(point: IPoint): Point {
-    return new Point(point.x * point.x, point.y * point.y);
+    return Point.fromCords(point.x * point.x, point.y * point.y);
   }
 
   public static add(p1: IPoint, p2: IPoint): Point {
-    return new Point(p1.x + p2.x, p1.y + p2.y);
+    return Point.fromCords(p1.x + p2.x, p1.y + p2.y);
   }
 
   public static sub(p1: IPoint, p2: IPoint): Point {
-    return new Point(p2.x - p1.x, p2.y - p1.y);
+    return Point.fromCords(p2.x - p1.x, p2.y - p1.y);
   }
 
   public static almostEqual(
@@ -223,11 +224,11 @@ export default class Point implements IPoint {
   }
 
   public static normal(value: IPoint): Point {
-    return new Point(value.y, -value.x);
+    return Point.fromCords(value.y, -value.x);
   }
 
   public static reverse(value: IPoint): Point {
-    return new Point(-value.x, -value.y);
+    return Point.fromCords(-value.x, -value.y);
   }
 
   // normalize vector into a unit vector
@@ -239,7 +240,7 @@ export default class Point implements IPoint {
   }
 
   public static import(data: Float64Array): Point {
-    return new Point(data[0], data[1]);
+    return new Point(data);
   }
 
   public static export(point: IPoint): Float64Array {
@@ -247,6 +248,18 @@ export default class Point implements IPoint {
 
     result[0] = point.x;
     result[1] = point.y;
+
+    return result;
+  }
+
+  public static empty(): Point {
+    return new Point();
+  }
+
+  public static fromCords(x: number, y: number): Point {
+    const result = new Point();
+
+    result.update(x, y);
 
     return result;
   }

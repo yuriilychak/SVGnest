@@ -22,7 +22,7 @@ function parseElipse(element: Element, tolerance: number): Array<Point> {
   for (i = 0; i < count; ++i) {
     theta = i * step;
     result.push(
-      new Point(rx * Math.cos(theta) + cx, ry * Math.sin(theta) + cy)
+      Point.fromCords(rx * Math.cos(theta) + cx, ry * Math.sin(theta) + cy)
     );
   }
 
@@ -47,7 +47,10 @@ function parseCircle(element: Element, tolerance: number): Array<Point> {
     theta = i * step;
 
     result.push(
-      new Point(radius * Math.cos(theta) + cx, radius * Math.sin(theta) + cy)
+      Point.fromCords(
+        radius * Math.cos(theta) + cx,
+        radius * Math.sin(theta) + cy
+      )
     );
   }
 
@@ -55,19 +58,19 @@ function parseCircle(element: Element, tolerance: number): Array<Point> {
 }
 
 function parseRect(element: Element): Array<Point> {
-  const p1: Point = new Point(
+  const p1: Point = Point.fromCords(
     parseFloat(element.getAttribute("x")) || 0,
     parseFloat(element.getAttribute("y")) || 0
   );
-  const p2: Point = new Point(
+  const p2: Point = Point.fromCords(
     p1.x + parseFloat(element.getAttribute("width")),
     p1.y
   );
-  const p3: Point = new Point(
+  const p3: Point = Point.fromCords(
     p2.x,
     p1.y + parseFloat(element.getAttribute("height"))
   );
-  const p4: Point = new Point(p1.x, p3.y);
+  const p4: Point = Point.fromCords(p1.x, p3.y);
 
   return [p1, p2, p3, p4];
 }
@@ -146,7 +149,7 @@ function parsePath(element: SVGPathElement, tolerance: number): Array<Point> {
       case "H":
       case "v":
       case "V":
-        result.push(new Point(x, y));
+        result.push(Point.fromCords(x, y));
         break;
       // Quadratic Beziers
       case "t":
@@ -165,9 +168,9 @@ function parsePath(element: SVGPathElement, tolerance: number): Array<Point> {
       case "q":
       case "Q":
         pointList = QuadraticBezier(
-          new Point(prevx, prevy),
-          new Point(x, y),
-          new Point(x1, y1),
+          Point.fromCords(prevx, prevy),
+          Point.fromCords(x, y),
+          Point.fromCords(x1, y1),
           tolerance
         );
         pointList.shift(); // firstpoint would already be in the poly
@@ -190,10 +193,10 @@ function parsePath(element: SVGPathElement, tolerance: number): Array<Point> {
       case "c":
       case "C":
         pointList = CubicBezier(
-          new Point(prevx, prevy),
-          new Point(x, y),
-          new Point(x1, y1),
-          new Point(x2, y2),
+          Point.fromCords(prevx, prevy),
+          Point.fromCords(x, y),
+          Point.fromCords(x1, y1),
+          Point.fromCords(x2, y2),
           tolerance
         );
         pointList.shift(); // firstpoint would already be in the poly
@@ -204,8 +207,8 @@ function parsePath(element: SVGPathElement, tolerance: number): Array<Point> {
       case "a":
       case "A":
         pointList = Arc(
-          new Point(prevx, prevy),
-          new Point(x, y),
+          Point.fromCords(prevx, prevy),
+          Point.fromCords(x, y),
           s.r1,
           s.r2,
           s.angle,
