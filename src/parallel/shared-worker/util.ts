@@ -67,9 +67,9 @@ export function pointInPolygon(point: Point, polygon: IPolygon): TripleStatus {
   let i: number = 0;
 
   for (i = 0; i < pointCount; ++i) {
-    currentPoint.set(polygon[i]).add(polygon.offset);
+    currentPoint.set(polygon.at(i)).add(polygon.offset);
     prevPoint
-      .set(polygon[(i + pointCount - 1) % pointCount])
+      .set(polygon.at((i + pointCount - 1) % pointCount))
       .add(polygon.offset);
 
     if (
@@ -559,27 +559,90 @@ function inNfp(p: IPoint, nfp: IPolygon[]) {
 
   return false;
 }
+
+function getInsideB(
+  a: IPolygon,
+  b: IPolygon,
+  initialStatus: TripleStatus
+): TripleStatus {
+  let i: number = 0;
+  const sizeB: number = b.length;
+  const point: Point = Point.empty();
+  let inPoly: TripleStatus;
+
+  for (i = 0; i < sizeB; ++i) {
+    point.set(b.at(i)).add(b.offset);
+    inPoly = pointInPolygon(point, a);
+
+    if (inPoly === TripleStatus.Error) {
+      continue;
+    }
+
+    return inPoly;
+  }
+
+  return initialStatus;
+}
+
+function checkStartPoint(
+  a: IPolygon,
+  b: IPolygon,
+  nfp: IPolygon[],
+  inside: boolean,
+  insideB: TripleStatus
+): TripleStatus {
+  if (insideB === TripleStatus.Error) {
+    // A and B are the same
+    return TripleStatus.Error;
+  }
+
+  if (!!insideB === inside && !intersect(a, b) && !inNfp(b.offset, nfp)) {
+    return TripleStatus.True;
+  }
+
+  return TripleStatus.False;
+}
+
+function getProjectionDistance(
+  a: IPolygon,
+  b: IPolygon,
+  vector: Point,
+  vectorReversed: Point
+): number {
+  const distance1: number = polygonProjectionDistance(a, b, vector);
+  const distance2: number = polygonProjectionDistance(b, a, vectorReversed);
+
+  if (Number.isNaN(distance1)) {
+    return Number.isNaN(distance2) ? Number.NaN : distance2;
+  }
+
+  return Number.isNaN(distance2) ? distance1 : Math.min(distance1, distance2);
+}
 // searches for an arrangement of A and B such that they do not overlap
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
 function searchStartPoint(
   a: IPolygon,
   b: IPolygon,
   inside: boolean,
+  marked: boolean[],
   nfp: IPolygon[] = []
 ): Point | null {
   const sizeA: number = a.length;
+  const sizeB: number = b.length;
   const iterationCountA: number =
     a.at(0) !== a.at(sizeA - 1) ? sizeA : sizeA - 1;
+  const iterationCountB: number =
+    b.at(0) !== b.at(sizeB - 1) ? sizeB + 1 : sizeB;
   // clone arrays
   a = a.slice(0) as IPolygon;
   b = b.slice(0) as IPolygon;
 
   // close the loop for polygons
-  if (a[0] != a[a.length - 1]) {
-    a.push(a[0]);
+  if (a.at(0) != a.at(sizeA - 1)) {
+    a.push(a.at(0));
   }
 
-  if (b[0] != b[b.length - 1]) {
+  if (b.at(0) != b.at(sizeB - 1)) {
     b.push(b[0]);
   }
 
@@ -588,75 +651,38 @@ function searchStartPoint(
 
   const vector: Point = Point.empty();
   const vectorReversed: Point = Point.empty();
-  const startPoint: Point = Point.empty();
-  const tmpPoint: Point = Point.empty();
   let i: number = 0;
   let j: number = 0;
-  let k: number = 0;
-  let distance1: number = 0;
-  let distance2: number = 0;
   let distance: number = 0;
-  let vectorSquareLength: number = 0;
+  let vectorLength: number = 0;
   let insideB: TripleStatus = TripleStatus.Error;
-  let inPoly: TripleStatus = TripleStatus.Error;
   let currentA: IPoint;
 
   for (i = 0; i < iterationCountA; ++i) {
     currentA = a.at(i);
 
-    if (currentA.marked) {
+    if (marked[i]) {
       continue;
     }
 
     vector.set(a.at((i + 1) % sizeA)).sub(currentA);
     vectorReversed.set(vector).reverse();
-    currentA.marked = true;
+    marked[i] = true;
 
-    for (j = 0; j < b.length; ++j) {
+    for (j = 0; j < iterationCountB; ++j) {
       (b.offset as Point).set(currentA).sub(b.at(j));
 
-      insideB = TripleStatus.Error;
+      insideB = getInsideB(a, b, TripleStatus.Error);
 
-      for (k = 0; k < b.length; ++k) {
-        tmpPoint.set(b.at(k)).add(b.offset);
-        inPoly = pointInPolygon(tmpPoint, a);
-
-        if (inPoly !== TripleStatus.Error) {
-          insideB = inPoly;
-          break;
-        }
-      }
-
-      if (insideB === TripleStatus.Error) {
-        // A and B are the same
-        return null;
-      }
-
-      startPoint.set(b.offset);
-
-      if (
-        ((insideB && inside) || (!insideB && !inside)) &&
-        !intersect(a, b) &&
-        !inNfp(startPoint, nfp)
-      ) {
-        return startPoint;
+      switch (checkStartPoint(a, b, nfp, inside, insideB)) {
+        case TripleStatus.Error:
+          return null;
+        case TripleStatus.True:
+          return Point.from(b.offset);
       }
 
       // slide B along vector
-      distance1 = polygonProjectionDistance(a, b, vector);
-      distance2 = polygonProjectionDistance(b, a, vectorReversed);
-
-      // todo: clean this up
-      if (Number.isNaN(distance1) && Number.isNaN(distance2)) {
-        // nothin
-        distance = Number.NaN;
-      } else if (Number.isNaN(distance1)) {
-        distance = distance2;
-      } else if (Number.isNaN(distance2)) {
-        distance = distance1;
-      } else {
-        distance = Math.min(distance1, distance2);
-      }
+      distance = getProjectionDistance(a, b, vector, vectorReversed);
 
       // only slide until no longer negative
       // todo: clean this up
@@ -664,35 +690,24 @@ function searchStartPoint(
         continue;
       }
 
-      vectorSquareLength = vector.squareLength;
+      vectorLength = vector.length;
 
       if (
-        distance * distance < vectorSquareLength &&
-        !almostEqual(distance * distance, vectorSquareLength)
+        Math.abs(distance) < vectorLength &&
+        !almostEqual(Math.abs(distance), vectorLength)
       ) {
         vector.normalize(distance);
       }
 
       (b.offset as Point).add(vector);
 
-      for (k = 0; k < b.length; ++k) {
-        tmpPoint.set(b.at(k)).add(b.offset);
-        inPoly = pointInPolygon(tmpPoint, a);
+      insideB = getInsideB(a, b, insideB);
 
-        if (inPoly !== TripleStatus.Error) {
-          insideB = inPoly;
-          break;
-        }
-      }
-
-      startPoint.set(b.offset);
-
-      if (
-        ((insideB && inside) || (!insideB && !inside)) &&
-        !intersect(a, b) &&
-        !inNfp(startPoint, nfp)
-      ) {
-        return startPoint;
+      switch (checkStartPoint(a, b, nfp, inside, insideB)) {
+        case TripleStatus.Error:
+          return null;
+        case TripleStatus.True:
+          return Point.from(b.offset);
       }
     }
   }
@@ -736,8 +751,11 @@ export function noFitPolygon(
   let maxB: number = b.at(0).y;
   let maxIndexB: number = 0;
 
+  const marked: boolean[] = new Array(sizeA);
+
+  marked.fill(false);
+
   for (i = 1; i < sizeA; ++i) {
-    a.at(i).marked = false;
     if (a.at(i).y < minA) {
       minA = a.at(i).y;
       minIndexA = i;
@@ -745,7 +763,6 @@ export function noFitPolygon(
   }
 
   for (i = 1; i < sizeB; ++i) {
-    b.at(i).marked = false;
     if (b.at(i).y > maxB) {
       maxB = b.at(i).y;
       maxIndexB = i;
@@ -758,8 +775,8 @@ export function noFitPolygon(
   const reference: Point = Point.empty();
   const start: Point = Point.empty();
   const localA: Point = Point.empty();
-  const localPrimaryB: Point = Point.empty();
-  const localSecondaryB: Point = Point.empty();
+  const primaryB: Point = Point.empty();
+  const secondaryB: Point = Point.empty();
   const counterCondition: number = 10 * (sizeA + sizeB);
   let vectors: Vector[];
   let vector: Vector;
@@ -779,24 +796,28 @@ export function noFitPolygon(
   let prevB: IPoint;
   let touches: Int16Array[];
   let touch: Int16Array;
-  let indexA: number = 0;
-  let indexB: number = 0;
+  let prevIndexA: number = 0;
+  let currentIndexA: number = 0;
+  let nextIndexA: number = 0;
+  let prevIndexB: number = 0;
+  let currentIndexB: number = 0;
+  let nextIndexB: number = 0;
   let vectorCount: number = 0;
   let nfpPointCount: number = 0;
   let startPoint: IPoint | null = !inside
     ? // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
       Point.sub(b.at(maxIndexB), a.at(minIndexA))
     : // no reliable heuristic for inside
-      searchStartPoint(a, b, true);
+      searchStartPoint(a, b, true, marked);
 
   while (startPoint !== null) {
     (b.offset as Point).set(startPoint);
 
     // maintain a list of touching points/edges
 
-    localPrimaryB.set(b.at(0)).add(startPoint);
+    primaryB.set(b.at(0)).add(startPoint);
     prevVector = null; // keep track of previous vector
-    nfp = [{ x: localPrimaryB.x, y: localPrimaryB.y }];
+    nfp = [{ x: primaryB.x, y: primaryB.y }];
 
     reference.set(b.at(0)).add(startPoint);
     start.set(reference);
@@ -812,14 +833,14 @@ export function noFitPolygon(
         localA.set(currentA);
 
         for (j = 0; j < sizeB; ++j) {
-          localPrimaryB.set(b.at(j)).add(b.offset);
-          localSecondaryB.set(b.at((j + 1) % sizeB)).add(b.offset);
+          primaryB.set(b.at(j)).add(b.offset);
+          secondaryB.set(b.at((j + 1) % sizeB)).add(b.offset);
 
-          if (localPrimaryB.almostEqual(currentA)) {
+          if (primaryB.almostEqual(currentA)) {
             touches.push(getTouch(0, i, j));
-          } else if (localPrimaryB.onSegment(currentA, nextA)) {
+          } else if (primaryB.onSegment(currentA, nextA)) {
             touches.push(getTouch(1, (i + 1) % sizeA, j));
-          } else if (localA.onSegment(localPrimaryB, localSecondaryB)) {
+          } else if (localA.onSegment(primaryB, secondaryB)) {
             touches.push(getTouch(2, i, (j + 1) % sizeB));
           }
         }
@@ -830,55 +851,81 @@ export function noFitPolygon(
 
       for (i = 0; i < touches.length; ++i) {
         touch = touches.at(i);
-        indexA = touch.at(1);
-        indexB = touch.at(2);
+        currentIndexA = touch.at(1);
+        prevIndexA = (currentIndexA + sizeA - 1) % sizeA;
+        nextIndexA = (currentIndexA + 1) % sizeA;
 
-        currentA = a.at(indexA);
-        prevA = a.at((indexA + sizeA - 1) % sizeA);
-        nextA = a.at((indexA + 1) % sizeA);
+        currentIndexB = touch.at(2);
+        prevIndexB = (currentIndexB + sizeB - 1) % sizeB;
+        nextIndexB = (currentIndexB + 1) % sizeB;
+
+        currentA = a.at(currentIndexA);
+        prevA = a.at(prevIndexA);
+        nextA = a.at(nextIndexA);
 
         // adjacent B vertices
-        currentB = b.at(indexB);
-        prevB = b.at((indexB + sizeB - 1) % sizeB);
-        nextB = b.at((indexB + 1) % sizeB);
+        currentB = b.at(currentIndexB);
+        prevB = b.at(prevIndexB);
+        nextB = b.at(nextIndexB);
 
-        localPrimaryB.set(currentB).add(b.offset);
-        localSecondaryB.set(prevB).add(b.offset);
+        primaryB.set(currentB).add(b.offset);
+        secondaryB.set(prevB).add(b.offset);
 
-        currentA.marked = true;
+        marked[currentIndexA] = true;
 
         switch (touch[0]) {
           case 0:
             vectors.push(
-              new Vector(Point.sub(currentA, prevA), currentA, prevA)
+              new Vector(currentA, prevA, a, currentIndexA, prevIndexA, true)
             );
             vectors.push(
-              new Vector(Point.sub(currentA, nextA), currentA, nextA)
+              new Vector(currentA, nextA, a, currentIndexA, nextIndexA, true)
             );
             // B vectors need to be inverted
             vectors.push(
-              new Vector(Point.sub(prevB, currentB), prevB, currentB)
+              new Vector(prevB, currentB, b, prevIndexB, currentIndexB, false)
             );
             vectors.push(
-              new Vector(Point.sub(nextB, currentB), nextB, currentB)
+              new Vector(nextB, currentB, b, nextIndexB, currentIndexB, false)
             );
             break;
           case 1:
             vectors.push(
-              new Vector(Point.sub(localPrimaryB, currentA), prevA, currentA)
+              new Vector(
+                primaryB,
+                currentA,
+                a,
+                prevIndexA,
+                currentIndexA,
+                false
+              )
             );
 
             vectors.push(
-              new Vector(Point.sub(localPrimaryB, prevA), currentA, prevA)
+              new Vector(primaryB, prevA, a, currentIndexA, prevIndexA, true)
             );
             break;
           case 2:
             vectors.push(
-              new Vector(Point.sub(localPrimaryB, currentA), prevB, currentB)
+              new Vector(
+                primaryB,
+                currentA,
+                b,
+                prevIndexB,
+                currentIndexB,
+                false
+              )
             );
 
             vectors.push(
-              new Vector(Point.sub(localSecondaryB, currentA), currentB, prevB)
+              new Vector(
+                secondaryB,
+                currentA,
+                b,
+                currentIndexB,
+                prevIndexB,
+                false
+              )
             );
             break;
         }
@@ -930,8 +977,10 @@ export function noFitPolygon(
         break;
       }
 
-      translate.start.marked = true;
-      translate.end.marked = true;
+      if (translate.isMain) {
+        marked[translate.startIndex] = true;
+        marked[translate.endIndex] = true;
+      }
 
       prevVector = translate;
 
@@ -985,7 +1034,7 @@ export function noFitPolygon(
       break;
     }
 
-    startPoint = searchStartPoint(a, b, inside, result as IPolygon[]);
+    startPoint = searchStartPoint(a, b, inside, marked, result as IPolygon[]);
   }
 
   return result;

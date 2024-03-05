@@ -1,33 +1,46 @@
-import { IPoint } from "./interfaces";
+import { IPoint, IPolygon } from "./interfaces";
 import Point from "./point";
 
 export default class Vector extends Point {
-  private _start: IPoint;
-  private _end: IPoint;
+  private _polygon: IPolygon;
+  private _startIndex: number;
+  private _endIndex: number;
+  private _isMain: boolean;
 
-  constructor(point: Point, start: IPoint, end: IPoint) {
+  constructor(
+    offset: IPoint,
+    main: IPoint,
+    polygon: IPolygon,
+    startIndex: number,
+    endIndex: number,
+    isMain: boolean
+  ) {
     super();
 
-    this.x = point.x;
-    this.y = point.y;
+    this.set(main).sub(offset);
 
-    this._start = start;
-    this._end = end;
+    this._startIndex = startIndex;
+    this._endIndex = endIndex;
+    this._polygon = polygon;
   }
 
   public get start(): IPoint {
-    return this._start;
-  }
-
-  public set start(value: IPoint) {
-    this._start = value;
+    return this._polygon.at(this._startIndex);
   }
 
   public get end(): IPoint {
-    return this._end;
+    return this._polygon.at(this._endIndex);
   }
 
-  public set end(value: IPoint) {
-    this._end = value;
+  public get startIndex(): number {
+    return this._startIndex;
+  }
+
+  public get endIndex(): number {
+    return this._endIndex;
+  }
+
+  public get isMain(): boolean {
+    return this._isMain;
   }
 }

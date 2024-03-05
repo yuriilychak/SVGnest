@@ -1,6 +1,6 @@
 {
   "name": "svgnest.ts",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Type Script version of https://github.com/Jack000/SVGnest migrated to webpack",
   "private": true,
   "scripts": {

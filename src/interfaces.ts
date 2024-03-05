@@ -2,7 +2,6 @@ export interface IPoint {
   x: number;
   y: number;
   id?: number;
-  marked?: boolean;
   rotation?: number;
   start?: IPoint;
   end?: IPoint;
