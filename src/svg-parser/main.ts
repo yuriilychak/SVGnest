@@ -8,7 +8,7 @@ import ClipperLib from "js-clipper";
  */
 
 import Matrix from "./matrix";
-import Point from "../point";
+import { Point } from "../geom";
 import { poligonify } from "./poligonify";
 import { PrimitiveTagName } from "./enums";
 import {

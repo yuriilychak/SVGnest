@@ -14,6 +14,15 @@ declare namespace __AdaptedExports {
    * @returns `~lib/typedarray/Float64Array`
    */
   export function tmpNoFitPolygonRectangle(a: Float64Array, b: Float64Array): Float64Array;
+  /**
+   * assembly/index/tmpNoFitPolygon
+   * @param a `~lib/typedarray/Float64Array`
+   * @param b `~lib/typedarray/Float64Array`
+   * @param inside `bool`
+   * @param searchEdges `bool`
+   * @returns `~lib/typedarray/Float64Array`
+   */
+  export function tmpNoFitPolygon(a: Float64Array, b: Float64Array, inside: boolean, searchEdges: boolean): Float64Array;
 }
 /** Instantiates the compiled WebAssembly module with the given imports. */
 export declare function instantiate(module: WebAssembly.Module, imports?: {

@@ -1,5 +1,5 @@
 import { polygonArea } from "../../geometry-util";
-import Point from "../../point";
+import { Point } from "../../geom";
 import SharedPolygon from "./shared-polygon";
 import { IPolygon, IPoint, SvgNestConfiguration } from "../../interfaces";
 

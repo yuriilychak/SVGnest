@@ -1,4 +1,5 @@
 import { IPolygon, IPoint } from "./interfaces";
+import { Point } from "./geom";
 
 // floating point comparison tolerance
 const TOLEARANCE: number = Math.pow(10, -9); // Floating point error is likely to be above 1 epsilon
@@ -66,43 +67,8 @@ export function keyToNFPData(
   return result;
 }
 
-export function importPolygon(
-  polygonData: Float64Array,
-  offset: number = 0
-): IPolygon {
-  const innerOffset: number = 14 + offset;
-  const size: number = polygonData[offset];
-  const pointCount: number = polygonData[11 + offset];
-  const result: IPolygon = new Array<IPoint>(pointCount) as IPolygon;
-  const hasParent: boolean = polygonData[offset + 12] === 1;
-  let i: number = 0;
-
-  result.id = polygonData[offset + 1];
-  result.source = polygonData[offset + 2];
-  result.hole = polygonData[offset + 3] === 1;
-  result.rotation = polygonData[offset + 4];
-  result.x = polygonData[offset + 5];
-  result.y = polygonData[offset + 6];
-  result.width = polygonData[offset + 7];
-  result.height = polygonData[offset + 8];
-  result.offset = { x: polygonData[offset + 9], y: polygonData[offset + 10] };
-
-  for (i = 0; i < pointCount; ++i) {
-    result[i] = {
-      x: polygonData[innerOffset + (i << 1)],
-      y: polygonData[innerOffset + (i << 1) + 1]
-    };
-  }
-
-  if (hasParent) {
-    result.parent = importPolygon(polygonData, size);
-  }
-
-  return result;
-}
-
 export function exportPolygon(polygon: IPolygon): Float64Array {
-  const offset: number = 14;
+  const offset: number = 10;
   const pointCount: number = polygon.length;
   const size: number = offset + (pointCount << 1);
   const polygonData: Float64Array = new Float64Array(size);
@@ -114,15 +80,11 @@ export function exportPolygon(polygon: IPolygon): Float64Array {
   polygonData[2] = polygon.source || -1;
   polygonData[3] = polygon.hole ? 1 : 0;
   polygonData[4] = polygon.rotation || 0;
-  polygonData[5] = polygon.x || 0;
-  polygonData[6] = polygon.y || 0;
-  polygonData[7] = polygon.width || 0;
-  polygonData[8] = polygon.height || 0;
-  polygonData[9] = polygon.offset ? polygon.offset.x : 0;
-  polygonData[10] = polygon.offset ? polygon.offset.y : 0;
-  polygonData[11] = pointCount;
-  polygonData[12] = polygon.parent ? 1 : 0;
-  polygonData[13] = polygon.children ? polygon.children.length : 0;
+  polygonData[5] = polygon.offset ? polygon.offset.x : 0;
+  polygonData[6] = polygon.offset ? polygon.offset.y : 0;
+  polygonData[7] = pointCount;
+  polygonData[8] = polygon.parent ? 1 : 0;
+  polygonData[9] = polygon.children ? polygon.children.length : 0;
 
   for (i = 0; i < pointCount; ++i) {
     polygonData[offset + (i << 1)] = polygon.at(i).x;
@@ -141,6 +103,40 @@ export function exportPolygon(polygon: IPolygon): Float64Array {
   } else {
     return polygonData;
   }
+}
+
+export function importPolygon(
+  polygonData: Float64Array,
+  offset: number = 0
+): IPolygon {
+  const innerOffset: number = 10 + offset;
+  const size: number = polygonData[offset];
+  const pointCount: number = polygonData[7 + offset];
+  const result: IPolygon = new Array<IPoint>(pointCount) as IPolygon;
+  const hasParent: boolean = polygonData[offset + 8] === 1;
+  let i: number = 0;
+
+  result.id = polygonData[offset + 1];
+  result.source = polygonData[offset + 2];
+  result.hole = polygonData[offset + 3] === 1;
+  result.rotation = polygonData[offset + 4];
+  result.offset = Point.fromCords(
+    polygonData[offset + 5],
+    polygonData[offset + 6]
+  );
+
+  for (i = 0; i < pointCount; ++i) {
+    result[i] = {
+      x: polygonData[innerOffset + (i << 1)],
+      y: polygonData[innerOffset + (i << 1) + 1]
+    };
+  }
+
+  if (hasParent) {
+    result.parent = importPolygon(polygonData, size);
+  }
+
+  return result;
 }
 
 export function importPolygons(data: Float64Array): IPolygon[] {

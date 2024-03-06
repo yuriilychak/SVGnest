@@ -6,9 +6,10 @@ import {
   rotatePolygon,
   toClipperCoordinates,
   toNestCoordinates,
-  getPolygonBounds
+  getPolygonBounds,
+  pointInPolygon
 } from "../../geometry-util";
-import { exportPolygon, keyToNFPData } from "../../util";
+import { exportPolygon, keyToNFPData, importPolygons } from "../../util";
 import {
   IPolygon,
   NfpPair,
@@ -16,9 +17,7 @@ import {
   PairWorkerData
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
-import { noFitPolygon, pointInPolygon, importPolygons } from "./util";
-import Point from "../../point";
-import Rect from "../../rect";
+import { Rect, Point } from "../../geom";
 
 self.alert = function (message: string): void {
   console.log(message);
@@ -81,7 +80,14 @@ export default async function pairData(
       ? importPolygons(
           bin.tmpNoFitPolygonRectangle(exportPolygon(a), exportPolygon(b))
         )
-      : (noFitPolygon(a, b, true, searchEdges) as IPolygon[]);
+      : importPolygons(
+          bin.tmpNoFitPolygon(
+            exportPolygon(a),
+            exportPolygon(b),
+            true,
+            searchEdges
+          )
+        );
     // ensure all interior NFPs have the same winding direction
     if (nfp.length > 0) {
       for (i = 0; i < nfp.length; ++i) {
@@ -96,7 +102,14 @@ export default async function pairData(
     }
   } else {
     nfp = searchEdges
-      ? (noFitPolygon(a, b, false, searchEdges) as IPolygon[])
+      ? importPolygons(
+          bin.tmpNoFitPolygon(
+            exportPolygon(a),
+            exportPolygon(b),
+            false,
+            searchEdges
+          )
+        )
       : minkowskiDifference(a, b);
     // sanity check
     if (!nfp || nfp.length == 0) {
@@ -155,12 +168,14 @@ export default async function pairData(
 
         // no need to find nfp if B's bounding box is too big
         if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
-          cnfp = noFitPolygon(
-            a.children.at(i),
-            b,
-            true,
-            searchEdges
-          ) as IPolygon[];
+          cnfp = importPolygons(
+            bin.tmpNoFitPolygon(
+              exportPolygon(a.children.at(i)),
+              exportPolygon(b),
+              true,
+              searchEdges
+            )
+          );
           // ensure all interior NFPs have the same winding direction
           if (cnfp && cnfp.length > 0) {
             for (j = 0; j < cnfp.length; ++j) {

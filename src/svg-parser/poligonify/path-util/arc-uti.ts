@@ -1,4 +1,4 @@
-import Point from "../../../point";
+import { Point } from "../../../geom";
 
 const MAX_ANGLE: number = 360;
 const MID_ANGLE: number = 180;

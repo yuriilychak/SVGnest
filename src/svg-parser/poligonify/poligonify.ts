@@ -1,4 +1,4 @@
-import Point from "../../point";
+import { Point } from "../../geom";
 import { almostEqual } from "../../util";
 import { PrimitiveTagName } from "../enums";
 import { Arc, CubicBezier, QuadraticBezier } from "./path-util";

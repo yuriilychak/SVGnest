@@ -1,4 +1,4 @@
-import Rect from "../rect";
+import { Rect } from "../geom";
 import { rotatePolygon } from "../geometry-util";
 import { IPolygon, IRect, GeneticAlgorithmConfig } from "../interfaces";
 import Phenotype from "./phenotype";
@@ -12,20 +12,20 @@ const DEFAULT_CONFIG: GeneticAlgorithmConfig = {
 const DEFAULT_BOUNDS: Rect = new Rect();
 
 export default class GeneticAlgorithm {
-  private _population: Array<Phenotype>;
+  private _population: Phenotype[];
   private _config: GeneticAlgorithmConfig;
   private _binBounds: IRect;
   private _isEmpty: boolean;
 
   constructor() {
     this._isEmpty = true;
-    this._population = new Array<Phenotype>();
+    this._population = [];
     this._config = DEFAULT_CONFIG;
     this._binBounds = DEFAULT_BOUNDS;
   }
 
   public init(
-    adam: Array<IPolygon>,
+    adam: IPolygon[],
     binBounds: IRect,
     config: GeneticAlgorithmConfig = DEFAULT_CONFIG
   ): void {
@@ -34,7 +34,7 @@ export default class GeneticAlgorithm {
     this._binBounds = binBounds;
 
     // population is an array of individuals. Each individual is a object representing the order of insertion and the angle each part is rotated
-    const angles: Array<number> = [];
+    const angles: number[] = [];
     let i: number = 0;
     let mutant: Phenotype;
     for (i = 0; i < adam.length; ++i) {
@@ -63,11 +63,11 @@ export default class GeneticAlgorithm {
     this._population.sort((a, b) => a.fitness - b.fitness);
 
     // fittest individual is preserved in the new generation (elitism)
-    const result: Array<Phenotype> = [this._population[0]];
+    const result: Phenotype[] = [this._population[0]];
     const currentSize: number = this._population.length;
     let male: Phenotype;
     let female: Phenotype;
-    let children: Array<Phenotype>;
+    let children: Phenotype[];
 
     while (result.length < currentSize) {
       male = this._randomWeightedIndividual();
@@ -149,11 +149,11 @@ export default class GeneticAlgorithm {
   }
 
   // single point crossover
-  private _mate(male: Phenotype, female: Phenotype): Array<Phenotype> {
+  private _mate(male: Phenotype, female: Phenotype): Phenotype[] {
     const cutPoint: number = Math.round(
       Math.min(Math.max(Math.random(), 0.1), 0.9) * (male.placement.length - 1)
     );
-    const result: Array<Phenotype> = [male.cut(cutPoint), female.cut(cutPoint)];
+    const result: Phenotype[] = [male.cut(cutPoint), female.cut(cutPoint)];
 
     result[0].mate(female);
     result[1].mate(male);
@@ -163,7 +163,7 @@ export default class GeneticAlgorithm {
 
   // returns a random individual from the population, weighted to the front of the list (lower fitness value is more likely to be selected)
   private _randomWeightedIndividual(exclude?: Phenotype): Phenotype {
-    const localPopulation: Array<Phenotype> = this._population.slice();
+    const localPopulation: Phenotype[] = this._population.slice();
     const excludeIndex: number = exclude
       ? localPopulation.indexOf(exclude)
       : -1;
@@ -206,7 +206,7 @@ export default class GeneticAlgorithm {
     return this._population[1] || null;
   }
 
-  public get population(): Array<Phenotype> {
+  public get population(): Phenotype[] {
     return this._population;
   }
 

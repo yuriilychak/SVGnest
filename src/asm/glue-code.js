@@ -33,6 +33,18 @@ export async function instantiate(module, imports = {}) {
         __release(a);
       }
     },
+    tmpNoFitPolygon(a, b, inside, searchEdges) {
+      // assembly/index/tmpNoFitPolygon(~lib/typedarray/Float64Array, ~lib/typedarray/Float64Array, bool, bool) => ~lib/typedarray/Float64Array
+      a = __retain(__lowerTypedArray(Float64Array, 4, 3, a) || __notnull());
+      b = __lowerTypedArray(Float64Array, 4, 3, b) || __notnull();
+      inside = inside ? 1 : 0;
+      searchEdges = searchEdges ? 1 : 0;
+      try {
+        return __liftTypedArray(Float64Array, exports.tmpNoFitPolygon(a, b, inside, searchEdges) >>> 0);
+      } finally {
+        __release(a);
+      }
+    },
   }, exports);
   function __liftString(pointer) {
     if (!pointer) return null;

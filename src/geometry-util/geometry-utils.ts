@@ -1,9 +1,9 @@
 //@ts-ignore
 // returns the area of the polygon, assuming no self-intersections
 
-import Point from "../point";
-import Rect from "../rect";
+import { Rect, Point } from "../geom";
 import { IPolygon, ClipperPoint, IPoint } from "../interfaces";
+import { TripleStatus } from "../enums";
 
 //TODO: depreacete when polygone will be moved to class
 
@@ -76,9 +76,9 @@ export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
 }
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
-  if (polygon.length < 3) {
-    return -1;
+export function pointInPolygon(point: IPoint, polygon: IPolygon): TripleStatus {
+  if (!polygon || polygon.length < 3) {
+    return TripleStatus.Error;
   }
 
   if (!polygon.offset) {
@@ -86,41 +86,46 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): number {
   }
 
   const innerPoint: Point = Point.from(point);
-  const pointCount = polygon.length;
-  let result: boolean = false;
   const currentPoint: Point = Point.empty();
   const prevPoint: Point = Point.empty();
+  const neighboarDiff: Point = Point.empty();
+  const pointDiff: Point = Point.empty();
+  const pointCount: number = polygon.length;
+  let inside: boolean = false;
   let i: number = 0;
 
   for (i = 0; i < pointCount; ++i) {
     currentPoint.set(polygon.at(i)).add(polygon.offset);
     prevPoint
-      .set(polygon.at((i - 1 + pointCount) % pointCount))
+      .set(polygon.at((i + pointCount - 1) % pointCount))
       .add(polygon.offset);
 
     if (
+      // no result
       innerPoint.almostEqual(currentPoint) ||
+      // exactly on the segment
       innerPoint.onSegment(currentPoint, prevPoint)
     ) {
-      return -1; // no result or exactly on the segment
+      return TripleStatus.Error; // no result
     }
 
-    if (Point.almostEqual(currentPoint, prevPoint)) {
+    if (currentPoint.almostEqual(prevPoint)) {
       // ignore very small lines
       continue;
     }
 
+    neighboarDiff.set(prevPoint).sub(currentPoint);
+    pointDiff.set(innerPoint).sub(currentPoint);
+
     if (
-      currentPoint.y - point.y > 0 !== prevPoint.y - point.y > 0 &&
-      point.x - currentPoint.x <
-        ((prevPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
-          (prevPoint.y - currentPoint.y)
+      0 > pointDiff.y != prevPoint.y > innerPoint.y &&
+      neighboarDiff.cross(pointDiff) / neighboarDiff.y < 0
     ) {
-      result = !result;
+      inside = !inside;
     }
   }
 
-  return result ? 1 : 0;
+  return inside ? TripleStatus.True : TripleStatus.False;
 }
 
 // jsClipper uses X/Y instead of x/y...

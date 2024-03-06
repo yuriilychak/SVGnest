@@ -1,4 +1,4 @@
-import Point from "../../../point";
+import { Point } from "../../../geom";
 
 interface Segment {
   p1: Point;

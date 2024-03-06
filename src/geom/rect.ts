@@ -1,5 +1,5 @@
 import Point from "./point";
-import { IRect } from "./interfaces";
+import { IRect } from "../interfaces";
 
 export default class Rect implements IRect {
   private _bottomLeft: Point = Point.empty();

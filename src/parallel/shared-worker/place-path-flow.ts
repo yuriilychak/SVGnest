@@ -8,7 +8,7 @@ import {
   toNestCoordinates
 } from "../../geometry-util";
 import { generateNFPCacheKey } from "../../util";
-import Point from "../../point";
+import { Point } from "../../geom";
 import { almostEqual } from "../../util";
 import {
   IPolygon,

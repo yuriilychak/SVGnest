@@ -1,5 +1,4 @@
-import Point from "../../point";
-import Rect from "../../rect";
+import { Rect, Point } from "../../geom";
 import { getPolygonBounds, polygonArea } from "../../geometry-util";
 import { IPolygon, SvgNestConfiguration } from "../../interfaces";
 import SharedPolygon from "./shared-polygon";
