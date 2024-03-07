@@ -15,7 +15,7 @@ export default class SharedPolygon {
   // use the clipper library to return an offset to the given polygon. Positive offset expands the polygon, negative contracts
   // note that this returns an array of polygons
   protected _polygonOffset(polygon: IPolygon, offset: number): IPolygon[] {
-    if (almostEqual(offset, 0)) {
+    if (almostEqual(offset)) {
       return [polygon];
     }
 

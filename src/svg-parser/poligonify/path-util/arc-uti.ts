@@ -40,17 +40,10 @@ class SvgArcConfig {
   }
 
   public get mid(): Point {
-    const result: Point = Point.add(this._begin, this._end);
-
-    result.scale(0.5);
-
-    return result;
+    return Point.add(this._begin, this._end).scale(0.5);
   }
   public get diff(): Point {
-    const result: Point = Point.sub(this._begin, this._end);
-    result.scale(0.5);
-
-    return result;
+    return Point.sub(this._begin, this._end).scale(0.5);
   }
 
   public get p2(): Point {
@@ -131,7 +124,7 @@ class ArcConfig {
   public toSvg(scale: number): SvgArcConfig {
     const scaledExtent: number = this._extent * scale;
     const angle: number = ArcConfig._degreesToRadians(this._angle);
-    const svgPoints: Array<Point> = this._getSvgPoints(scaledExtent);
+    const svgPoints: Point[] = this._getSvgPoints(scaledExtent);
     const largeArc: number = scaledExtent > MID_ANGLE ? 1 : 0;
     const sweep: number = scaledExtent > 0 ? 1 : 0;
 
@@ -220,8 +213,8 @@ export default function linearize(
   largearc: number,
   sweep: number,
   tol: number
-): Array<Point> {
-  const finished: Array<Point> = [p2]; // list of points to return
+): Point[] {
+  const finished: Point[] = [p2.clone()]; // list of points to return
   const svgArc = new SvgArcConfig(
     p1,
     p2,

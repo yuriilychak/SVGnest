@@ -62,7 +62,6 @@ export default async function pairData(
   }
 
   const bin: typeof __AdaptedExports = await instantiate(env.asm);
-
   const errors: any[][] = [];
 
   const searchEdges = env.searchEdges;
@@ -112,7 +111,7 @@ export default async function pairData(
         )
       : minkowskiDifference(a, b);
     // sanity check
-    if (!nfp || nfp.length == 0) {
+    if (nfp.length == 0) {
       errors.push(["NFP Error: ", nfpData]);
       errors.push(["A: ", JSON.stringify(a)]);
       errors.push(["B: ", JSON.stringify(b)]);
@@ -137,7 +136,8 @@ export default async function pairData(
       }
     }
 
-    if (nfp.length == 0) {
+    if (nfp.length === 0) {
+      console.log("THERE");
       return null;
     }
 
@@ -149,7 +149,7 @@ export default async function pairData(
 
       if (
         i > 0 &&
-        pointInPolygon(Point.from(nfp.at(i).at(0)), nfp.at(0)) &&
+        pointInPolygon(Point.from(nfp.at(i).at(0)), nfp.at(0)) > 0 &&
         polygonArea(nfp.at(i)) < 0
       ) {
         nfp.at(i).reverse();

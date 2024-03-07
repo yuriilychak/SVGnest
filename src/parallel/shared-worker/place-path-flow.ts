@@ -236,7 +236,7 @@ export default function placePaths(
         }
 
         for (k = 0; k < nf.length; ++k) {
-          allPoints = new Array<IPoint>() as IPolygon;
+          allPoints = [] as IPolygon;
 
           for (m = 0; m < placed.length; ++m) {
             for (n = 0; n < placed.at(m).length; ++n) {
