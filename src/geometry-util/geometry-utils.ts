@@ -50,9 +50,11 @@ export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
   const pointCount: number = polygon.length;
   const radianAngle: number = (angle * Math.PI) / 180;
   let i: number = 0;
+  let point: Point;
 
   for (i = 0; i < pointCount; ++i) {
-    result.push(Point.from(polygon.at(i)).rotate(radianAngle));
+    point = Point.from(polygon.at(i)).rotate(radianAngle);
+    result.push({ x: point.x, y: point.y });
   }
 
   if (polygon.children && polygon.children.length > 0) {

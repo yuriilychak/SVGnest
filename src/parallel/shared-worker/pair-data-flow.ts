@@ -1,5 +1,5 @@
 //@ts-ignore
-import { Clipper } from "js-clipper";
+import { Clipper, PolyFillType, ClipType, PolyType } from "js-clipper";
 
 import {
   polygonArea,
@@ -11,6 +11,8 @@ import {
 } from "../../geometry-util";
 import { exportPolygon, keyToNFPData, importPolygons } from "../../util";
 import {
+  ClipperPoint,
+  IPoint,
   IPolygon,
   NfpPair,
   PairDataResult,
@@ -23,31 +25,98 @@ self.alert = function (message: string): void {
   console.log(message);
 };
 
-function minkowskiDifference(A: IPolygon, B: IPolygon): IPolygon[] {
-  const scale: number = 10000000;
+function orientation(poly: ClipperPoint[]): boolean {
+  const pointCount: number = poly.length;
+  let result: number = 0;
   let i: number = 0;
+  let prevPoint: ClipperPoint;
+  let currentPoint: ClipperPoint;
+
+  for (i = 0; i < pointCount; ++i) {
+    currentPoint = poly[i];
+    prevPoint = poly[(i + pointCount - 1) % pointCount];
+    result += (prevPoint.X + currentPoint.X) * (prevPoint.Y - currentPoint.Y);
+  }
+
+  return result >= 0;
+}
+
+function minkowskiDifference(a: IPolygon, b: IPolygon): IPolygon[] {
+  const scale: number = 10000000;
+  const sizeA: number = a.length;
+  const sizeB: number = b.length;
+  const solutions: ClipperPoint[][] = [];
+  const quads: ClipperPoint[][] = [];
+  let pointB: IPoint;
+  let pointA: IPoint;
+  let currentPath: ClipperPoint[];
+  let nextPath: ClipperPoint[];
+  let quad: ClipperPoint[];
+  let i: number = 0;
+  let j: number = 0;
   let clipperNfp;
-  let largestArea: number | null = null;
+  let largestArea: number = Number.NaN;
   let n: IPolygon;
   let sArea: number;
-  const clippedA = toClipperCoordinates(A, scale);
-  const clippedB = toClipperCoordinates(B, -scale);
-  const solutions = Clipper.MinkowskiSum(clippedA, clippedB, true);
+
+  for (i = 0; i < sizeB; ++i) {
+    pointB = b.at(i);
+    currentPath = new Array(sizeA);
+
+    for (j = 0; j < sizeA; ++j) {
+      pointA = a.at(j);
+      currentPath[j] = {
+        X: (pointA.x - pointB.x) * scale,
+        Y: (pointA.y - pointB.y) * scale
+      };
+    }
+
+    solutions.push(currentPath);
+  }
+
+  for (i = 0; i < sizeB; ++i) {
+    currentPath = solutions[i];
+    nextPath = solutions[(i + 1) % sizeB];
+
+    for (j = 0; j < sizeA; ++j) {
+      quad = [
+        currentPath[j],
+        nextPath[j],
+        nextPath[(j + 1) % sizeA],
+        currentPath[(j + 1) % sizeA]
+      ];
+
+      if (orientation(quad)) {
+        quad.reverse();
+      }
+      quads.push(quad);
+    }
+  }
+  const clipper: Clipper = new Clipper(0);
+
+  clipper.AddPaths(quads, PolyType.ptSubject, true);
+  clipper.Execute(
+    ClipType.ctUnion,
+    solutions,
+    PolyFillType.pftNonZero,
+    PolyFillType.pftNonZero
+  );
+
   const solutionCount: number = solutions.length;
 
   for (i = 0; i < solutionCount; ++i) {
     n = toNestCoordinates(solutions.at(i), scale);
     sArea = polygonArea(n);
 
-    if (largestArea === null || largestArea > sArea) {
+    if (Number.isNaN(largestArea) || largestArea > sArea) {
       clipperNfp = n;
       largestArea = sArea;
     }
   }
 
   for (i = 0; i < clipperNfp.length; ++i) {
-    clipperNfp.at(i).x += B.at(0).x;
-    clipperNfp.at(i).y += B.at(0).y;
+    clipperNfp.at(i).x += b.at(0).x;
+    clipperNfp.at(i).y += b.at(0).y;
   }
 
   return [clipperNfp];
@@ -75,18 +144,16 @@ export default async function pairData(
   let i = 0;
 
   if (nfpData.at(4) === 1) {
-    nfp = bin.isRectangle(exportPolygon(a))
-      ? importPolygons(
-          bin.tmpNoFitPolygonRectangle(exportPolygon(a), exportPolygon(b))
-        )
-      : importPolygons(
-          bin.tmpNoFitPolygon(
+    nfp = importPolygons(
+      bin.isRectangle(exportPolygon(a))
+        ? bin.tmpNoFitPolygonRectangle(exportPolygon(a), exportPolygon(b))
+        : bin.tmpNoFitPolygon(
             exportPolygon(a),
             exportPolygon(b),
             true,
             searchEdges
           )
-        );
+    );
     // ensure all interior NFPs have the same winding direction
     if (nfp.length > 0) {
       for (i = 0; i < nfp.length; ++i) {

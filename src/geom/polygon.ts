@@ -385,7 +385,7 @@ export default class Polygon {
   }
 
   public get isValid(): boolean {
-    return this.isValid;
+    return this._isValid;
   }
 
   public static updatePoint(

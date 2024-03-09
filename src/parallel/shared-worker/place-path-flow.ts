@@ -136,10 +136,10 @@ export default function placePaths(
       clipperBinNfp = [];
 
       for (j = 0; j < binNfp.length; ++j) {
-        clipperBinNfp.push(toClipperCoordinates(binNfp.at(j)));
+        clipperBinNfp.push(
+          toClipperCoordinates(binNfp.at(j), env.config.clipperScale)
+        );
       }
-
-      ClipperLib.JS.ScaleUpPaths(clipperBinNfp, env.config.clipperScale);
 
       clipper = new ClipperLib.Clipper();
       combinedNfp = new ClipperLib.Paths();
@@ -156,11 +156,12 @@ export default function placePaths(
         for (k = 0; k < nfp.length; ++k) {
           clone = toClipperCoordinates(nfp.at(k));
           for (m = 0; m < clone.length; ++m) {
-            clone.at(m).X += placements.at(j).x;
-            clone.at(m).Y += placements.at(j).y;
+            clone.at(m).X =
+              (clone.at(m).X + placements.at(j).x) * env.config.clipperScale;
+            clone.at(m).Y =
+              (clone.at(m).Y + placements.at(j).y) * env.config.clipperScale;
           }
 
-          ClipperLib.JS.ScaleUpPath(clone, env.config.clipperScale);
           clone = ClipperLib.Clipper.CleanPolygon(clone, cleanTrashold);
           area = Math.abs(ClipperLib.Clipper.Area(clone));
 

@@ -802,12 +802,10 @@ export default class SvgParser {
 
     for (i = 0; i < polygon.length; ++i) {
       result.push({
-        X: polygon[i].x,
-        Y: polygon[i].y
+        X: polygon[i].x * clipperScale,
+        Y: polygon[i].y * clipperScale
       });
     }
-
-    ClipperLib.JS.ScaleUpPath(result, clipperScale);
 
     return result;
   }

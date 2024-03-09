@@ -26,6 +26,8 @@ export interface IPolygon extends Array<IPoint>, IRect {
   parent?: IPolygon;
   children?: IPolygon[];
   rotation: number;
+  offsetx?: number;
+  offsety?: number;
   source: number;
   hole?: boolean;
   offset?: IPoint;
