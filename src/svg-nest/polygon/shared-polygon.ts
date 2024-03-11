@@ -31,7 +31,7 @@ export default class SharedPolygon {
       ClipperLib.EndType.etClosedPolygon
     );
 
-    const newPaths = new ClipperLib.Paths();
+    const newPaths: ClipperPoint[][] = [];
     co.Execute(newPaths, offset * this._configuration.clipperScale);
 
     const result: IPolygon[] = [];

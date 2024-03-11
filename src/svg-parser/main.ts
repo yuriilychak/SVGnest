@@ -1,6 +1,3 @@
-//@ts-ignore
-import ClipperLib from "js-clipper";
-
 /*!
  * SvgParser
  * A library to convert an SVG string to parse-able segments for CAD/CAM use
@@ -24,6 +21,8 @@ import {
   IPoint,
   SvgNestConfiguration
 } from "../interfaces";
+import { Clipper } from "../parallel/shared-worker/clipper";
+import { PolyFillType } from "../parallel/shared-worker/enums";
 
 export default class SvgParser {
   private allowedElements: Array<PrimitiveTagName> = [
@@ -731,10 +730,7 @@ export default class SvgParser {
     ) as IPolygon;
     const p = this._svgToClipper(polygon, clipperScale);
     // remove self-intersections and find the biggest polygon that's left
-    const simple = ClipperLib.Clipper.SimplifyPolygon(
-      p,
-      ClipperLib.PolyFillType.pftNonZero
-    );
+    const simple = Clipper.SimplifyPolygon(p, PolyFillType.pftNonZero);
 
     if (!simple || simple.length == 0) {
       return null;
@@ -742,11 +738,11 @@ export default class SvgParser {
 
     let i = 0;
     let biggest = simple[0];
-    let biggestArea = Math.abs(ClipperLib.Clipper.Area(biggest));
+    let biggestArea = Math.abs(Clipper.Area(biggest));
     let area;
 
     for (i = 1; i < simple.length; ++i) {
-      area = Math.abs(ClipperLib.Clipper.Area(simple[i]));
+      area = Math.abs(Clipper.Area(simple[i]));
 
       if (area > biggestArea) {
         biggest = simple[i];
@@ -755,10 +751,7 @@ export default class SvgParser {
     }
 
     // clean up singularities, coincident points and edges
-    const clean = ClipperLib.Clipper.CleanPolygon(
-      biggest,
-      curveTolerance * clipperScale
-    );
+    const clean = Clipper.CleanPolygon(biggest, curveTolerance * clipperScale);
 
     if (!clean || clean.length === 0) {
       return null;

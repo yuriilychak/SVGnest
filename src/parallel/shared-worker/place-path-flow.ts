@@ -1,5 +1,3 @@
-//@ts-ignore
-import ClipperLib from "js-clipper";
 import {
   polygonArea,
   getPolygonBounds,
@@ -17,6 +15,8 @@ import {
   PlacePairConfiguration,
   IPoint
 } from "../../interfaces";
+import { Clipper } from "./clipper";
+import { PolyFillType, PolyType, ClipType } from "./enums";
 
 self.alert = function (message: string): void {
   console.log(message);
@@ -51,8 +51,8 @@ export default function placePaths(
   let position;
   let clipperBinNfp;
   let clipper;
-  let combinedNfp;
-  let finalNfp;
+  let combinedNfp: ClipperPoint[][];
+  let finalNfp: ClipperPoint[][];
   let f;
   let allPoints: IPolygon;
   let index;
@@ -141,8 +141,8 @@ export default function placePaths(
         );
       }
 
-      clipper = new ClipperLib.Clipper();
-      combinedNfp = new ClipperLib.Paths();
+      clipper = new Clipper();
+      combinedNfp = [];
 
       for (j = 0; j < placed.length; ++j) {
         numKey = generateNFPCacheKey(rotations, false, placed.at(j), path);
@@ -162,47 +162,47 @@ export default function placePaths(
               (clone.at(m).Y + placements.at(j).y) * env.config.clipperScale;
           }
 
-          clone = ClipperLib.Clipper.CleanPolygon(clone, cleanTrashold);
-          area = Math.abs(ClipperLib.Clipper.Area(clone));
+          clone = Clipper.CleanPolygon(clone, cleanTrashold);
+          area = Math.abs(Clipper.Area(clone));
 
           if (clone.length > 2 && area > minScale) {
-            clipper.AddPath(clone, ClipperLib.PolyType.ptSubject, true);
+            clipper.AddPath(clone, PolyType.ptSubject, true);
           }
         }
       }
 
       if (
         !clipper.Execute(
-          ClipperLib.ClipType.ctUnion,
+          ClipType.ctUnion,
           combinedNfp,
-          ClipperLib.PolyFillType.pftNonZero,
-          ClipperLib.PolyFillType.pftNonZero
+          PolyFillType.pftNonZero,
+          PolyFillType.pftNonZero
         )
       ) {
         continue;
       }
 
       // difference with bin polygon
-      finalNfp = new ClipperLib.Paths();
-      clipper = new ClipperLib.Clipper();
+      finalNfp = [];
+      clipper = new Clipper();
 
-      clipper.AddPaths(combinedNfp, ClipperLib.PolyType.ptClip, true);
-      clipper.AddPaths(clipperBinNfp, ClipperLib.PolyType.ptSubject, true);
+      clipper.AddPaths(combinedNfp, PolyType.ptClip, true);
+      clipper.AddPaths(clipperBinNfp, PolyType.ptSubject, true);
       if (
         !clipper.Execute(
-          ClipperLib.ClipType.ctDifference,
+          ClipType.ctDifference,
           finalNfp,
-          ClipperLib.PolyFillType.pftNonZero,
-          ClipperLib.PolyFillType.pftNonZero
+          PolyFillType.pftNonZero,
+          PolyFillType.pftNonZero
         )
       ) {
         continue;
       }
 
-      finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, cleanTrashold);
+      finalNfp = Clipper.CleanPolygons(finalNfp, cleanTrashold);
 
       for (j = 0; j < finalNfp.length; ++j) {
-        area = Math.abs(ClipperLib.Clipper.Area(finalNfp.at(j)));
+        area = Math.abs(Clipper.Area(finalNfp.at(j)));
 
         if (finalNfp.at(j).length < 3 || area < minScale) {
           finalNfp.splice(j, 1);
@@ -221,8 +221,6 @@ export default function placePaths(
         f.push(toNestCoordinates(finalNfp.at(j), env.config.clipperScale));
       }
 
-      finalNfp = f;
-
       // choose placement that results in the smallest bounding box
       // could use convex hull instead, but it can create oddly shaped nests (triangles or long slivers) which are not optimal for real-world use
       // todo: generalize gravity direction
@@ -230,8 +228,8 @@ export default function placePaths(
       minArea = null;
       minX = null;
 
-      for (j = 0; j < finalNfp.length; ++j) {
-        nf = finalNfp.at(j);
+      for (j = 0; j < f.length; ++j) {
+        nf = f.at(j);
         if (Math.abs(polygonArea(nf)) < 2) {
           continue;
         }

@@ -1,10 +1,9 @@
 //@ts-ignore
-import { Clipper, PolyFillType, ClipType, PolyType } from "js-clipper";
+import { Clipper } from "./clipper";
 
 import {
   polygonArea,
   rotatePolygon,
-  toClipperCoordinates,
   toNestCoordinates,
   getPolygonBounds,
   pointInPolygon
@@ -20,6 +19,7 @@ import {
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
 import { Rect, Point } from "../../geom";
+import { ClipType, PolyFillType, PolyType } from "./enums";
 
 self.alert = function (message: string): void {
   console.log(message);
@@ -92,7 +92,7 @@ function minkowskiDifference(a: IPolygon, b: IPolygon): IPolygon[] {
       quads.push(quad);
     }
   }
-  const clipper: Clipper = new Clipper(0);
+  const clipper: Clipper = new Clipper();
 
   clipper.AddPaths(quads, PolyType.ptSubject, true);
   clipper.Execute(
