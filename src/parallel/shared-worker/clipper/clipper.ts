@@ -7,6 +7,7 @@ import {
 } from "../enums";
 import Int128 from "./int-128";
 import IntPoint from "./int-point";
+import IntRect from "./int-rect";
 import IntersectNode from "./intersect-node";
 import Join from "./join";
 import LocalMinima from "./local-minima";
@@ -35,7 +36,7 @@ export default class Clipper {
   private m_ExecuteLocked: boolean = false;
   private m_ClipFillType: PolyFillType = PolyFillType.pftEvenOdd;
   private m_SubjFillType: PolyFillType = PolyFillType.pftEvenOdd;
-  private ReverseSolution: boolean = false;
+  public ReverseSolution: boolean = false;
   private StrictlySimple: boolean = false;
   private m_IntersectList: IntersectNode[] = [];
   private m_UsingPolyTree: boolean = false;
@@ -2885,6 +2886,35 @@ export default class Clipper {
     return result;
   }
 
+  public static GetBounds(paths: IntPoint[][]) {
+    var i = 0,
+      cnt = paths.length;
+    while (i < cnt && paths[i].length == 0) i++;
+    if (i == cnt) return new IntRect();
+    var result = new IntRect();
+    result.left = paths[i][0].X;
+    result.right = result.left;
+    result.top = paths[i][0].Y;
+    result.bottom = result.top;
+    for (; i < cnt; i++)
+      for (var j = 0, jlen = paths[i].length; j < jlen; j++) {
+        if (paths[i][j].X < result.left) result.left = paths[i][j].X;
+        else if (paths[i][j].X > result.right) result.right = paths[i][j].X;
+        if (paths[i][j].Y < result.top) result.top = paths[i][j].Y;
+        else if (paths[i][j].Y > result.bottom) result.bottom = paths[i][j].Y;
+      }
+    return result;
+  }
+
+  public static Orientation(poly: IntPoint[]): boolean {
+    return Clipper.Area(poly) >= 0;
+  }
+
+  public static near_zero(val: number) {
+    return val > -Clipper.tolerance && val < Clipper.tolerance;
+  }
+
+  static tolerance: number = 1e-20;
   static Unassigned: number = -1;
   static horizontal: number = -9007199254740992;
   static Skip: number = -2;

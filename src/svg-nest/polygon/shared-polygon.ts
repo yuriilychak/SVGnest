@@ -1,9 +1,8 @@
-//@ts-ignore
-import ClipperLib from "js-clipper";
-
 import { almostEqual } from "../../util";
 import { IPolygon, ClipperPoint, SvgNestConfiguration } from "../../interfaces";
 import { toNestCoordinates, toClipperCoordinates } from "../../geometry-util";
+import { JoinType, EndType } from "../../parallel/shared-worker/enums";
+import { ClipperOffset } from "../../parallel/shared-worker/clipper";
 
 export default class SharedPolygon {
   private _configuration: SvgNestConfiguration;
@@ -21,15 +20,11 @@ export default class SharedPolygon {
 
     const p: ClipperPoint[] = this.svgToClipper(polygon);
     const miterLimit: number = 2;
-    const co = new ClipperLib.ClipperOffset(
+    const co = new ClipperOffset(
       miterLimit,
       this._configuration.curveTolerance * this._configuration.clipperScale
     );
-    co.AddPath(
-      p,
-      ClipperLib.JoinType.jtRound,
-      ClipperLib.EndType.etClosedPolygon
-    );
+    co.AddPath(p, JoinType.jtRound, EndType.etClosedPolygon);
 
     const newPaths: ClipperPoint[][] = [];
     co.Execute(newPaths, offset * this._configuration.clipperScale);
