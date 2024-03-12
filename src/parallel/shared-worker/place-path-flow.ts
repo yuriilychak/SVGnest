@@ -18,10 +18,6 @@ import {
 import { Clipper } from "./clipper";
 import { PolyFillType, PolyType, ClipType } from "./enums";
 
-self.alert = function (message: string): void {
-  console.log(message);
-};
-
 export default function placePaths(
   inputPaths: IPolygon[],
   env: PlacePairConfiguration

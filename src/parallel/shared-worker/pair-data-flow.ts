@@ -21,10 +21,6 @@ import { instantiate, __AdaptedExports } from "../../asm";
 import { Rect, Point } from "../../geom";
 import { ClipType, PolyFillType, PolyType } from "./enums";
 
-self.alert = function (message: string): void {
-  console.log(message);
-};
-
 function orientation(poly: ClipperPoint[]): boolean {
   const pointCount: number = poly.length;
   let result: number = 0;
