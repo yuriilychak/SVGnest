@@ -1,5 +1,5 @@
 //@ts-ignore
-import { Clipper } from "./clipper";
+import { Clipper } from "../../clipper";
 
 import {
   polygonArea,
@@ -10,7 +10,6 @@ import {
 } from "../../geometry-util";
 import { exportPolygon, keyToNFPData, importPolygons } from "../../util";
 import {
-  ClipperPoint,
   IPoint,
   IPolygon,
   NfpPair,
@@ -19,14 +18,14 @@ import {
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
 import { Rect, Point } from "../../geom";
-import { ClipType, PolyFillType, PolyType } from "./enums";
+import { IntPoint, ClipType, PolyFillType, PolyType } from "../../clipper";
 
-function orientation(poly: ClipperPoint[]): boolean {
+function orientation(poly: IntPoint[]): boolean {
   const pointCount: number = poly.length;
   let result: number = 0;
   let i: number = 0;
-  let prevPoint: ClipperPoint;
-  let currentPoint: ClipperPoint;
+  let prevPoint: IntPoint;
+  let currentPoint: IntPoint;
 
   for (i = 0; i < pointCount; ++i) {
     currentPoint = poly[i];
@@ -41,13 +40,13 @@ function minkowskiDifference(a: IPolygon, b: IPolygon): IPolygon[] {
   const scale: number = 10000000;
   const sizeA: number = a.length;
   const sizeB: number = b.length;
-  const solutions: ClipperPoint[][] = [];
-  const quads: ClipperPoint[][] = [];
+  const solutions: IntPoint[][] = [];
+  const quads: IntPoint[][] = [];
   let pointB: IPoint;
   let pointA: IPoint;
-  let currentPath: ClipperPoint[];
-  let nextPath: ClipperPoint[];
-  let quad: ClipperPoint[];
+  let currentPath: IntPoint[];
+  let nextPath: IntPoint[];
+  let quad: IntPoint[];
   let i: number = 0;
   let j: number = 0;
   let clipperNfp;

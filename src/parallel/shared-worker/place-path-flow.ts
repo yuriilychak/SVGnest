@@ -10,13 +10,17 @@ import { Point } from "../../geom";
 import { almostEqual } from "../../util";
 import {
   IPolygon,
-  ClipperPoint,
   PlaceDataResult,
   PlacePairConfiguration,
   IPoint
 } from "../../interfaces";
-import { Clipper } from "./clipper";
-import { PolyFillType, PolyType, ClipType } from "./enums";
+import {
+  Clipper,
+  PolyFillType,
+  PolyType,
+  ClipType,
+  IntPoint
+} from "../../clipper";
 
 export default function placePaths(
   inputPaths: IPolygon[],
@@ -47,8 +51,8 @@ export default function placePaths(
   let position;
   let clipperBinNfp;
   let clipper;
-  let combinedNfp: ClipperPoint[][];
-  let finalNfp: ClipperPoint[][];
+  let combinedNfp: IntPoint[][];
+  let finalNfp: IntPoint[][];
   let f;
   let allPoints: IPolygon;
   let index;
@@ -59,7 +63,7 @@ export default function placePaths(
   let nf;
   let area: number;
   let shiftVector: IPoint;
-  let clone: ClipperPoint[];
+  let clone: IntPoint[];
   const minScale: number =
     0.1 * env.config.clipperScale * env.config.clipperScale;
   const cleanTrashold: number = 0.0001 * env.config.clipperScale;

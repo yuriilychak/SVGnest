@@ -1,10 +1,4 @@
-import {
-  ClipType,
-  Direction,
-  EdgeSide,
-  PolyFillType,
-  PolyType
-} from "../enums";
+import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
 import Int128 from "./int-128";
 import IntPoint from "./int-point";
 import IntRect from "./int-rect";

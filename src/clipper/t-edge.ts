@@ -1,4 +1,4 @@
-import { EdgeSide, PolyType } from "../enums";
+import { EdgeSide, PolyType } from "./enums";
 import IntPoint from "./int-point";
 
 export default class TEdge {

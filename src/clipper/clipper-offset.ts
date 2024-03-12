@@ -1,5 +1,4 @@
-import { ClipperPoint } from "../../../interfaces";
-import { ClipType, EndType, JoinType, PolyType, PolyFillType } from "../enums";
+import { ClipType, EndType, JoinType, PolyType, PolyFillType } from "./enums";
 import Clipper from "./clipper";
 import IntPoint from "./int-point";
 import PolyNode from "./poly-node";
@@ -29,7 +28,7 @@ export default class ClipperOffset {
     this.ArcTolerance = arcTolerance;
   }
 
-  public AddPath(path: ClipperPoint[], joinType: JoinType, endType: EndType) {
+  public AddPath(path: IntPoint[], joinType: JoinType, endType: EndType) {
     var highI = path.length - 1;
     if (highI < 0) return;
     var newNode = new PolyNode();

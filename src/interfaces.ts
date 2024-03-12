@@ -68,11 +68,6 @@ export interface PlacePairConfiguration {
   nfpCache: Map<number, IPolygon[]>;
 }
 
-export interface ClipperPoint {
-  X: number;
-  Y: number;
-}
-
 export interface PairDataResult {
   value: IPolygon[];
   numKey: number;

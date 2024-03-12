@@ -2,8 +2,9 @@
 // returns the area of the polygon, assuming no self-intersections
 
 import { Rect, Point } from "../geom";
-import { IPolygon, ClipperPoint, IPoint } from "../interfaces";
+import { IPolygon, IPoint } from "../interfaces";
 import { TripleStatus } from "../enums";
+import { IntPoint } from "../clipper";
 
 //TODO: depreacete when polygone will be moved to class
 
@@ -134,9 +135,9 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): TripleStatus {
 export function toClipperCoordinates(
   polygon: IPolygon,
   scale: number = 1
-): ClipperPoint[] {
+): IntPoint[] {
   const size: number = polygon.length;
-  const result: ClipperPoint[] = [];
+  const result: IntPoint[] = [];
   let i: number = 0;
   let point: IPoint;
 
@@ -149,13 +150,13 @@ export function toClipperCoordinates(
 }
 
 export function toNestCoordinates(
-  polygon: ClipperPoint[],
+  polygon: IntPoint[],
   scale: number
 ): IPolygon {
   const size: number = polygon.length;
   const result: IPolygon = new Array<IPoint>() as IPolygon;
   let i: number = 0;
-  let point: ClipperPoint;
+  let point: IntPoint;
 
   for (i = 0; i < size; ++i) {
     point = polygon[i];
