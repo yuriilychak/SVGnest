@@ -29,13 +29,13 @@ export default class Clipper {
   private m_UseFullRange: boolean = false;
   private m_HasOpenPaths: boolean = false;
   private PreserveCollinear: boolean = false;
-  private m_ClipType: ClipType = ClipType.ctIntersection;
+  private m_ClipType: ClipType = ClipType.Intersection;
   private m_Scanbeam: Scanbeam = null;
   private m_ActiveEdges: TEdge = null;
   private m_SortedEdges: TEdge = null;
   private m_ExecuteLocked: boolean = false;
-  private m_ClipFillType: PolyFillType = PolyFillType.pftEvenOdd;
-  private m_SubjFillType: PolyFillType = PolyFillType.pftEvenOdd;
+  private m_ClipFillType: PolyFillType = PolyFillType.EvenOdd;
+  private m_SubjFillType: PolyFillType = PolyFillType.EvenOdd;
   public ReverseSolution: boolean = false;
   private StrictlySimple: boolean = false;
   private m_IntersectList: IntersectNode[] = [];
@@ -72,7 +72,7 @@ export default class Clipper {
     polyType: PolyType,
     isClosed: boolean
   ): boolean {
-    if (!isClosed && polyType == PolyType.ptClip)
+    if (!isClosed && polyType == PolyType.Clip)
       console.error("AddPath: Open paths must be subject.");
 
     var highI = pg.length - 1;
@@ -171,7 +171,7 @@ export default class Clipper {
       locMin.Y = E.Bot.Y;
       locMin.LeftBound = null;
       locMin.RightBound = E;
-      locMin.RightBound.Side = EdgeSide.esRight;
+      locMin.RightBound.Side = EdgeSide.Right;
       locMin.RightBound.WindDelta = 0;
       while (E.Next.OutIdx != Clipper.Skip) {
         E.NextInLML = E.Next;
@@ -206,8 +206,8 @@ export default class Clipper {
         clockwise = true;
         //Q.nextInLML = Q.next
       }
-      locMin.LeftBound.Side = EdgeSide.esLeft;
-      locMin.RightBound.Side = EdgeSide.esRight;
+      locMin.LeftBound.Side = EdgeSide.Left;
+      locMin.RightBound.Side = EdgeSide.Right;
       if (!isClosed) locMin.LeftBound.WindDelta = 0;
       else if (locMin.LeftBound.Next == locMin.RightBound)
         locMin.LeftBound.WindDelta = -1;
@@ -635,8 +635,8 @@ export default class Clipper {
     var p2_rt = p2_lft.Prev;
     var side;
     //join e2 poly onto e1 poly and delete pointers to e2 ...
-    if (e1.Side == EdgeSide.esLeft) {
-      if (e2.Side == EdgeSide.esLeft) {
+    if (e1.Side == EdgeSide.Left) {
+      if (e2.Side == EdgeSide.Left) {
         //z y x a b c
         this.ReversePolyPtLinks(p2_lft);
         p2_lft.Next = p1_lft;
@@ -652,9 +652,9 @@ export default class Clipper {
         p1_rt.Next = p2_lft;
         outRec1.Pts = p2_lft;
       }
-      side = EdgeSide.esLeft;
+      side = EdgeSide.Left;
     } else {
-      if (e2.Side == EdgeSide.esRight) {
+      if (e2.Side == EdgeSide.Right) {
         //a b c z y x
         this.ReversePolyPtLinks(p2_lft);
         p1_rt.Next = p2_rt;
@@ -668,7 +668,7 @@ export default class Clipper {
         p1_lft.Prev = p2_rt;
         p2_rt.Next = p1_lft;
       }
-      side = EdgeSide.esRight;
+      side = EdgeSide.Right;
     }
     outRec1.BottomPt = null;
     if (holeStateRec == outRec2) {
@@ -734,7 +734,7 @@ export default class Clipper {
       else if (
         e1.PolyTyp == e2.PolyTyp &&
         e1.WindDelta != e2.WindDelta &&
-        this.m_ClipType == ClipType.ctUnion
+        this.m_ClipType == ClipType.Union
       ) {
         if (e1.WindDelta === 0) {
           if (e2Contributing) {
@@ -751,14 +751,14 @@ export default class Clipper {
         if (
           e1.WindDelta === 0 &&
           Math.abs(e2.WindCnt) == 1 &&
-          (this.m_ClipType != ClipType.ctUnion || e2.WindCnt2 === 0)
+          (this.m_ClipType != ClipType.Union || e2.WindCnt2 === 0)
         ) {
           this.AddOutPt(e1, pt);
           if (e1Contributing) e1.OutIdx = -1;
         } else if (
           e2.WindDelta === 0 &&
           Math.abs(e1.WindCnt) == 1 &&
-          (this.m_ClipType != ClipType.ctUnion || e1.WindCnt2 === 0)
+          (this.m_ClipType != ClipType.Union || e1.WindCnt2 === 0)
         ) {
           this.AddOutPt(e2, pt);
           if (e2Contributing) e2.OutIdx = -1;
@@ -793,14 +793,14 @@ export default class Clipper {
       else e2.WindCnt2 = e2.WindCnt2 === 0 ? 1 : 0;
     }
     var e1FillType, e2FillType, e1FillType2, e2FillType2;
-    if (e1.PolyTyp == PolyType.ptSubject) {
+    if (e1.PolyTyp == PolyType.Subject) {
       e1FillType = this.m_SubjFillType;
       e1FillType2 = this.m_ClipFillType;
     } else {
       e1FillType = this.m_ClipFillType;
       e1FillType2 = this.m_SubjFillType;
     }
-    if (e2.PolyTyp == PolyType.ptSubject) {
+    if (e2.PolyTyp == PolyType.Subject) {
       e2FillType = this.m_SubjFillType;
       e2FillType2 = this.m_ClipFillType;
     } else {
@@ -809,10 +809,10 @@ export default class Clipper {
     }
     var e1Wc, e2Wc;
     switch (e1FillType) {
-      case PolyFillType.pftPositive:
+      case PolyFillType.Positive:
         e1Wc = e1.WindCnt;
         break;
-      case PolyFillType.pftNegative:
+      case PolyFillType.Negative:
         e1Wc = -e1.WindCnt;
         break;
       default:
@@ -820,10 +820,10 @@ export default class Clipper {
         break;
     }
     switch (e2FillType) {
-      case PolyFillType.pftPositive:
+      case PolyFillType.Positive:
         e2Wc = e2.WindCnt;
         break;
-      case PolyFillType.pftNegative:
+      case PolyFillType.Negative:
         e2Wc = -e2.WindCnt;
         break;
       default:
@@ -836,7 +836,7 @@ export default class Clipper {
         e2stops ||
         (e1Wc !== 0 && e1Wc != 1) ||
         (e2Wc !== 0 && e2Wc != 1) ||
-        (e1.PolyTyp != e2.PolyTyp && this.m_ClipType != ClipType.ctXor)
+        (e1.PolyTyp != e2.PolyTyp && this.m_ClipType != ClipType.Xor)
       )
         this.AddLocalMaxPoly(e1, e2, pt);
       else {
@@ -866,10 +866,10 @@ export default class Clipper {
       //neither edge is currently contributing ...
       var e1Wc2, e2Wc2;
       switch (e1FillType2) {
-        case PolyFillType.pftPositive:
+        case PolyFillType.Positive:
           e1Wc2 = e1.WindCnt2;
           break;
-        case PolyFillType.pftNegative:
+        case PolyFillType.Negative:
           e1Wc2 = -e1.WindCnt2;
           break;
         default:
@@ -877,10 +877,10 @@ export default class Clipper {
           break;
       }
       switch (e2FillType2) {
-        case PolyFillType.pftPositive:
+        case PolyFillType.Positive:
           e2Wc2 = e2.WindCnt2;
           break;
-        case PolyFillType.pftNegative:
+        case PolyFillType.Negative:
           e2Wc2 = -e2.WindCnt2;
           break;
         default:
@@ -890,20 +890,20 @@ export default class Clipper {
       if (e1.PolyTyp != e2.PolyTyp) this.AddLocalMinPoly(e1, e2, pt);
       else if (e1Wc == 1 && e2Wc == 1)
         switch (this.m_ClipType) {
-          case ClipType.ctIntersection:
+          case ClipType.Intersection:
             if (e1Wc2 > 0 && e2Wc2 > 0) this.AddLocalMinPoly(e1, e2, pt);
             break;
-          case ClipType.ctUnion:
+          case ClipType.Union:
             if (e1Wc2 <= 0 && e2Wc2 <= 0) this.AddLocalMinPoly(e1, e2, pt);
             break;
-          case ClipType.ctDifference:
+          case ClipType.Difference:
             if (
-              (e1.PolyTyp == PolyType.ptClip && e1Wc2 > 0 && e2Wc2 > 0) ||
-              (e1.PolyTyp == PolyType.ptSubject && e1Wc2 <= 0 && e2Wc2 <= 0)
+              (e1.PolyTyp == PolyType.Clip && e1Wc2 > 0 && e2Wc2 > 0) ||
+              (e1.PolyTyp == PolyType.Subject && e1Wc2 <= 0 && e2Wc2 <= 0)
             )
               this.AddLocalMinPoly(e1, e2, pt);
             break;
-          case ClipType.ctXor:
+          case ClipType.Xor:
             this.AddLocalMinPoly(e1, e2, pt);
             break;
         }
@@ -1305,15 +1305,15 @@ export default class Clipper {
   }
 
   public IsEvenOddFillType(edge: TEdge): boolean {
-    if (edge.PolyTyp == PolyType.ptSubject)
-      return this.m_SubjFillType == PolyFillType.pftEvenOdd;
-    else return this.m_ClipFillType == PolyFillType.pftEvenOdd;
+    if (edge.PolyTyp == PolyType.Subject)
+      return this.m_SubjFillType == PolyFillType.EvenOdd;
+    else return this.m_ClipFillType == PolyFillType.EvenOdd;
   }
 
   public IsEvenOddAltFillType(edge: TEdge): boolean {
-    if (edge.PolyTyp == PolyType.ptSubject)
-      return this.m_ClipFillType == PolyFillType.pftEvenOdd;
-    else return this.m_SubjFillType == PolyFillType.pftEvenOdd;
+    if (edge.PolyTyp == PolyType.Subject)
+      return this.m_ClipFillType == PolyFillType.EvenOdd;
+    else return this.m_SubjFillType == PolyFillType.EvenOdd;
   }
 
   public SetWindingCount(edge: TEdge): void {
@@ -1326,7 +1326,7 @@ export default class Clipper {
       edge.WindCnt2 = 0;
       e = this.m_ActiveEdges;
       //ie get ready to calc WindCnt2
-    } else if (edge.WindDelta === 0 && this.m_ClipType != ClipType.ctUnion) {
+    } else if (edge.WindDelta === 0 && this.m_ClipType != ClipType.Union) {
       edge.WindCnt = 1;
       edge.WindCnt2 = e.WindCnt2;
       e = e.NextInAEL;
@@ -1389,7 +1389,7 @@ export default class Clipper {
 
   IsContributing(edge: TEdge): boolean {
     var pft, pft2;
-    if (edge.PolyTyp == PolyType.ptSubject) {
+    if (edge.PolyTyp == PolyType.Subject) {
       pft = this.m_SubjFillType;
       pft2 = this.m_ClipFillType;
     } else {
@@ -1397,13 +1397,13 @@ export default class Clipper {
       pft2 = this.m_SubjFillType;
     }
     switch (pft) {
-      case PolyFillType.pftEvenOdd:
+      case PolyFillType.EvenOdd:
         if (edge.WindDelta === 0 && edge.WindCnt != 1) return false;
         break;
-      case PolyFillType.pftNonZero:
+      case PolyFillType.NonZero:
         if (Math.abs(edge.WindCnt) != 1) return false;
         break;
-      case PolyFillType.pftPositive:
+      case PolyFillType.Positive:
         if (edge.WindCnt != 1) return false;
         break;
       default:
@@ -1411,54 +1411,54 @@ export default class Clipper {
         break;
     }
     switch (this.m_ClipType) {
-      case ClipType.ctIntersection:
+      case ClipType.Intersection:
         switch (pft2) {
-          case PolyFillType.pftEvenOdd:
-          case PolyFillType.pftNonZero:
+          case PolyFillType.EvenOdd:
+          case PolyFillType.NonZero:
             return edge.WindCnt2 !== 0;
-          case PolyFillType.pftPositive:
+          case PolyFillType.Positive:
             return edge.WindCnt2 > 0;
           default:
             return edge.WindCnt2 < 0;
         }
-      case ClipType.ctUnion:
+      case ClipType.Union:
         switch (pft2) {
-          case PolyFillType.pftEvenOdd:
-          case PolyFillType.pftNonZero:
+          case PolyFillType.EvenOdd:
+          case PolyFillType.NonZero:
             return edge.WindCnt2 === 0;
-          case PolyFillType.pftPositive:
+          case PolyFillType.Positive:
             return edge.WindCnt2 <= 0;
           default:
             return edge.WindCnt2 >= 0;
         }
-      case ClipType.ctDifference:
-        if (edge.PolyTyp == PolyType.ptSubject)
+      case ClipType.Difference:
+        if (edge.PolyTyp == PolyType.Subject)
           switch (pft2) {
-            case PolyFillType.pftEvenOdd:
-            case PolyFillType.pftNonZero:
+            case PolyFillType.EvenOdd:
+            case PolyFillType.NonZero:
               return edge.WindCnt2 === 0;
-            case PolyFillType.pftPositive:
+            case PolyFillType.Positive:
               return edge.WindCnt2 <= 0;
             default:
               return edge.WindCnt2 >= 0;
           }
         else
           switch (pft2) {
-            case PolyFillType.pftEvenOdd:
-            case PolyFillType.pftNonZero:
+            case PolyFillType.EvenOdd:
+            case PolyFillType.NonZero:
               return edge.WindCnt2 !== 0;
-            case PolyFillType.pftPositive:
+            case PolyFillType.Positive:
               return edge.WindCnt2 > 0;
             default:
               return edge.WindCnt2 < 0;
           }
-      case ClipType.ctXor:
+      case ClipType.Xor:
         if (edge.WindDelta === 0)
           switch (pft2) {
-            case PolyFillType.pftEvenOdd:
-            case PolyFillType.pftNonZero:
+            case PolyFillType.EvenOdd:
+            case PolyFillType.NonZero:
               return edge.WindCnt2 === 0;
-            case PolyFillType.pftPositive:
+            case PolyFillType.Positive:
               return edge.WindCnt2 <= 0;
             default:
               return edge.WindCnt2 >= 0;
@@ -1474,16 +1474,16 @@ export default class Clipper {
     if (Clipper.IsHorizontal(e2) || e1.Dx > e2.Dx) {
       result = this.AddOutPt(e1, pt);
       e2.OutIdx = e1.OutIdx;
-      e1.Side = EdgeSide.esLeft;
-      e2.Side = EdgeSide.esRight;
+      e1.Side = EdgeSide.Left;
+      e2.Side = EdgeSide.Right;
       e = e1;
       if (e.PrevInAEL == e2) prevE = e2.PrevInAEL;
       else prevE = e.PrevInAEL;
     } else {
       result = this.AddOutPt(e2, pt);
       e1.OutIdx = e2.OutIdx;
-      e1.Side = EdgeSide.esRight;
-      e2.Side = EdgeSide.esLeft;
+      e1.Side = EdgeSide.Right;
+      e2.Side = EdgeSide.Left;
       e = e2;
       if (e.PrevInAEL == e1) prevE = e1.PrevInAEL;
       else prevE = e.PrevInAEL;
@@ -1757,16 +1757,16 @@ export default class Clipper {
     DiscardLeft: boolean
   ): boolean {
     var Dir1 =
-      op1.Pt.X > op1b.Pt.X ? Direction.dRightToLeft : Direction.dLeftToRight;
+      op1.Pt.X > op1b.Pt.X ? Direction.RightToLeft : Direction.LeftToRight;
     var Dir2 =
-      op2.Pt.X > op2b.Pt.X ? Direction.dRightToLeft : Direction.dLeftToRight;
+      op2.Pt.X > op2b.Pt.X ? Direction.RightToLeft : Direction.LeftToRight;
     if (Dir1 == Dir2) return false;
     //When DiscardLeft, we want Op1b to be on the Left of Op1, otherwise we
     //want Op1b to be on the Right. (And likewise with Op2 and Op2b.)
     //So, to facilitate this while inserting Op1b and Op2b ...
     //when DiscardLeft, make sure we're AT or RIGHT of Pt before adding Op1b,
     //otherwise make sure we're AT or LEFT of Pt. (Likewise with Op2b.)
-    if (Dir1 == Direction.dLeftToRight) {
+    if (Dir1 == Direction.LeftToRight) {
       while (
         op1.Next.Pt.X <= Pt.X &&
         op1.Next.Pt.X >= op1.Pt.X &&
@@ -1799,7 +1799,7 @@ export default class Clipper {
         op1b = this.DupOutPt(op1, DiscardLeft);
       }
     }
-    if (Dir2 == Direction.dLeftToRight) {
+    if (Dir2 == Direction.LeftToRight) {
       while (
         op2.Next.Pt.X <= Pt.X &&
         op2.Next.Pt.X >= op2.Pt.X &&
@@ -1832,7 +1832,7 @@ export default class Clipper {
         op2b = this.DupOutPt(op2, DiscardLeft);
       }
     }
-    if ((Dir1 == Direction.dLeftToRight) == DiscardLeft) {
+    if ((Dir1 == Direction.LeftToRight) == DiscardLeft) {
       op1.Prev = op2;
       op2.Next = op1;
       op1b.Next = op2b;
@@ -2329,7 +2329,7 @@ export default class Clipper {
         //e.Curr = e.Bot;
         e.Curr.X = e.Bot.X;
         e.Curr.Y = e.Bot.Y;
-        e.Side = EdgeSide.esLeft;
+        e.Side = EdgeSide.Left;
         e.OutIdx = Clipper.Unassigned;
       }
       e = lm.RightBound;
@@ -2337,7 +2337,7 @@ export default class Clipper {
         //e.Curr = e.Bot;
         e.Curr.X = e.Bot.X;
         e.Curr.Y = e.Bot.Y;
-        e.Side = EdgeSide.esRight;
+        e.Side = EdgeSide.Right;
         e.OutIdx = Clipper.Unassigned;
       }
       lm = lm.Next;
@@ -2377,7 +2377,7 @@ export default class Clipper {
   }
 
   public GetNextInAEL(e: TEdge, direction: Direction) {
-    return direction == Direction.dLeftToRight ? e.NextInAEL : e.PrevInAEL;
+    return direction == Direction.LeftToRight ? e.NextInAEL : e.PrevInAEL;
   }
 
   public UpdateEdgeIntoAEL(e: TEdge) {
@@ -2450,8 +2450,8 @@ export default class Clipper {
         var eNext = this.GetNextInAEL(e, dir);
         //saves eNext for later
         if (
-          (dir == Direction.dLeftToRight && e.Curr.X <= horzRight) ||
-          (dir == Direction.dRightToLeft && e.Curr.X >= horzLeft)
+          (dir == Direction.LeftToRight && e.Curr.X <= horzRight) ||
+          (dir == Direction.RightToLeft && e.Curr.X >= horzLeft)
         ) {
           if (horzEdge.OutIdx >= 0 && horzEdge.WindDelta != 0)
             this.PrepareHorzJoins(horzEdge, isTopOfScanbeam);
@@ -2459,12 +2459,12 @@ export default class Clipper {
           //so far we're still in range of the horizontal Edge  but make sure
           //we're at the last of consec. horizontals when matching with eMaxPair
           if (e == eMaxPair && IsLastHorz) {
-            if (dir == Direction.dLeftToRight)
+            if (dir == Direction.LeftToRight)
               this.IntersectEdges(horzEdge, e, e.Top, false);
             else this.IntersectEdges(e, horzEdge, e.Top, false);
             if (eMaxPair.OutIdx >= 0) console.error("ProcessHorizontal error");
             return;
-          } else if (dir == Direction.dLeftToRight) {
+          } else if (dir == Direction.LeftToRight) {
             var Pt = new IntPoint(e.Curr.X, horzEdge.Curr.Y);
             this.IntersectEdges(horzEdge, e, Pt, true);
           } else {
@@ -2473,8 +2473,8 @@ export default class Clipper {
           }
           this.SwapPositionsInAEL(horzEdge, e);
         } else if (
-          (dir == Direction.dLeftToRight && e.Curr.X >= horzRight) ||
-          (dir == Direction.dRightToLeft && e.Curr.X <= horzLeft)
+          (dir == Direction.LeftToRight && e.Curr.X >= horzRight) ||
+          (dir == Direction.RightToLeft && e.Curr.X <= horzLeft)
         )
           break;
         e = eNext;
@@ -2531,7 +2531,7 @@ export default class Clipper {
       } else horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
     } else if (eMaxPair !== null) {
       if (eMaxPair.OutIdx >= 0) {
-        if (dir == Direction.dLeftToRight)
+        if (dir == Direction.LeftToRight)
           this.IntersectEdges(horzEdge, eMaxPair, horzEdge.Top, false);
         else this.IntersectEdges(eMaxPair, horzEdge, horzEdge.Top, false);
         if (eMaxPair.OutIdx >= 0) console.error("ProcessHorizontal error");
@@ -2549,11 +2549,11 @@ export default class Clipper {
     if (HorzEdge.Bot.X < HorzEdge.Top.X) {
       $var.Left = HorzEdge.Bot.X;
       $var.Right = HorzEdge.Top.X;
-      $var.Dir = Direction.dLeftToRight;
+      $var.Dir = Direction.LeftToRight;
     } else {
       $var.Left = HorzEdge.Top.X;
       $var.Right = HorzEdge.Bot.X;
-      $var.Dir = Direction.dRightToLeft;
+      $var.Dir = Direction.RightToLeft;
     }
   }
 
@@ -2572,7 +2572,7 @@ export default class Clipper {
   }
 
   public AddOutPt(e: TEdge, pt: IntPoint) {
-    var ToFront = e.Side == EdgeSide.esLeft;
+    var ToFront = e.Side == EdgeSide.Left;
     if (e.OutIdx < 0) {
       var outRec: OutRec = this.CreateOutRec();
       outRec.IsOpen = e.WindDelta === 0;
@@ -2612,7 +2612,7 @@ export default class Clipper {
     //get the last Op for this horizontal edge
     //the point may be anywhere along the horizontal ...
     var outPt = this.m_PolyOuts[horzEdge.OutIdx].Pts;
-    if (horzEdge.Side != EdgeSide.esLeft) outPt = outPt.Prev;
+    if (horzEdge.Side != EdgeSide.Left) outPt = outPt.Prev;
     //First, match up overlapping horizontal edges (eg when one polygon's
     //intermediate horz edge overlaps an intermediate horz edge of another, or
     //when one polygon sits on top of another) ...
@@ -2871,8 +2871,8 @@ export default class Clipper {
     var result: IntPoint[][] = [];
     var c = new Clipper();
     c.StrictlySimple = true;
-    c.AddPath(poly, PolyType.ptSubject, true);
-    c.Execute(ClipType.ctUnion, result, fillType, fillType);
+    c.AddPath(poly, PolyType.Subject, true);
+    c.Execute(ClipType.Union, result, fillType, fillType);
     return result;
   }
 

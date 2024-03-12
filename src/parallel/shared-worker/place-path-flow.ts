@@ -162,17 +162,17 @@ export default function placePaths(
           area = Math.abs(Clipper.Area(clone));
 
           if (clone.length > 2 && area > minScale) {
-            clipper.AddPath(clone, PolyType.ptSubject, true);
+            clipper.AddPath(clone, PolyType.Subject, true);
           }
         }
       }
 
       if (
         !clipper.Execute(
-          ClipType.ctUnion,
+          ClipType.Union,
           combinedNfp,
-          PolyFillType.pftNonZero,
-          PolyFillType.pftNonZero
+          PolyFillType.NonZero,
+          PolyFillType.NonZero
         )
       ) {
         continue;
@@ -182,14 +182,14 @@ export default function placePaths(
       finalNfp = [];
       clipper = new Clipper();
 
-      clipper.AddPaths(combinedNfp, PolyType.ptClip, true);
-      clipper.AddPaths(clipperBinNfp, PolyType.ptSubject, true);
+      clipper.AddPaths(combinedNfp, PolyType.Clip, true);
+      clipper.AddPaths(clipperBinNfp, PolyType.Subject, true);
       if (
         !clipper.Execute(
-          ClipType.ctDifference,
+          ClipType.Difference,
           finalNfp,
-          PolyFillType.pftNonZero,
-          PolyFillType.pftNonZero
+          PolyFillType.NonZero,
+          PolyFillType.NonZero
         )
       ) {
         continue;

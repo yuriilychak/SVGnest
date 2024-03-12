@@ -90,12 +90,12 @@ function minkowskiDifference(a: IPolygon, b: IPolygon): IPolygon[] {
   }
   const clipper: Clipper = new Clipper();
 
-  clipper.AddPaths(quads, PolyType.ptSubject, true);
+  clipper.AddPaths(quads, PolyType.Subject, true);
   clipper.Execute(
-    ClipType.ctUnion,
+    ClipType.Union,
     solutions,
-    PolyFillType.pftNonZero,
-    PolyFillType.pftNonZero
+    PolyFillType.NonZero,
+    PolyFillType.NonZero
   );
 
   const solutionCount: number = solutions.length;

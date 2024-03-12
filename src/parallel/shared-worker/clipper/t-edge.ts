@@ -7,8 +7,8 @@ export default class TEdge {
   public Top: IntPoint = new IntPoint();
   public Delta: IntPoint = new IntPoint();
   public Dx: number = 0;
-  public PolyTyp: PolyType = PolyType.ptSubject;
-  public Side: EdgeSide = EdgeSide.esLeft;
+  public PolyTyp: PolyType = PolyType.Subject;
+  public Side: EdgeSide = EdgeSide.Left;
   public WindDelta: number = 0;
   public WindCnt: number = 0;
   public WindCnt2: number = 0;

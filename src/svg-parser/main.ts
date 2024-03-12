@@ -730,7 +730,7 @@ export default class SvgParser {
     ) as IPolygon;
     const p = this._svgToClipper(polygon, clipperScale);
     // remove self-intersections and find the biggest polygon that's left
-    const simple = Clipper.SimplifyPolygon(p, PolyFillType.pftNonZero);
+    const simple = Clipper.SimplifyPolygon(p, PolyFillType.NonZero);
 
     if (!simple || simple.length == 0) {
       return null;
