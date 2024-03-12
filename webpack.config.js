@@ -1,5 +1,6 @@
 import path from "path";
 import { URL } from "url";
+import TerserPlugin from "terser-webpack-plugin";
 
 const __dirname = new URL(".", import.meta.url).pathname;
 
@@ -13,6 +14,14 @@ export default {
   devtool: "source-map",
   resolve: {
     extensions: [".ts", ".js"]
+  },
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        test: /\.js(\?.*)?$/i
+      })
+    ]
   },
   module: {
     rules: [
