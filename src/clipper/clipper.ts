@@ -2880,26 +2880,6 @@ export default class Clipper {
     return result;
   }
 
-  public static GetBounds(paths: IntPoint[][]) {
-    var i = 0,
-      cnt = paths.length;
-    while (i < cnt && paths[i].length == 0) i++;
-    if (i == cnt) return new IntRect();
-    var result = new IntRect();
-    result.left = paths[i][0].X;
-    result.right = result.left;
-    result.top = paths[i][0].Y;
-    result.bottom = result.top;
-    for (; i < cnt; i++)
-      for (var j = 0, jlen = paths[i].length; j < jlen; j++) {
-        if (paths[i][j].X < result.left) result.left = paths[i][j].X;
-        else if (paths[i][j].X > result.right) result.right = paths[i][j].X;
-        if (paths[i][j].Y < result.top) result.top = paths[i][j].Y;
-        else if (paths[i][j].Y > result.bottom) result.bottom = paths[i][j].Y;
-      }
-    return result;
-  }
-
   public static near_zero(val: number) {
     return val > -Clipper.tolerance && val < Clipper.tolerance;
   }

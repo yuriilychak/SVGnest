@@ -2,6 +2,7 @@ import { ClipType, EndType, JoinType, PolyType, PolyFillType } from "./enums";
 import Clipper from "./clipper";
 import IntPoint from "./int-point";
 import PolyNode from "./poly-node";
+import IntRect from "./int-rect";
 
 export default class ClipperOffset {
   private m_destPolys: IntPoint[][] = [];
@@ -84,12 +85,12 @@ export default class ClipperOffset {
         PolyFillType.Positive
       );
     } else {
-      var r = Clipper.GetBounds(this.m_destPolys);
+      var rect: IntRect = IntRect.fromPaths(this.m_destPolys);
       var outer = [];
-      outer.push(new IntPoint(r.left - 10, r.bottom + 10));
-      outer.push(new IntPoint(r.right + 10, r.bottom + 10));
-      outer.push(new IntPoint(r.right + 10, r.top - 10));
-      outer.push(new IntPoint(r.left - 10, r.top - 10));
+      outer.push(new IntPoint(rect.left - 10, rect.bottom + 10));
+      outer.push(new IntPoint(rect.right + 10, rect.bottom + 10));
+      outer.push(new IntPoint(rect.right + 10, rect.top - 10));
+      outer.push(new IntPoint(rect.left - 10, rect.top - 10));
       clpr.AddPath(outer, PolyType.Subject, true);
       clpr.ReverseSolution = true;
       clpr.Execute(
