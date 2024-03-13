@@ -1,7 +1,6 @@
 import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
 import Int128 from "./int-128";
 import IntPoint from "./int-point";
-import IntRect from "./int-rect";
 import IntersectNode from "./intersect-node";
 import Join from "./join";
 import LocalMinima from "./local-minima";
@@ -70,9 +69,8 @@ export default class Clipper {
       console.error("AddPath: Open paths must be subject.");
 
     var highI = pg.length - 1;
-    if (isClosed)
-      while (highI > 0 && IntPoint.op_Equality(pg[highI], pg[0])) --highI;
-    while (highI > 0 && IntPoint.op_Equality(pg[highI], pg[highI - 1])) --highI;
+    if (isClosed) while (highI > 0 && IntPoint.equal(pg[highI], pg[0])) --highI;
+    while (highI > 0 && IntPoint.equal(pg[highI], pg[highI - 1])) --highI;
     if ((isClosed && highI < 2) || (!isClosed && highI < 1)) return false;
     //create a new edge array ...
     var edges: TEdge[] = [];
@@ -107,7 +105,7 @@ export default class Clipper {
     var E: TEdge = eStart,
       eLoopStop = eStart;
     for (;;) {
-      if (IntPoint.op_Equality(E.Curr, E.Next.Curr)) {
+      if (IntPoint.equal(E.Curr, E.Next.Curr)) {
         if (E == E.Next) break;
         if (E == eStart) eStart = E.Next;
         E = this.RemoveEdge(E);
@@ -404,8 +402,8 @@ export default class Clipper {
     var E2;
     for (;;) {
       while (
-        IntPoint.op_Inequality(E.Bot, E.Prev.Bot) ||
-        IntPoint.op_Equality(E.Curr, E.Top)
+        IntPoint.unequal(E.Bot, E.Prev.Bot) ||
+        IntPoint.equal(E.Curr, E.Top)
       )
         E = E.Next;
       if (E.Dx != Clipper.horizontal && E.Prev.Dx != Clipper.horizontal) break;
@@ -426,9 +424,9 @@ export default class Clipper {
     pt3: IntPoint
   ): boolean {
     if (
-      IntPoint.op_Equality(pt1, pt3) ||
-      IntPoint.op_Equality(pt1, pt2) ||
-      IntPoint.op_Equality(pt3, pt2)
+      IntPoint.equal(pt1, pt3) ||
+      IntPoint.equal(pt1, pt2) ||
+      IntPoint.equal(pt3, pt2)
     )
       return false;
     else if (pt1.X != pt3.X) return pt2.X > pt1.X == pt2.X < pt3.X;
@@ -1677,7 +1675,7 @@ export default class Clipper {
       while (dups != p) {
         if (!this.FirstIsBottomPt(p, dups)) pp = dups;
         dups = dups.Next;
-        while (IntPoint.op_Inequality(dups.Pt, pp.Pt)) dups = dups.Next;
+        while (IntPoint.unequal(dups.Pt, pp.Pt)) dups = dups.Next;
       }
     }
     return pp;
@@ -1703,16 +1701,16 @@ export default class Clipper {
 
   public FirstIsBottomPt(btmPt1: OutPt, btmPt2: OutPt) {
     var p = btmPt1.Prev;
-    while (IntPoint.op_Equality(p.Pt, btmPt1.Pt) && p != btmPt1) p = p.Prev;
+    while (IntPoint.equal(p.Pt, btmPt1.Pt) && p != btmPt1) p = p.Prev;
     var dx1p = Math.abs(this.GetDx(btmPt1.Pt, p.Pt));
     p = btmPt1.Next;
-    while (IntPoint.op_Equality(p.Pt, btmPt1.Pt) && p != btmPt1) p = p.Next;
+    while (IntPoint.equal(p.Pt, btmPt1.Pt) && p != btmPt1) p = p.Next;
     var dx1n = Math.abs(this.GetDx(btmPt1.Pt, p.Pt));
     p = btmPt2.Prev;
-    while (IntPoint.op_Equality(p.Pt, btmPt2.Pt) && p != btmPt2) p = p.Prev;
+    while (IntPoint.equal(p.Pt, btmPt2.Pt) && p != btmPt2) p = p.Prev;
     var dx2p = Math.abs(this.GetDx(btmPt2.Pt, p.Pt));
     p = btmPt2.Next;
-    while (IntPoint.op_Equality(p.Pt, btmPt2.Pt) && p != btmPt2) p = p.Next;
+    while (IntPoint.equal(p.Pt, btmPt2.Pt) && p != btmPt2) p = p.Next;
     var dx2n = Math.abs(this.GetDx(btmPt2.Pt, p.Pt));
     return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
   }
@@ -1769,7 +1767,7 @@ export default class Clipper {
         op1 = op1.Next;
       if (DiscardLeft && op1.Pt.X != Pt.X) op1 = op1.Next;
       op1b = this.DupOutPt(op1, !DiscardLeft);
-      if (IntPoint.op_Inequality(op1b.Pt, Pt)) {
+      if (IntPoint.unequal(op1b.Pt, Pt)) {
         op1 = op1b;
         //op1.Pt = Pt;
         op1.Pt.X = Pt.X;
@@ -1785,7 +1783,7 @@ export default class Clipper {
         op1 = op1.Next;
       if (!DiscardLeft && op1.Pt.X != Pt.X) op1 = op1.Next;
       op1b = this.DupOutPt(op1, DiscardLeft);
-      if (IntPoint.op_Inequality(op1b.Pt, Pt)) {
+      if (IntPoint.unequal(op1b.Pt, Pt)) {
         op1 = op1b;
         //op1.Pt = Pt;
         op1.Pt.X = Pt.X;
@@ -1802,7 +1800,7 @@ export default class Clipper {
         op2 = op2.Next;
       if (DiscardLeft && op2.Pt.X != Pt.X) op2 = op2.Next;
       op2b = this.DupOutPt(op2, !DiscardLeft);
-      if (IntPoint.op_Inequality(op2b.Pt, Pt)) {
+      if (IntPoint.unequal(op2b.Pt, Pt)) {
         op2 = op2b;
         //op2.Pt = Pt;
         op2.Pt.X = Pt.X;
@@ -1818,7 +1816,7 @@ export default class Clipper {
         op2 = op2.Next;
       if (!DiscardLeft && op2.Pt.X != Pt.X) op2 = op2.Next;
       op2b = this.DupOutPt(op2, DiscardLeft);
-      if (IntPoint.op_Inequality(op2b.Pt, Pt)) {
+      if (IntPoint.unequal(op2b.Pt, Pt)) {
         op2 = op2b;
         //op2.Pt = Pt;
         op2.Pt.X = Pt.X;
@@ -1882,17 +1880,15 @@ export default class Clipper {
     var isHorizontal = j.OutPt1.Pt.Y == j.OffPt.Y;
     if (
       isHorizontal &&
-      IntPoint.op_Equality(j.OffPt, j.OutPt1.Pt) &&
-      IntPoint.op_Equality(j.OffPt, j.OutPt2.Pt)
+      IntPoint.equal(j.OffPt, j.OutPt1.Pt) &&
+      IntPoint.equal(j.OffPt, j.OutPt2.Pt)
     ) {
       //Strictly Simple join ...
       op1b = j.OutPt1.Next;
-      while (op1b != op1 && IntPoint.op_Equality(op1b.Pt, j.OffPt))
-        op1b = op1b.Next;
+      while (op1b != op1 && IntPoint.equal(op1b.Pt, j.OffPt)) op1b = op1b.Next;
       var reverse1 = op1b.Pt.Y > j.OffPt.Y;
       op2b = j.OutPt2.Next;
-      while (op2b != op2 && IntPoint.op_Equality(op2b.Pt, j.OffPt))
-        op2b = op2b.Next;
+      while (op2b != op2 && IntPoint.equal(op2b.Pt, j.OffPt)) op2b = op2b.Next;
       var reverse2 = op2b.Pt.Y > j.OffPt.Y;
       if (reverse1 == reverse2) return false;
       if (reverse1) {
@@ -1985,15 +1981,13 @@ export default class Clipper {
       //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
       //make sure the polygons are correctly oriented ...
       op1b = op1.Next;
-      while (IntPoint.op_Equality(op1b.Pt, op1.Pt) && op1b != op1)
-        op1b = op1b.Next;
+      while (IntPoint.equal(op1b.Pt, op1.Pt) && op1b != op1) op1b = op1b.Next;
       var Reverse1 =
         op1b.Pt.Y > op1.Pt.Y ||
         !Clipper.SlopesEqual(op1.Pt, op1b.Pt, j.OffPt, this.m_UseFullRange);
       if (Reverse1) {
         op1b = op1.Prev;
-        while (IntPoint.op_Equality(op1b.Pt, op1.Pt) && op1b != op1)
-          op1b = op1b.Prev;
+        while (IntPoint.equal(op1b.Pt, op1.Pt) && op1b != op1) op1b = op1b.Prev;
         if (
           op1b.Pt.Y > op1.Pt.Y ||
           !Clipper.SlopesEqual(op1.Pt, op1b.Pt, j.OffPt, this.m_UseFullRange)
@@ -2001,15 +1995,13 @@ export default class Clipper {
           return false;
       }
       op2b = op2.Next;
-      while (IntPoint.op_Equality(op2b.Pt, op2.Pt) && op2b != op2)
-        op2b = op2b.Next;
+      while (IntPoint.equal(op2b.Pt, op2.Pt) && op2b != op2) op2b = op2b.Next;
       var Reverse2 =
         op2b.Pt.Y > op2.Pt.Y ||
         !Clipper.SlopesEqual(op2.Pt, op2b.Pt, j.OffPt, this.m_UseFullRange);
       if (Reverse2) {
         op2b = op2.Prev;
-        while (IntPoint.op_Equality(op2b.Pt, op2.Pt) && op2b != op2)
-          op2b = op2b.Prev;
+        while (IntPoint.equal(op2b.Pt, op2.Pt) && op2b != op2) op2b = op2b.Prev;
         if (
           op2b.Pt.Y > op2.Pt.Y ||
           !Clipper.SlopesEqual(op2.Pt, op2b.Pt, j.OffPt, this.m_UseFullRange)
@@ -2198,7 +2190,7 @@ export default class Clipper {
         var op2 = op.Next;
         while (op2 != outrec.Pts) {
           if (
-            IntPoint.op_Equality(op.Pt, op2.Pt) &&
+            IntPoint.equal(op.Pt, op2.Pt) &&
             op2.Next != op &&
             op2.Prev != op
           ) {
@@ -2398,12 +2390,9 @@ export default class Clipper {
 
   public GetMaximaPair(e: TEdge): TEdge {
     var result = null;
-    if (IntPoint.op_Equality(e.Next.Top, e.Top) && e.Next.NextInLML === null)
+    if (IntPoint.equal(e.Next.Top, e.Top) && e.Next.NextInLML === null)
       result = e.Next;
-    else if (
-      IntPoint.op_Equality(e.Prev.Top, e.Top) &&
-      e.Prev.NextInLML === null
-    )
+    else if (IntPoint.equal(e.Prev.Top, e.Top) && e.Prev.NextInLML === null)
       result = e.Prev;
     if (
       result !== null &&
@@ -2586,8 +2575,8 @@ export default class Clipper {
       var outRec = this.m_PolyOuts[e.OutIdx];
       //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
       var op = outRec.Pts;
-      if (ToFront && IntPoint.op_Equality(pt, op.Pt)) return op;
-      else if (!ToFront && IntPoint.op_Equality(pt, op.Prev.Pt)) return op.Prev;
+      if (ToFront && IntPoint.equal(pt, op.Pt)) return op;
+      else if (!ToFront && IntPoint.equal(pt, op.Prev.Pt)) return op.Prev;
       var newOp = new OutPt();
       newOp.Idx = outRec.Idx;
       //newOp.Pt = pt;
@@ -2621,7 +2610,7 @@ export default class Clipper {
     //we need to create 'ghost' Join records of 'contrubuting' horizontals that
     //we can compare with horizontals at the bottom of the next SB.
     if (isTopOfScanbeam)
-      if (IntPoint.op_Equality(outPt.Pt, horzEdge.Top))
+      if (IntPoint.equal(outPt.Pt, horzEdge.Top))
         this.AddGhostJoin(outPt, horzEdge.Bot);
       else this.AddGhostJoin(outPt, horzEdge.Top);
   }
@@ -2695,8 +2684,8 @@ export default class Clipper {
       }
       //test for duplicate points and collinear edges ...
       if (
-        IntPoint.op_Equality(pp.Pt, pp.Next.Pt) ||
-        IntPoint.op_Equality(pp.Pt, pp.Prev.Pt) ||
+        IntPoint.equal(pp.Pt, pp.Next.Pt) ||
+        IntPoint.equal(pp.Pt, pp.Prev.Pt) ||
         (Clipper.SlopesEqual(
           pp.Prev.Pt,
           pp.Pt,

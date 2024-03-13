@@ -8,12 +8,12 @@ export default class IntPoint {
   }
 
   //return a == b;
-  public static op_Equality(a: IntPoint, b: IntPoint): boolean {
+  public static equal(a: IntPoint, b: IntPoint): boolean {
     return a.X == b.X && a.Y == b.Y;
   }
 
   //return a != b;
-  public static op_Inequality(a: IntPoint, b: IntPoint): boolean {
+  public static unequal(a: IntPoint, b: IntPoint): boolean {
     return a.X != b.X || a.Y != b.Y;
   }
 }
