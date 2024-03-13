@@ -2900,10 +2900,6 @@ export default class Clipper {
     return result;
   }
 
-  public static Orientation(poly: IntPoint[]): boolean {
-    return Clipper.Area(poly) >= 0;
-  }
-
   public static near_zero(val: number) {
     return val > -Clipper.tolerance && val < Clipper.tolerance;
   }

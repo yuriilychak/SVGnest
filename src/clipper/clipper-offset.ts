@@ -31,24 +31,21 @@ export default class ClipperOffset {
   public AddPath(path: IntPoint[], joinType: JoinType, endType: EndType) {
     var highI = path.length - 1;
     if (highI < 0) return;
-    var newNode = new PolyNode();
-    newNode.m_jointype = joinType;
-    newNode.m_endtype = endType;
+    var newNode = new PolyNode(joinType, endType);
     //strip duplicate points from path and also get index to the lowest point ...
     if (endType == EndType.ClosedLine || endType == EndType.ClosedPolygon)
       while (highI > 0 && IntPoint.op_Equality(path[0], path[highI])) highI--;
     //newNode.m_polygon.set_Capacity(highI + 1);
-    newNode.m_polygon.push(path[0]);
+    newNode.add(path[0]);
     var j = 0,
       k = 0;
     for (var i = 1; i <= highI; i++)
-      if (IntPoint.op_Inequality(newNode.m_polygon[j], path[i])) {
+      if (IntPoint.op_Inequality(newNode.at(j), path[i])) {
         j++;
-        newNode.m_polygon.push(path[i]);
+        newNode.add(path[i]);
         if (
-          path[i].Y > newNode.m_polygon[k].Y ||
-          (path[i].Y == newNode.m_polygon[k].Y &&
-            path[i].X < newNode.m_polygon[k].X)
+          path[i].Y > newNode.at(k).Y ||
+          (path[i].Y == newNode.at(k).Y && path[i].X < newNode.at(k).X)
         )
           k = j;
       }
@@ -57,18 +54,17 @@ export default class ClipperOffset {
       (endType != EndType.ClosedPolygon && j < 0)
     )
       return;
-    this.m_polyNodes.AddChild(newNode);
+    this.m_polyNodes.addChild(newNode);
     //if this path's lowest pt is lower than all the others then update m_lowest
     if (endType != EndType.ClosedPolygon) return;
     if (this.m_lowest.X < 0) this.m_lowest = new IntPoint(0, k);
     else {
-      var ip =
-        this.m_polyNodes.Childs()[this.m_lowest.X].m_polygon[this.m_lowest.Y];
+      var ip = this.m_polyNodes.childAt(this.m_lowest.X).at(this.m_lowest.Y);
       if (
-        newNode.m_polygon[k].Y > ip.Y ||
-        (newNode.m_polygon[k].Y == ip.Y && newNode.m_polygon[k].X < ip.X)
+        newNode.at(k).Y > ip.Y ||
+        (newNode.at(k).Y == ip.Y && newNode.at(k).X < ip.X)
       )
-        this.m_lowest = new IntPoint(this.m_polyNodes.ChildCount() - 1, k);
+        this.m_lowest = new IntPoint(this.m_polyNodes.childCount - 1, k);
     }
   }
 
@@ -113,25 +109,21 @@ export default class ClipperOffset {
     //closed path with the lowermost vertex is wrong ...
     if (
       this.m_lowest.X >= 0 &&
-      !Clipper.Orientation(this.m_polyNodes.Childs()[this.m_lowest.X].m_polygon)
+      !this.m_polyNodes.childAt(this.m_lowest.X).orientation
     ) {
-      for (var i = 0; i < this.m_polyNodes.ChildCount(); i++) {
-        var node = this.m_polyNodes.Childs()[i];
+      for (var i = 0; i < this.m_polyNodes.childCount; i++) {
+        var node = this.m_polyNodes.childAt(i);
         if (
-          node.m_endtype == EndType.ClosedPolygon ||
-          (node.m_endtype == EndType.ClosedLine &&
-            Clipper.Orientation(node.m_polygon))
+          node.endType == EndType.ClosedPolygon ||
+          (node.endType == EndType.ClosedLine && node.orientation)
         )
-          node.m_polygon.reverse();
+          node.reverse();
       }
     } else {
-      for (var i = 0; i < this.m_polyNodes.ChildCount(); i++) {
-        var node = this.m_polyNodes.Childs()[i];
-        if (
-          node.m_endtype == EndType.ClosedLine &&
-          !Clipper.Orientation(node.m_polygon)
-        )
-          node.m_polygon.reverse();
+      for (var i = 0; i < this.m_polyNodes.childCount; i++) {
+        var node = this.m_polyNodes.childAt(i);
+        if (node.endType == EndType.ClosedLine && !node.orientation)
+          node.reverse();
       }
     }
   }
@@ -152,10 +144,10 @@ export default class ClipperOffset {
     //if Zero offset, just copy any CLOSED polygons to m_p and return ...
     if (Clipper.near_zero(delta)) {
       //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount);
-      for (var i = 0; i < this.m_polyNodes.ChildCount(); i++) {
-        var node = this.m_polyNodes.Childs()[i];
-        if (node.m_endtype == EndType.ClosedPolygon)
-          this.m_destPolys.push(node.m_polygon);
+      for (var i = 0; i < this.m_polyNodes.childCount; i++) {
+        var node = this.m_polyNodes.childAt(i);
+        if (node.endType == EndType.ClosedPolygon)
+          this.m_destPolys.push(node.polygon);
       }
       return;
     }
@@ -178,18 +170,18 @@ export default class ClipperOffset {
     this.m_StepsPerRad = steps / ClipperOffset.two_pi;
     if (delta < 0) this.m_sin = -this.m_sin;
     //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount * 2);
-    for (var i = 0; i < this.m_polyNodes.ChildCount(); i++) {
-      var node = this.m_polyNodes.Childs()[i];
-      this.m_srcPoly = node.m_polygon;
+    for (var i = 0; i < this.m_polyNodes.childCount; i++) {
+      var node = this.m_polyNodes.childAt(i);
+      this.m_srcPoly = node.polygon;
       var len = this.m_srcPoly.length;
       if (
         len == 0 ||
-        (delta <= 0 && (len < 3 || node.m_endtype != EndType.ClosedPolygon))
+        (delta <= 0 && (len < 3 || node.endType != EndType.ClosedPolygon))
       )
         continue;
       this.m_destPoly = new Array();
       if (len == 1) {
-        if (node.m_jointype == JoinType.Round) {
+        if (node.joinType == JoinType.Round) {
           var X = 1,
             Y = 0;
           for (var j = 1; j <= steps; j++) {
@@ -229,8 +221,8 @@ export default class ClipperOffset {
           ClipperOffset.GetUnitNormal(this.m_srcPoly[j], this.m_srcPoly[j + 1])
         );
       if (
-        node.m_endtype == EndType.ClosedLine ||
-        node.m_endtype == EndType.ClosedPolygon
+        node.endType == EndType.ClosedLine ||
+        node.endType == EndType.ClosedPolygon
       )
         this.m_normals.push(
           ClipperOffset.GetUnitNormal(
@@ -242,15 +234,13 @@ export default class ClipperOffset {
         this.m_normals.push(
           new IntPoint(this.m_normals[len - 2].X, this.m_normals[len - 2].Y)
         );
-      if (node.m_endtype == EndType.ClosedPolygon) {
+      if (node.endType == EndType.ClosedPolygon) {
         var k = len - 1;
-        for (var j = 0; j < len; j++)
-          k = this.OffsetPoint(j, k, node.m_jointype);
+        for (var j = 0; j < len; j++) k = this.OffsetPoint(j, k, node.joinType);
         this.m_destPolys.push(this.m_destPoly);
-      } else if (node.m_endtype == EndType.ClosedLine) {
+      } else if (node.endType == EndType.ClosedLine) {
         var k = len - 1;
-        for (var j = 0; j < len; j++)
-          k = this.OffsetPoint(j, k, node.m_jointype);
+        for (var j = 0; j < len; j++) k = this.OffsetPoint(j, k, node.joinType);
         this.m_destPolys.push(this.m_destPoly);
         this.m_destPoly = new Array();
         //re-build m_normals ...
@@ -263,14 +253,14 @@ export default class ClipperOffset {
         this.m_normals[0] = new IntPoint(-n.X, -n.Y);
         k = 0;
         for (var j = len - 1; j >= 0; j--)
-          k = this.OffsetPoint(j, k, node.m_jointype);
+          k = this.OffsetPoint(j, k, node.joinType);
         this.m_destPolys.push(this.m_destPoly);
       } else {
         var k = 0;
         for (var j = 1; j < len - 1; ++j)
-          k = this.OffsetPoint(j, k, node.m_jointype);
+          k = this.OffsetPoint(j, k, node.joinType);
         var pt1;
-        if (node.m_endtype == EndType.OpenButt) {
+        if (node.endType == EndType.OpenButt) {
           var j = len - 1;
           pt1 = new IntPoint(
             ClipperOffset.Round(
@@ -298,7 +288,7 @@ export default class ClipperOffset {
             -this.m_normals[j].X,
             -this.m_normals[j].Y
           );
-          if (node.m_endtype == EndType.OpenSquare) this.DoSquare(j, k);
+          if (node.endType == EndType.OpenSquare) this.DoSquare(j, k);
           else this.DoRound(j, k);
         }
         //re-build m_normals ...
@@ -313,8 +303,8 @@ export default class ClipperOffset {
         );
         k = len - 1;
         for (var j = k - 1; j > 0; --j)
-          k = this.OffsetPoint(j, k, node.m_jointype);
-        if (node.m_endtype == EndType.OpenButt) {
+          k = this.OffsetPoint(j, k, node.joinType);
+        if (node.endType == EndType.OpenButt) {
           pt1 = new IntPoint(
             ClipperOffset.Round(
               this.m_srcPoly[0].X - this.m_normals[0].X * delta
@@ -336,7 +326,7 @@ export default class ClipperOffset {
         } else {
           k = 1;
           this.m_sinA = 0;
-          if (node.m_endtype == EndType.OpenSquare) this.DoSquare(0, 1);
+          if (node.endType == EndType.OpenSquare) this.DoSquare(0, 1);
           else this.DoRound(0, 1);
         }
         this.m_destPolys.push(this.m_destPoly);
