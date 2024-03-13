@@ -1,10 +1,25 @@
 export default class IntPoint {
-  public X: number = 0;
-  public Y: number = 0;
+  private _data: Float64Array;
 
   constructor(x: number = 0, y: number = 0) {
-    this.X = x;
-    this.Y = y;
+    this._data = new Float64Array(2);
+    this._data[0] = x;
+    this._data[1] = y;
+  }
+
+  public get X(): number {
+    return this._data[0];
+  }
+
+  public set X(value: number) {
+    this._data[0] = value;
+  }
+
+  public get Y(): number {
+    return this._data[1];
+  }
+  public set Y(value: number) {
+    this._data[1] = value;
   }
 
   //return a == b;

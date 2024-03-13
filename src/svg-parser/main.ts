@@ -788,10 +788,9 @@ export default class SvgParser {
     let i = 0;
 
     for (i = 0; i < polygon.length; ++i) {
-      result.push({
-        X: polygon[i].x * clipperScale,
-        Y: polygon[i].y * clipperScale
-      });
+      result.push(
+        new IntPoint(polygon[i].x * clipperScale, polygon[i].y * clipperScale)
+      );
     }
 
     return result;
