@@ -72,8 +72,8 @@ export default class ClipperOffset {
   public Execute(solution: IntPoint[][], delta: number) {
     // function (solution, delta)
     solution.length = 0;
-    this.FixOrientations();
-    this.DoOffset(delta);
+    this._fixOrientations();
+    this._doOffset(delta);
     //now clean up 'corners' ...
     var clpr = new Clipper();
     clpr.AddPaths(this._destPolys, PolyType.Subject, true);
@@ -107,7 +107,7 @@ export default class ClipperOffset {
 
   //fixup orientations of all closed paths if the orientation of the
   //closed path with the lowermost vertex is wrong ...
-  public FixOrientations(): void {
+  private _fixOrientations(): void {
     const childCount: number = this._polyNodes.childCount;
     let i: number = 0;
     let node: PolyNode;
@@ -143,7 +143,7 @@ export default class ClipperOffset {
     return new IntPoint(dy, -dx);
   }
 
-  public DoOffset(delta: number) {
+  private _doOffset(delta: number) {
     this._destPolys = new Array();
     this._delta = delta;
     //if Zero offset, just copy any CLOSED polygons to m_p and return ...
@@ -238,11 +238,13 @@ export default class ClipperOffset {
         );
       if (node.endType == EndType.ClosedPolygon) {
         var k = len - 1;
-        for (var j = 0; j < len; j++) k = this.OffsetPoint(j, k, node.joinType);
+        for (var j = 0; j < len; j++)
+          k = this._offsetPoint(j, k, node.joinType);
         this._destPolys.push(this._destPoly);
       } else if (node.endType == EndType.ClosedLine) {
         var k = len - 1;
-        for (var j = 0; j < len; j++) k = this.OffsetPoint(j, k, node.joinType);
+        for (var j = 0; j < len; j++)
+          k = this._offsetPoint(j, k, node.joinType);
         this._destPolys.push(this._destPoly);
         this._destPoly = new Array();
         //re-build m_normals ...
@@ -255,12 +257,12 @@ export default class ClipperOffset {
         this._normals[0] = new IntPoint(-n.X, -n.Y);
         k = 0;
         for (var j = len - 1; j >= 0; j--)
-          k = this.OffsetPoint(j, k, node.joinType);
+          k = this._offsetPoint(j, k, node.joinType);
         this._destPolys.push(this._destPoly);
       } else {
         var k = 0;
         for (var j = 1; j < len - 1; ++j)
-          k = this.OffsetPoint(j, k, node.joinType);
+          k = this._offsetPoint(j, k, node.joinType);
         var pt1;
         if (node.endType == EndType.OpenButt) {
           var j = len - 1;
@@ -286,8 +288,8 @@ export default class ClipperOffset {
             -this._normals[j].X,
             -this._normals[j].Y
           );
-          if (node.endType == EndType.OpenSquare) this.DoSquare(j, k);
-          else this.DoRound(j, k);
+          if (node.endType == EndType.OpenSquare) this._doSquare(j, k);
+          else this._doRound(j, k);
         }
         //re-build m_normals ...
         for (var j = len - 1; j > 0; j--)
@@ -301,7 +303,7 @@ export default class ClipperOffset {
         );
         k = len - 1;
         for (var j = k - 1; j > 0; --j)
-          k = this.OffsetPoint(j, k, node.joinType);
+          k = this._offsetPoint(j, k, node.joinType);
         if (node.endType == EndType.OpenButt) {
           pt1 = new IntPoint(
             ClipperOffset.Round(
@@ -320,15 +322,15 @@ export default class ClipperOffset {
         } else {
           k = 1;
           this._sinA = 0;
-          if (node.endType == EndType.OpenSquare) this.DoSquare(0, 1);
-          else this.DoRound(0, 1);
+          if (node.endType == EndType.OpenSquare) this._doSquare(0, 1);
+          else this._doRound(0, 1);
         }
         this._destPolys.push(this._destPoly);
       }
     }
   }
 
-  public OffsetPoint(j: number, k: number, jointype: number) {
+  private _offsetPoint(j: number, k: number, jointype: number) {
     this._sinA =
       this._normals[k].X * this._normals[j].Y -
       this._normals[j].X * this._normals[k].Y;
@@ -364,22 +366,22 @@ export default class ClipperOffset {
             1 +
             (this._normals[j].X * this._normals[k].X +
               this._normals[j].Y * this._normals[k].Y);
-          if (r >= this._miterLim) this.DoMiter(j, k, r);
-          else this.DoSquare(j, k);
+          if (r >= this._miterLim) this._doMiter(j, k, r);
+          else this._doSquare(j, k);
           break;
         }
         case JoinType.Square:
-          this.DoSquare(j, k);
+          this._doSquare(j, k);
           break;
         case JoinType.Round:
-          this.DoRound(j, k);
+          this._doRound(j, k);
           break;
       }
     k = j;
     return k;
   }
 
-  public DoSquare(j: number, k: number) {
+  private _doSquare(j: number, k: number) {
     var dx = Math.tan(
       Math.atan2(
         this._sinA,
@@ -413,7 +415,7 @@ export default class ClipperOffset {
     );
   }
 
-  public DoRound(j: number, k: number) {
+  private _doRound(j: number, k: number) {
     var a = Math.atan2(
       this._sinA,
       this._normals[k].X * this._normals[j].X +
@@ -448,7 +450,7 @@ export default class ClipperOffset {
     );
   }
 
-  public DoMiter(j: number, k: number, r: number) {
+  private _doMiter(j: number, k: number, r: number) {
     var q = this._delta / r;
     this._destPoly.push(
       new IntPoint(

@@ -1,4 +1,5 @@
-import { EdgeSide, PolyType } from "./enums";
+import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
+import Int128 from "./int-128";
 import IntPoint from "./int-point";
 
 export default class TEdge {
@@ -70,16 +71,146 @@ export default class TEdge {
     this.Bot.X = tmp;
   }
 
-  public get isHorizontal(): boolean {
-    return this.Delta.Y === 0;
-  }
-
   public isIntermediate(Y: number): boolean {
     return this.Top.Y == Y && this.NextInLML !== null;
   }
 
   public isMaxima(Y: number): boolean {
     return this.Top.Y == Y && this.NextInLML === null;
+  }
+
+  public getMaximaPair(): TEdge {
+    let result: TEdge = null;
+
+    if (this.Top.equal(this.Next.Top) && this.Next.NextInLML === null) {
+      result = this.Next;
+    } else if (this.Top.equal(this.Prev.Top) && this.Prev.NextInLML === null) {
+      result = this.Prev;
+    }
+
+    return result !== null &&
+      (result.OutIdx === -2 ||
+        (result.NextInAEL === result.PrevInAEL && !result.isHorizontal))
+      ? null
+      : result;
+  }
+
+  public getNextInAEL(direction: Direction): TEdge {
+    return direction == Direction.LeftToRight ? this.NextInAEL : this.PrevInAEL;
+  }
+
+  public isContributing(
+    clipType: ClipType,
+    subjFillType: PolyFillType,
+    clipFillType: PolyFillType
+  ): boolean {
+    var pft, pft2;
+    if (this.PolyTyp == PolyType.Subject) {
+      pft = subjFillType;
+      pft2 = clipFillType;
+    } else {
+      pft = clipFillType;
+      pft2 = subjFillType;
+    }
+
+    switch (pft) {
+      case PolyFillType.EvenOdd:
+        if (this.WindDelta === 0 && this.WindCnt != 1) return false;
+        break;
+      case PolyFillType.NonZero:
+        if (Math.abs(this.WindCnt) != 1) return false;
+        break;
+      case PolyFillType.Positive:
+        if (this.WindCnt != 1) return false;
+        break;
+      default:
+        if (this.WindCnt != -1) return false;
+        break;
+    }
+    switch (clipType) {
+      case ClipType.Intersection:
+        switch (pft2) {
+          case PolyFillType.EvenOdd:
+          case PolyFillType.NonZero:
+            return this.WindCnt2 !== 0;
+          case PolyFillType.Positive:
+            return this.WindCnt2 > 0;
+          default:
+            return this.WindCnt2 < 0;
+        }
+      case ClipType.Union:
+        switch (pft2) {
+          case PolyFillType.EvenOdd:
+          case PolyFillType.NonZero:
+            return this.WindCnt2 === 0;
+          case PolyFillType.Positive:
+            return this.WindCnt2 <= 0;
+          default:
+            return this.WindCnt2 >= 0;
+        }
+      case ClipType.Difference:
+        if (this.PolyTyp == PolyType.Subject)
+          switch (pft2) {
+            case PolyFillType.EvenOdd:
+            case PolyFillType.NonZero:
+              return this.WindCnt2 === 0;
+            case PolyFillType.Positive:
+              return this.WindCnt2 <= 0;
+            default:
+              return this.WindCnt2 >= 0;
+          }
+        else
+          switch (pft2) {
+            case PolyFillType.EvenOdd:
+            case PolyFillType.NonZero:
+              return this.WindCnt2 !== 0;
+            case PolyFillType.Positive:
+              return this.WindCnt2 > 0;
+            default:
+              return this.WindCnt2 < 0;
+          }
+      case ClipType.Xor:
+        if (this.WindDelta === 0)
+          switch (pft2) {
+            case PolyFillType.EvenOdd:
+            case PolyFillType.NonZero:
+              return this.WindCnt2 === 0;
+            case PolyFillType.Positive:
+              return this.WindCnt2 <= 0;
+            default:
+              return this.WindCnt2 >= 0;
+          }
+        else return true;
+    }
+
+    return true;
+  }
+
+  public get isHorizontal(): boolean {
+    return this.Delta.Y === 0;
+  }
+
+  public static slopesEqual(
+    edge1: TEdge,
+    edge2: TEdge,
+    useFullRange: boolean
+  ): boolean {
+    if (useFullRange)
+      return Int128.op_Equality(
+        Int128.Int128Mul(edge1.Delta.Y, edge2.Delta.X),
+        Int128.Int128Mul(edge1.Delta.X, edge2.Delta.Y)
+      );
+    else
+      return (
+        TEdge.castInt64(edge1.Delta.Y * edge2.Delta.X) ==
+        TEdge.castInt64(edge1.Delta.X * edge2.Delta.Y)
+      );
+  }
+
+  public static castInt64(a: number): number {
+    if (a < -2147483648 || a > 2147483647)
+      return a < 0 ? Math.ceil(a) : Math.floor(a);
+    else return ~~a;
   }
 
   public static Round(value: number): number {

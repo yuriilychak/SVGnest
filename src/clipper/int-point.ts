@@ -43,6 +43,16 @@ export default class IntPoint {
     return (c * c) / (a * a + b * b);
   }
 
+  public isBetween(point1: IntPoint, point2: IntPoint): boolean {
+    if (point1.equal(point2) || this.equal(point1) || this.equal(point2)) {
+      return false;
+    } else if (point1.X != point2.X) {
+      return this.X > point1.X == this.X < point2.X;
+    } else {
+      return this.Y > point1.Y == this.Y < point2.Y;
+    }
+  }
+
   public get X(): number {
     return this._data[0];
   }

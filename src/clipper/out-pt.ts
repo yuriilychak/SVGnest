@@ -45,6 +45,18 @@ export default class OutPt {
     }
   }
 
+  public reverse(): void {
+    let pointer1: OutPt = this;
+    let pointer2: OutPt;
+
+    do {
+      pointer2 = pointer1.Next;
+      pointer1.Next = pointer1.Prev;
+      pointer1.Prev = pointer2;
+      pointer1 = pointer2;
+    } while (pointer1 !== this);
+  }
+
   public get pointCount(): number {
     let result: number = 0;
     let p: OutPt = this;

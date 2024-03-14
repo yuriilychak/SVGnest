@@ -852,7 +852,7 @@ export default class Clipper {
   }
 
   public DoMaxima(e: TEdge): void {
-    var eMaxPair = this.GetMaximaPair(e);
+    var eMaxPair = e.getMaximaPair();
     if (eMaxPair === null) {
       if (e.OutIdx >= 0) this.AddOutPt(e, e.Top);
       this.DeleteFromAEL(e);
@@ -896,7 +896,7 @@ export default class Clipper {
       var IsMaximaEdge = e.isMaxima(topY);
 
       if (IsMaximaEdge) {
-        var eMaxPair = this.GetMaximaPair(e);
+        var eMaxPair = e.getMaximaPair();
         IsMaximaEdge = eMaxPair === null || !eMaxPair.isHorizontal;
       }
       if (IsMaximaEdge) {
@@ -952,7 +952,7 @@ export default class Clipper {
           op !== null &&
           ePrev.OutIdx >= 0 &&
           ePrev.Curr.Y > ePrev.Top.Y &&
-          Clipper.SlopesEqualEdge(e, ePrev, this._useFullRange) &&
+          TEdge.slopesEqual(e, ePrev, this._useFullRange) &&
           e.WindDelta !== 0 &&
           ePrev.WindDelta !== 0
         ) {
@@ -965,7 +965,7 @@ export default class Clipper {
           op !== null &&
           eNext.OutIdx >= 0 &&
           eNext.Curr.Y > eNext.Top.Y &&
-          Clipper.SlopesEqualEdge(e, eNext, this._useFullRange) &&
+          TEdge.slopesEqual(e, eNext, this._useFullRange) &&
           e.WindDelta !== 0 &&
           eNext.WindDelta !== 0
         ) {
@@ -1062,7 +1062,7 @@ export default class Clipper {
     //nb: with very large coordinate values, it's possible for SlopesEqual() to
     //return false but for the edge.Dx value be equal due to double precision rounding.
     if (
-      Clipper.SlopesEqualEdge(edge1, edge2, this._useFullRange) ||
+      TEdge.slopesEqual(edge1, edge2, this._useFullRange) ||
       edge1.Dx == edge2.Dx
     ) {
       if (edge2.Bot.Y > edge1.Bot.Y) {
@@ -1310,87 +1310,6 @@ export default class Clipper {
     }
   }
 
-  IsContributing(edge: TEdge): boolean {
-    var pft, pft2;
-    if (edge.PolyTyp == PolyType.Subject) {
-      pft = this._subjFillType;
-      pft2 = this._clipFillType;
-    } else {
-      pft = this._clipFillType;
-      pft2 = this._subjFillType;
-    }
-    switch (pft) {
-      case PolyFillType.EvenOdd:
-        if (edge.WindDelta === 0 && edge.WindCnt != 1) return false;
-        break;
-      case PolyFillType.NonZero:
-        if (Math.abs(edge.WindCnt) != 1) return false;
-        break;
-      case PolyFillType.Positive:
-        if (edge.WindCnt != 1) return false;
-        break;
-      default:
-        if (edge.WindCnt != -1) return false;
-        break;
-    }
-    switch (this._clipType) {
-      case ClipType.Intersection:
-        switch (pft2) {
-          case PolyFillType.EvenOdd:
-          case PolyFillType.NonZero:
-            return edge.WindCnt2 !== 0;
-          case PolyFillType.Positive:
-            return edge.WindCnt2 > 0;
-          default:
-            return edge.WindCnt2 < 0;
-        }
-      case ClipType.Union:
-        switch (pft2) {
-          case PolyFillType.EvenOdd:
-          case PolyFillType.NonZero:
-            return edge.WindCnt2 === 0;
-          case PolyFillType.Positive:
-            return edge.WindCnt2 <= 0;
-          default:
-            return edge.WindCnt2 >= 0;
-        }
-      case ClipType.Difference:
-        if (edge.PolyTyp == PolyType.Subject)
-          switch (pft2) {
-            case PolyFillType.EvenOdd:
-            case PolyFillType.NonZero:
-              return edge.WindCnt2 === 0;
-            case PolyFillType.Positive:
-              return edge.WindCnt2 <= 0;
-            default:
-              return edge.WindCnt2 >= 0;
-          }
-        else
-          switch (pft2) {
-            case PolyFillType.EvenOdd:
-            case PolyFillType.NonZero:
-              return edge.WindCnt2 !== 0;
-            case PolyFillType.Positive:
-              return edge.WindCnt2 > 0;
-            default:
-              return edge.WindCnt2 < 0;
-          }
-      case ClipType.Xor:
-        if (edge.WindDelta === 0)
-          switch (pft2) {
-            case PolyFillType.EvenOdd:
-            case PolyFillType.NonZero:
-              return edge.WindCnt2 === 0;
-            case PolyFillType.Positive:
-              return edge.WindCnt2 <= 0;
-            default:
-              return edge.WindCnt2 >= 0;
-          }
-        else return true;
-    }
-    return true;
-  }
-
   public AddLocalMinPoly(e1: TEdge, e2: TEdge, pt: IntPoint) {
     var result;
     var e, prevE;
@@ -1415,7 +1334,7 @@ export default class Clipper {
       prevE !== null &&
       prevE.OutIdx >= 0 &&
       prevE.topX(pt.Y) == e.topX(pt.Y) &&
-      Clipper.SlopesEqualEdge(e, prevE, this._useFullRange) &&
+      TEdge.slopesEqual(e, prevE, this._useFullRange) &&
       e.WindDelta !== 0 &&
       prevE.WindDelta !== 0
     ) {
@@ -1450,11 +1369,25 @@ export default class Clipper {
       if (lb === null) {
         this.InsertEdgeIntoAEL(rb, null);
         this.SetWindingCount(rb);
-        if (this.IsContributing(rb)) Op1 = this.AddOutPt(rb, rb.Bot);
+        if (
+          rb.isContributing(
+            this._clipType,
+            this._subjFillType,
+            this._clipFillType
+          )
+        )
+          Op1 = this.AddOutPt(rb, rb.Bot);
       } else if (rb == null) {
         this.InsertEdgeIntoAEL(lb, null);
         this.SetWindingCount(lb);
-        if (this.IsContributing(lb)) Op1 = this.AddOutPt(lb, lb.Bot);
+        if (
+          lb.isContributing(
+            this._clipType,
+            this._subjFillType,
+            this._clipFillType
+          )
+        )
+          Op1 = this.AddOutPt(lb, lb.Bot);
         this.InsertScanbeam(lb.Top.Y);
       } else {
         this.InsertEdgeIntoAEL(lb, null);
@@ -1462,7 +1395,14 @@ export default class Clipper {
         this.SetWindingCount(lb);
         rb.WindCnt = lb.WindCnt;
         rb.WindCnt2 = lb.WindCnt2;
-        if (this.IsContributing(lb)) Op1 = this.AddLocalMinPoly(lb, rb, lb.Bot);
+        if (
+          lb.isContributing(
+            this._clipType,
+            this._subjFillType,
+            this._clipFillType
+          )
+        )
+          Op1 = this.AddLocalMinPoly(lb, rb, lb.Bot);
         this.InsertScanbeam(lb.Top.Y);
       }
       if (rb != null) {
@@ -1491,7 +1431,7 @@ export default class Clipper {
         lb.PrevInAEL !== null &&
         lb.PrevInAEL.Curr.X == lb.Bot.X &&
         lb.PrevInAEL.OutIdx >= 0 &&
-        Clipper.SlopesEqualEdge(lb.PrevInAEL, lb, this._useFullRange) &&
+        TEdge.slopesEqual(lb.PrevInAEL, lb, this._useFullRange) &&
         lb.WindDelta !== 0 &&
         lb.PrevInAEL.WindDelta !== 0
       ) {
@@ -1502,7 +1442,7 @@ export default class Clipper {
         if (
           rb.OutIdx >= 0 &&
           rb.PrevInAEL.OutIdx >= 0 &&
-          Clipper.SlopesEqualEdge(rb.PrevInAEL, rb, this._useFullRange) &&
+          TEdge.slopesEqual(rb.PrevInAEL, rb, this._useFullRange) &&
           rb.WindDelta !== 0 &&
           rb.PrevInAEL.WindDelta !== 0
         ) {
@@ -1543,13 +1483,14 @@ export default class Clipper {
         var outRec = this._polyOuts[i];
         if (outRec.Pts === null || outRec.IsOpen) continue;
         //@ts-ignore
-        if ((outRec.IsHole ^ this.ReverseSolution) == this.Area(outRec) > 0)
+        if ((outRec.IsHole ^ this.ReverseSolution) == outRec.area > 0)
           this.ReversePolyPtLinks(outRec.Pts);
       }
       this.JoinCommonEdges();
       for (var i = 0, ilen = this._polyOuts.length; i < ilen; i++) {
         var outRec = this._polyOuts[i];
-        if (outRec.Pts !== null && !outRec.IsOpen) this.FixupOutPolygon(outRec);
+        if (outRec.Pts !== null && !outRec.IsOpen)
+          outRec.fixupOutPolygon(this._useFullRange, this._preserveCollinear);
       }
       if (this._strictlySimple) this.DoSimplePolygons();
       return true;
@@ -1564,17 +1505,6 @@ export default class Clipper {
     while (outrec != this._polyOuts[outrec.Idx])
       outrec = this._polyOuts[outrec.Idx];
     return outrec;
-  }
-
-  public Area(outRec: OutRec): number {
-    var op = outRec.Pts;
-    if (op == null) return 0;
-    var a = 0;
-    do {
-      a = a + (op.Prev.Pt.X + op.Pt.X) * (op.Prev.Pt.Y - op.Pt.Y);
-      op = op.Next;
-    } while (op != outRec.Pts);
-    return a * 0.5;
   }
 
   public Param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {
@@ -1652,26 +1582,6 @@ export default class Clipper {
     else return (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
   }
 
-  public DupOutPt(outPt: OutPt, InsertAfter: boolean): OutPt {
-    var result = new OutPt();
-    //result.Pt = outPt.Pt;
-    result.Pt.X = outPt.Pt.X;
-    result.Pt.Y = outPt.Pt.Y;
-    result.Idx = outPt.Idx;
-    if (InsertAfter) {
-      result.Next = outPt.Next;
-      result.Prev = outPt;
-      outPt.Next.Prev = result;
-      outPt.Next = result;
-    } else {
-      result.Prev = outPt.Prev;
-      result.Next = outPt;
-      outPt.Prev.Next = result;
-      outPt.Prev = result;
-    }
-    return result;
-  }
-
   public JoinCommonEdges() {
     for (var i = 0, ilen = this._joins.length; i < ilen; i++) {
       var join = this._joins[i];
@@ -1698,7 +1608,7 @@ export default class Clipper {
         outRec2 = this.CreateOutRec();
         outRec2.Pts = join.OutPt2;
         //update all OutRec2.Pts Idx's ...
-        this.UpdateOutPtIdxs(outRec2);
+        outRec2.updateOutPtIdxs();
         //We now need to check every OutRec.FirstLeft pointer. If it points
         //to OutRec1 it may need to point to OutRec2 instead ...
         if (this._usingPolyTree)
@@ -1720,7 +1630,7 @@ export default class Clipper {
           //fixup FirstLeft pointers that may need reassigning to OutRec1
           if (this._usingPolyTree) this.FixupFirstLefts2(outRec2, outRec1);
           //@ts-ignore
-          if ((outRec2.IsHole ^ this.ReverseSolution) == this.Area(outRec2) > 0)
+          if ((outRec2.IsHole ^ this.ReverseSolution) == outRec2.area > 0)
             this.ReversePolyPtLinks(outRec2.Pts);
         } else if (this.Poly2ContainsPoly1(outRec1.Pts, outRec2.Pts)) {
           //outRec1 is contained by outRec2 ...
@@ -1731,8 +1641,13 @@ export default class Clipper {
           //fixup FirstLeft pointers that may need reassigning to OutRec1
           if (this._usingPolyTree) this.FixupFirstLefts2(outRec1, outRec2);
           //@ts-ignore
-          if ((outRec1.IsHole ^ this.ReverseSolution) == this.Area(outRec1) > 0)
+          if (
+            //@ts-ignore
+            (outRec1.IsHole ^ this.ReverseSolution) ==
+            outRec1.area > 0
+          ) {
             this.ReversePolyPtLinks(outRec1.Pts);
+          }
         } else {
           //the 2 polygons are completely separate ...
           outRec2.IsHole = outRec1.IsHole;
@@ -1755,16 +1670,9 @@ export default class Clipper {
   }
 
   public ReversePolyPtLinks(pp: OutPt): void {
-    if (pp === null) return;
-    var pp1;
-    var pp2;
-    pp1 = pp;
-    do {
-      pp2 = pp1.Next;
-      pp1.Next = pp1.Prev;
-      pp1.Prev = pp2;
-      pp1 = pp2;
-    } while (pp1 != pp);
+    if (pp !== null) {
+      pp.reverse();
+    }
   }
 
   public FixupFirstLefts1(OldOutRec: OutRec, NewOutRec: OutRec): void {
@@ -1837,7 +1745,7 @@ export default class Clipper {
             outrec.Pts = op;
             var outrec2 = this.CreateOutRec();
             outrec2.Pts = op2;
-            this.UpdateOutPtIdxs(outrec2);
+            outrec2.updateOutPtIdxs();
             if (this.Poly2ContainsPoly1(outrec2.Pts, outrec.Pts)) {
               //OutRec2 is contained by OutRec1 ...
               outrec2.IsHole = !outrec.IsHole;
@@ -1861,14 +1769,6 @@ export default class Clipper {
         op = op.Next;
       } while (op != outrec.Pts);
     }
-  }
-
-  public UpdateOutPtIdxs(outrec: OutRec): void {
-    var op = outrec.Pts;
-    do {
-      op.Idx = outrec.Idx;
-      op = op.Prev;
-    } while (op != outrec.Pts);
   }
 
   public PointInPolygon(pt: IntPoint, path: IntPoint[]) {
@@ -1995,11 +1895,7 @@ export default class Clipper {
     }
   }
 
-  public GetNextInAEL(e: TEdge, direction: Direction) {
-    return direction == Direction.LeftToRight ? e.NextInAEL : e.PrevInAEL;
-  }
-
-  public UpdateEdgeIntoAEL(e: TEdge) {
+  public UpdateEdgeIntoAEL(e: TEdge): TEdge {
     if (e.NextInLML === null) console.error("UpdateEdgeIntoAEL: invalid call");
     var AelPrev = e.PrevInAEL;
     var AelNext = e.NextInAEL;
@@ -2021,21 +1917,6 @@ export default class Clipper {
     return e;
   }
 
-  public GetMaximaPair(e: TEdge): TEdge {
-    var result = null;
-    if (IntPoint.equal(e.Next.Top, e.Top) && e.Next.NextInLML === null)
-      result = e.Next;
-    else if (IntPoint.equal(e.Prev.Top, e.Top) && e.Prev.NextInLML === null)
-      result = e.Prev;
-    if (
-      result !== null &&
-      (result.OutIdx == -2 ||
-        (result.NextInAEL == result.PrevInAEL && !result.isHorizontal))
-    )
-      return null;
-    return result;
-  }
-
   public ProcessHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
     var $var: DirData = { Dir: null, Left: null, Right: null };
     this.GetHorzDirection(horzEdge, $var);
@@ -2047,10 +1928,10 @@ export default class Clipper {
       eMaxPair = null;
     while (eLastHorz.NextInLML !== null && eLastHorz.NextInLML.isHorizontal)
       eLastHorz = eLastHorz.NextInLML;
-    if (eLastHorz.NextInLML === null) eMaxPair = this.GetMaximaPair(eLastHorz);
+    if (eLastHorz.NextInLML === null) eMaxPair = eLastHorz.getMaximaPair();
     for (;;) {
       var IsLastHorz = horzEdge == eLastHorz;
-      var e = this.GetNextInAEL(horzEdge, dir);
+      var e = horzEdge.getNextInAEL(dir);
       while (e !== null) {
         //Break if we've got to the end of an intermediate horizontal edge ...
         //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
@@ -2060,7 +1941,7 @@ export default class Clipper {
           e.Dx < horzEdge.NextInLML.Dx
         )
           break;
-        var eNext = this.GetNextInAEL(e, dir);
+        var eNext = e.getNextInAEL(dir);
         //saves eNext for later
         if (
           (dir == Direction.LeftToRight && e.Curr.X <= horzRight) ||
@@ -2122,7 +2003,7 @@ export default class Clipper {
           ePrev.WindDelta !== 0 &&
           ePrev.OutIdx >= 0 &&
           ePrev.Curr.Y > ePrev.Top.Y &&
-          Clipper.SlopesEqualEdge(horzEdge, ePrev, this._useFullRange)
+          TEdge.slopesEqual(horzEdge, ePrev, this._useFullRange)
         ) {
           var op2 = this.AddOutPt(ePrev, horzEdge.Bot);
           this.AddJoin(op1, op2, horzEdge.Top);
@@ -2133,7 +2014,7 @@ export default class Clipper {
           eNext.WindDelta !== 0 &&
           eNext.OutIdx >= 0 &&
           eNext.Curr.Y > eNext.Top.Y &&
-          Clipper.SlopesEqualEdge(horzEdge, eNext, this._useFullRange)
+          TEdge.slopesEqual(horzEdge, eNext, this._useFullRange)
         ) {
           var op2 = this.AddOutPt(eNext, horzEdge.Bot);
           this.AddJoin(op1, op2, horzEdge.Top);
@@ -2218,11 +2099,7 @@ export default class Clipper {
       return newOp;
     }
   }
-  public PrepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean) {
-    //get the last Op for this horizontal edge
-    //the point may be anywhere along the horizontal ...
-    var outPt = this._polyOuts[horzEdge.OutIdx].Pts;
-    if (horzEdge.Side != EdgeSide.Left) outPt = outPt.Prev;
+  public PrepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean): void {
     //First, match up overlapping horizontal edges (eg when one polygon's
     //intermediate horz edge overlaps an intermediate horz edge of another, or
     //when one polygon sits on top of another) ...
@@ -2236,19 +2113,20 @@ export default class Clipper {
     //the AEL before we process the horizontal edges at the bottom of the next,
     //we need to create 'ghost' Join records of 'contrubuting' horizontals that
     //we can compare with horizontals at the bottom of the next SB.
-    if (isTopOfScanbeam)
-      if (IntPoint.equal(outPt.Pt, horzEdge.Top))
-        this.AddGhostJoin(outPt, horzEdge.Bot);
-      else this.AddGhostJoin(outPt, horzEdge.Top);
-  }
+    if (isTopOfScanbeam) {
+      //get the last Op for this horizontal edge
+      //the point may be anywhere along the horizontal ...
+      let outPt: OutPt = this._polyOuts.at(horzEdge.OutIdx).Pts;
+      if (horzEdge.Side != EdgeSide.Left) {
+        outPt = outPt.Prev;
+      }
 
-  public AddGhostJoin(Op: OutPt, OffPt: IntPoint): void {
-    var j = new Join();
-    j.OutPt1 = Op;
-    //j.OffPt = OffPt;
-    j.OffPt.X = OffPt.X;
-    j.OffPt.Y = OffPt.Y;
-    this._ghostJoins.push(j);
+      const point: IntPoint = outPt.Pt.equal(horzEdge.Top)
+        ? horzEdge.Bot
+        : horzEdge.Top;
+
+      this._ghostJoins.push(new Join(outPt, null, point));
+    }
   }
 
   public DeleteFromAEL(e: TEdge): void {
@@ -2263,77 +2141,21 @@ export default class Clipper {
     e.PrevInAEL = null;
   }
 
-  private m_IntersectNodeComparer(node1: any, node2: any): number {
+  private m_IntersectNodeComparer(
+    node1: IntersectNode,
+    node2: IntersectNode
+  ): number {
     return node2.Pt.Y - node1.Pt.Y;
-  }
-
-  public static Cast_Int64(a: number): number {
-    if (a < -2147483648 || a > 2147483647)
-      return a < 0 ? Math.ceil(a) : Math.floor(a);
-    else return ~~a;
   }
 
   public static Clear(a: any[]) {
     a.length = 0;
   }
 
-  public FixupOutPolygon(outRec: OutRec) {
-    //FixupOutPolygon() - removes duplicate points and simplifies consecutive
-    //parallel edges by removing the middle vertex.
-    var lastOK = null;
-    outRec.BottomPt = null;
-    var pp = outRec.Pts;
-    for (;;) {
-      if (pp.Prev == pp || pp.Prev == pp.Next) {
-        this.DisposeOutPts(pp);
-        outRec.Pts = null;
-        return;
-      }
-      //test for duplicate points and collinear edges ...
-      if (
-        IntPoint.equal(pp.Pt, pp.Next.Pt) ||
-        IntPoint.equal(pp.Pt, pp.Prev.Pt) ||
-        (IntPoint.slopesEqual(
-          pp.Prev.Pt,
-          pp.Pt,
-          pp.Next.Pt,
-          this._useFullRange
-        ) &&
-          (!this._preserveCollinear ||
-            !this.Pt2IsBetweenPt1AndPt3(pp.Prev.Pt, pp.Pt, pp.Next.Pt)))
-      ) {
-        lastOK = null;
-        var tmp = pp;
-        pp.Prev.Next = pp.Next;
-        pp.Next.Prev = pp.Prev;
-        pp = pp.Prev;
-        tmp = null;
-      } else if (pp == lastOK) break;
-      else {
-        if (lastOK === null) lastOK = pp;
-        pp = pp.Next;
-      }
-    }
-    outRec.Pts = pp;
-  }
-
   static ParseFirstLeft(FirstLeft: OutRec) {
     while (FirstLeft != null && FirstLeft.Pts == null)
       FirstLeft = FirstLeft.FirstLeft;
     return FirstLeft;
-  }
-
-  public static SlopesEqualEdge(e1: TEdge, e2: TEdge, UseFullRange: boolean) {
-    if (UseFullRange)
-      return Int128.op_Equality(
-        Int128.Int128Mul(e1.Delta.Y, e2.Delta.X),
-        Int128.Int128Mul(e1.Delta.X, e2.Delta.Y)
-      );
-    else
-      return (
-        Clipper.Cast_Int64(e1.Delta.Y * e2.Delta.X) ==
-        Clipper.Cast_Int64(e1.Delta.X * e2.Delta.Y)
-      );
   }
 
   public static Round(value: number): number {
