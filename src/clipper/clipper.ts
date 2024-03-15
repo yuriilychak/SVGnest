@@ -4,6 +4,7 @@ import IntPoint from "./int-point";
 import IntersectNode from "./intersect-node";
 import Join from "./join";
 import LocalMinima from "./local-minima";
+import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
 import Scanbeam from "./scanbeam";
@@ -29,21 +30,21 @@ export default class Clipper {
   private _executeLocked: boolean = false;
   private _clipFillType: PolyFillType = PolyFillType.EvenOdd;
   private _subjFillType: PolyFillType = PolyFillType.EvenOdd;
-  public ReverseSolution: boolean = false;
-  private _strictlySimple: boolean = false;
-  private _intersectList: IntersectNode[] = [];
-  private _usingPolyTree: boolean = false;
-  private _polyOuts: OutRec[] = [];
+  public reverseSolution: boolean = false;
+  public strictlySimple: boolean = false;
+  private _intersections: IntersectNode[] = [];
   private _joins: Join[] = [];
   private _ghostJoins: Join[] = [];
+  private _outPolygon: OutPolygon;
 
   constructor(InitOptions: number = 0) {
-    this.ReverseSolution = (1 & InitOptions) !== 0;
-    this._strictlySimple = (2 & InitOptions) !== 0;
+    this.reverseSolution = (1 & InitOptions) !== 0;
+    this.strictlySimple = (2 & InitOptions) !== 0;
     this._preserveCollinear = (4 & InitOptions) !== 0;
+    this._outPolygon = new OutPolygon();
   }
 
-  public AddPaths(
+  public addPaths(
     ppg: IntPoint[][],
     polyType: PolyType,
     closed: boolean
@@ -53,14 +54,14 @@ export default class Clipper {
     let i: number = 0;
 
     for (i = 0; i < polygonCount; ++i) {
-      if (this.AddPath(ppg[i], polyType, closed)) {
+      if (this.addPath(ppg[i], polyType, closed)) {
         result = true;
       }
     }
     return result;
   }
 
-  public AddPath(
+  public addPath(
     pg: IntPoint[],
     polyType: PolyType,
     isClosed: boolean
@@ -178,7 +179,7 @@ export default class Clipper {
     var clockwise;
     var EMin = null;
     for (;;) {
-      E = this.FindNextLocMin(E);
+      E = E.nextLocMin;
       if (E == EMin) break;
       else if (EMin == null) EMin = E;
       //E and E.Prev now share a local minima (left aligned if horizontal).
@@ -448,47 +449,16 @@ export default class Clipper {
     this._subjFillType = subjFillType;
     this._clipFillType = clipFillType;
     this._clipType = clipType;
-    this._usingPolyTree = false;
 
     try {
       var succeeded = this.ExecuteInternal();
       //build the return polygons ...
-      if (succeeded) this.BuildResult(solution);
+      if (succeeded) this._outPolygon.build(solution);
     } finally {
-      this.DisposeAllPolyPts();
+      this._outPolygon.dispose();
       this._executeLocked = false;
     }
     return succeeded;
-  }
-
-  public DisposeAllPolyPts() {
-    for (var i = 0, ilen = this._polyOuts.length; i < ilen; ++i)
-      this.DisposeOutRec(i);
-    Clipper.Clear(this._polyOuts);
-  }
-
-  public DisposeOutRec(index: number) {
-    var outRec = this._polyOuts[index];
-    if (outRec.Pts !== null) this.DisposeOutPts(outRec.Pts);
-    outRec = null;
-    this._polyOuts[index] = null;
-  }
-
-  public BuildResult(polyg: IntPoint[][]) {
-    Clipper.Clear(polyg);
-    for (var i = 0, ilen = this._polyOuts.length; i < ilen; i++) {
-      var outRec = this._polyOuts[i];
-      if (outRec.Pts === null) continue;
-      var p = outRec.Pts.Prev;
-      var cnt = p === null ? 0 : p.pointCount;
-      if (cnt < 2) continue;
-      var pg = new Array(cnt);
-      for (var j = 0; j < cnt; j++) {
-        pg[j] = p.Pt;
-        p = p.Prev;
-      }
-      polyg.push(pg);
-    }
   }
 
   public SwapPositionsInAEL(edge1: TEdge, edge2: TEdge): void {
@@ -553,90 +523,6 @@ export default class Clipper {
     }
   }
 
-  public AddLocalMaxPoly(e1: TEdge, e2: TEdge, pt: IntPoint): void {
-    this.AddOutPt(e1, pt);
-    if (e2.WindDelta == 0) this.AddOutPt(e2, pt);
-    if (e1.OutIdx == e2.OutIdx) {
-      e1.OutIdx = -1;
-      e2.OutIdx = -1;
-    } else if (e1.OutIdx < e2.OutIdx) this.AppendPolygon(e1, e2);
-    else this.AppendPolygon(e2, e1);
-  }
-
-  public AppendPolygon(e1: TEdge, e2: TEdge): void {
-    //get the start and ends of both output polygons ...
-    var outRec1 = this._polyOuts[e1.OutIdx];
-    var outRec2 = this._polyOuts[e2.OutIdx];
-    var holeStateRec;
-    if (this.Param1RightOfParam2(outRec1, outRec2)) holeStateRec = outRec2;
-    else if (this.Param1RightOfParam2(outRec2, outRec1)) holeStateRec = outRec1;
-    else holeStateRec = this.GetLowermostRec(outRec1, outRec2);
-    var p1_lft = outRec1.Pts;
-    var p1_rt = p1_lft.Prev;
-    var p2_lft = outRec2.Pts;
-    var p2_rt = p2_lft.Prev;
-    var side;
-    //join e2 poly onto e1 poly and delete pointers to e2 ...
-    if (e1.Side == EdgeSide.Left) {
-      if (e2.Side == EdgeSide.Left) {
-        //z y x a b c
-        this.ReversePolyPtLinks(p2_lft);
-        p2_lft.Next = p1_lft;
-        p1_lft.Prev = p2_lft;
-        p1_rt.Next = p2_rt;
-        p2_rt.Prev = p1_rt;
-        outRec1.Pts = p2_rt;
-      } else {
-        //x y z a b c
-        p2_rt.Next = p1_lft;
-        p1_lft.Prev = p2_rt;
-        p2_lft.Prev = p1_rt;
-        p1_rt.Next = p2_lft;
-        outRec1.Pts = p2_lft;
-      }
-      side = EdgeSide.Left;
-    } else {
-      if (e2.Side == EdgeSide.Right) {
-        //a b c z y x
-        this.ReversePolyPtLinks(p2_lft);
-        p1_rt.Next = p2_rt;
-        p2_rt.Prev = p1_rt;
-        p2_lft.Next = p1_lft;
-        p1_lft.Prev = p2_lft;
-      } else {
-        //a b c x y z
-        p1_rt.Next = p2_lft;
-        p2_lft.Prev = p1_rt;
-        p1_lft.Prev = p2_rt;
-        p2_rt.Next = p1_lft;
-      }
-      side = EdgeSide.Right;
-    }
-    outRec1.BottomPt = null;
-    if (holeStateRec == outRec2) {
-      if (outRec2.FirstLeft != outRec1) outRec1.FirstLeft = outRec2.FirstLeft;
-      outRec1.IsHole = outRec2.IsHole;
-    }
-    outRec2.Pts = null;
-    outRec2.BottomPt = null;
-    outRec2.FirstLeft = outRec1;
-    var OKIdx = e1.OutIdx;
-    var ObsoleteIdx = e2.OutIdx;
-    e1.OutIdx = -1;
-    //nb: safe because we only get here via AddLocalMaxPoly
-    e2.OutIdx = -1;
-    var e = this._activeEdges;
-    while (e !== null) {
-      if (e.OutIdx == ObsoleteIdx) {
-        e.OutIdx = OKIdx;
-        e.Side = side;
-        break;
-      }
-      e = e.NextInAEL;
-    }
-    outRec2.Idx = outRec1.Idx;
-  }
-
   public IntersectEdges(
     e1: TEdge,
     e2: TEdge,
@@ -658,7 +544,7 @@ export default class Clipper {
       //are both open paths, AND they are both 'contributing maximas' ...
       if (e1.WindDelta === 0 && e2.WindDelta === 0) {
         if ((e1stops || e2stops) && e1Contributing && e2Contributing)
-          this.AddLocalMaxPoly(e1, e2, pt);
+          this._outPolygon.addLocalMaxPoly(e1, e2, pt, this._activeEdges);
       }
       //if intersecting a subj line with a subj poly ...
       else if (
@@ -668,12 +554,12 @@ export default class Clipper {
       ) {
         if (e1.WindDelta === 0) {
           if (e2Contributing) {
-            this.AddOutPt(e1, pt);
+            this._outPolygon.addOutPt(e1, pt);
             if (e1Contributing) e1.OutIdx = -1;
           }
         } else {
           if (e1Contributing) {
-            this.AddOutPt(e2, pt);
+            this._outPolygon.addOutPt(e2, pt);
             if (e2Contributing) e2.OutIdx = -1;
           }
         }
@@ -683,14 +569,14 @@ export default class Clipper {
           Math.abs(e2.WindCnt) == 1 &&
           (this._clipType != ClipType.Union || e2.WindCnt2 === 0)
         ) {
-          this.AddOutPt(e1, pt);
+          this._outPolygon.addOutPt(e1, pt);
           if (e1Contributing) e1.OutIdx = -1;
         } else if (
           e2.WindDelta === 0 &&
           Math.abs(e1.WindCnt) == 1 &&
           (this._clipType != ClipType.Union || e1.WindCnt2 === 0)
         ) {
-          this.AddOutPt(e2, pt);
+          this._outPolygon.addOutPt(e2, pt);
           if (e2Contributing) e2.OutIdx = -1;
         }
       }
@@ -768,22 +654,22 @@ export default class Clipper {
         (e2Wc !== 0 && e2Wc != 1) ||
         (e1.PolyTyp != e2.PolyTyp && this._clipType != ClipType.Xor)
       )
-        this.AddLocalMaxPoly(e1, e2, pt);
+        this._outPolygon.addLocalMaxPoly(e1, e2, pt, this._activeEdges);
       else {
-        this.AddOutPt(e1, pt);
-        this.AddOutPt(e2, pt);
+        this._outPolygon.addOutPt(e1, pt);
+        this._outPolygon.addOutPt(e2, pt);
         e1.swapSides(e2);
         e1.swapPolyIndices(e2);
       }
     } else if (e1Contributing) {
       if (e2Wc === 0 || e2Wc == 1) {
-        this.AddOutPt(e1, pt);
+        this._outPolygon.addOutPt(e1, pt);
         e1.swapSides(e2);
         e1.swapPolyIndices(e2);
       }
     } else if (e2Contributing) {
       if (e1Wc === 0 || e1Wc == 1) {
-        this.AddOutPt(e2, pt);
+        this._outPolygon.addOutPt(e2, pt);
         e1.swapSides(e2);
         e1.swapPolyIndices(e2);
       }
@@ -854,7 +740,7 @@ export default class Clipper {
   public DoMaxima(e: TEdge): void {
     var eMaxPair = e.getMaximaPair();
     if (eMaxPair === null) {
-      if (e.OutIdx >= 0) this.AddOutPt(e, e.Top);
+      if (e.OutIdx >= 0) this._outPolygon.addOutPt(e, e.Top);
       this.DeleteFromAEL(e);
       return;
     }
@@ -872,12 +758,12 @@ export default class Clipper {
       this.IntersectEdges(e, eMaxPair, e.Top, false);
     } else if (use_lines && e.WindDelta === 0) {
       if (e.OutIdx >= 0) {
-        this.AddOutPt(e, e.Top);
+        this._outPolygon.addOutPt(e, e.Top);
         e.OutIdx = -1;
       }
       this.DeleteFromAEL(e);
       if (eMaxPair.OutIdx >= 0) {
-        this.AddOutPt(eMaxPair, e.Top);
+        this._outPolygon.addOutPt(eMaxPair, e.Top);
         eMaxPair.OutIdx = -1;
       }
       this.DeleteFromAEL(eMaxPair);
@@ -908,13 +794,13 @@ export default class Clipper {
         //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
         if (e.isIntermediate(topY) && e.NextInLML.isHorizontal) {
           e = this.UpdateEdgeIntoAEL(e);
-          if (e.OutIdx >= 0) this.AddOutPt(e, e.Bot);
+          if (e.OutIdx >= 0) this._outPolygon.addOutPt(e, e.Bot);
           this.AddEdgeToSEL(e);
         } else {
           e.Curr.X = e.topX(topY);
           e.Curr.Y = topY;
         }
-        if (this._strictlySimple) {
+        if (this.strictlySimple) {
           var ePrev = e.PrevInAEL;
           if (
             e.OutIdx >= 0 &&
@@ -924,8 +810,8 @@ export default class Clipper {
             ePrev.Curr.X == e.Curr.X &&
             ePrev.WindDelta !== 0
           ) {
-            var op = this.AddOutPt(ePrev, e.Curr);
-            var op2 = this.AddOutPt(e, e.Curr);
+            var op = this._outPolygon.addOutPt(ePrev, e.Curr);
+            var op2 = this._outPolygon.addOutPt(e, e.Curr);
             this.AddJoin(op, op2, e.Curr);
             //StrictlySimple (type-3) join
           }
@@ -940,7 +826,7 @@ export default class Clipper {
     while (e !== null) {
       if (e.isIntermediate(topY)) {
         var op: OutPt = null;
-        if (e.OutIdx >= 0) op = this.AddOutPt(e, e.Top);
+        if (e.OutIdx >= 0) op = this._outPolygon.addOutPt(e, e.Top);
         e = this.UpdateEdgeIntoAEL(e);
         //if output polygons share an edge, they'll need joining later ...
         var ePrev = e.PrevInAEL;
@@ -956,7 +842,7 @@ export default class Clipper {
           e.WindDelta !== 0 &&
           ePrev.WindDelta !== 0
         ) {
-          var op2 = this.AddOutPt(ePrev, e.Bot);
+          var op2 = this._outPolygon.addOutPt(ePrev, e.Bot);
           this.AddJoin(op, op2, e.Top);
         } else if (
           eNext !== null &&
@@ -969,7 +855,7 @@ export default class Clipper {
           e.WindDelta !== 0 &&
           eNext.WindDelta !== 0
         ) {
-          var op2 = this.AddOutPt(eNext, e.Bot);
+          var op2 = this._outPolygon.addOutPt(eNext, e.Bot);
           this.AddJoin(op, op2, e.Top);
         }
       }
@@ -998,61 +884,23 @@ export default class Clipper {
     //pre-condition: intersections are sorted bottom-most first.
     //Now it's crucial that intersections are made only between adjacent edges,
     //so to ensure this the order of intersections may need adjusting ...
-    this._intersectList.sort(this.m_IntersectNodeComparer);
+    this._intersections.sort(IntersectNode.compare);
     this.CopyAELToSEL();
-    var cnt = this._intersectList.length;
+    var cnt = this._intersections.length;
     for (var i = 0; i < cnt; i++) {
-      if (!this.EdgesAdjacent(this._intersectList[i])) {
+      if (!this._intersections[i].edgesAdjacent) {
         var j = i + 1;
-        while (j < cnt && !this.EdgesAdjacent(this._intersectList[j])) j++;
+        while (j < cnt && !this._intersections[j].edgesAdjacent) j++;
         if (j == cnt) return false;
-        var tmp = this._intersectList[i];
-        this._intersectList[i] = this._intersectList[j];
-        this._intersectList[j] = tmp;
+        var tmp = this._intersections[i];
+        this._intersections[i] = this._intersections[j];
+        this._intersections[j] = tmp;
       }
-      this.SwapPositionsInSEL(
-        this._intersectList[i].Edge1,
-        this._intersectList[i].Edge2
+      this._sortedEdges = this._intersections[i].swapPositionsInSEL(
+        this._sortedEdges
       );
     }
     return true;
-  }
-
-  public SwapPositionsInSEL(edge1: TEdge, edge2: TEdge): void {
-    if (edge1.NextInSEL === null && edge1.PrevInSEL === null) return;
-    if (edge2.NextInSEL === null && edge2.PrevInSEL === null) return;
-    if (edge1.NextInSEL == edge2) {
-      var next = edge2.NextInSEL;
-      if (next !== null) next.PrevInSEL = edge1;
-      var prev = edge1.PrevInSEL;
-      if (prev !== null) prev.NextInSEL = edge2;
-      edge2.PrevInSEL = prev;
-      edge2.NextInSEL = edge1;
-      edge1.PrevInSEL = edge2;
-      edge1.NextInSEL = next;
-    } else if (edge2.NextInSEL == edge1) {
-      var next = edge1.NextInSEL;
-      if (next !== null) next.PrevInSEL = edge2;
-      var prev = edge2.PrevInSEL;
-      if (prev !== null) prev.NextInSEL = edge1;
-      edge1.PrevInSEL = prev;
-      edge1.NextInSEL = edge2;
-      edge2.PrevInSEL = edge1;
-      edge2.NextInSEL = next;
-    } else {
-      var next = edge1.NextInSEL;
-      var prev = edge1.PrevInSEL;
-      edge1.NextInSEL = edge2.NextInSEL;
-      if (edge1.NextInSEL !== null) edge1.NextInSEL.PrevInSEL = edge1;
-      edge1.PrevInSEL = edge2.PrevInSEL;
-      if (edge1.PrevInSEL !== null) edge1.PrevInSEL.NextInSEL = edge1;
-      edge2.NextInSEL = next;
-      if (edge2.NextInSEL !== null) edge2.NextInSEL.PrevInSEL = edge2;
-      edge2.PrevInSEL = prev;
-      if (edge2.PrevInSEL !== null) edge2.PrevInSEL.NextInSEL = edge2;
-    }
-    if (edge1.PrevInSEL === null) this._sortedEdges = edge1;
-    else if (edge2.PrevInSEL === null) this._sortedEdges = edge2;
   }
 
   public IntersectPoint(edge1: TEdge, edge2: TEdge, ip: IntPoint): boolean {
@@ -1145,14 +993,9 @@ export default class Clipper {
             if (Math.abs(e.Dx) > Math.abs(eNext.Dx)) pt.X = eNext.topX(botY);
             else pt.X = e.topX(botY);
           }
-          var newNode = new IntersectNode();
-          newNode.Edge1 = e;
-          newNode.Edge2 = eNext;
-          //newNode.Pt = pt;
-          newNode.Pt.X = pt.X;
-          newNode.Pt.Y = pt.Y;
-          this._intersectList.push(newNode);
-          this.SwapPositionsInSEL(e, eNext);
+          var newNode = new IntersectNode(e, eNext, pt);
+          this._intersections.push(newNode);
+          this._sortedEdges = newNode.swapPositionsInSEL(this._sortedEdges);
           isModified = true;
         } else e = eNext;
       }
@@ -1163,25 +1006,25 @@ export default class Clipper {
   }
 
   public ProcessIntersectList() {
-    for (var i = 0, ilen = this._intersectList.length; i < ilen; i++) {
-      var iNode = this._intersectList[i];
+    for (var i = 0, ilen = this._intersections.length; i < ilen; i++) {
+      var iNode = this._intersections[i];
       this.IntersectEdges(iNode.Edge1, iNode.Edge2, iNode.Pt, true);
       this.SwapPositionsInAEL(iNode.Edge1, iNode.Edge2);
     }
-    this._intersectList.length = 0;
+    this._intersections.length = 0;
   }
 
   public ProcessIntersections(botY: number, topY: number): boolean {
     if (this._activeEdges == null) return true;
     try {
       this.BuildIntersectList(botY, topY);
-      if (this._intersectList.length == 0) return true;
-      if (this._intersectList.length == 1 || this.FixupIntersectionOrder())
+      if (this._intersections.length == 0) return true;
+      if (this._intersections.length == 1 || this.FixupIntersectionOrder())
         this.ProcessIntersectList();
       else return false;
     } catch ($$e2) {
       this._sortedEdges = null;
-      this._intersectList.length = 0;
+      this._intersections.length = 0;
       console.error("ProcessIntersections error");
     }
     this._sortedEdges = null;
@@ -1314,7 +1157,7 @@ export default class Clipper {
     var result;
     var e, prevE;
     if (e2.isHorizontal || e1.Dx > e2.Dx) {
-      result = this.AddOutPt(e1, pt);
+      result = this._outPolygon.addOutPt(e1, pt);
       e2.OutIdx = e1.OutIdx;
       e1.Side = EdgeSide.Left;
       e2.Side = EdgeSide.Right;
@@ -1322,7 +1165,7 @@ export default class Clipper {
       if (e.PrevInAEL == e2) prevE = e2.PrevInAEL;
       else prevE = e.PrevInAEL;
     } else {
-      result = this.AddOutPt(e2, pt);
+      result = this._outPolygon.addOutPt(e2, pt);
       e1.OutIdx = e2.OutIdx;
       e1.Side = EdgeSide.Right;
       e2.Side = EdgeSide.Left;
@@ -1338,7 +1181,7 @@ export default class Clipper {
       e.WindDelta !== 0 &&
       prevE.WindDelta !== 0
     ) {
-      var outPt = this.AddOutPt(prevE, pt);
+      var outPt = this._outPolygon.addOutPt(prevE, pt);
       this.AddJoin(result, outPt, e.Top);
     }
     return result;
@@ -1376,7 +1219,7 @@ export default class Clipper {
             this._clipFillType
           )
         )
-          Op1 = this.AddOutPt(rb, rb.Bot);
+          Op1 = this._outPolygon.addOutPt(rb, rb.Bot);
       } else if (rb == null) {
         this.InsertEdgeIntoAEL(lb, null);
         this.SetWindingCount(lb);
@@ -1387,7 +1230,7 @@ export default class Clipper {
             this._clipFillType
           )
         )
-          Op1 = this.AddOutPt(lb, lb.Bot);
+          Op1 = this._outPolygon.addOutPt(lb, lb.Bot);
         this.InsertScanbeam(lb.Top.Y);
       } else {
         this.InsertEdgeIntoAEL(lb, null);
@@ -1435,7 +1278,7 @@ export default class Clipper {
         lb.WindDelta !== 0 &&
         lb.PrevInAEL.WindDelta !== 0
       ) {
-        var Op2 = this.AddOutPt(lb.PrevInAEL, lb.Bot);
+        var Op2 = this._outPolygon.addOutPt(lb.PrevInAEL, lb.Bot);
         this.AddJoin(Op1, Op2, lb.Top);
       }
       if (lb.NextInAEL != rb) {
@@ -1446,7 +1289,7 @@ export default class Clipper {
           rb.WindDelta !== 0 &&
           rb.PrevInAEL.WindDelta !== 0
         ) {
-          var Op2 = this.AddOutPt(rb.PrevInAEL, rb.Bot);
+          var Op2 = this._outPolygon.addOutPt(rb.PrevInAEL, rb.Bot);
           this.AddJoin(Op1, Op2, rb.Top);
         }
         var e = lb.NextInAEL;
@@ -1479,32 +1322,17 @@ export default class Clipper {
         botY = topY;
       } while (this._scanbeam !== null || this._CurrentLM !== null);
       //fix orientations ...
-      for (var i = 0, ilen = this._polyOuts.length; i < ilen; i++) {
-        var outRec = this._polyOuts[i];
-        if (outRec.Pts === null || outRec.IsOpen) continue;
-        //@ts-ignore
-        if ((outRec.IsHole ^ this.ReverseSolution) == outRec.area > 0)
-          this.ReversePolyPtLinks(outRec.Pts);
-      }
-      this.JoinCommonEdges();
-      for (var i = 0, ilen = this._polyOuts.length; i < ilen; i++) {
-        var outRec = this._polyOuts[i];
-        if (outRec.Pts !== null && !outRec.IsOpen)
-          outRec.fixupOutPolygon(this._useFullRange, this._preserveCollinear);
-      }
-      if (this._strictlySimple) this.DoSimplePolygons();
+      this._outPolygon.fixOrientations(
+        this._joins,
+        this.reverseSolution,
+        this._useFullRange,
+        this.strictlySimple
+      );
       return true;
     } finally {
       Clipper.Clear(this._joins);
       Clipper.Clear(this._ghostJoins);
     }
-  }
-
-  public GetOutRec(idx: number): OutRec {
-    var outrec = this._polyOuts[idx];
-    while (outrec != this._polyOuts[outrec.Idx])
-      outrec = this._polyOuts[outrec.Idx];
-    return outrec;
   }
 
   public Param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {
@@ -1582,115 +1410,10 @@ export default class Clipper {
     else return (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
   }
 
-  public JoinCommonEdges() {
-    for (var i = 0, ilen = this._joins.length; i < ilen; i++) {
-      var join = this._joins[i];
-      var outRec1 = this.GetOutRec(join.OutPt1.Idx);
-      var outRec2 = this.GetOutRec(join.OutPt2.Idx);
-      if (outRec1.Pts == null || outRec2.Pts == null) continue;
-      //get the polygon fragment with the correct hole state (FirstLeft)
-      //before calling JoinPoints() ...
-      var holeStateRec;
-      if (outRec1 == outRec2) holeStateRec = outRec1;
-      else if (this.Param1RightOfParam2(outRec1, outRec2))
-        holeStateRec = outRec2;
-      else if (this.Param1RightOfParam2(outRec2, outRec1))
-        holeStateRec = outRec1;
-      else holeStateRec = this.GetLowermostRec(outRec1, outRec2);
-
-      if (!join.joinPoints(outRec1, outRec2, this._useFullRange)) continue;
-
-      if (outRec1 == outRec2) {
-        //instead of joining two polygons, we've just created a new one by
-        //splitting one polygon into two.
-        outRec1.Pts = join.OutPt1;
-        outRec1.BottomPt = null;
-        outRec2 = this.CreateOutRec();
-        outRec2.Pts = join.OutPt2;
-        //update all OutRec2.Pts Idx's ...
-        outRec2.updateOutPtIdxs();
-        //We now need to check every OutRec.FirstLeft pointer. If it points
-        //to OutRec1 it may need to point to OutRec2 instead ...
-        if (this._usingPolyTree)
-          for (var j = 0, jlen = this._polyOuts.length; j < jlen - 1; j++) {
-            var oRec = this._polyOuts[j];
-            if (
-              oRec.Pts == null ||
-              Clipper.ParseFirstLeft(oRec.FirstLeft) != outRec1 ||
-              oRec.IsHole == outRec1.IsHole
-            )
-              continue;
-            if (this.Poly2ContainsPoly1(oRec.Pts, join.OutPt2))
-              oRec.FirstLeft = outRec2;
-          }
-        if (this.Poly2ContainsPoly1(outRec2.Pts, outRec1.Pts)) {
-          //outRec2 is contained by outRec1 ...
-          outRec2.IsHole = !outRec1.IsHole;
-          outRec2.FirstLeft = outRec1;
-          //fixup FirstLeft pointers that may need reassigning to OutRec1
-          if (this._usingPolyTree) this.FixupFirstLefts2(outRec2, outRec1);
-          //@ts-ignore
-          if ((outRec2.IsHole ^ this.ReverseSolution) == outRec2.area > 0)
-            this.ReversePolyPtLinks(outRec2.Pts);
-        } else if (this.Poly2ContainsPoly1(outRec1.Pts, outRec2.Pts)) {
-          //outRec1 is contained by outRec2 ...
-          outRec2.IsHole = outRec1.IsHole;
-          outRec1.IsHole = !outRec2.IsHole;
-          outRec2.FirstLeft = outRec1.FirstLeft;
-          outRec1.FirstLeft = outRec2;
-          //fixup FirstLeft pointers that may need reassigning to OutRec1
-          if (this._usingPolyTree) this.FixupFirstLefts2(outRec1, outRec2);
-          //@ts-ignore
-          if (
-            //@ts-ignore
-            (outRec1.IsHole ^ this.ReverseSolution) ==
-            outRec1.area > 0
-          ) {
-            this.ReversePolyPtLinks(outRec1.Pts);
-          }
-        } else {
-          //the 2 polygons are completely separate ...
-          outRec2.IsHole = outRec1.IsHole;
-          outRec2.FirstLeft = outRec1.FirstLeft;
-          //fixup FirstLeft pointers that may need reassigning to OutRec2
-          if (this._usingPolyTree) this.FixupFirstLefts1(outRec1, outRec2);
-        }
-      } else {
-        //joined 2 polygons together ...
-        outRec2.Pts = null;
-        outRec2.BottomPt = null;
-        outRec2.Idx = outRec1.Idx;
-        outRec1.IsHole = holeStateRec.IsHole;
-        if (holeStateRec == outRec2) outRec1.FirstLeft = outRec2.FirstLeft;
-        outRec2.FirstLeft = outRec1;
-        //fixup FirstLeft pointers that may need reassigning to OutRec1
-        if (this._usingPolyTree) this.FixupFirstLefts2(outRec2, outRec1);
-      }
-    }
-  }
-
   public ReversePolyPtLinks(pp: OutPt): void {
     if (pp !== null) {
       pp.reverse();
     }
-  }
-
-  public FixupFirstLefts1(OldOutRec: OutRec, NewOutRec: OutRec): void {
-    for (var i = 0, ilen = this._polyOuts.length; i < ilen; i++) {
-      var outRec = this._polyOuts[i];
-      if (outRec.Pts !== null && outRec.FirstLeft == OldOutRec) {
-        if (this.Poly2ContainsPoly1(outRec.Pts, NewOutRec.Pts))
-          outRec.FirstLeft = NewOutRec;
-      }
-    }
-  }
-  public FixupFirstLefts2(OldOutRec: OutRec, NewOutRec: OutRec): void {
-    for (
-      var $i2 = 0, $t2 = this._polyOuts, $l2 = $t2.length, outRec = $t2[$i2];
-      $i2 < $l2;
-      $i2++, outRec = $t2[$i2]
-    )
-      if (outRec.FirstLeft == OldOutRec) outRec.FirstLeft = NewOutRec;
   }
 
   public ProcessHorizontals(isTopOfScanbeam: boolean): void {
@@ -1718,57 +1441,6 @@ export default class Clipper {
     var Y = this._scanbeam.Y;
     this._scanbeam = this._scanbeam.Next;
     return Y;
-  }
-
-  public DoSimplePolygons() {
-    var i = 0;
-    while (i < this._polyOuts.length) {
-      var outrec = this._polyOuts[i++];
-      var op = outrec.Pts;
-      if (op === null) continue;
-      do //for each Pt in Polygon until duplicate found do ...
-      {
-        var op2 = op.Next;
-        while (op2 != outrec.Pts) {
-          if (
-            IntPoint.equal(op.Pt, op2.Pt) &&
-            op2.Next != op &&
-            op2.Prev != op
-          ) {
-            //split the polygon into two ...
-            var op3 = op.Prev;
-            var op4 = op2.Prev;
-            op.Prev = op4;
-            op4.Next = op;
-            op2.Prev = op3;
-            op3.Next = op2;
-            outrec.Pts = op;
-            var outrec2 = this.CreateOutRec();
-            outrec2.Pts = op2;
-            outrec2.updateOutPtIdxs();
-            if (this.Poly2ContainsPoly1(outrec2.Pts, outrec.Pts)) {
-              //OutRec2 is contained by OutRec1 ...
-              outrec2.IsHole = !outrec.IsHole;
-              outrec2.FirstLeft = outrec;
-            } else if (this.Poly2ContainsPoly1(outrec.Pts, outrec2.Pts)) {
-              //OutRec1 is contained by OutRec2 ...
-              outrec2.IsHole = outrec.IsHole;
-              outrec.IsHole = !outrec2.IsHole;
-              outrec2.FirstLeft = outrec.FirstLeft;
-              outrec.FirstLeft = outrec2;
-            } else {
-              //the 2 polygons are separate ...
-              outrec2.IsHole = outrec.IsHole;
-              outrec2.FirstLeft = outrec.FirstLeft;
-            }
-            op2 = op;
-            //ie get ready for the next iteration
-          }
-          op2 = op2.Next;
-        }
-        op = op.Next;
-      } while (op != outrec.Pts);
-    }
   }
 
   public PointInPolygon(pt: IntPoint, path: IntPoint[]) {
@@ -1820,20 +1492,6 @@ export default class Clipper {
       op = op.Next;
     } while (op != outPt1);
     return true;
-  }
-
-  public CreateOutRec(): OutRec {
-    var result = new OutRec();
-    result.Idx = -1;
-    result.IsHole = false;
-    result.IsOpen = false;
-    result.FirstLeft = null;
-    result.Pts = null;
-    result.BottomPt = null;
-    result.PolyNode = null;
-    this._polyOuts.push(result);
-    result.Idx = this._polyOuts.length - 1;
-    return result;
   }
 
   public Reset() {
@@ -1978,7 +1636,8 @@ export default class Clipper {
         this.PrepareHorzJoins(horzEdge, isTopOfScanbeam);
       if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
         horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
-        if (horzEdge.OutIdx >= 0) this.AddOutPt(horzEdge, horzEdge.Bot);
+        if (horzEdge.OutIdx >= 0)
+          this._outPolygon.addOutPt(horzEdge, horzEdge.Bot);
 
         var $var = { Dir: dir, Left: horzLeft, Right: horzRight };
         this.GetHorzDirection(horzEdge, $var);
@@ -1990,7 +1649,7 @@ export default class Clipper {
     //end for (;;)
     if (horzEdge.NextInLML !== null) {
       if (horzEdge.OutIdx >= 0) {
-        var op1 = this.AddOutPt(horzEdge, horzEdge.Top);
+        var op1 = this._outPolygon.addOutPt(horzEdge, horzEdge.Top);
         horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
         if (horzEdge.WindDelta === 0) return;
         //nb: HorzEdge is no longer horizontal here
@@ -2005,7 +1664,7 @@ export default class Clipper {
           ePrev.Curr.Y > ePrev.Top.Y &&
           TEdge.slopesEqual(horzEdge, ePrev, this._useFullRange)
         ) {
-          var op2 = this.AddOutPt(ePrev, horzEdge.Bot);
+          var op2 = this._outPolygon.addOutPt(ePrev, horzEdge.Bot);
           this.AddJoin(op1, op2, horzEdge.Top);
         } else if (
           eNext !== null &&
@@ -2016,7 +1675,7 @@ export default class Clipper {
           eNext.Curr.Y > eNext.Top.Y &&
           TEdge.slopesEqual(horzEdge, eNext, this._useFullRange)
         ) {
-          var op2 = this.AddOutPt(eNext, horzEdge.Bot);
+          var op2 = this._outPolygon.addOutPt(eNext, horzEdge.Bot);
           this.AddJoin(op1, op2, horzEdge.Top);
         }
       } else horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
@@ -2031,7 +1690,8 @@ export default class Clipper {
         this.DeleteFromAEL(eMaxPair);
       }
     } else {
-      if (horzEdge.OutIdx >= 0) this.AddOutPt(horzEdge, horzEdge.Top);
+      if (horzEdge.OutIdx >= 0)
+        this._outPolygon.addOutPt(horzEdge, horzEdge.Top);
       this.DeleteFromAEL(horzEdge);
     }
   }
@@ -2048,57 +1708,6 @@ export default class Clipper {
     }
   }
 
-  public SetHoleState(e: TEdge, outRec: OutRec): void {
-    var isHole = false;
-    var e2 = e.PrevInAEL;
-    while (e2 !== null) {
-      if (e2.OutIdx >= 0 && e2.WindDelta != 0) {
-        isHole = !isHole;
-        if (outRec.FirstLeft === null)
-          outRec.FirstLeft = this._polyOuts[e2.OutIdx];
-      }
-      e2 = e2.PrevInAEL;
-    }
-    if (isHole) outRec.IsHole = true;
-  }
-
-  public AddOutPt(e: TEdge, pt: IntPoint) {
-    var ToFront = e.Side == EdgeSide.Left;
-    if (e.OutIdx < 0) {
-      var outRec: OutRec = this.CreateOutRec();
-      outRec.IsOpen = e.WindDelta === 0;
-      var newOp: OutPt = new OutPt();
-      outRec.Pts = newOp;
-      newOp.Idx = outRec.Idx;
-      //newOp.Pt = pt;
-      newOp.Pt.X = pt.X;
-      newOp.Pt.Y = pt.Y;
-      newOp.Next = newOp;
-      newOp.Prev = newOp;
-      if (!outRec.IsOpen) this.SetHoleState(e, outRec);
-      e.OutIdx = outRec.Idx;
-      //nb: do this after SetZ !
-      return newOp;
-    } else {
-      var outRec = this._polyOuts[e.OutIdx];
-      //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-      var op = outRec.Pts;
-      if (ToFront && IntPoint.equal(pt, op.Pt)) return op;
-      else if (!ToFront && IntPoint.equal(pt, op.Prev.Pt)) return op.Prev;
-      var newOp = new OutPt();
-      newOp.Idx = outRec.Idx;
-      //newOp.Pt = pt;
-      newOp.Pt.X = pt.X;
-      newOp.Pt.Y = pt.Y;
-      newOp.Next = op;
-      newOp.Prev = op.Prev;
-      newOp.Prev.Next = newOp;
-      op.Prev = newOp;
-      if (ToFront) outRec.Pts = newOp;
-
-      return newOp;
-    }
-  }
   public PrepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean): void {
     //First, match up overlapping horizontal edges (eg when one polygon's
     //intermediate horz edge overlaps an intermediate horz edge of another, or
@@ -2116,16 +1725,7 @@ export default class Clipper {
     if (isTopOfScanbeam) {
       //get the last Op for this horizontal edge
       //the point may be anywhere along the horizontal ...
-      let outPt: OutPt = this._polyOuts.at(horzEdge.OutIdx).Pts;
-      if (horzEdge.Side != EdgeSide.Left) {
-        outPt = outPt.Prev;
-      }
-
-      const point: IntPoint = outPt.Pt.equal(horzEdge.Top)
-        ? horzEdge.Bot
-        : horzEdge.Top;
-
-      this._ghostJoins.push(new Join(outPt, null, point));
+      this._ghostJoins.push(this._outPolygon.createHorizontalJoin(horzEdge));
     }
   }
 
@@ -2224,8 +1824,8 @@ export default class Clipper {
   ): IntPoint[][] {
     var result: IntPoint[][] = [];
     var c = new Clipper();
-    c._strictlySimple = true;
-    c.AddPath(poly, PolyType.Subject, true);
+    c.strictlySimple = true;
+    c.addPath(poly, PolyType.Subject, true);
     c.Execute(ClipType.Union, result, fillType, fillType);
     return result;
   }

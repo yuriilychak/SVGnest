@@ -43,7 +43,7 @@ export default class IntPoint {
     return (c * c) / (a * a + b * b);
   }
 
-  public isBetween(point1: IntPoint, point2: IntPoint): boolean {
+  public between(point1: IntPoint, point2: IntPoint): boolean {
     if (point1.equal(point2) || this.equal(point1) || this.equal(point2)) {
       return false;
     } else if (point1.X != point2.X) {
@@ -117,5 +117,10 @@ export default class IntPoint {
     const dy: number = point1.Y - point2.Y;
 
     return dx * dx + dy * dy <= distSqrd;
+  }
+
+  public static getDx(pt1: IntPoint, pt2: IntPoint) {
+    if (pt1.Y == pt2.Y) return Number.MIN_SAFE_INTEGER;
+    else return (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
   }
 }

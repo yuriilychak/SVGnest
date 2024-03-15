@@ -76,7 +76,7 @@ export default class ClipperOffset {
     this._doOffset(delta);
     //now clean up 'corners' ...
     var clpr = new Clipper();
-    clpr.AddPaths(this._destPolys, PolyType.Subject, true);
+    clpr.addPaths(this._destPolys, PolyType.Subject, true);
     if (delta > 0) {
       clpr.Execute(
         ClipType.Union,
@@ -91,8 +91,8 @@ export default class ClipperOffset {
       outer.push(new IntPoint(rect.right + 10, rect.bottom + 10));
       outer.push(new IntPoint(rect.right + 10, rect.top - 10));
       outer.push(new IntPoint(rect.left - 10, rect.top - 10));
-      clpr.AddPath(outer, PolyType.Subject, true);
-      clpr.ReverseSolution = true;
+      clpr.addPath(outer, PolyType.Subject, true);
+      clpr.reverseSolution = true;
       clpr.Execute(
         ClipType.Union,
         solution,

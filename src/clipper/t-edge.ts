@@ -54,6 +54,32 @@ export default class TEdge {
     edge.Side = side;
   }
 
+  public initFromPolyType(polyType: PolyType): void {
+    if (this.Curr.Y >= this.Next.Curr.Y) {
+      //e.Bot = e.Curr;
+      this.Bot.X = this.Curr.X;
+      this.Bot.Y = this.Curr.Y;
+      //e.Top = e.Next.Curr;
+      this.Top.X = this.Next.Curr.X;
+      this.Top.Y = this.Next.Curr.Y;
+    } else {
+      //e.Top = e.Curr;
+      this.Top.X = this.Curr.X;
+      this.Top.Y = this.Curr.Y;
+      //e.Bot = e.Next.Curr;
+      this.Bot.X = this.Next.Curr.X;
+      this.Bot.Y = this.Next.Curr.Y;
+    }
+    this.Delta.X = this.Top.X - this.Bot.X;
+    this.Delta.Y = this.Top.Y - this.Bot.Y;
+    if (this.Delta.Y === 0) {
+      this.Dx = Number.MIN_SAFE_INTEGER;
+    } else {
+      this.Dx = this.Delta.X / this.Delta.Y;
+    }
+    this.PolyTyp = polyType;
+  }
+
   public remove(): TEdge {
     //removes e from double_linked_list (but without removing from memory)
     this.Prev.Next = this.Next;
@@ -190,6 +216,31 @@ export default class TEdge {
     return this.Delta.Y === 0;
   }
 
+  public get nextLocMin(): TEdge {
+    let edge: TEdge = this;
+    var E2;
+    for (;;) {
+      while (
+        IntPoint.unequal(edge.Bot, edge.Prev.Bot) ||
+        edge.Curr.equal(edge.Top)
+      )
+        edge = edge.Next;
+      if (
+        edge.Dx != Number.MIN_SAFE_INTEGER &&
+        edge.Prev.Dx != Number.MIN_SAFE_INTEGER
+      )
+        break;
+      while (edge.Prev.Dx == Number.MIN_SAFE_INTEGER) edge = edge.Prev;
+      E2 = edge;
+      while (edge.Dx == Number.MIN_SAFE_INTEGER) edge = edge.Next;
+      if (edge.Top.Y == edge.Prev.Bot.Y) continue;
+      //ie just an intermediate horz.
+      if (E2.Prev.Bot.X < edge.Bot.X) edge = E2;
+      break;
+    }
+    return edge;
+  }
+
   public static slopesEqual(
     edge1: TEdge,
     edge2: TEdge,
@@ -215,5 +266,69 @@ export default class TEdge {
 
   public static Round(value: number): number {
     return value < 0 ? -Math.round(Math.abs(value)) : Math.round(value);
+  }
+
+  public static e2InsertsBeforeE1(e1: TEdge, e2: TEdge): boolean {
+    if (e2.Curr.X == e1.Curr.X) {
+      if (e2.Top.Y > e1.Top.Y) return e2.Top.X < e1.topX(e2.Top.Y);
+      else return e1.Top.X > e2.topX(e1.Top.Y);
+    } else return e2.Curr.X < e1.Curr.X;
+  }
+
+  public static intersectPoint(
+    edge1: TEdge,
+    edge2: TEdge,
+    ip: IntPoint,
+    useFullRange: boolean
+  ): boolean {
+    ip.X = 0;
+    ip.Y = 0;
+    var b1, b2;
+    //nb: with very large coordinate values, it's possible for SlopesEqual() to
+    //return false but for the edge.Dx value be equal due to double precision rounding.
+    if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.Dx == edge2.Dx) {
+      if (edge2.Bot.Y > edge1.Bot.Y) {
+        ip.X = edge2.Bot.X;
+        ip.Y = edge2.Bot.Y;
+      } else {
+        ip.X = edge1.Bot.X;
+        ip.Y = edge1.Bot.Y;
+      }
+      return false;
+    } else if (edge1.Delta.X === 0) {
+      ip.X = edge1.Bot.X;
+      if (edge2.isHorizontal) {
+        ip.Y = edge2.Bot.Y;
+      } else {
+        b2 = edge2.Bot.Y - edge2.Bot.X / edge2.Dx;
+        ip.Y = TEdge.Round(ip.X / edge2.Dx + b2);
+      }
+    } else if (edge2.Delta.X === 0) {
+      ip.X = edge2.Bot.X;
+      if (edge1.isHorizontal) {
+        ip.Y = edge1.Bot.Y;
+      } else {
+        b1 = edge1.Bot.Y - edge1.Bot.X / edge1.Dx;
+        ip.Y = TEdge.Round(ip.X / edge1.Dx + b1);
+      }
+    } else {
+      b1 = edge1.Bot.X - edge1.Bot.Y * edge1.Dx;
+      b2 = edge2.Bot.X - edge2.Bot.Y * edge2.Dx;
+      var q = (b2 - b1) / (edge1.Dx - edge2.Dx);
+      ip.Y = TEdge.Round(q);
+      if (Math.abs(edge1.Dx) < Math.abs(edge2.Dx))
+        ip.X = TEdge.Round(edge1.Dx * q + b1);
+      else ip.X = TEdge.Round(edge2.Dx * q + b2);
+    }
+    if (ip.Y < edge1.Top.Y || ip.Y < edge2.Top.Y) {
+      if (edge1.Top.Y > edge2.Top.Y) {
+        ip.Y = edge1.Top.Y;
+        ip.X = edge2.topX(edge1.Top.Y);
+        return ip.X < edge1.Top.X;
+      } else ip.Y = edge2.Top.Y;
+      if (Math.abs(edge1.Dx) < Math.abs(edge2.Dx)) ip.X = edge1.topX(ip.Y);
+      else ip.X = edge2.topX(ip.Y);
+    }
+    return true;
   }
 }
