@@ -172,7 +172,7 @@ export default function placePaths(
       }
 
       if (
-        !clipper.Execute(
+        !clipper.execute(
           ClipType.Union,
           combinedNfp,
           PolyFillType.NonZero,
@@ -189,7 +189,7 @@ export default function placePaths(
       clipper.addPaths(combinedNfp, PolyType.Clip, true);
       clipper.addPaths(clipperBinNfp, PolyType.Subject, true);
       if (
-        !clipper.Execute(
+        !clipper.execute(
           ClipType.Difference,
           finalNfp,
           PolyFillType.NonZero,

@@ -13,7 +13,7 @@ export default class OutPolygon {
   }
 
   public dispose(): void {
-    const recordCount: number = this.length;
+    const recordCount: number = this._data.length;
     let i: number = 0;
     let outRec: OutRec;
 
@@ -33,7 +33,7 @@ export default class OutPolygon {
   public build(result: IntPoint[][]): IntPoint[][] {
     result.length = 0;
 
-    const recordCount: number = this.length;
+    const recordCount: number = this._data.length;
     let i: number = 0;
     let j: number = 0;
     let outRec: OutRec;
@@ -93,7 +93,7 @@ export default class OutPolygon {
       if (outRec.Pts === null || outRec.IsOpen) continue;
       //@ts-ignore
       if ((outRec.IsHole ^ reverseSolution) == outRec.area > 0)
-        this._reversePolyPtLinks(outRec.Pts);
+        outRec.reverse();
     }
 
     for (var i = 0, ilen = joins.length; i < ilen; i++) {
@@ -128,7 +128,7 @@ export default class OutPolygon {
   public addOutPt(edge: TEdge, point: IntPoint) {
     var ToFront = edge.Side == EdgeSide.Left;
     if (edge.OutIdx < 0) {
-      var outRec: OutRec = this._createOutRec();
+      var outRec: OutRec = this._createRec();
       outRec.IsOpen = edge.WindDelta === 0;
       var newOp: OutPt = new OutPt();
       outRec.Pts = newOp;
@@ -186,7 +186,7 @@ export default class OutPolygon {
             op2.Prev = op3;
             op3.Next = op2;
             outrec.Pts = op;
-            var outrec2 = this._createOutRec();
+            var outrec2 = this._createRec();
             outrec2.Pts = op2;
             outrec2.updateOutPtIdxs();
             if (OutPt.poly2ContainsPoly1(outrec2.Pts, outrec.Pts)) {
@@ -294,27 +294,26 @@ export default class OutPolygon {
     useFullRange: boolean,
     reverseSolution: boolean
   ) {
-    var outRec1 = this._getOutRec(join.OutPt1.Idx);
-    var outRec2 = this._getOutRec(join.OutPt2.Idx);
-    if (outRec1.Pts == null || outRec2.Pts == null) return;
+    let outRec1: OutRec = this._getRec(join.OutPt1.Idx);
+    let outRec2: OutRec = this._getRec(join.OutPt2.Idx);
+
+    if (outRec1.Pts == null || outRec2.Pts == null) {
+      return;
+    }
     //get the polygon fragment with the correct hole state (FirstLeft)
     //before calling JoinPoints() ...
-    var holeStateRec;
-    if (outRec1 == outRec2) holeStateRec = outRec1;
-    else if (OutRec.param1RightOfParam2(outRec1, outRec2))
-      holeStateRec = outRec2;
-    else if (OutRec.param1RightOfParam2(outRec2, outRec1))
-      holeStateRec = outRec1;
-    else holeStateRec = OutRec.getLowermostRec(outRec1, outRec2);
+    const holeStateRec: OutRec = OutRec.getHoleStartRec(outRec1, outRec2);
 
-    if (!join.joinPoints(outRec1, outRec2, useFullRange)) return;
+    if (!join.joinPoints(outRec1, outRec2, useFullRange)) {
+      return;
+    }
 
     if (outRec1 == outRec2) {
       //instead of joining two polygons, we've just created a new one by
       //splitting one polygon into two.
       outRec1.Pts = join.OutPt1;
       outRec1.BottomPt = null;
-      outRec2 = this._createOutRec();
+      outRec2 = this._createRec();
       outRec2.Pts = join.OutPt2;
       //update all OutRec2.Pts Idx's ...
       outRec2.updateOutPtIdxs();
@@ -325,8 +324,9 @@ export default class OutPolygon {
         outRec2.IsHole = !outRec1.IsHole;
         outRec2.FirstLeft = outRec1;
         //@ts-ignore
-        if ((outRec2.IsHole ^ reverseSolution) == outRec2.area > 0)
-          this._reversePolyPtLinks(outRec2.Pts);
+        if ((outRec2.IsHole ^ reverseSolution) == outRec2.area > 0) {
+          outRec2.reverse();
+        }
       } else if (OutPt.poly2ContainsPoly1(outRec1.Pts, outRec2.Pts)) {
         //outRec1 is contained by outRec2 ...
         outRec2.IsHole = outRec1.IsHole;
@@ -338,7 +338,7 @@ export default class OutPolygon {
           (outRec1.IsHole ^ reverseSolution) ==
           outRec1.area > 0
         ) {
-          this._reversePolyPtLinks(outRec1.Pts);
+          outRec1.reverse();
         }
       } else {
         //the 2 polygons are completely separate ...
@@ -351,67 +351,46 @@ export default class OutPolygon {
       outRec2.BottomPt = null;
       outRec2.Idx = outRec1.Idx;
       outRec1.IsHole = holeStateRec.IsHole;
-      if (holeStateRec == outRec2) outRec1.FirstLeft = outRec2.FirstLeft;
+
+      if (holeStateRec == outRec2) {
+        outRec1.FirstLeft = outRec2.FirstLeft;
+      }
       outRec2.FirstLeft = outRec1;
     }
   }
 
-  private _reversePolyPtLinks(pp: OutPt): void {
-    if (pp !== null) {
-      pp.reverse();
-    }
-  }
-
-  private _fixupFirstLefts1(OldOutRec: OutRec, NewOutRec: OutRec): void {
-    for (var i = 0, ilen = this._data.length; i < ilen; i++) {
-      var outRec = this._data[i];
-      if (outRec.Pts !== null && outRec.FirstLeft == OldOutRec) {
-        if (OutPt.poly2ContainsPoly1(outRec.Pts, NewOutRec.Pts))
-          outRec.FirstLeft = NewOutRec;
-      }
-    }
-  }
-
-  private _fixupFirstLefts2(OldOutRec: OutRec, NewOutRec: OutRec): void {
-    for (
-      var $i2 = 0, $t2 = this._data, $l2 = $t2.length, outRec = $t2[$i2];
-      $i2 < $l2;
-      $i2++, outRec = $t2[$i2]
-    )
-      if (outRec.FirstLeft == OldOutRec) outRec.FirstLeft = NewOutRec;
-  }
-
   private _setHoleState(edge: TEdge, outRec: OutRec): void {
-    var isHole = false;
-    var e2 = edge.PrevInAEL;
-    while (e2 !== null) {
-      if (e2.OutIdx >= 0 && e2.WindDelta != 0) {
+    let isHole: boolean = false;
+    let tmpEdge: TEdge = edge.PrevInAEL;
+
+    while (tmpEdge !== null) {
+      if (tmpEdge.OutIdx >= 0 && tmpEdge.WindDelta != 0) {
         isHole = !isHole;
-        if (outRec.FirstLeft === null) outRec.FirstLeft = this._data[e2.OutIdx];
+        if (outRec.FirstLeft === null)
+          outRec.FirstLeft = this._data[tmpEdge.OutIdx];
       }
-      e2 = e2.PrevInAEL;
+      tmpEdge = tmpEdge.PrevInAEL;
     }
-    if (isHole) outRec.IsHole = true;
+
+    if (isHole) {
+      outRec.IsHole = true;
+    }
   }
 
-  private _getOutRec(index: number): OutRec {
-    let result = this._data[index];
+  private _getRec(index: number): OutRec {
+    let result: OutRec = this._data[index];
 
-    while (result != this._data[result.Idx]) {
+    while (result !== this._data[result.Idx]) {
       result = this._data[result.Idx];
     }
 
     return result;
   }
 
-  private _createOutRec(): OutRec {
+  private _createRec(): OutRec {
     const result: OutRec = new OutRec(this._data.length);
     this._data.push(result);
 
     return result;
-  }
-
-  public get length(): number {
-    return this._data.length;
   }
 }

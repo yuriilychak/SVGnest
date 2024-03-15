@@ -1,12 +1,10 @@
 import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
-import Int128 from "./int-128";
 import IntPoint from "./int-point";
 import IntersectNode from "./intersect-node";
 import Join from "./join";
 import LocalMinima from "./local-minima";
 import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
-import OutRec from "./out-rec";
 import Scanbeam from "./scanbeam";
 import TEdge from "./t-edge";
 
@@ -122,8 +120,7 @@ export default class Clipper {
           E.Next.Curr,
           this._useFullRange
         ) &&
-        (!this._preserveCollinear ||
-          !this.Pt2IsBetweenPt1AndPt3(E.Prev.Curr, E.Curr, E.Next.Curr))
+        (!this._preserveCollinear || !E.Curr.between(E.Prev.Curr, E.Next.Curr))
       ) {
         //Collinear edges are allowed for open paths but in closed paths
         //the default is to merge adjacent collinear edges into a single edge.
@@ -145,10 +142,9 @@ export default class Clipper {
       eStart.Prev.OutIdx = Clipper.Skip;
     }
     //3. Do second stage of edge initialization ...
-    var eHighest = eStart;
     E = eStart;
     do {
-      this.InitEdge2(E, polyType);
+      E.initFromPolyType(polyType);
       E = E.Next;
       if (IsFlat && E.Curr.Y != eStart.Curr.Y) IsFlat = false;
     } while (E != eStart);
@@ -159,19 +155,16 @@ export default class Clipper {
       if (isClosed) return false;
       E.Prev.OutIdx = Clipper.Skip;
       if (E.Prev.Bot.X < E.Prev.Top.X) E.Prev.reverseHorizontal();
-      var locMin: LocalMinima = new LocalMinima();
-      locMin.Next = null;
-      locMin.Y = E.Bot.Y;
-      locMin.LeftBound = null;
-      locMin.RightBound = E;
+      const locMin: LocalMinima = new LocalMinima(E.Bot.Y, null, E);
       locMin.RightBound.Side = EdgeSide.Right;
       locMin.RightBound.WindDelta = 0;
+
       while (E.Next.OutIdx != Clipper.Skip) {
         E.NextInLML = E.Next;
         if (E.Bot.X != E.Prev.Top.X) E.reverseHorizontal();
         E = E.Next;
       }
-      this.InsertLocalMinima(locMin);
+      this._insertLocalMinima(locMin);
       this._edges.push(edges);
       return true;
     }
@@ -184,9 +177,7 @@ export default class Clipper {
       else if (EMin == null) EMin = E;
       //E and E.Prev now share a local minima (left aligned if horizontal).
       //Compare their slopes to find which starts which bound ...
-      var locMin = new LocalMinima();
-      locMin.Next = null;
-      locMin.Y = E.Bot.Y;
+      const locMin = new LocalMinima(E.Bot.Y);
 
       if (E.Dx < E.Prev.Dx) {
         locMin.LeftBound = E.Prev;
@@ -211,7 +202,7 @@ export default class Clipper {
       if (locMin.LeftBound.OutIdx == Clipper.Skip) locMin.LeftBound = null;
       else if (locMin.RightBound.OutIdx == Clipper.Skip)
         locMin.RightBound = null;
-      this.InsertLocalMinima(locMin);
+      this._insertLocalMinima(locMin);
       if (!clockwise) E = E2;
     }
     return true;
@@ -346,96 +337,23 @@ export default class Clipper {
         //there are more edges in the bound beyond result starting with E
         if (isClockwise) edge = result.Next;
         else edge = result.Prev;
-        var locMin: LocalMinima = new LocalMinima();
-        locMin.Next = null;
-        locMin.Y = edge.Bot.Y;
-        locMin.LeftBound = null;
-        locMin.RightBound = edge;
+        const locMin: LocalMinima = new LocalMinima(edge.Bot.Y, null, edge);
         locMin.RightBound.WindDelta = 0;
         result = this.ProcessBound(locMin.RightBound, isClockwise);
-        this.InsertLocalMinima(locMin);
+        this._insertLocalMinima(locMin);
       }
     }
     return result;
   }
 
-  public InsertLocalMinima(newLm: LocalMinima): void {
-    if (this._MinimaList === null) {
-      this._MinimaList = newLm;
-    } else if (newLm.Y >= this._MinimaList.Y) {
-      newLm.Next = this._MinimaList;
-      this._MinimaList = newLm;
-    } else {
-      var tmpLm = this._MinimaList;
-      while (tmpLm.Next !== null && newLm.Y < tmpLm.Next.Y) tmpLm = tmpLm.Next;
-      newLm.Next = tmpLm.Next;
-      tmpLm.Next = newLm;
-    }
+  private _insertLocalMinima(localMinima: LocalMinima): void {
+    this._MinimaList =
+      this._MinimaList === null
+        ? localMinima
+        : this._MinimaList.insert(localMinima);
   }
 
-  FindNextLocMin(edge: TEdge): TEdge {
-    var E2;
-    for (;;) {
-      while (
-        IntPoint.unequal(edge.Bot, edge.Prev.Bot) ||
-        edge.Curr.equal(edge.Top)
-      )
-        edge = edge.Next;
-      if (edge.Dx != Clipper.horizontal && edge.Prev.Dx != Clipper.horizontal)
-        break;
-      while (edge.Prev.Dx == Clipper.horizontal) edge = edge.Prev;
-      E2 = edge;
-      while (edge.Dx == Clipper.horizontal) edge = edge.Next;
-      if (edge.Top.Y == edge.Prev.Bot.Y) continue;
-      //ie just an intermediate horz.
-      if (E2.Prev.Bot.X < edge.Bot.X) edge = E2;
-      break;
-    }
-    return edge;
-  }
-
-  public Pt2IsBetweenPt1AndPt3(
-    pt1: IntPoint,
-    pt2: IntPoint,
-    pt3: IntPoint
-  ): boolean {
-    if (
-      IntPoint.equal(pt1, pt3) ||
-      IntPoint.equal(pt1, pt2) ||
-      IntPoint.equal(pt3, pt2)
-    )
-      return false;
-    else if (pt1.X != pt3.X) return pt2.X > pt1.X == pt2.X < pt3.X;
-    else return pt2.Y > pt1.Y == pt2.Y < pt3.Y;
-  }
-
-  public InitEdge2(e: TEdge, polyType: PolyType) {
-    if (e.Curr.Y >= e.Next.Curr.Y) {
-      //e.Bot = e.Curr;
-      e.Bot.X = e.Curr.X;
-      e.Bot.Y = e.Curr.Y;
-      //e.Top = e.Next.Curr;
-      e.Top.X = e.Next.Curr.X;
-      e.Top.Y = e.Next.Curr.Y;
-    } else {
-      //e.Top = e.Curr;
-      e.Top.X = e.Curr.X;
-      e.Top.Y = e.Curr.Y;
-      //e.Bot = e.Next.Curr;
-      e.Bot.X = e.Next.Curr.X;
-      e.Bot.Y = e.Next.Curr.Y;
-    }
-    e.Delta.X = e.Top.X - e.Bot.X;
-    e.Delta.Y = e.Top.Y - e.Bot.Y;
-    if (e.Delta.Y === 0) {
-      e.Dx = Clipper.horizontal;
-    } else {
-      e.Dx = e.Delta.X / e.Delta.Y;
-    }
-    e.PolyTyp = polyType;
-  }
-
-  public Execute(
+  public execute(
     clipType: ClipType,
     solution: IntPoint[][],
     subjFillType: PolyFillType,
@@ -451,7 +369,7 @@ export default class Clipper {
     this._clipType = clipType;
 
     try {
-      var succeeded = this.ExecuteInternal();
+      var succeeded = this._execute();
       //build the return polygons ...
       if (succeeded) this._outPolygon.build(solution);
     } finally {
@@ -500,12 +418,6 @@ export default class Clipper {
     }
     if (edge1.PrevInAEL === null) this._activeEdges = edge1;
     else if (edge2.PrevInAEL === null) this._activeEdges = edge2;
-  }
-
-  public DisposeOutPts(pp: OutPt): void {
-    if (pp !== null) {
-      pp.dispose();
-    }
   }
 
   public AddEdgeToSEL(edge: TEdge): void {
@@ -770,7 +682,7 @@ export default class Clipper {
     } else console.error("DoMaxima error");
   }
 
-  public AddJoin(Op1: OutPt, Op2: OutPt, OffPt: IntPoint) {
+  private _addJoin(Op1: OutPt, Op2: OutPt, OffPt: IntPoint) {
     this._joins.push(new Join(Op1, Op2, OffPt));
   }
 
@@ -812,7 +724,7 @@ export default class Clipper {
           ) {
             var op = this._outPolygon.addOutPt(ePrev, e.Curr);
             var op2 = this._outPolygon.addOutPt(e, e.Curr);
-            this.AddJoin(op, op2, e.Curr);
+            this._addJoin(op, op2, e.Curr);
             //StrictlySimple (type-3) join
           }
         }
@@ -843,7 +755,7 @@ export default class Clipper {
           ePrev.WindDelta !== 0
         ) {
           var op2 = this._outPolygon.addOutPt(ePrev, e.Bot);
-          this.AddJoin(op, op2, e.Top);
+          this._addJoin(op, op2, e.Top);
         } else if (
           eNext !== null &&
           eNext.Curr.X == e.Bot.X &&
@@ -856,26 +768,9 @@ export default class Clipper {
           eNext.WindDelta !== 0
         ) {
           var op2 = this._outPolygon.addOutPt(eNext, e.Bot);
-          this.AddJoin(op, op2, e.Top);
+          this._addJoin(op, op2, e.Top);
         }
       }
-      e = e.NextInAEL;
-    }
-  }
-
-  public EdgesAdjacent(inode: IntersectNode) {
-    return (
-      inode.Edge1.NextInSEL == inode.Edge2 ||
-      inode.Edge1.PrevInSEL == inode.Edge2
-    );
-  }
-
-  public CopyAELToSEL(): void {
-    var e = this._activeEdges;
-    this._sortedEdges = e;
-    while (e !== null) {
-      e.PrevInSEL = e.PrevInAEL;
-      e.NextInSEL = e.NextInAEL;
       e = e.NextInAEL;
     }
   }
@@ -885,7 +780,13 @@ export default class Clipper {
     //Now it's crucial that intersections are made only between adjacent edges,
     //so to ensure this the order of intersections may need adjusting ...
     this._intersections.sort(IntersectNode.compare);
-    this.CopyAELToSEL();
+    var e = this._activeEdges;
+    this._sortedEdges = e;
+    while (e !== null) {
+      e.PrevInSEL = e.PrevInAEL;
+      e.NextInSEL = e.NextInAEL;
+      e = e.NextInAEL;
+    }
     var cnt = this._intersections.length;
     for (var i = 0; i < cnt; i++) {
       if (!this._intersections[i].edgesAdjacent) {
@@ -899,61 +800,6 @@ export default class Clipper {
       this._sortedEdges = this._intersections[i].swapPositionsInSEL(
         this._sortedEdges
       );
-    }
-    return true;
-  }
-
-  public IntersectPoint(edge1: TEdge, edge2: TEdge, ip: IntPoint): boolean {
-    ip.X = 0;
-    ip.Y = 0;
-    var b1, b2;
-    //nb: with very large coordinate values, it's possible for SlopesEqual() to
-    //return false but for the edge.Dx value be equal due to double precision rounding.
-    if (
-      TEdge.slopesEqual(edge1, edge2, this._useFullRange) ||
-      edge1.Dx == edge2.Dx
-    ) {
-      if (edge2.Bot.Y > edge1.Bot.Y) {
-        ip.X = edge2.Bot.X;
-        ip.Y = edge2.Bot.Y;
-      } else {
-        ip.X = edge1.Bot.X;
-        ip.Y = edge1.Bot.Y;
-      }
-      return false;
-    } else if (edge1.Delta.X === 0) {
-      ip.X = edge1.Bot.X;
-      if (edge2.isHorizontal) {
-        ip.Y = edge2.Bot.Y;
-      } else {
-        b2 = edge2.Bot.Y - edge2.Bot.X / edge2.Dx;
-        ip.Y = Clipper.Round(ip.X / edge2.Dx + b2);
-      }
-    } else if (edge2.Delta.X === 0) {
-      ip.X = edge2.Bot.X;
-      if (edge1.isHorizontal) {
-        ip.Y = edge1.Bot.Y;
-      } else {
-        b1 = edge1.Bot.Y - edge1.Bot.X / edge1.Dx;
-        ip.Y = Clipper.Round(ip.X / edge1.Dx + b1);
-      }
-    } else {
-      b1 = edge1.Bot.X - edge1.Bot.Y * edge1.Dx;
-      b2 = edge2.Bot.X - edge2.Bot.Y * edge2.Dx;
-      var q = (b2 - b1) / (edge1.Dx - edge2.Dx);
-      ip.Y = Clipper.Round(q);
-      if (Math.abs(edge1.Dx) < Math.abs(edge2.Dx))
-        ip.X = Clipper.Round(edge1.Dx * q + b1);
-      else ip.X = Clipper.Round(edge2.Dx * q + b2);
-    }
-    if (ip.Y < edge1.Top.Y || ip.Y < edge2.Top.Y) {
-      if (edge1.Top.Y > edge2.Top.Y) {
-        ip.Y = edge1.Top.Y;
-        ip.X = edge2.topX(edge1.Top.Y);
-        return ip.X < edge1.Top.X;
-      } else ip.Y = edge2.Top.Y;
-      if (Math.abs(edge1.Dx) < Math.abs(edge2.Dx)) ip.X = edge1.topX(ip.Y);
-      else ip.X = edge2.topX(ip.Y);
     }
     return true;
   }
@@ -981,7 +827,7 @@ export default class Clipper {
         //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
         if (e.Curr.X > eNext.Curr.X) {
           if (
-            !this.IntersectPoint(e, eNext, pt) &&
+            !TEdge.intersectPoint(e, eNext, pt, this._useFullRange) &&
             e.Curr.X > eNext.Curr.X + 1
           ) {
             //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
@@ -1036,13 +882,6 @@ export default class Clipper {
     this._CurrentLM = this._CurrentLM.Next;
   }
 
-  public E2InsertsBeforeE1(e1: TEdge, e2: TEdge): boolean {
-    if (e2.Curr.X == e1.Curr.X) {
-      if (e2.Top.Y > e1.Top.Y) return e2.Top.X < e1.topX(e2.Top.Y);
-      else return e1.Top.X > e2.topX(e1.Top.Y);
-    } else return e2.Curr.X < e1.Curr.X;
-  }
-
   public InsertEdgeIntoAEL(edge: TEdge, startEdge: TEdge): void {
     if (this._activeEdges === null) {
       edge.PrevInAEL = null;
@@ -1050,7 +889,7 @@ export default class Clipper {
       this._activeEdges = edge;
     } else if (
       startEdge === null &&
-      this.E2InsertsBeforeE1(this._activeEdges, edge)
+      TEdge.e2InsertsBeforeE1(this._activeEdges, edge)
     ) {
       edge.PrevInAEL = null;
       edge.NextInAEL = this._activeEdges;
@@ -1060,7 +899,7 @@ export default class Clipper {
       if (startEdge === null) startEdge = this._activeEdges;
       while (
         startEdge.NextInAEL !== null &&
-        !this.E2InsertsBeforeE1(startEdge.NextInAEL, edge)
+        !TEdge.e2InsertsBeforeE1(startEdge.NextInAEL, edge)
       )
         startEdge = startEdge.NextInAEL;
       edge.NextInAEL = startEdge.NextInAEL;
@@ -1182,7 +1021,7 @@ export default class Clipper {
       prevE.WindDelta !== 0
     ) {
       var outPt = this._outPolygon.addOutPt(prevE, pt);
-      this.AddJoin(result, outPt, e.Top);
+      this._addJoin(result, outPt, e.Top);
     }
     return result;
   }
@@ -1231,7 +1070,7 @@ export default class Clipper {
           )
         )
           Op1 = this._outPolygon.addOutPt(lb, lb.Bot);
-        this.InsertScanbeam(lb.Top.Y);
+        this._scanbeam = Scanbeam.insert(this._scanbeam, lb.Top.Y);
       } else {
         this.InsertEdgeIntoAEL(lb, null);
         this.InsertEdgeIntoAEL(rb, lb);
@@ -1246,11 +1085,11 @@ export default class Clipper {
           )
         )
           Op1 = this.AddLocalMinPoly(lb, rb, lb.Bot);
-        this.InsertScanbeam(lb.Top.Y);
+        this._scanbeam = Scanbeam.insert(this._scanbeam, lb.Top.Y);
       }
       if (rb != null) {
         if (rb.isHorizontal) this.AddEdgeToSEL(rb);
-        else this.InsertScanbeam(rb.Top.Y);
+        else this._scanbeam = Scanbeam.insert(this._scanbeam, rb.Top.Y);
       }
       if (lb == null || rb == null) continue;
       //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
@@ -1265,7 +1104,7 @@ export default class Clipper {
           //the 'ghost' join to a real join ready for later ...
           var j = this._ghostJoins[i];
           if (this.HorzSegmentsOverlap(j.OutPt1.Pt, j.OffPt, rb.Bot, rb.Top)) {
-            this.AddJoin(j.OutPt1, Op1, j.OffPt);
+            this._addJoin(j.OutPt1, Op1, j.OffPt);
           }
         }
       }
@@ -1279,7 +1118,7 @@ export default class Clipper {
         lb.PrevInAEL.WindDelta !== 0
       ) {
         var Op2 = this._outPolygon.addOutPt(lb.PrevInAEL, lb.Bot);
-        this.AddJoin(Op1, Op2, lb.Top);
+        this._addJoin(Op1, Op2, lb.Top);
       }
       if (lb.NextInAEL != rb) {
         if (
@@ -1290,7 +1129,7 @@ export default class Clipper {
           rb.PrevInAEL.WindDelta !== 0
         ) {
           var Op2 = this._outPolygon.addOutPt(rb.PrevInAEL, rb.Bot);
-          this.AddJoin(Op1, Op2, rb.Top);
+          this._addJoin(Op1, Op2, rb.Top);
         }
         var e = lb.NextInAEL;
         if (e !== null)
@@ -1305,9 +1144,9 @@ export default class Clipper {
     }
   }
 
-  public ExecuteInternal() {
+  private _execute(): boolean {
     try {
-      this.Reset();
+      this._reset();
       if (this._CurrentLM === null) return false;
       var botY = this.PopScanbeam();
       do {
@@ -1332,87 +1171,6 @@ export default class Clipper {
     } finally {
       Clipper.Clear(this._joins);
       Clipper.Clear(this._ghostJoins);
-    }
-  }
-
-  public Param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {
-    do {
-      outRec1 = outRec1.FirstLeft;
-      if (outRec1 == outRec2) return true;
-    } while (outRec1 !== null);
-    return false;
-  }
-
-  public GetBottomPt(pp: OutPt) {
-    var dups = null;
-    var p = pp.Next;
-    while (p != pp) {
-      if (p.Pt.Y > pp.Pt.Y) {
-        pp = p;
-        dups = null;
-      } else if (p.Pt.Y == pp.Pt.Y && p.Pt.X <= pp.Pt.X) {
-        if (p.Pt.X < pp.Pt.X) {
-          dups = null;
-          pp = p;
-        } else {
-          if (p.Next != pp && p.Prev != pp) dups = p;
-        }
-      }
-      p = p.Next;
-    }
-    if (dups !== null) {
-      //there appears to be at least 2 vertices at bottomPt so ...
-      while (dups != p) {
-        if (!this.FirstIsBottomPt(p, dups)) pp = dups;
-        dups = dups.Next;
-        while (IntPoint.unequal(dups.Pt, pp.Pt)) dups = dups.Next;
-      }
-    }
-    return pp;
-  }
-
-  public GetLowermostRec(outRec1: OutRec, outRec2: OutRec) {
-    //work out which polygon fragment has the correct hole state ...
-    if (outRec1.BottomPt === null)
-      outRec1.BottomPt = this.GetBottomPt(outRec1.Pts);
-    if (outRec2.BottomPt === null)
-      outRec2.BottomPt = this.GetBottomPt(outRec2.Pts);
-    var bPt1 = outRec1.BottomPt;
-    var bPt2 = outRec2.BottomPt;
-    if (bPt1.Pt.Y > bPt2.Pt.Y) return outRec1;
-    else if (bPt1.Pt.Y < bPt2.Pt.Y) return outRec2;
-    else if (bPt1.Pt.X < bPt2.Pt.X) return outRec1;
-    else if (bPt1.Pt.X > bPt2.Pt.X) return outRec2;
-    else if (bPt1.Next == bPt1) return outRec2;
-    else if (bPt2.Next == bPt2) return outRec1;
-    else if (this.FirstIsBottomPt(bPt1, bPt2)) return outRec1;
-    else return outRec2;
-  }
-
-  public FirstIsBottomPt(btmPt1: OutPt, btmPt2: OutPt) {
-    var p = btmPt1.Prev;
-    while (IntPoint.equal(p.Pt, btmPt1.Pt) && p != btmPt1) p = p.Prev;
-    var dx1p = Math.abs(this.GetDx(btmPt1.Pt, p.Pt));
-    p = btmPt1.Next;
-    while (IntPoint.equal(p.Pt, btmPt1.Pt) && p != btmPt1) p = p.Next;
-    var dx1n = Math.abs(this.GetDx(btmPt1.Pt, p.Pt));
-    p = btmPt2.Prev;
-    while (IntPoint.equal(p.Pt, btmPt2.Pt) && p != btmPt2) p = p.Prev;
-    var dx2p = Math.abs(this.GetDx(btmPt2.Pt, p.Pt));
-    p = btmPt2.Next;
-    while (IntPoint.equal(p.Pt, btmPt2.Pt) && p != btmPt2) p = p.Next;
-    var dx2n = Math.abs(this.GetDx(btmPt2.Pt, p.Pt));
-    return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
-  }
-
-  public GetDx(pt1: IntPoint, pt2: IntPoint) {
-    if (pt1.Y == pt2.Y) return Clipper.horizontal;
-    else return (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
-  }
-
-  public ReversePolyPtLinks(pp: OutPt): void {
-    if (pp !== null) {
-      pp.reverse();
     }
   }
 
@@ -1443,58 +1201,7 @@ export default class Clipper {
     return Y;
   }
 
-  public PointInPolygon(pt: IntPoint, path: IntPoint[]) {
-    //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
-    //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
-    var result = 0,
-      cnt = path.length;
-    if (cnt < 3) return 0;
-    var ip = path[0];
-    for (var i = 1; i <= cnt; ++i) {
-      var ipNext = i == cnt ? path[0] : path[i];
-      if (ipNext.Y == pt.Y) {
-        if (
-          ipNext.X == pt.X ||
-          (ip.Y == pt.Y && ipNext.X > pt.X == ip.X < pt.X)
-        )
-          return -1;
-      }
-      if (ip.Y < pt.Y != ipNext.Y < pt.Y) {
-        if (ip.X >= pt.X) {
-          if (ipNext.X > pt.X) result = 1 - result;
-          else {
-            var d =
-              (ip.X - pt.X) * (ipNext.Y - pt.Y) -
-              (ipNext.X - pt.X) * (ip.Y - pt.Y);
-            if (d == 0) return -1;
-            else if (d > 0 == ipNext.Y > ip.Y) result = 1 - result;
-          }
-        } else {
-          if (ipNext.X > pt.X) {
-            var d =
-              (ip.X - pt.X) * (ipNext.Y - pt.Y) -
-              (ipNext.X - pt.X) * (ip.Y - pt.Y);
-            if (d == 0) return -1;
-            else if (d > 0 == ipNext.Y > ip.Y) result = 1 - result;
-          }
-        }
-      }
-      ip = ipNext;
-    }
-    return result;
-  }
-
-  public Poly2ContainsPoly1(outPt1: any, outPt2: any): boolean {
-    var op = outPt1;
-    do {
-      var res = this.PointInPolygon(op.Pt, outPt2);
-      if (res >= 0) return res != 0;
-      op = op.Next;
-    } while (op != outPt1);
-    return true;
-  }
-
-  public Reset() {
+  private _reset(): void {
     this._CurrentLM = this._MinimaList;
     if (this._CurrentLM == null) return;
     //ie nothing to process
@@ -1526,30 +1233,8 @@ export default class Clipper {
 
     var lm = this._MinimaList;
     while (lm !== null) {
-      this.InsertScanbeam(lm.Y);
+      this._scanbeam = Scanbeam.insert(this._scanbeam, lm.Y);
       lm = lm.Next;
-    }
-  }
-
-  public InsertScanbeam(Y: number) {
-    if (this._scanbeam === null) {
-      this._scanbeam = new Scanbeam();
-      this._scanbeam.Next = null;
-      this._scanbeam.Y = Y;
-    } else if (Y > this._scanbeam.Y) {
-      var newSb = new Scanbeam();
-      newSb.Y = Y;
-      newSb.Next = this._scanbeam;
-      this._scanbeam = newSb;
-    } else {
-      var sb2 = this._scanbeam;
-      while (sb2.Next !== null && Y <= sb2.Next.Y) sb2 = sb2.Next;
-      if (Y == sb2.Y) return;
-      //ie ignores duplicates
-      var newSb = new Scanbeam();
-      newSb.Y = Y;
-      newSb.Next = sb2.Next;
-      sb2.Next = newSb;
     }
   }
 
@@ -1571,7 +1256,10 @@ export default class Clipper {
     e.Curr.Y = e.Bot.Y;
     e.PrevInAEL = AelPrev;
     e.NextInAEL = AelNext;
-    if (!e.isHorizontal) this.InsertScanbeam(e.Top.Y);
+
+    if (!e.isHorizontal) {
+      this._scanbeam = Scanbeam.insert(this._scanbeam, e.Top.Y);
+    }
     return e;
   }
 
@@ -1665,7 +1353,7 @@ export default class Clipper {
           TEdge.slopesEqual(horzEdge, ePrev, this._useFullRange)
         ) {
           var op2 = this._outPolygon.addOutPt(ePrev, horzEdge.Bot);
-          this.AddJoin(op1, op2, horzEdge.Top);
+          this._addJoin(op1, op2, horzEdge.Top);
         } else if (
           eNext !== null &&
           eNext.Curr.X == horzEdge.Bot.X &&
@@ -1676,7 +1364,7 @@ export default class Clipper {
           TEdge.slopesEqual(horzEdge, eNext, this._useFullRange)
         ) {
           var op2 = this._outPolygon.addOutPt(eNext, horzEdge.Bot);
-          this.AddJoin(op1, op2, horzEdge.Top);
+          this._addJoin(op1, op2, horzEdge.Top);
         }
       } else horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
     } else if (eMaxPair !== null) {
@@ -1741,25 +1429,8 @@ export default class Clipper {
     e.PrevInAEL = null;
   }
 
-  private m_IntersectNodeComparer(
-    node1: IntersectNode,
-    node2: IntersectNode
-  ): number {
-    return node2.Pt.Y - node1.Pt.Y;
-  }
-
   public static Clear(a: any[]) {
     a.length = 0;
-  }
-
-  static ParseFirstLeft(FirstLeft: OutRec) {
-    while (FirstLeft != null && FirstLeft.Pts == null)
-      FirstLeft = FirstLeft.FirstLeft;
-    return FirstLeft;
-  }
-
-  public static Round(value: number): number {
-    return value < 0 ? -Math.round(Math.abs(value)) : Math.round(value);
   }
 
   public static CleanPolygon(
@@ -1826,7 +1497,7 @@ export default class Clipper {
     var c = new Clipper();
     c.strictlySimple = true;
     c.addPath(poly, PolyType.Subject, true);
-    c.Execute(ClipType.Union, result, fillType, fillType);
+    c.execute(ClipType.Union, result, fillType, fillType);
     return result;
   }
 

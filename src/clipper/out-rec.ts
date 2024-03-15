@@ -23,6 +23,12 @@ export default class OutRec {
     } while (op !== this.Pts);
   }
 
+  public reverse(): void {
+    if (this.Pts !== null) {
+      this.Pts.reverse();
+    }
+  }
+
   public fixupOutPolygon(
     useFullRange: boolean,
     preserveCollinear: boolean
@@ -104,5 +110,18 @@ export default class OutRec {
     else if (bPt2.Next == bPt2) return outRec1;
     else if (OutPt.firstIsBottomPt(bPt1, bPt2)) return outRec1;
     else return outRec2;
+  }
+
+  public static getHoleStartRec(outRec1: OutRec, outRec2: OutRec): OutRec {
+    if (outRec1 === outRec2) {
+      return outRec1;
+    }
+    if (OutRec.param1RightOfParam2(outRec1, outRec2)) {
+      return outRec2;
+    }
+    if (OutRec.param1RightOfParam2(outRec2, outRec1)) {
+      return outRec1;
+    }
+    return OutRec.getLowermostRec(outRec1, outRec2);
   }
 }

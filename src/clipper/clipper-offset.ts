@@ -78,7 +78,7 @@ export default class ClipperOffset {
     var clpr = new Clipper();
     clpr.addPaths(this._destPolys, PolyType.Subject, true);
     if (delta > 0) {
-      clpr.Execute(
+      clpr.execute(
         ClipType.Union,
         solution,
         PolyFillType.Positive,
@@ -93,7 +93,7 @@ export default class ClipperOffset {
       outer.push(new IntPoint(rect.left - 10, rect.top - 10));
       clpr.addPath(outer, PolyType.Subject, true);
       clpr.reverseSolution = true;
-      clpr.Execute(
+      clpr.execute(
         ClipType.Union,
         solution,
         PolyFillType.Negative,

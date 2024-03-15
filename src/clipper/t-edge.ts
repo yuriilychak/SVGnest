@@ -73,7 +73,7 @@ export default class TEdge {
     this.Delta.X = this.Top.X - this.Bot.X;
     this.Delta.Y = this.Top.Y - this.Bot.Y;
     if (this.Delta.Y === 0) {
-      this.Dx = Number.MIN_SAFE_INTEGER;
+      this.Dx = TEdge.horizontal;
     } else {
       this.Dx = this.Delta.X / this.Delta.Y;
     }
@@ -225,14 +225,11 @@ export default class TEdge {
         edge.Curr.equal(edge.Top)
       )
         edge = edge.Next;
-      if (
-        edge.Dx != Number.MIN_SAFE_INTEGER &&
-        edge.Prev.Dx != Number.MIN_SAFE_INTEGER
-      )
+      if (edge.Dx != TEdge.horizontal && edge.Prev.Dx != TEdge.horizontal)
         break;
-      while (edge.Prev.Dx == Number.MIN_SAFE_INTEGER) edge = edge.Prev;
+      while (edge.Prev.Dx == TEdge.horizontal) edge = edge.Prev;
       E2 = edge;
-      while (edge.Dx == Number.MIN_SAFE_INTEGER) edge = edge.Next;
+      while (edge.Dx == TEdge.horizontal) edge = edge.Next;
       if (edge.Top.Y == edge.Prev.Bot.Y) continue;
       //ie just an intermediate horz.
       if (E2.Prev.Bot.X < edge.Bot.X) edge = E2;
@@ -331,4 +328,6 @@ export default class TEdge {
     }
     return true;
   }
+
+  static horizontal: number = -9007199254740992;
 }
