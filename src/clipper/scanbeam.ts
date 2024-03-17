@@ -1,42 +1,44 @@
 export default class Scanbeam {
-  public Y: number = 0;
-  public Next: Scanbeam = null;
+  private _y: number;
+  private _next: Scanbeam;
 
   constructor(y: number, next: Scanbeam = null) {
-    this.Y = y;
-    this.Next = next;
-  }
-
-  public getLast(y: number) {
-    let scanbeam: Scanbeam = this;
-
-    while (scanbeam.Next !== null && y <= scanbeam.Next.Y) {
-      scanbeam = scanbeam.Next;
-    }
-
-    return scanbeam;
+    this._y = y;
+    this._next = next;
   }
 
   public insert(y: number) {
-    if (y > this.Y) {
+    if (y > this._y) {
       return new Scanbeam(y, this);
     }
 
     let scanbeam: Scanbeam = this;
 
-    while (scanbeam.Next !== null && y <= scanbeam.Next.Y) {
-      scanbeam = scanbeam.Next;
+    while (scanbeam.hasNext && y <= scanbeam.next.y) {
+      scanbeam = scanbeam.next;
     }
 
-    if (y !== scanbeam.Y) {
+    if (y !== scanbeam.y) {
       //ie ignores duplicates
-      scanbeam.Next = new Scanbeam(y, scanbeam.Next);
+      scanbeam.next = new Scanbeam(y, scanbeam.next);
     }
 
     return this;
   }
 
-  public static insert(parent: Scanbeam, y: number) {
-    return parent === null ? new Scanbeam(y) : parent.insert(y);
+  public get next(): Scanbeam {
+    return this._next;
+  }
+
+  public set next(value: Scanbeam) {
+    this._next = value;
+  }
+
+  public get y(): number {
+    return this._y;
+  }
+
+  public get hasNext(): boolean {
+    return this._next !== null;
   }
 }

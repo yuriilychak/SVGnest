@@ -4,14 +4,20 @@ import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
 import TEdge from "./t-edge";
 
-export default class GhostJoinStore {
+export default class JoinStore {
   private _ghostJoins: Join[];
+  private _joins: Join[];
 
   constructor() {
     this._ghostJoins = [];
+    this._joins = [];
   }
 
-  public add(
+  public add(outPt1: OutPt, outPt2: OutPt, point: IntPoint): void {
+    this._joins.push(new Join(outPt1, outPt2, point));
+  }
+
+  public addGhost(
     outPolygon: OutPolygon,
     edge: TEdge,
     isTopOfScanbeam: boolean
@@ -26,7 +32,7 @@ export default class GhostJoinStore {
     return canInsert;
   }
 
-  public export(outPt: OutPt, edge: TEdge): Join[] {
+  public exportGhosts(outPt: OutPt, edge: TEdge): void {
     const joinCount: number = this._ghostJoins.length;
 
     if (
@@ -38,7 +44,6 @@ export default class GhostJoinStore {
       const joinCount: number = this._ghostJoins.length;
       let i: number = 0;
       let join: Join;
-      const result: Join[] = [];
 
       for (i = 0; i < joinCount; ++i) {
         //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
@@ -46,25 +51,29 @@ export default class GhostJoinStore {
         join = this._ghostJoins[i];
 
         if (
-          GhostJoinStore._horzSegmentsOverlap(
+          JoinStore._horzSegmentsOverlap(
             join.OutPt1.Pt,
             join.OffPt,
             edge.Bot,
             edge.Top
           )
         ) {
-          result.push(new Join(join.OutPt1, outPt, join.OffPt));
+          this._joins.push(new Join(join.OutPt1, outPt, join.OffPt));
         }
       }
-
-      return result;
     }
-
-    return [];
   }
 
-  public clean(): void {
+  public clean(isClearAll: boolean): void {
     this._ghostJoins.length = 0;
+
+    if (isClearAll) {
+      this._joins.length = 0;
+    }
+  }
+
+  public get joins(): Join[] {
+    return this._joins;
   }
 
   private static _horzSegmentsOverlap(
