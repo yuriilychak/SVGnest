@@ -5,6 +5,7 @@ import JoinStore from "./join-store";
 import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
 import ScanbeamStore from "./scanbeam-store";
+import SortedEdge from "./sorted-edge";
 import TEdge from "./t-edge";
 
 interface DirData {
@@ -16,13 +17,13 @@ interface DirData {
 export default class IntersectStore {
   private _intersections: IntersectNode[];
   private _activeEdges: TEdge = null;
-  private _sortedEdges: TEdge = null;
   private _outPolygon: OutPolygon;
   private _joinStore: JoinStore;
   private _clipType: ClipType;
   private _clipFillType: PolyFillType;
   private _subjFillType: PolyFillType;
   private _scanbeamStore: ScanbeamStore;
+  private _sortedEdge: SortedEdge;
 
   constructor(
     outPolygon: OutPolygon,
@@ -36,11 +37,12 @@ export default class IntersectStore {
     this._clipType = ClipType.Intersection;
     this._clipFillType = PolyFillType.EvenOdd;
     this._subjFillType = PolyFillType.EvenOdd;
+    this._sortedEdge = new SortedEdge();
   }
 
   public clean(): void {
     this._activeEdges = null;
-    this._sortedEdges = null;
+    this._sortedEdge.clean();
   }
 
   public initTypes(
@@ -51,14 +53,6 @@ export default class IntersectStore {
     this._clipType = clipType;
     this._clipFillType = clipFillType;
     this._subjFillType = subjFillType;
-  }
-
-  private _addEdgeToSEL(e: TEdge): void {
-    this._sortedEdges = e.addEdgeToSEL(this._sortedEdges);
-  }
-
-  private _deleteFromSEL(e: TEdge): void {
-    this._sortedEdges = e.deleteFromSEL(this._sortedEdges);
   }
 
   private _insertEdgeIntoAEL(edge: TEdge, startEdge: TEdge): void {
@@ -97,7 +91,8 @@ export default class IntersectStore {
     //prepare for sorting ...
     var e = this._activeEdges;
     //console.log(JSON.stringify(JSON.decycle( e )));
-    this._sortedEdges = e;
+    this._sortedEdge.source = e;
+
     while (e !== null) {
       e.PrevInSEL = e.PrevInAEL;
       e.NextInSEL = e.NextInAEL;
@@ -106,9 +101,9 @@ export default class IntersectStore {
     }
     //bubblesort ...
     var isModified = true;
-    while (isModified && this._sortedEdges !== null) {
+    while (isModified && !this._sortedEdge.isEmpty) {
       isModified = false;
-      e = this._sortedEdges;
+      e = this._sortedEdge.source;
       while (e.NextInSEL !== null) {
         var eNext = e.NextInSEL;
         var pt = new IntPoint();
@@ -129,14 +124,14 @@ export default class IntersectStore {
           }
           var newNode = new IntersectNode(e, eNext, pt);
           this._intersections.push(newNode);
-          this._sortedEdges = newNode.swapPositionsInSEL(this._sortedEdges);
+          this._sortedEdge.swap(newNode);
           isModified = true;
         } else e = eNext;
       }
       if (e.PrevInSEL !== null) e.PrevInSEL.NextInSEL = null;
       else break;
     }
-    this._sortedEdges = null;
+    this._sortedEdge.clean();
   }
 
   private _intersectEdges(
@@ -378,7 +373,7 @@ export default class IntersectStore {
     //so to ensure this the order of intersections may need adjusting ...
     this._intersections.sort(IntersectNode.compare);
     var e = this._activeEdges;
-    this._sortedEdges = e;
+    this._sortedEdge.source = e;
     while (e !== null) {
       e.PrevInSEL = e.PrevInAEL;
       e.NextInSEL = e.NextInAEL;
@@ -394,9 +389,7 @@ export default class IntersectStore {
         this._intersections[i] = this._intersections[j];
         this._intersections[j] = tmp;
       }
-      this._sortedEdges = this._intersections[i].swapPositionsInSEL(
-        this._sortedEdges
-      );
+      this._sortedEdge.swap(this._intersections[i]);
     }
     return true;
   }
@@ -416,11 +409,12 @@ export default class IntersectStore {
         this._processIntersectList(useFullRange);
       else return false;
     } catch ($$e2) {
-      this._sortedEdges = null;
+      this._sortedEdge.clean();
       this._intersections.length = 0;
       console.error("ProcessIntersections error");
     }
-    this._sortedEdges = null;
+    this._sortedEdge.clean();
+
     return true;
   }
 
@@ -632,7 +626,7 @@ export default class IntersectStore {
     }
     if (rb != null) {
       if (rb.isHorizontal) {
-        this._addEdgeToSEL(rb);
+        this._sortedEdge.add(rb);
       } else this._scanbeamStore.insert(rb.Top.Y);
     }
     if (lb == null || rb == null) {
@@ -729,7 +723,7 @@ export default class IntersectStore {
             this._outPolygon.addOutPt(e, e.Bot);
           }
 
-          this._addEdgeToSEL(e);
+          this._sortedEdge.add(e);
         } else {
           e.Curr.X = e.topX(topY);
           e.Curr.Y = topY;
@@ -801,11 +795,12 @@ export default class IntersectStore {
     isTopOfScanbeam: boolean,
     useFullRange: boolean
   ): void {
-    var horzEdge = this._sortedEdges;
+    let horzEdge: TEdge = this._sortedEdge.source;
+
     while (horzEdge !== null) {
-      this._deleteFromSEL(horzEdge);
+      this._sortedEdge.delete(horzEdge);
       this._processHorizontal(horzEdge, isTopOfScanbeam, useFullRange);
-      horzEdge = this._sortedEdges;
+      horzEdge = this._sortedEdge.source;
     }
   }
 

@@ -33,19 +33,6 @@ export default class TEdge {
     this.OutIdx = -1;
   }
 
-  public addEdgeToSEL(edge: TEdge): TEdge {
-    //SEL pointers in PEdge are reused to build a list of horizontal edges.
-    //However, we don't need to worry about order with horizontal edge processing.
-    this.PrevInSEL = null;
-    this.NextInSEL = edge;
-
-    if (this.NextInSEL !== null) {
-      this.NextInSEL.PrevInSEL = this;
-    }
-
-    return this;
-  }
-
   public deleteFromAEL(activeEdges: TEdge): TEdge {
     const prevAEL: TEdge = this.PrevInAEL;
     const nextAEL: TEdge = this.NextInAEL;
@@ -67,30 +54,6 @@ export default class TEdge {
 
     this.NextInAEL = null;
     this.PrevInAEL = null;
-
-    return result;
-  }
-
-  public deleteFromSEL(sortedEdges: TEdge): TEdge {
-    const prevSEL: TEdge = this.PrevInSEL;
-    const nextSEL: TEdge = this.NextInSEL;
-    let result: TEdge = sortedEdges;
-
-    if (prevSEL === null && nextSEL === null && this != result) {
-      return result;
-    }
-
-    //already deleted
-    if (prevSEL !== null) {
-      prevSEL.NextInSEL = nextSEL;
-    } else {
-      result = nextSEL;
-    }
-    if (nextSEL !== null) {
-      nextSEL.PrevInSEL = prevSEL;
-    }
-    this.NextInSEL = null;
-    this.PrevInSEL = null;
 
     return result;
   }
