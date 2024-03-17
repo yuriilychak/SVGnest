@@ -1,4 +1,5 @@
 import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
+import GhostJoinStore from "./ghost-join-store";
 import IntPoint from "./int-point";
 import IntersectNode from "./intersect-node";
 import Join from "./join";
@@ -32,14 +33,15 @@ export default class Clipper {
   public strictlySimple: boolean = false;
   private _intersections: IntersectNode[] = [];
   private _joins: Join[] = [];
-  private _ghostJoins: Join[] = [];
   private _outPolygon: OutPolygon;
+  private _ghostJoinStore: GhostJoinStore;
 
   constructor(InitOptions: number = 0) {
     this.reverseSolution = (1 & InitOptions) !== 0;
     this.strictlySimple = (2 & InitOptions) !== 0;
     this._preserveCollinear = (4 & InitOptions) !== 0;
     this._outPolygon = new OutPolygon();
+    this._ghostJoinStore = new GhostJoinStore();
   }
 
   public addPaths(
@@ -60,194 +62,216 @@ export default class Clipper {
   }
 
   public addPath(
-    pg: IntPoint[],
+    polygon: IntPoint[],
     polyType: PolyType,
     isClosed: boolean
   ): boolean {
-    if (!isClosed && polyType == PolyType.Clip)
+    if (!isClosed && polyType == PolyType.Clip) {
       console.error("AddPath: Open paths must be subject.");
+    }
 
-    var highI = pg.length - 1;
-    if (isClosed) while (highI > 0 && IntPoint.equal(pg[highI], pg[0])) --highI;
-    while (highI > 0 && IntPoint.equal(pg[highI], pg[highI - 1])) --highI;
-    if ((isClosed && highI < 2) || (!isClosed && highI < 1)) return false;
+    const lastIndex: number = Clipper._getPolygonLastIndex(polygon, isClosed);
+
+    if ((isClosed && lastIndex < 2) || (!isClosed && lastIndex < 1)) {
+      return false;
+    }
     //create a new edge array ...
-    var edges: TEdge[] = [];
-    for (var i = 0; i <= highI; i++) edges.push(new TEdge());
-    var IsFlat = true;
+    const edges: TEdge[] = [];
+    let i: number = 0;
+    let isFlat: boolean = true;
+
+    for (i = 0; i <= lastIndex; ++i) {
+      edges.push(new TEdge());
+    }
+
     //1. Basic (first) edge initialization ...
 
     //edges[1].Curr = pg[1];
-    edges[1].Curr.X = pg[1].X;
-    edges[1].Curr.Y = pg[1].Y;
+    edges[1].Curr.set(polygon[1]);
 
-    var $1 = { Value: this._useFullRange };
-    this.RangeTest(pg[0], $1);
-    this._useFullRange = $1.Value;
+    this._useFullRange = polygon[0].rangeTest(this._useFullRange);
+    this._useFullRange = polygon[lastIndex].rangeTest(this._useFullRange);
 
-    $1.Value = this._useFullRange;
-    this.RangeTest(pg[highI], $1);
-    this._useFullRange = $1.Value;
+    edges[0].init(edges[1], edges[lastIndex], polygon[0]);
+    edges[lastIndex].init(edges[0], edges[lastIndex - 1], polygon[lastIndex]);
 
-    edges[0].init(edges[1], edges[highI], pg[0]);
-    edges[highI].init(edges[0], edges[highI - 1], pg[highI]);
-    for (var i = highI - 1; i >= 1; --i) {
-      $1.Value = this._useFullRange;
-      this.RangeTest(pg[i], $1);
-      this._useFullRange = $1.Value;
+    for (i = lastIndex - 1; i >= 1; --i) {
+      this._useFullRange = polygon[i].rangeTest(this._useFullRange);
 
-      edges[i].init(edges[i + 1], edges[i - 1], pg[i]);
+      edges[i].init(edges[i + 1], edges[i - 1], polygon[i]);
     }
 
-    var eStart: TEdge = edges[0];
+    let startEdge: TEdge = edges[0];
     //2. Remove duplicate vertices, and (when closed) collinear edges ...
-    var E: TEdge = eStart,
-      eLoopStop = eStart;
-    for (;;) {
-      if (IntPoint.equal(E.Curr, E.Next.Curr)) {
-        if (E == E.Next) break;
-        if (E == eStart) eStart = E.Next;
-        E = E.remove();
-        eLoopStop = E;
+    let edge1: TEdge = startEdge;
+    let edge2: TEdge;
+    let loopStopEdge: TEdge = startEdge;
+
+    while (true) {
+      if (edge1.Curr.equal(edge1.Next.Curr)) {
+        if (edge1 == edge1.Next) {
+          break;
+        }
+
+        if (edge1 == startEdge) {
+          startEdge = edge1.Next;
+        }
+
+        edge1 = edge1.remove();
+        loopStopEdge = edge1;
         continue;
       }
-      if (E.Prev == E.Next) break;
-      else if (
+
+      if (edge1.Prev == edge1.Next) {
+        break;
+      }
+
+      if (
         isClosed &&
         IntPoint.slopesEqual(
-          E.Prev.Curr,
-          E.Curr,
-          E.Next.Curr,
+          edge1.Prev.Curr,
+          edge1.Curr,
+          edge1.Next.Curr,
           this._useFullRange
         ) &&
-        (!this._preserveCollinear || !E.Curr.between(E.Prev.Curr, E.Next.Curr))
+        (!this._preserveCollinear ||
+          !edge1.Curr.between(edge1.Prev.Curr, edge1.Next.Curr))
       ) {
         //Collinear edges are allowed for open paths but in closed paths
         //the default is to merge adjacent collinear edges into a single edge.
         //However, if the PreserveCollinear property is enabled, only overlapping
         //collinear edges (ie spikes) will be removed from closed paths.
-        if (E == eStart) eStart = E.Next;
-        E = E.remove();
-        E = E.Prev;
-        eLoopStop = E;
+        if (edge1 == startEdge) {
+          startEdge = edge1.Next;
+        }
+        edge1 = edge1.remove();
+        edge1 = edge1.Prev;
+        loopStopEdge = edge1;
         continue;
       }
-      E = E.Next;
-      if (E == eLoopStop) break;
+
+      edge1 = edge1.Next;
+
+      if (edge1 == loopStopEdge) {
+        break;
+      }
     }
-    if ((!isClosed && E == E.Next) || (isClosed && E.Prev == E.Next))
+
+    if (
+      (!isClosed && edge1 == edge1.Next) ||
+      (isClosed && edge1.Prev == edge1.Next)
+    ) {
       return false;
+    }
     if (!isClosed) {
       this._hasOpenPaths = true;
-      eStart.Prev.OutIdx = Clipper.Skip;
+      startEdge.Prev.OutIdx = Clipper.Skip;
     }
     //3. Do second stage of edge initialization ...
-    E = eStart;
+    edge1 = startEdge;
+
     do {
-      E.initFromPolyType(polyType);
-      E = E.Next;
-      if (IsFlat && E.Curr.Y != eStart.Curr.Y) IsFlat = false;
-    } while (E != eStart);
+      edge1.initFromPolyType(polyType);
+      edge1 = edge1.Next;
+
+      if (isFlat && edge1.Curr.Y != startEdge.Curr.Y) {
+        isFlat = false;
+      }
+    } while (edge1 != startEdge);
+
     //4. Finally, add edge bounds to LocalMinima list ...
     //Totally flat paths must be handled differently when adding them
     //to LocalMinima list to avoid endless loops etc ...
-    if (IsFlat) {
-      if (isClosed) return false;
-      E.Prev.OutIdx = Clipper.Skip;
-      if (E.Prev.Bot.X < E.Prev.Top.X) E.Prev.reverseHorizontal();
-      const locMin: LocalMinima = new LocalMinima(E.Bot.Y, null, E);
+    if (isFlat) {
+      if (isClosed) {
+        return false;
+      }
+
+      edge1.Prev.OutIdx = Clipper.Skip;
+
+      if (edge1.Prev.Bot.X < edge1.Prev.Top.X) {
+        edge1.Prev.reverseHorizontal();
+      }
+      const locMin: LocalMinima = new LocalMinima(edge1.Bot.Y, null, edge1);
       locMin.RightBound.Side = EdgeSide.Right;
       locMin.RightBound.WindDelta = 0;
 
-      while (E.Next.OutIdx != Clipper.Skip) {
-        E.NextInLML = E.Next;
-        if (E.Bot.X != E.Prev.Top.X) E.reverseHorizontal();
-        E = E.Next;
+      while (edge1.Next.OutIdx != Clipper.Skip) {
+        edge1.NextInLML = edge1.Next;
+
+        if (edge1.Bot.X != edge1.Prev.Top.X) {
+          edge1.reverseHorizontal();
+        }
+
+        edge1 = edge1.Next;
       }
+
       this._insertLocalMinima(locMin);
       this._edges.push(edges);
       return true;
     }
+
     this._edges.push(edges);
-    var clockwise;
-    var EMin = null;
-    for (;;) {
-      E = E.nextLocMin;
-      if (E == EMin) break;
-      else if (EMin == null) EMin = E;
+
+    let isClockwise: boolean = false;
+    let minEdge: TEdge = null;
+    let localMinima: LocalMinima;
+
+    while (true) {
+      edge1 = edge1.nextLocMin;
+
+      if (edge1 === minEdge) {
+        break;
+      }
+
+      if (minEdge == null) {
+        minEdge = edge1;
+      }
       //E and E.Prev now share a local minima (left aligned if horizontal).
       //Compare their slopes to find which starts which bound ...
-      const locMin = new LocalMinima(E.Bot.Y);
+      isClockwise = edge1.Dx >= edge1.Prev.Dx;
 
-      if (E.Dx < E.Prev.Dx) {
-        locMin.LeftBound = E.Prev;
-        locMin.RightBound = E;
-        clockwise = false;
-        //Q.nextInLML = Q.prev
-      } else {
-        locMin.LeftBound = E;
-        locMin.RightBound = E.Prev;
-        clockwise = true;
-        //Q.nextInLML = Q.next
+      localMinima = new LocalMinima(edge1.Bot.Y);
+      localMinima.init(edge1, isClockwise, isClosed);
+
+      edge1 = this._processBound(localMinima.LeftBound, isClockwise);
+      edge2 = this._processBound(localMinima.RightBound, !isClockwise);
+
+      localMinima.clean();
+      this._insertLocalMinima(localMinima);
+      if (!isClockwise) {
+        edge1 = edge2;
       }
-      locMin.LeftBound.Side = EdgeSide.Left;
-      locMin.RightBound.Side = EdgeSide.Right;
-      if (!isClosed) locMin.LeftBound.WindDelta = 0;
-      else if (locMin.LeftBound.Next == locMin.RightBound)
-        locMin.LeftBound.WindDelta = -1;
-      else locMin.LeftBound.WindDelta = 1;
-      locMin.RightBound.WindDelta = -locMin.LeftBound.WindDelta;
-      E = this.ProcessBound(locMin.LeftBound, clockwise);
-      var E2 = this.ProcessBound(locMin.RightBound, !clockwise);
-      if (locMin.LeftBound.OutIdx == Clipper.Skip) locMin.LeftBound = null;
-      else if (locMin.RightBound.OutIdx == Clipper.Skip)
-        locMin.RightBound = null;
-      this._insertLocalMinima(locMin);
-      if (!clockwise) E = E2;
     }
     return true;
   }
 
-  public RangeTest(Pt: IntPoint, useFullRange: { Value: boolean }): void {
-    if (useFullRange.Value) {
-      if (
-        Pt.X > Clipper.hiRange ||
-        Pt.Y > Clipper.hiRange ||
-        -Pt.X > Clipper.hiRange ||
-        -Pt.Y > Clipper.hiRange
-      ) {
-        console.error("Coordinate outside allowed range in RangeTest().");
-      }
-    } else if (
-      Pt.X > Clipper.loRange ||
-      Pt.Y > Clipper.loRange ||
-      -Pt.X > Clipper.loRange ||
-      -Pt.Y > Clipper.loRange
-    ) {
-      useFullRange.Value = true;
-      this.RangeTest(Pt, useFullRange);
-    }
-  }
+  private _processBound(edge: TEdge, isClockwise: boolean): TEdge {
+    let startEdge: TEdge = edge;
+    let result: TEdge = edge;
+    let hEdge: TEdge;
+    let startX: number = 0;
+    let locMin: LocalMinima;
 
-  public ProcessBound(edge: TEdge, isClockwise: boolean): TEdge {
-    var startEdge = edge,
-      result = edge;
-    var Horz;
-    var startX;
     if (edge.Dx == Clipper.horizontal) {
       //it's possible for adjacent overlapping horz edges to start heading left
       //before finishing right, so ...
-      if (isClockwise) startX = edge.Prev.Bot.X;
-      else startX = edge.Next.Bot.X;
-      if (edge.Bot.X != startX) edge.reverseHorizontal();
+      startX = isClockwise ? edge.Prev.Bot.X : edge.Next.Bot.X;
+
+      if (edge.Bot.X !== startX) {
+        edge.reverseHorizontal();
+      }
     }
+
     if (result.OutIdx != Clipper.Skip) {
       if (isClockwise) {
         while (
           result.Top.Y == result.Next.Bot.Y &&
           result.Next.OutIdx != Clipper.Skip
-        )
+        ) {
           result = result.Next;
+        }
+
         if (
           result.Dx == Clipper.horizontal &&
           result.Next.OutIdx != Clipper.Skip
@@ -255,28 +279,43 @@ export default class Clipper {
           //nb: at the top of a bound, horizontals are added to the bound
           //only when the preceding edge attaches to the horizontal's left vertex
           //unless a Skip edge is encountered when that becomes the top divide
-          Horz = result;
-          while (Horz.Prev.Dx == Clipper.horizontal) Horz = Horz.Prev;
-          if (Horz.Prev.Top.X == result.Next.Top.X) {
-            if (!isClockwise) result = Horz.Prev;
-          } else if (Horz.Prev.Top.X > result.Next.Top.X) result = Horz.Prev;
+          hEdge = result;
+
+          while (hEdge.Prev.Dx == Clipper.horizontal) {
+            hEdge = hEdge.Prev;
+          }
+
+          if (hEdge.Prev.Top.X == result.Next.Top.X) {
+            if (!isClockwise) {
+              result = hEdge.Prev;
+            }
+          } else if (hEdge.Prev.Top.X > result.Next.Top.X) {
+            result = hEdge.Prev;
+          }
         }
+
         while (edge != result) {
           edge.NextInLML = edge.Next;
+
           if (
             edge.Dx == Clipper.horizontal &&
             edge != startEdge &&
             edge.Bot.X != edge.Prev.Top.X
-          )
+          ) {
             edge.reverseHorizontal();
+          }
+
           edge = edge.Next;
         }
+
         if (
           edge.Dx == Clipper.horizontal &&
           edge != startEdge &&
           edge.Bot.X != edge.Prev.Top.X
-        )
+        ) {
           edge.reverseHorizontal();
+        }
+
         result = result.Next;
         //move to the edge just beyond current bound
       } else {
@@ -289,60 +328,83 @@ export default class Clipper {
           result.Dx == Clipper.horizontal &&
           result.Prev.OutIdx != Clipper.Skip
         ) {
-          Horz = result;
-          while (Horz.Next.Dx == Clipper.horizontal) Horz = Horz.Next;
-          if (Horz.Next.Top.X == result.Prev.Top.X) {
-            if (!isClockwise) result = Horz.Next;
-          } else if (Horz.Next.Top.X > result.Prev.Top.X) result = Horz.Next;
+          hEdge = result;
+
+          while (hEdge.Next.Dx == Clipper.horizontal) {
+            hEdge = hEdge.Next;
+          }
+
+          if (hEdge.Next.Top.X == result.Prev.Top.X) {
+            if (!isClockwise) {
+              result = hEdge.Next;
+            }
+          } else if (hEdge.Next.Top.X > result.Prev.Top.X) {
+            result = hEdge.Next;
+          }
         }
+
         while (edge != result) {
           edge.NextInLML = edge.Prev;
+
           if (
             edge.Dx == Clipper.horizontal &&
             edge != startEdge &&
             edge.Bot.X != edge.Next.Top.X
-          )
+          ) {
             edge.reverseHorizontal();
+          }
           edge = edge.Prev;
         }
+
         if (
           edge.Dx == Clipper.horizontal &&
           edge != startEdge &&
           edge.Bot.X != edge.Next.Top.X
-        )
+        ) {
           edge.reverseHorizontal();
+        }
         result = result.Prev;
         //move to the edge just beyond current bound
       }
     }
+
     if (result.OutIdx == Clipper.Skip) {
       //if edges still remain in the current bound beyond the skip edge then
       //create another LocMin and call ProcessBound once more
       edge = result;
+
       if (isClockwise) {
-        while (edge.Top.Y == edge.Next.Bot.Y) edge = edge.Next;
+        while (edge.Top.Y == edge.Next.Bot.Y) {
+          edge = edge.Next;
+        }
         //don't include top horizontals when parsing a bound a second time,
         //they will be contained in the opposite bound ...
-        while (edge != result && edge.Dx == Clipper.horizontal)
+        while (edge != result && edge.Dx == Clipper.horizontal) {
           edge = edge.Prev;
+        }
       } else {
-        while (edge.Top.Y == edge.Prev.Bot.Y) edge = edge.Prev;
-        while (edge != result && edge.Dx == Clipper.horizontal)
+        while (edge.Top.Y == edge.Prev.Bot.Y) {
+          edge = edge.Prev;
+        }
+
+        while (edge != result && edge.Dx == Clipper.horizontal) {
           edge = edge.Next;
+        }
       }
       if (edge == result) {
-        if (isClockwise) result = edge.Next;
-        else result = edge.Prev;
+        result = isClockwise ? edge.Next : edge.Prev;
       } else {
         //there are more edges in the bound beyond result starting with E
-        if (isClockwise) edge = result.Next;
-        else edge = result.Prev;
-        const locMin: LocalMinima = new LocalMinima(edge.Bot.Y, null, edge);
+
+        edge = isClockwise ? result.Next : result.Prev;
+
+        locMin = new LocalMinima(edge.Bot.Y, null, edge);
         locMin.RightBound.WindDelta = 0;
-        result = this.ProcessBound(locMin.RightBound, isClockwise);
+        result = this._processBound(locMin.RightBound, isClockwise);
         this._insertLocalMinima(locMin);
       }
     }
+
     return result;
   }
 
@@ -416,22 +478,11 @@ export default class Clipper {
       edge2.PrevInAEL = prev;
       if (edge2.PrevInAEL !== null) edge2.PrevInAEL.NextInAEL = edge2;
     }
-    if (edge1.PrevInAEL === null) this._activeEdges = edge1;
-    else if (edge2.PrevInAEL === null) this._activeEdges = edge2;
-  }
 
-  public AddEdgeToSEL(edge: TEdge): void {
-    //SEL pointers in PEdge are reused to build a list of horizontal edges.
-    //However, we don't need to worry about order with horizontal edge processing.
-    if (this._sortedEdges === null) {
-      this._sortedEdges = edge;
-      edge.PrevInSEL = null;
-      edge.NextInSEL = null;
-    } else {
-      edge.NextInSEL = this._sortedEdges;
-      edge.PrevInSEL = null;
-      this._sortedEdges.PrevInSEL = edge;
-      this._sortedEdges = edge;
+    if (edge1.PrevInAEL === null) {
+      this._activeEdges = edge1;
+    } else if (edge2.PrevInAEL === null) {
+      this._activeEdges = edge2;
     }
   }
 
@@ -493,10 +544,10 @@ export default class Clipper {
         }
       }
       if (e1stops)
-        if (e1.OutIdx < 0) this.DeleteFromAEL(e1);
+        if (e1.OutIdx < 0) this._deleteFromAEL(e1);
         else console.error("Error intersecting polylines");
       if (e2stops)
-        if (e2.OutIdx < 0) this.DeleteFromAEL(e2);
+        if (e2.OutIdx < 0) this._deleteFromAEL(e2);
         else console.error("Error intersecting polylines");
       return;
     }
@@ -645,15 +696,15 @@ export default class Clipper {
       e1.swapPolyIndices(e2);
     }
     //finally, delete any non-contributing maxima edges  ...
-    if (e1stops) this.DeleteFromAEL(e1);
-    if (e2stops) this.DeleteFromAEL(e2);
+    if (e1stops) this._deleteFromAEL(e1);
+    if (e2stops) this._deleteFromAEL(e2);
   }
 
   public DoMaxima(e: TEdge): void {
     var eMaxPair = e.getMaximaPair();
     if (eMaxPair === null) {
       if (e.OutIdx >= 0) this._outPolygon.addOutPt(e, e.Top);
-      this.DeleteFromAEL(e);
+      this._deleteFromAEL(e);
       return;
     }
     var eNext = e.NextInAEL;
@@ -664,8 +715,8 @@ export default class Clipper {
       eNext = e.NextInAEL;
     }
     if (e.OutIdx == -1 && eMaxPair.OutIdx == -1) {
-      this.DeleteFromAEL(e);
-      this.DeleteFromAEL(eMaxPair);
+      this._deleteFromAEL(e);
+      this._deleteFromAEL(eMaxPair);
     } else if (e.OutIdx >= 0 && eMaxPair.OutIdx >= 0) {
       this.IntersectEdges(e, eMaxPair, e.Top, false);
     } else if (use_lines && e.WindDelta === 0) {
@@ -673,12 +724,12 @@ export default class Clipper {
         this._outPolygon.addOutPt(e, e.Top);
         e.OutIdx = -1;
       }
-      this.DeleteFromAEL(e);
+      this._deleteFromAEL(e);
       if (eMaxPair.OutIdx >= 0) {
         this._outPolygon.addOutPt(eMaxPair, e.Top);
         eMaxPair.OutIdx = -1;
       }
-      this.DeleteFromAEL(eMaxPair);
+      this._deleteFromAEL(eMaxPair);
     } else console.error("DoMaxima error");
   }
 
@@ -706,8 +757,10 @@ export default class Clipper {
         //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
         if (e.isIntermediate(topY) && e.NextInLML.isHorizontal) {
           e = this.UpdateEdgeIntoAEL(e);
-          if (e.OutIdx >= 0) this._outPolygon.addOutPt(e, e.Bot);
-          this.AddEdgeToSEL(e);
+          if (e.OutIdx >= 0) {
+            this._outPolygon.addOutPt(e, e.Bot);
+          }
+          this._sortedEdges = e.addEdgeToSEL(this._sortedEdges);
         } else {
           e.Curr.X = e.topX(topY);
           e.Curr.Y = topY;
@@ -732,7 +785,7 @@ export default class Clipper {
       }
     }
     //3. Process horizontals at the Top of the scanbeam ...
-    this.ProcessHorizontals(true);
+    this._processHorizontals(true);
     //4. Promote intermediate vertices ...
     e = this._activeEdges;
     while (e !== null) {
@@ -1026,22 +1079,6 @@ export default class Clipper {
     return result;
   }
 
-  public HorzSegmentsOverlap(
-    Pt1a: IntPoint,
-    Pt1b: IntPoint,
-    Pt2a: IntPoint,
-    Pt2b: IntPoint
-  ): boolean {
-    //precondition: both segments are horizontal
-    if (Pt1a.X > Pt2a.X === Pt1a.X < Pt2b.X) return true;
-    else if (Pt1b.X > Pt2a.X === Pt1b.X < Pt2b.X) return true;
-    else if (Pt2a.X > Pt1a.X === Pt2a.X < Pt1b.X) return true;
-    else if (Pt2b.X > Pt1a.X === Pt2b.X < Pt1b.X) return true;
-    else if (Pt1a.X == Pt2a.X && Pt1b.X == Pt2b.X) return true;
-    else if (Pt1a.X == Pt2b.X && Pt1b.X == Pt2a.X) return true;
-    else return false;
-  }
-
   public InsertLocalMinimaIntoAEL(botY: number) {
     while (this._CurrentLM !== null && this._CurrentLM.Y == botY) {
       var lb = this._CurrentLM.LeftBound;
@@ -1088,26 +1125,18 @@ export default class Clipper {
         this._scanbeam = Scanbeam.insert(this._scanbeam, lb.Top.Y);
       }
       if (rb != null) {
-        if (rb.isHorizontal) this.AddEdgeToSEL(rb);
-        else this._scanbeam = Scanbeam.insert(this._scanbeam, rb.Top.Y);
+        if (rb.isHorizontal) {
+          this._sortedEdges = rb.addEdgeToSEL(this._sortedEdges);
+        } else this._scanbeam = Scanbeam.insert(this._scanbeam, rb.Top.Y);
       }
       if (lb == null || rb == null) continue;
       //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-      if (
-        Op1 !== null &&
-        rb.isHorizontal &&
-        this._ghostJoins.length > 0 &&
-        rb.WindDelta !== 0
-      ) {
-        for (var i = 0, ilen = this._ghostJoins.length; i < ilen; i++) {
-          //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
-          //the 'ghost' join to a real join ready for later ...
-          var j = this._ghostJoins[i];
-          if (this.HorzSegmentsOverlap(j.OutPt1.Pt, j.OffPt, rb.Bot, rb.Top)) {
-            this._addJoin(j.OutPt1, Op1, j.OffPt);
-          }
-        }
+      const joins = this._ghostJoinStore.export(Op1, rb);
+
+      if (joins.length !== 0) {
+        this._joins = this._joins.concat(joins);
       }
+
       if (
         lb.OutIdx >= 0 &&
         lb.PrevInAEL !== null &&
@@ -1151,8 +1180,8 @@ export default class Clipper {
       var botY = this.PopScanbeam();
       do {
         this.InsertLocalMinimaIntoAEL(botY);
-        Clipper.Clear(this._ghostJoins);
-        this.ProcessHorizontals(false);
+        this._ghostJoinStore.clean();
+        this._processHorizontals(false);
         if (this._scanbeam === null) break;
         var topY = this.PopScanbeam();
         //console.log("botY:" + botY + ", topY:" + topY);
@@ -1170,29 +1199,21 @@ export default class Clipper {
       return true;
     } finally {
       Clipper.Clear(this._joins);
-      Clipper.Clear(this._ghostJoins);
+      this._ghostJoinStore.clean();
     }
   }
 
-  public ProcessHorizontals(isTopOfScanbeam: boolean): void {
+  private _processHorizontals(isTopOfScanbeam: boolean): void {
     var horzEdge = this._sortedEdges;
     while (horzEdge !== null) {
-      this.DeleteFromSEL(horzEdge);
-      this.ProcessHorizontal(horzEdge, isTopOfScanbeam);
+      this._deleteFromSEL(horzEdge);
+      this._processHorizontal(horzEdge, isTopOfScanbeam);
       horzEdge = this._sortedEdges;
     }
   }
 
-  public DeleteFromSEL(e: TEdge): void {
-    var SelPrev = e.PrevInSEL;
-    var SelNext = e.NextInSEL;
-    if (SelPrev === null && SelNext === null && e != this._sortedEdges) return;
-    //already deleted
-    if (SelPrev !== null) SelPrev.NextInSEL = SelNext;
-    else this._sortedEdges = SelNext;
-    if (SelNext !== null) SelNext.PrevInSEL = SelPrev;
-    e.NextInSEL = null;
-    e.PrevInSEL = null;
+  private _deleteFromSEL(e: TEdge): void {
+    this._sortedEdges = e.deleteFromSEL(this._sortedEdges);
   }
 
   public PopScanbeam(): number {
@@ -1263,7 +1284,7 @@ export default class Clipper {
     return e;
   }
 
-  public ProcessHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
+  private _processHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
     var $var: DirData = { Dir: null, Left: null, Right: null };
     this.GetHorzDirection(horzEdge, $var);
     var dir = $var.Dir;
@@ -1293,8 +1314,7 @@ export default class Clipper {
           (dir == Direction.LeftToRight && e.Curr.X <= horzRight) ||
           (dir == Direction.RightToLeft && e.Curr.X >= horzLeft)
         ) {
-          if (horzEdge.OutIdx >= 0 && horzEdge.WindDelta != 0)
-            this.PrepareHorzJoins(horzEdge, isTopOfScanbeam);
+          this._ghostJoinStore.add(this._outPolygon, horzEdge, isTopOfScanbeam);
 
           //so far we're still in range of the horizontal Edge  but make sure
           //we're at the last of consec. horizontals when matching with eMaxPair
@@ -1320,8 +1340,8 @@ export default class Clipper {
         e = eNext;
       }
       //end while
-      if (horzEdge.OutIdx >= 0 && horzEdge.WindDelta !== 0)
-        this.PrepareHorzJoins(horzEdge, isTopOfScanbeam);
+      this._ghostJoinStore.add(this._outPolygon, horzEdge, isTopOfScanbeam);
+
       if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
         horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
         if (horzEdge.OutIdx >= 0)
@@ -1374,13 +1394,13 @@ export default class Clipper {
         else this.IntersectEdges(eMaxPair, horzEdge, horzEdge.Top, false);
         if (eMaxPair.OutIdx >= 0) console.error("ProcessHorizontal error");
       } else {
-        this.DeleteFromAEL(horzEdge);
-        this.DeleteFromAEL(eMaxPair);
+        this._deleteFromAEL(horzEdge);
+        this._deleteFromAEL(eMaxPair);
       }
     } else {
       if (horzEdge.OutIdx >= 0)
         this._outPolygon.addOutPt(horzEdge, horzEdge.Top);
-      this.DeleteFromAEL(horzEdge);
+      this._deleteFromAEL(horzEdge);
     }
   }
 
@@ -1396,37 +1416,8 @@ export default class Clipper {
     }
   }
 
-  public PrepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean): void {
-    //First, match up overlapping horizontal edges (eg when one polygon's
-    //intermediate horz edge overlaps an intermediate horz edge of another, or
-    //when one polygon sits on top of another) ...
-    //for (var i = 0, ilen = this.m_GhostJoins.length; i < ilen; ++i) {
-    //  var j = this.m_GhostJoins[i];
-    //  if (this.HorzSegmentsOverlap(j.OutPt1.Pt, j.OffPt, horzEdge.Bot, horzEdge.Top))
-    //    this.AddJoin(j.OutPt1, outPt, j.OffPt);
-    //}
-
-    //Also, since horizontal edges at the top of one SB are often removed from
-    //the AEL before we process the horizontal edges at the bottom of the next,
-    //we need to create 'ghost' Join records of 'contrubuting' horizontals that
-    //we can compare with horizontals at the bottom of the next SB.
-    if (isTopOfScanbeam) {
-      //get the last Op for this horizontal edge
-      //the point may be anywhere along the horizontal ...
-      this._ghostJoins.push(this._outPolygon.createHorizontalJoin(horzEdge));
-    }
-  }
-
-  public DeleteFromAEL(e: TEdge): void {
-    var AelPrev = e.PrevInAEL;
-    var AelNext = e.NextInAEL;
-    if (AelPrev === null && AelNext === null && e != this._activeEdges) return;
-    //already deleted
-    if (AelPrev !== null) AelPrev.NextInAEL = AelNext;
-    else this._activeEdges = AelNext;
-    if (AelNext !== null) AelNext.PrevInAEL = AelPrev;
-    e.NextInAEL = null;
-    e.PrevInAEL = null;
+  private _deleteFromAEL(e: TEdge): void {
+    this._activeEdges = e.deleteFromAEL(this._activeEdges);
   }
 
   public static Clear(a: any[]) {
@@ -1512,13 +1503,30 @@ export default class Clipper {
   }
 
   public static near_zero(val: number) {
-    return val > -Clipper.tolerance && val < Clipper.tolerance;
+    return Math.abs(val) < Clipper.tolerance;
+  }
+
+  private static _getPolygonLastIndex(
+    polygon: IntPoint[],
+    isClosed: boolean
+  ): number {
+    let result: number = polygon.length - 1;
+
+    if (isClosed) {
+      while (result > 0 && polygon[0].equal(polygon[result])) {
+        --result;
+      }
+    }
+
+    while (result > 0 && polygon[result].equal(polygon[result - 1])) {
+      --result;
+    }
+
+    return result;
   }
 
   static tolerance: number = 1e-20;
   static Unassigned: number = -1;
   static horizontal: number = -9007199254740992;
   static Skip: number = -2;
-  static loRange: number = 47453132; // sqrt(2^53 -1)/2
-  static hiRange: number = 4503599627370495; // sqrt(2^106 -1)/2
 }

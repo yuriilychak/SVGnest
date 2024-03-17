@@ -1,3 +1,4 @@
+import { EdgeSide } from "./enums";
 import TEdge from "./t-edge";
 
 export default class LocalMinima {
@@ -10,6 +11,29 @@ export default class LocalMinima {
     this.Y = y;
     this.LeftBound = leftBound;
     this.RightBound = rightBound;
+  }
+
+  public init(edge: TEdge, isClockwise: boolean, isClosed: boolean): void {
+    if (isClockwise) {
+      this.LeftBound = edge;
+      this.RightBound = edge.Prev;
+    } else {
+      this.LeftBound = edge.Prev;
+      this.RightBound = edge;
+    }
+
+    this.LeftBound.Side = EdgeSide.Left;
+    this.RightBound.Side = EdgeSide.Right;
+
+    if (!isClosed) {
+      this.LeftBound.WindDelta = 0;
+    } else if (this.LeftBound.Next == this.RightBound) {
+      this.LeftBound.WindDelta = -1;
+    } else {
+      this.LeftBound.WindDelta = 1;
+    }
+
+    this.RightBound.WindDelta = -this.LeftBound.WindDelta;
   }
 
   public insert(localMinima: LocalMinima): LocalMinima {
@@ -31,4 +55,14 @@ export default class LocalMinima {
 
     return this;
   }
+
+  public clean(): void {
+    if (this.LeftBound.OutIdx == LocalMinima._skip) {
+      this.LeftBound = null;
+    } else if (this.RightBound.OutIdx == LocalMinima._skip) {
+      this.RightBound = null;
+    }
+  }
+
+  private static _skip: number = -2;
 }

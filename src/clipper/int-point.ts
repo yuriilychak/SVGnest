@@ -53,6 +53,20 @@ export default class IntPoint {
     }
   }
 
+  public rangeTest(isFullRange: boolean): boolean {
+    const maxValue: number = Math.max(Math.abs(this.X), Math.abs(this.Y));
+
+    if (!isFullRange && maxValue > IntPoint._lowRange) {
+      return this.rangeTest(true);
+    }
+
+    if (isFullRange && maxValue > IntPoint._highRange) {
+      console.error("Coordinate outside allowed range in RangeTest().");
+    }
+
+    return isFullRange;
+  }
+
   public get X(): number {
     return this._data[0];
   }
@@ -123,4 +137,7 @@ export default class IntPoint {
     if (pt1.Y == pt2.Y) return Number.MIN_SAFE_INTEGER;
     else return (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
   }
+
+  private static _lowRange: number = 47453132; // sqrt(2^53 -1)/2
+  private static _highRange: number = 4503599627370495; // sqrt(2^106 -1)/2
 }
