@@ -7,14 +7,32 @@ export default class SortedEdge {
   //SEL pointers in PEdge are reused to build a list of horizontal edges.
   //However, we don't need to worry about order with horizontal edge processing.
   public add(edge: TEdge): void {
-    edge.PrevInSEL = null;
-    edge.NextInSEL = this._source;
+    edge.updateSEL(null, this._source);
 
     if (edge.NextInSEL !== null) {
       edge.NextInSEL.PrevInSEL = edge;
     }
 
     this._source = edge;
+  }
+
+  public update(edge: TEdge, topY: number = Number.NaN): TEdge {
+    this._source = edge;
+
+    const isUpdateX: boolean = !Number.isNaN(topY);
+    let result: TEdge = edge;
+
+    while (result !== null) {
+      result.updateSEL(result.PrevInAEL, result.NextInAEL);
+
+      if (isUpdateX) {
+        result.Curr.X = result.topX(topY);
+      }
+
+      result = result.NextInAEL;
+    }
+
+    return result;
   }
 
   public delete(edge: TEdge): void {
@@ -65,10 +83,8 @@ export default class SortedEdge {
         prev.NextInSEL = edge2;
       }
 
-      edge2.PrevInSEL = prev;
-      edge2.NextInSEL = edge1;
-      edge1.PrevInSEL = edge2;
-      edge1.NextInSEL = next;
+      edge1.updateSEL(edge2, next);
+      edge2.updateSEL(prev, edge1);
     } else if (edge2.NextInSEL == edge1) {
       next = edge1.NextInSEL;
 
@@ -82,10 +98,8 @@ export default class SortedEdge {
         prev.NextInSEL = edge1;
       }
 
-      edge1.PrevInSEL = prev;
-      edge1.NextInSEL = edge2;
-      edge2.PrevInSEL = edge1;
-      edge2.NextInSEL = next;
+      edge1.updateSEL(prev, edge2);
+      edge2.updateSEL(edge1, next);
     } else {
       next = edge1.NextInSEL;
       prev = edge1.PrevInSEL;
@@ -127,10 +141,6 @@ export default class SortedEdge {
 
   public get source(): TEdge {
     return this._source;
-  }
-
-  public set source(value: TEdge) {
-    this._source = value;
   }
 
   public get isEmpty(): boolean {

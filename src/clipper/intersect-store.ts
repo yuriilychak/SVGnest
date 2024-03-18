@@ -1,3 +1,4 @@
+import ActiveEdge from "./active-edge";
 import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
 import IntPoint from "./int-point";
 import IntersectNode from "./intersect-node";
@@ -16,7 +17,6 @@ interface DirData {
 
 export default class IntersectStore {
   private _intersections: IntersectNode[];
-  private _activeEdges: TEdge = null;
   private _outPolygon: OutPolygon;
   private _joinStore: JoinStore;
   private _clipType: ClipType;
@@ -24,6 +24,7 @@ export default class IntersectStore {
   private _subjFillType: PolyFillType;
   private _scanbeamStore: ScanbeamStore;
   private _sortedEdge: SortedEdge;
+  private _activeEdge: ActiveEdge;
 
   constructor(
     outPolygon: OutPolygon,
@@ -38,10 +39,11 @@ export default class IntersectStore {
     this._clipFillType = PolyFillType.EvenOdd;
     this._subjFillType = PolyFillType.EvenOdd;
     this._sortedEdge = new SortedEdge();
+    this._activeEdge = new ActiveEdge();
   }
 
   public clean(): void {
-    this._activeEdges = null;
+    this._activeEdge.clean();
     this._sortedEdge.clean();
   }
 
@@ -55,81 +57,63 @@ export default class IntersectStore {
     this._subjFillType = subjFillType;
   }
 
-  private _insertEdgeIntoAEL(edge: TEdge, startEdge: TEdge): void {
-    if (this._activeEdges === null) {
-      edge.PrevInAEL = null;
-      edge.NextInAEL = null;
-      this._activeEdges = edge;
-    } else if (
-      startEdge === null &&
-      TEdge.e2InsertsBeforeE1(this._activeEdges, edge)
-    ) {
-      edge.PrevInAEL = null;
-      edge.NextInAEL = this._activeEdges;
-      this._activeEdges.PrevInAEL = edge;
-      this._activeEdges = edge;
-    } else {
-      if (startEdge === null) startEdge = this._activeEdges;
-      while (
-        startEdge.NextInAEL !== null &&
-        !TEdge.e2InsertsBeforeE1(startEdge.NextInAEL, edge)
-      )
-        startEdge = startEdge.NextInAEL;
-      edge.NextInAEL = startEdge.NextInAEL;
-      if (startEdge.NextInAEL !== null) startEdge.NextInAEL.PrevInAEL = edge;
-      edge.PrevInAEL = startEdge;
-      startEdge.NextInAEL = edge;
-    }
-  }
-
   private _buildIntersectList(
     botY: number,
     topY: number,
     useFullRange: boolean
   ): void {
-    if (this._activeEdges === null) return;
-    //prepare for sorting ...
-    var e = this._activeEdges;
-    //console.log(JSON.stringify(JSON.decycle( e )));
-    this._sortedEdge.source = e;
-
-    while (e !== null) {
-      e.PrevInSEL = e.PrevInAEL;
-      e.NextInSEL = e.NextInAEL;
-      e.Curr.X = e.topX(topY);
-      e = e.NextInAEL;
+    if (this._activeEdge.isEmpty) {
+      return;
     }
+    //prepare for sorting ...
+    let edge: TEdge = this._sortedEdge.update(this._activeEdge.source, topY);
+    //console.log(JSON.stringify(JSON.decycle( e )));
+
     //bubblesort ...
-    var isModified = true;
+    let isModified: boolean = true;
+    let point: IntPoint;
+    let nextEdge: TEdge;
+    let newNode: IntersectNode;
+
     while (isModified && !this._sortedEdge.isEmpty) {
       isModified = false;
-      e = this._sortedEdge.source;
-      while (e.NextInSEL !== null) {
-        var eNext = e.NextInSEL;
-        var pt = new IntPoint();
+      edge = this._sortedEdge.source;
+
+      while (edge.NextInSEL !== null) {
+        nextEdge = edge.NextInSEL;
+        point = new IntPoint();
         //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-        if (e.Curr.X > eNext.Curr.X) {
+        if (edge.Curr.X > nextEdge.Curr.X) {
           if (
-            !TEdge.intersectPoint(e, eNext, pt, useFullRange) &&
-            e.Curr.X > eNext.Curr.X + 1
+            !TEdge.intersectPoint(edge, nextEdge, point, useFullRange) &&
+            edge.Curr.X > nextEdge.Curr.X + 1
           ) {
             //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
             //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
             console.error("Intersection error");
           }
-          if (pt.Y > botY) {
-            pt.Y = botY;
-            if (Math.abs(e.Dx) > Math.abs(eNext.Dx)) pt.X = eNext.topX(botY);
-            else pt.X = e.topX(botY);
+
+          if (point.Y > botY) {
+            point.Y = botY;
+            point.X =
+              Math.abs(edge.Dx) > Math.abs(nextEdge.Dx)
+                ? nextEdge.topX(botY)
+                : edge.topX(botY);
           }
-          var newNode = new IntersectNode(e, eNext, pt);
+
+          newNode = new IntersectNode(edge, nextEdge, point);
+
           this._intersections.push(newNode);
           this._sortedEdge.swap(newNode);
           isModified = true;
-        } else e = eNext;
+        } else edge = nextEdge;
       }
-      if (e.PrevInSEL !== null) e.PrevInSEL.NextInSEL = null;
-      else break;
+
+      if (edge.PrevInSEL !== null) {
+        edge.PrevInSEL.NextInSEL = null;
+      } else {
+        break;
+      }
     }
     this._sortedEdge.clean();
   }
@@ -156,7 +140,7 @@ export default class IntersectStore {
       //are both open paths, AND they are both 'contributing maximas' ...
       if (e1.WindDelta === 0 && e2.WindDelta === 0) {
         if ((e1stops || e2stops) && e1Contributing && e2Contributing)
-          this._outPolygon.addLocalMaxPoly(e1, e2, pt, this._activeEdges);
+          this._outPolygon.addLocalMaxPoly(e1, e2, pt, this._activeEdge.source);
       }
       //if intersecting a subj line with a subj poly ...
       else if (
@@ -193,10 +177,10 @@ export default class IntersectStore {
         }
       }
       if (e1stops)
-        if (e1.OutIdx < 0) this._deleteFromAEL(e1);
+        if (e1.OutIdx < 0) this._activeEdge.delete(e1);
         else console.error("Error intersecting polylines");
       if (e2stops)
-        if (e2.OutIdx < 0) this._deleteFromAEL(e2);
+        if (e2.OutIdx < 0) this._activeEdge.delete(e2);
         else console.error("Error intersecting polylines");
       return;
     }
@@ -266,7 +250,7 @@ export default class IntersectStore {
         (e2Wc !== 0 && e2Wc != 1) ||
         (e1.PolyTyp != e2.PolyTyp && this._clipType != ClipType.Xor)
       )
-        this._outPolygon.addLocalMaxPoly(e1, e2, pt, this._activeEdges);
+        this._outPolygon.addLocalMaxPoly(e1, e2, pt, this._activeEdge.source);
       else {
         this._outPolygon.addOutPt(e1, pt);
         this._outPolygon.addOutPt(e2, pt);
@@ -348,8 +332,8 @@ export default class IntersectStore {
       e1.swapPolyIndices(e2);
     }
     //finally, delete any non-contributing maxima edges  ...
-    if (e1stops) this._deleteFromAEL(e1);
-    if (e2stops) this._deleteFromAEL(e2);
+    if (e1stops) this._activeEdge.delete(e1);
+    if (e2stops) this._activeEdge.delete(e2);
   }
 
   private _processIntersectList(useFullRange: boolean) {
@@ -362,7 +346,7 @@ export default class IntersectStore {
         true,
         useFullRange
       );
-      this._swapPositionsInAEL(iNode.Edge1, iNode.Edge2);
+      this._activeEdge.swap(iNode.Edge1, iNode.Edge2);
     }
     this._intersections.length = 0;
   }
@@ -372,13 +356,8 @@ export default class IntersectStore {
     //Now it's crucial that intersections are made only between adjacent edges,
     //so to ensure this the order of intersections may need adjusting ...
     this._intersections.sort(IntersectNode.compare);
-    var e = this._activeEdges;
-    this._sortedEdge.source = e;
-    while (e !== null) {
-      e.PrevInSEL = e.PrevInAEL;
-      e.NextInSEL = e.NextInAEL;
-      e = e.NextInAEL;
-    }
+    this._sortedEdge.update(this._activeEdge.source);
+
     var cnt = this._intersections.length;
     for (var i = 0; i < cnt; i++) {
       if (!this._intersections[i].edgesAdjacent) {
@@ -399,7 +378,7 @@ export default class IntersectStore {
     topY: number,
     useFullRange: boolean
   ): boolean {
-    if (this._activeEdges == null) {
+    if (this._activeEdge.isEmpty) {
       return true;
     }
     try {
@@ -416,51 +395,6 @@ export default class IntersectStore {
     this._sortedEdge.clean();
 
     return true;
-  }
-
-  private _swapPositionsInAEL(edge1: TEdge, edge2: TEdge): void {
-    //check that one or other edge hasn't already been removed from AEL ...
-    if (
-      edge1.NextInAEL == edge1.PrevInAEL ||
-      edge2.NextInAEL == edge2.PrevInAEL
-    )
-      return;
-    if (edge1.NextInAEL == edge2) {
-      var next = edge2.NextInAEL;
-      if (next !== null) next.PrevInAEL = edge1;
-      var prev = edge1.PrevInAEL;
-      if (prev !== null) prev.NextInAEL = edge2;
-      edge2.PrevInAEL = prev;
-      edge2.NextInAEL = edge1;
-      edge1.PrevInAEL = edge2;
-      edge1.NextInAEL = next;
-    } else if (edge2.NextInAEL == edge1) {
-      var next = edge1.NextInAEL;
-      if (next !== null) next.PrevInAEL = edge2;
-      var prev = edge2.PrevInAEL;
-      if (prev !== null) prev.NextInAEL = edge1;
-      edge1.PrevInAEL = prev;
-      edge1.NextInAEL = edge2;
-      edge2.PrevInAEL = edge1;
-      edge2.NextInAEL = next;
-    } else {
-      var next = edge1.NextInAEL;
-      var prev = edge1.PrevInAEL;
-      edge1.NextInAEL = edge2.NextInAEL;
-      if (edge1.NextInAEL !== null) edge1.NextInAEL.PrevInAEL = edge1;
-      edge1.PrevInAEL = edge2.PrevInAEL;
-      if (edge1.PrevInAEL !== null) edge1.PrevInAEL.NextInAEL = edge1;
-      edge2.NextInAEL = next;
-      if (edge2.NextInAEL !== null) edge2.NextInAEL.PrevInAEL = edge2;
-      edge2.PrevInAEL = prev;
-      if (edge2.PrevInAEL !== null) edge2.PrevInAEL.NextInAEL = edge2;
-    }
-
-    if (edge1.PrevInAEL === null) {
-      this._activeEdges = edge1;
-    } else if (edge2.PrevInAEL === null) {
-      this._activeEdges = edge2;
-    }
   }
 
   private _addLocalMinPoly(
@@ -516,7 +450,7 @@ export default class IntersectStore {
     if (e === null) {
       edge.WindCnt = edge.WindDelta === 0 ? 1 : edge.WindDelta;
       edge.WindCnt2 = 0;
-      e = this._activeEdges;
+      e = this._activeEdge.source;
       //ie get ready to calc WindCnt2
     } else if (edge.WindDelta === 0 && this._clipType != ClipType.Union) {
       edge.WindCnt = 1;
@@ -586,7 +520,7 @@ export default class IntersectStore {
   ): void {
     var Op1 = null;
     if (lb === null) {
-      this._insertEdgeIntoAEL(rb, null);
+      this._activeEdge.insert(rb);
       this._setWindingCount(rb);
       if (
         rb.isContributing(
@@ -597,7 +531,7 @@ export default class IntersectStore {
       )
         Op1 = this._outPolygon.addOutPt(rb, rb.Bot);
     } else if (rb == null) {
-      this._insertEdgeIntoAEL(lb, null);
+      this._activeEdge.insert(lb);
       this._setWindingCount(lb);
       if (
         lb.isContributing(
@@ -609,8 +543,8 @@ export default class IntersectStore {
         Op1 = this._outPolygon.addOutPt(lb, lb.Bot);
       this._scanbeamStore.insert(lb.Top.Y);
     } else {
-      this._insertEdgeIntoAEL(lb, null);
-      this._insertEdgeIntoAEL(rb, lb);
+      this._activeEdge.insert(lb);
+      this._activeEdge.insert(rb, lb);
       this._setWindingCount(lb);
       rb.WindCnt = lb.WindCnt;
       rb.WindCnt2 = lb.WindCnt2;
@@ -670,37 +604,12 @@ export default class IntersectStore {
     }
   }
 
-  private _updateEdgeIntoAEL(e: TEdge): TEdge {
-    if (e.NextInLML === null) console.error("UpdateEdgeIntoAEL: invalid call");
-    var AelPrev = e.PrevInAEL;
-    var AelNext = e.NextInAEL;
-    e.NextInLML.OutIdx = e.OutIdx;
-    if (AelPrev !== null) AelPrev.NextInAEL = e.NextInLML;
-    else this._activeEdges = e.NextInLML;
-    if (AelNext !== null) AelNext.PrevInAEL = e.NextInLML;
-    e.NextInLML.Side = e.Side;
-    e.NextInLML.WindDelta = e.WindDelta;
-    e.NextInLML.WindCnt = e.WindCnt;
-    e.NextInLML.WindCnt2 = e.WindCnt2;
-    e = e.NextInLML;
-    //    e.Curr = e.Bot;
-    e.Curr.X = e.Bot.X;
-    e.Curr.Y = e.Bot.Y;
-    e.PrevInAEL = AelPrev;
-    e.NextInAEL = AelNext;
-
-    if (!e.isHorizontal) {
-      this._scanbeamStore.insert(e.Top.Y);
-    }
-    return e;
-  }
-
   public processEdgesAtTopOfScanbeam(
     topY: number,
     useFullRange: boolean,
     strictlySimple: boolean
   ) {
-    var e = this._activeEdges;
+    var e = this._activeEdge.source;
     while (e !== null) {
       //1. process maxima, treating them as if they're 'bent' horizontal edges,
       //   but exclude maxima with horizontal edges. nb: e can't be a horizontal.
@@ -713,12 +622,12 @@ export default class IntersectStore {
       if (IsMaximaEdge) {
         var ePrev = e.PrevInAEL;
         this._doMaxima(e, useFullRange);
-        if (ePrev === null) e = this._activeEdges;
+        if (ePrev === null) e = this._activeEdge.source;
         else e = ePrev.NextInAEL;
       } else {
         //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
         if (e.isIntermediate(topY) && e.NextInLML.isHorizontal) {
-          e = this._updateEdgeIntoAEL(e);
+          e = this._activeEdge.update(e, this._scanbeamStore);
           if (e.OutIdx >= 0) {
             this._outPolygon.addOutPt(e, e.Bot);
           }
@@ -750,12 +659,12 @@ export default class IntersectStore {
     //3. Process horizontals at the Top of the scanbeam ...
     this.processHorizontals(true, useFullRange);
     //4. Promote intermediate vertices ...
-    e = this._activeEdges;
+    e = this._activeEdge.source;
     while (e !== null) {
       if (e.isIntermediate(topY)) {
         var op: OutPt = null;
         if (e.OutIdx >= 0) op = this._outPolygon.addOutPt(e, e.Top);
-        e = this._updateEdgeIntoAEL(e);
+        e = this._activeEdge.update(e, this._scanbeamStore);
         //if output polygons share an edge, they'll need joining later ...
         var ePrev = e.PrevInAEL;
         var eNext = e.NextInAEL;
@@ -855,7 +764,7 @@ export default class IntersectStore {
             var Pt = new IntPoint(e.Curr.X, horzEdge.Curr.Y);
             this._intersectEdges(e, horzEdge, Pt, true, useFullRange);
           }
-          this._swapPositionsInAEL(horzEdge, e);
+          this._activeEdge.swap(horzEdge, e);
         } else if (
           (dir == Direction.LeftToRight && e.Curr.X >= horzRight) ||
           (dir == Direction.RightToLeft && e.Curr.X <= horzLeft)
@@ -867,7 +776,7 @@ export default class IntersectStore {
       this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);
 
       if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
-        horzEdge = this._updateEdgeIntoAEL(horzEdge);
+        horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
         if (horzEdge.OutIdx >= 0)
           this._outPolygon.addOutPt(horzEdge, horzEdge.Bot);
 
@@ -882,7 +791,7 @@ export default class IntersectStore {
     if (horzEdge.NextInLML !== null) {
       if (horzEdge.OutIdx >= 0) {
         var op1 = this._outPolygon.addOutPt(horzEdge, horzEdge.Top);
-        horzEdge = this._updateEdgeIntoAEL(horzEdge);
+        horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
         if (horzEdge.WindDelta === 0) return;
         //nb: HorzEdge is no longer horizontal here
         var ePrev = horzEdge.PrevInAEL;
@@ -910,7 +819,7 @@ export default class IntersectStore {
           var op2 = this._outPolygon.addOutPt(eNext, horzEdge.Bot);
           this._joinStore.add(op1, op2, horzEdge.Top);
         }
-      } else horzEdge = this._updateEdgeIntoAEL(horzEdge);
+      } else horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
     } else if (eMaxPair !== null) {
       if (eMaxPair.OutIdx >= 0) {
         if (dir == Direction.LeftToRight)
@@ -931,13 +840,13 @@ export default class IntersectStore {
           );
         if (eMaxPair.OutIdx >= 0) console.error("ProcessHorizontal error");
       } else {
-        this._deleteFromAEL(horzEdge);
-        this._deleteFromAEL(eMaxPair);
+        this._activeEdge.delete(horzEdge);
+        this._activeEdge.delete(eMaxPair);
       }
     } else {
       if (horzEdge.OutIdx >= 0)
         this._outPolygon.addOutPt(horzEdge, horzEdge.Top);
-      this._deleteFromAEL(horzEdge);
+      this._activeEdge.delete(horzEdge);
     }
   }
 
@@ -945,19 +854,19 @@ export default class IntersectStore {
     var eMaxPair = e.getMaximaPair();
     if (eMaxPair === null) {
       if (e.OutIdx >= 0) this._outPolygon.addOutPt(e, e.Top);
-      this._deleteFromAEL(e);
+      this._activeEdge.delete(e);
       return;
     }
     var eNext = e.NextInAEL;
     var use_lines = true;
     while (eNext !== null && eNext != eMaxPair) {
       this._intersectEdges(e, eNext, e.Top, true, useFullRange);
-      this._swapPositionsInAEL(e, eNext);
+      this._activeEdge.swap(e, eNext);
       eNext = e.NextInAEL;
     }
     if (e.OutIdx == -1 && eMaxPair.OutIdx == -1) {
-      this._deleteFromAEL(e);
-      this._deleteFromAEL(eMaxPair);
+      this._activeEdge.delete(e);
+      this._activeEdge.delete(eMaxPair);
     } else if (e.OutIdx >= 0 && eMaxPair.OutIdx >= 0) {
       this._intersectEdges(e, eMaxPair, e.Top, false, useFullRange);
     } else if (use_lines && e.WindDelta === 0) {
@@ -965,12 +874,12 @@ export default class IntersectStore {
         this._outPolygon.addOutPt(e, e.Top);
         e.OutIdx = -1;
       }
-      this._deleteFromAEL(e);
+      this._activeEdge.delete(e);
       if (eMaxPair.OutIdx >= 0) {
         this._outPolygon.addOutPt(eMaxPair, e.Top);
         eMaxPair.OutIdx = -1;
       }
-      this._deleteFromAEL(eMaxPair);
+      this._activeEdge.delete(eMaxPair);
     } else console.error("DoMaxima error");
   }
 
@@ -978,10 +887,6 @@ export default class IntersectStore {
     if (edge.PolyTyp == PolyType.Subject)
       return this._clipFillType == PolyFillType.EvenOdd;
     else return this._subjFillType == PolyFillType.EvenOdd;
-  }
-
-  private _deleteFromAEL(e: TEdge): void {
-    this._activeEdges = e.deleteFromAEL(this._activeEdges);
   }
 
   public GetHorzDirection(HorzEdge: TEdge, $var: DirData): void {

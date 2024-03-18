@@ -33,31 +33,6 @@ export default class TEdge {
     this.OutIdx = -1;
   }
 
-  public deleteFromAEL(activeEdges: TEdge): TEdge {
-    const prevAEL: TEdge = this.PrevInAEL;
-    const nextAEL: TEdge = this.NextInAEL;
-    let result: TEdge = activeEdges;
-
-    if (prevAEL === null && nextAEL === null && this !== result) {
-      return result;
-    }
-    //already deleted
-    if (prevAEL !== null) {
-      prevAEL.NextInAEL = nextAEL;
-    } else {
-      result = nextAEL;
-    }
-
-    if (nextAEL !== null) {
-      nextAEL.PrevInAEL = prevAEL;
-    }
-
-    this.NextInAEL = null;
-    this.PrevInAEL = null;
-
-    return result;
-  }
-
   public topX(currentY: number): number {
     //if (edge.Bot == edge.Curr) alert ("edge.Bot = edge.Curr");
     //if (edge.Bot == edge.Top) alert ("edge.Bot = edge.Top");
@@ -148,6 +123,16 @@ export default class TEdge {
 
   public getNextInAEL(direction: Direction): TEdge {
     return direction == Direction.LeftToRight ? this.NextInAEL : this.PrevInAEL;
+  }
+
+  public updateAEL(prev: TEdge | null, next: TEdge | null): void {
+    this.PrevInAEL = prev;
+    this.NextInAEL = next;
+  }
+
+  public updateSEL(prev: TEdge | null, next: TEdge | null): void {
+    this.PrevInSEL = prev;
+    this.NextInSEL = next;
   }
 
   public isContributing(
