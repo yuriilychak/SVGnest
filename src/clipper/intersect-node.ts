@@ -1,5 +1,5 @@
 import IntPoint from "./int-point";
-import TEdge from "./t-edge";
+import TEdge from "./edge/t-edge";
 
 export default class IntersectNode {
   public Edge1: TEdge;

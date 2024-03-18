@@ -16,6 +16,13 @@ export default class IntPoint {
     return this;
   }
 
+  public update(x: number, y: number): IntPoint {
+    this.X = x;
+    this.Y = y;
+
+    return this;
+  }
+
   public equal(point: IntPoint): boolean {
     return this.X === point.X && this.Y === point.Y;
   }

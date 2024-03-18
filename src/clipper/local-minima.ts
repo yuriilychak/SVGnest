@@ -1,5 +1,5 @@
 import { EdgeSide } from "./enums";
-import TEdge from "./t-edge";
+import TEdge from "./edge/t-edge";
 
 export default class LocalMinima {
   public Y: number = 0;

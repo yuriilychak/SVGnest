@@ -1,4 +1,4 @@
-import IntersectNode from "./intersect-node";
+import IntersectNode from "../intersect-node";
 import TEdge from "./t-edge";
 
 export default class SortedEdge {
@@ -49,6 +49,7 @@ export default class SortedEdge {
     } else {
       this._source = nextSEL;
     }
+
     if (nextSEL !== null) {
       nextSEL.PrevInSEL = prevSEL;
     }

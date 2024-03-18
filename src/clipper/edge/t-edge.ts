@@ -1,6 +1,12 @@
-import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
-import Int128 from "./int-128";
-import IntPoint from "./int-point";
+import {
+  ClipType,
+  Direction,
+  EdgeSide,
+  PolyFillType,
+  PolyType
+} from "../enums";
+import Int128 from "../int-128";
+import IntPoint from "../int-point";
 
 export default class TEdge {
   public Bot: IntPoint = new IntPoint();
@@ -135,6 +141,36 @@ export default class TEdge {
     this.NextInSEL = next;
   }
 
+  public isEvenOddFillType(type1: PolyFillType, type2: PolyFillType): boolean {
+    return this.PolyTyp === PolyType.Subject
+      ? type1 === PolyFillType.EvenOdd
+      : type2 === PolyFillType.EvenOdd;
+  }
+
+  public getJoinsEdge(useFullRange: boolean): TEdge | null {
+    if (this.WindDelta === 0) {
+      return null;
+    }
+
+    if (this._checkJoinCondition(this.PrevInAEL, useFullRange)) {
+      return this.PrevInAEL;
+    }
+
+    return this._checkJoinCondition(this.NextInAEL, useFullRange)
+      ? this.NextInAEL
+      : null;
+  }
+
+  private _checkJoinCondition(edge: TEdge, useFullRange: boolean): boolean {
+    return (
+      edge !== null &&
+      edge.Curr.equal(this.Bot) &&
+      edge.isValid &&
+      edge.Curr.Y > edge.Top.Y &&
+      TEdge.slopesEqual(this, edge, useFullRange)
+    );
+  }
+
   public isContributing(
     clipType: ClipType,
     subjFillType: PolyFillType,
@@ -220,6 +256,10 @@ export default class TEdge {
     }
 
     return true;
+  }
+
+  public get isValid(): boolean {
+    return this.OutIdx >= 0 && this.WindDelta !== 0;
   }
 
   public get isHorizontal(): boolean {

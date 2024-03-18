@@ -2,7 +2,7 @@ import IntPoint from "./int-point";
 import Join from "./join";
 import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
-import TEdge from "./t-edge";
+import TEdge from "./edge/t-edge";
 
 export default class JoinStore {
   private _ghostJoins: Join[];

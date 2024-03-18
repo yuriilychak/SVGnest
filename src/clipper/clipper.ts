@@ -4,7 +4,7 @@ import IntPoint from "./int-point";
 import LocalMinima from "./local-minima";
 import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
-import TEdge from "./t-edge";
+import { TEdge } from "./edge";
 import IntersectStore from "./intersect-store";
 import ScanbeamStore from "./scanbeam-store";
 

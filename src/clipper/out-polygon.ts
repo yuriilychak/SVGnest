@@ -3,7 +3,7 @@ import IntPoint from "./int-point";
 import Join from "./join";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
-import TEdge from "./t-edge";
+import TEdge from "./edge/t-edge";
 
 export default class OutPolygon {
   private _data: OutRec[];

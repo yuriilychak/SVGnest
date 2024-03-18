@@ -1,4 +1,4 @@
-import ScanbeamStore from "./scanbeam-store";
+import ScanbeamStore from "../scanbeam-store";
 import TEdge from "./t-edge";
 
 export default class ActiveEdge {
