@@ -153,6 +153,28 @@ export default class TEdge {
       : null;
   }
 
+  public alignWindCount(
+    subjFillType: PolyFillType,
+    clipFillType: PolyFillType,
+    isReversed: boolean
+  ): number {
+    const isSubject: boolean = this.PolyTyp == PolyType.Subject;
+    const windCount: number = isReversed ? this.WindCnt2 : this.WindCnt;
+    const fillType: PolyFillType =
+      (isSubject && !isReversed) || (!isSubject && isReversed)
+        ? subjFillType
+        : clipFillType;
+
+    switch (fillType) {
+      case PolyFillType.Positive:
+        return windCount;
+      case PolyFillType.Negative:
+        return -windCount;
+      default:
+        return Math.abs(windCount);
+    }
+  }
+
   private _checkJoinCondition(edge: TEdge, useFullRange: boolean): boolean {
     return (
       edge !== null &&
@@ -379,5 +401,6 @@ export default class TEdge {
   }
 
   public static horizontal: number = -9007199254740992;
+
   public static skip: number = -2;
 }
