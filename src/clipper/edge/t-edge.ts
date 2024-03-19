@@ -61,7 +61,7 @@ export default class TEdge {
     edge.side = side;
   }
 
-  public update(side: EdgeSide): void {
+  public fromSide(side: EdgeSide): void {
     this.current.set(this.bottom);
     this.side = side;
     this.outIndex = -1;

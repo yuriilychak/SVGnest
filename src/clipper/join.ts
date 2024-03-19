@@ -3,18 +3,18 @@ import OutPt from "./out-pt";
 import OutRec from "./out-rec";
 
 export default class Join {
-  public pointer1: OutPt;
-  public pointer2: OutPt;
-  public point: IntPoint;
+  private _pointer1: OutPt;
+  private _pointer2: OutPt;
+  private _point: IntPoint;
 
   constructor(
     outPt1: OutPt = null,
     outPt2: OutPt = null,
     point: IntPoint = null
   ) {
-    this.pointer1 = outPt1;
-    this.pointer2 = outPt2;
-    this.point = point !== null ? IntPoint.from(point) : new IntPoint();
+    this._pointer1 = outPt1;
+    this._pointer2 = outPt2;
+    this._point = point !== null ? IntPoint.from(point) : new IntPoint();
   }
 
   public joinPoints(
@@ -22,32 +22,32 @@ export default class Join {
     outRec2: OutRec,
     isUseFullRange: boolean
   ): boolean {
-    let op1: OutPt = this.pointer1;
-    let op2: OutPt = this.pointer2;
+    let op1: OutPt = this._pointer1;
+    let op2: OutPt = this._pointer2;
     let op1b: OutPt = new OutPt();
     let op2b: OutPt = new OutPt();
-    const isHorizontal: boolean = this.pointer1.point.y == this.point.y;
+    const isHorizontal: boolean = this._pointer1.point.y == this._point.y;
 
     if (
       isHorizontal &&
-      this.point.equal(this.pointer1.point) &&
-      this.point.equal(this.pointer2.point)
+      this._point.equal(this._pointer1.point) &&
+      this._point.equal(this._pointer2.point)
     ) {
-      op1b = this.pointer1.next;
+      op1b = this._pointer1.next;
 
-      while (op1b != op1 && this.point.equal(op1b.point)) {
+      while (op1b != op1 && this._point.equal(op1b.point)) {
         op1b = op1b.next;
       }
 
-      const reverse1: boolean = op1b.point.y > this.point.y;
+      const reverse1: boolean = op1b.point.y > this._point.y;
 
-      op2b = this.pointer2.next;
+      op2b = this._pointer2.next;
 
-      while (op2b != op2 && this.point.equal(op2b.point)) {
+      while (op2b != op2 && this._point.equal(op2b.point)) {
         op2b = op2b.next;
       }
 
-      const reverse2: boolean = op2b.point.y > this.point.y;
+      const reverse2: boolean = op2b.point.y > this._point.y;
 
       if (reverse1 == reverse2) {
         return false;
@@ -58,8 +58,8 @@ export default class Join {
 
       Join._updatePointerDeps(op1, op2, op1b, op2b, reverse1);
 
-      this.pointer1 = op1;
-      this.pointer2 = op1b;
+      this._pointer1 = op1;
+      this._pointer2 = op1b;
 
       return true;
     }
@@ -149,8 +149,8 @@ export default class Join {
         isDiscardLeftSide = op2b.point.x > op2.point.x;
       }
 
-      this.pointer1 = op1;
-      this.pointer2 = op2;
+      this._pointer1 = op1;
+      this._pointer2 = op2;
 
       return Join._joinHorz(op1, op1b, op2, op2b, point, isDiscardLeftSide);
     }
@@ -163,7 +163,7 @@ export default class Join {
 
     const reverse1: boolean =
       op1b.point.y > op1.point.y ||
-      !IntPoint.slopesEqual(op1.point, op1b.point, this.point, isUseFullRange);
+      !IntPoint.slopesEqual(op1.point, op1b.point, this._point, isUseFullRange);
 
     if (reverse1) {
       op1b = op1.prev;
@@ -174,7 +174,12 @@ export default class Join {
 
       if (
         op1b.point.y > op1.point.y ||
-        !IntPoint.slopesEqual(op1.point, op1b.point, this.point, isUseFullRange)
+        !IntPoint.slopesEqual(
+          op1.point,
+          op1b.point,
+          this._point,
+          isUseFullRange
+        )
       )
         return false;
     }
@@ -187,7 +192,7 @@ export default class Join {
 
     const reverse2: boolean =
       op2b.point.y > op2.point.y ||
-      !IntPoint.slopesEqual(op2.point, op2b.point, this.point, isUseFullRange);
+      !IntPoint.slopesEqual(op2.point, op2b.point, this._point, isUseFullRange);
 
     if (reverse2) {
       op2b = op2.prev;
@@ -198,7 +203,12 @@ export default class Join {
 
       if (
         op2b.point.y > op2.point.y ||
-        !IntPoint.slopesEqual(op2.point, op2b.point, this.point, isUseFullRange)
+        !IntPoint.slopesEqual(
+          op2.point,
+          op2b.point,
+          this._point,
+          isUseFullRange
+        )
       ) {
         return false;
       }
@@ -218,10 +228,22 @@ export default class Join {
 
     Join._updatePointerDeps(op1, op2, op1b, op2b, reverse1);
 
-    this.pointer1 = op1;
-    this.pointer2 = op1b;
+    this._pointer1 = op1;
+    this._pointer2 = op1b;
 
     return true;
+  }
+
+  public get pointer1(): OutPt {
+    return this._pointer1;
+  }
+
+  public get pointer2(): OutPt {
+    return this._pointer2;
+  }
+
+  public get point(): IntPoint {
+    return this._point;
   }
 
   private static _updatePointerDeps(

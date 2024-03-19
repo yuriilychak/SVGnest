@@ -72,11 +72,11 @@ export default class LocalMinima {
 
     while (localMinima !== null) {
       if (localMinima.left != null) {
-        localMinima.left.update(EdgeSide.Left);
+        localMinima.left.fromSide(EdgeSide.Left);
       }
 
       if (localMinima.right != null) {
-        localMinima.right.update(EdgeSide.Right);
+        localMinima.right.fromSide(EdgeSide.Right);
       }
 
       localMinima = localMinima.next;

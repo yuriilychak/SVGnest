@@ -1,6 +1,5 @@
 import IntPoint from "./int-point";
 import OutPt from "./out-pt";
-import PolyNode from "./poly-node";
 
 export default class OutRec {
   public index: number;
@@ -8,8 +7,7 @@ export default class OutRec {
   public isOpen: boolean = false;
   public left: OutRec = null;
   public pointer: OutPt = null;
-  public bottom: OutPt = null;
-  public node: PolyNode = null;
+  private _bottom: OutPt = null;
 
   constructor(index: number = 0) {
     this.index = index;
@@ -36,7 +34,7 @@ export default class OutRec {
     useFullRange: boolean,
     preserveCollinear: boolean
   ): void {
-    this.bottom = null;
+    this._bottom = null;
     let lastOutPt: OutPt = null;
     let outPt: OutPt = this.pointer;
 
@@ -75,6 +73,10 @@ export default class OutRec {
     this.pointer = outPt;
   }
 
+  public cleanBottom(): void {
+    this._bottom = null;
+  }
+
   public get area(): number {
     let pointer: OutPt = this.pointer;
 
@@ -109,16 +111,16 @@ export default class OutRec {
 
   //work out which polygon fragment has the correct hole state ...
   public static getLowermostRec(outRec1: OutRec, outRec2: OutRec): OutRec {
-    if (outRec1.bottom === null) {
-      outRec1.bottom = outRec1.pointer.bottomPt;
+    if (outRec1._bottom === null) {
+      outRec1._bottom = outRec1.pointer.bottomPt;
     }
 
-    if (outRec2.bottom === null) {
-      outRec2.bottom = outRec2.pointer.bottomPt;
+    if (outRec2._bottom === null) {
+      outRec2._bottom = outRec2.pointer.bottomPt;
     }
 
-    const pointer1: OutPt = outRec1.bottom;
-    const pointer2: OutPt = outRec2.bottom;
+    const pointer1: OutPt = outRec1._bottom;
+    const pointer2: OutPt = outRec2._bottom;
     const offset: IntPoint = IntPoint.sub(pointer1.point, pointer2.point);
 
     switch (true) {

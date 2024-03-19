@@ -266,13 +266,13 @@ export default class OutPolygon {
       }
       side = EdgeSide.Right;
     }
-    outRec1.bottom = null;
+    outRec1.cleanBottom();
     if (holeStateRec == outRec2) {
       if (outRec2.left != outRec1) outRec1.left = outRec2.left;
       outRec1.isHole = outRec2.isHole;
     }
     outRec2.pointer = null;
-    outRec2.bottom = null;
+    outRec2.cleanBottom();
     outRec2.left = outRec1;
     var OKIdx = e1.outIndex;
     var ObsoleteIdx = e2.outIndex;
@@ -311,7 +311,7 @@ export default class OutPolygon {
 
     if (outRec1 == outRec2) {
       outRec1.pointer = join.pointer1;
-      outRec1.bottom = null;
+      outRec1.cleanBottom();
       outRec2 = this._createRec();
       outRec2.pointer = join.pointer2;
       outRec2.updateOutPtIdxs();
@@ -344,7 +344,7 @@ export default class OutPolygon {
     } else {
       //joined 2 polygons together ...
       outRec2.pointer = null;
-      outRec2.bottom = null;
+      outRec2.cleanBottom();
       outRec2.index = outRec1.index;
       outRec1.isHole = holeStateRec.isHole;
 

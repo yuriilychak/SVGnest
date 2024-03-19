@@ -30,7 +30,7 @@ export default class Scanbeam {
     return this._next;
   }
 
-  public set next(value: Scanbeam) {
+  protected set next(value: Scanbeam) {
     this._next = value;
   }
 
