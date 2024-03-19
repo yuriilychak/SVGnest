@@ -388,36 +388,42 @@ export default class Clipper {
 
     for (i = 0; i < pointCount; ++i) {
       outPt = outPts.at(i);
-      outPt.Pt = polygon[i];
-      outPt.Next = outPts[(i + 1) % pointCount];
-      outPt.Next.Prev = outPt;
-      outPt.Idx = 0;
+      outPt.point = polygon[i];
+      outPt.next = outPts[(i + 1) % pointCount];
+      outPt.next.prev = outPt;
+      outPt.index = 0;
     }
 
     outPt = outPts[0];
 
-    while (outPt.Idx == 0 && outPt.Next !== outPt.Prev) {
-      if (IntPoint.pointsAreClose(outPt.Pt, outPt.Prev.Pt, squareDistance)) {
+    while (outPt.index == 0 && outPt.next !== outPt.prev) {
+      if (
+        IntPoint.pointsAreClose(outPt.point, outPt.prev.point, squareDistance)
+      ) {
         outPt = outPt.exclude();
         --pointCount;
       } else if (
-        IntPoint.pointsAreClose(outPt.Prev.Pt, outPt.Next.Pt, squareDistance)
+        IntPoint.pointsAreClose(
+          outPt.prev.point,
+          outPt.next.point,
+          squareDistance
+        )
       ) {
-        outPt.Next.exclude();
+        outPt.next.exclude();
         outPt = outPt.exclude();
         pointCount -= 2;
       } else if (
-        outPt.Pt.slopesNearCollinear(
-          outPt.Prev.Pt,
-          outPt.Next.Pt,
+        outPt.point.slopesNearCollinear(
+          outPt.prev.point,
+          outPt.next.point,
           squareDistance
         )
       ) {
         outPt = outPt.exclude();
         --pointCount;
       } else {
-        outPt.Idx = 1;
-        outPt = outPt.Next;
+        outPt.index = 1;
+        outPt = outPt.next;
       }
     }
 
@@ -428,8 +434,8 @@ export default class Clipper {
     const result: IntPoint[] = new Array(pointCount);
 
     for (i = 0; i < pointCount; ++i) {
-      result[i] = IntPoint.from(outPt.Pt);
-      outPt = outPt.Next;
+      result[i] = IntPoint.from(outPt.point);
+      outPt = outPt.next;
     }
 
     return result;

@@ -47,6 +47,8 @@ export default class TEdge {
   }
 
   public swapPolyIndices(edge: TEdge): void {
+    this.swapSides(edge);
+
     const outIdx: number = this.OutIdx;
 
     this.OutIdx = edge.OutIdx;

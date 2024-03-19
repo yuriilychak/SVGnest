@@ -6,12 +6,7 @@ import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
 import ScanbeamStore from "./scanbeam-store";
 import { TEdge, SortedEdge, ActiveEdge } from "./edge";
-
-interface DirData {
-  Left: number | null;
-  Right: number | null;
-  Dir: Direction | null;
-}
+import HorizontalDirection from "./horizontal-direction";
 
 export default class IntersectStore {
   private _intersections: IntersectNode[];
@@ -126,12 +121,12 @@ export default class IntersectStore {
   ): void {
     //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
     //e2 in AEL except when e1 is being inserted at the intersection point ...
-    var e1stops =
+    const e1stops: boolean =
       !isProtected && edge1.NextInLML === null && edge1.Top.equal(point);
-    var e2stops =
+    const e2stops: boolean =
       !isProtected && edge2.NextInLML === null && edge2.Top.equal(point);
-    var e1Contributing = edge1.OutIdx >= 0;
-    var e2Contributing = edge2.OutIdx >= 0;
+    const e1Contributing: boolean = edge1.OutIdx >= 0;
+    const e2Contributing: boolean = edge2.OutIdx >= 0;
 
     //if either edge is on an OPEN path ...
     if (edge1.WindDelta === 0 || edge2.WindDelta === 0) {
@@ -257,19 +252,16 @@ export default class IntersectStore {
       else {
         this._outPolygon.addOutPt(edge1, point);
         this._outPolygon.addOutPt(edge2, point);
-        edge1.swapSides(edge2);
         edge1.swapPolyIndices(edge2);
       }
     } else if (e1Contributing) {
       if (e2Wc === 0 || e2Wc == 1) {
         this._outPolygon.addOutPt(edge1, point);
-        edge1.swapSides(edge2);
         edge1.swapPolyIndices(edge2);
       }
     } else if (e2Contributing) {
       if (e1Wc === 0 || e1Wc == 1) {
         this._outPolygon.addOutPt(edge2, point);
-        edge1.swapSides(edge2);
         edge1.swapPolyIndices(edge2);
       }
     } else if (
@@ -278,21 +270,20 @@ export default class IntersectStore {
       !e1stops &&
       !e2stops
     ) {
-      //neither edge is currently contributing ...
-      const e1Wc2: number = edge1.alignWindCount(
-        this._clipFillType,
-        this._subjFillType,
-        true
-      );
-      const e2Wc2: number = edge2.alignWindCount(
-        this._clipFillType,
-        this._subjFillType,
-        true
-      );
-
       if (edge1.PolyTyp != edge2.PolyTyp) {
         this._addLocalMinPoly(edge1, edge2, point, useFullRange);
       } else if (e1Wc == 1 && e2Wc == 1) {
+        const e1Wc2: number = edge1.alignWindCount(
+          this._clipFillType,
+          this._subjFillType,
+          true
+        );
+        const e2Wc2: number = edge2.alignWindCount(
+          this._clipFillType,
+          this._subjFillType,
+          true
+        );
+
         switch (this._clipType) {
           case ClipType.Intersection:
             if (e1Wc2 > 0 && e2Wc2 > 0) {
@@ -325,7 +316,6 @@ export default class IntersectStore {
       e1stops != e2stops &&
       ((e1stops && edge1.OutIdx >= 0) || (e2stops && edge2.OutIdx >= 0))
     ) {
-      edge1.swapSides(edge2);
       edge1.swapPolyIndices(edge2);
     }
 
@@ -387,6 +377,7 @@ export default class IntersectStore {
 
       this._sortedEdge.swap(this._intersections[i]);
     }
+
     return true;
   }
 
@@ -401,15 +392,17 @@ export default class IntersectStore {
 
     try {
       this._buildIntersectList(botY, topY, useFullRange);
+
       if (this._intersections.length == 0) {
         return true;
       }
+
       if (this._intersections.length == 1 || this._fixupIntersectionOrder()) {
         this._processIntersectList(useFullRange);
       } else {
         return false;
       }
-    } catch ($$e2) {
+    } catch {
       this._sortedEdge.clean();
       this._intersections.length = 0;
       console.error("ProcessIntersections error");
@@ -422,39 +415,36 @@ export default class IntersectStore {
   private _addLocalMinPoly(
     edge1: TEdge,
     edge2: TEdge,
-    pt: IntPoint,
+    point: IntPoint,
     useFullRange: boolean
   ): OutPt {
-    let result: OutPt;
-    let edge: TEdge;
-    let prevEdge: TEdge;
+    const condition: boolean =
+      edge2.isHorizontal || edge1.deltaX > edge2.deltaX;
+    const primaryEdge: TEdge = condition ? edge1 : edge2;
+    const secondaryEdge: TEdge = condition ? edge2 : edge1;
+    let result: OutPt = this._outPolygon.addOutPt(primaryEdge, point);
 
-    if (edge2.isHorizontal || edge1.deltaX > edge2.deltaX) {
-      result = this._outPolygon.addOutPt(edge1, pt);
-      edge2.OutIdx = edge1.OutIdx;
-      edge1.Side = EdgeSide.Left;
-      edge2.Side = EdgeSide.Right;
-      edge = edge1;
-      prevEdge = edge.PrevInAEL == edge2 ? edge2.PrevInAEL : edge.PrevInAEL;
-    } else {
-      result = this._outPolygon.addOutPt(edge2, pt);
-      edge1.OutIdx = edge2.OutIdx;
-      edge1.Side = EdgeSide.Right;
-      edge2.Side = EdgeSide.Left;
-      edge = edge2;
-      prevEdge = edge.PrevInAEL == edge1 ? edge1.PrevInAEL : edge.PrevInAEL;
-    }
+    secondaryEdge.OutIdx = primaryEdge.OutIdx;
+    primaryEdge.Side = EdgeSide.Left;
+    secondaryEdge.Side = EdgeSide.Right;
+
+    let edge: TEdge = primaryEdge;
+    let prevEdge: TEdge =
+      edge.PrevInAEL == secondaryEdge
+        ? secondaryEdge.PrevInAEL
+        : edge.PrevInAEL;
 
     if (
       prevEdge !== null &&
       prevEdge.isValid &&
-      prevEdge.topX(pt.Y) == edge.topX(pt.Y) &&
+      prevEdge.topX(point.Y) == edge.topX(point.Y) &&
       TEdge.slopesEqual(edge, prevEdge, useFullRange) &&
       edge.WindDelta !== 0
     ) {
-      var outPt = this._outPolygon.addOutPt(prevEdge, pt);
+      var outPt = this._outPolygon.addOutPt(prevEdge, point);
       this._joinStore.add(result, outPt, edge.Top);
     }
+
     return result;
   }
 
@@ -506,20 +496,22 @@ export default class IntersectStore {
       } else {
         //prev edge is 'increasing' WindCount (WC) away from zero
         //so we're inside the previous polygon ...
-        if (edge.WindDelta === 0)
+        if (edge.WindDelta === 0) {
           edge.WindCnt =
             edge1.WindCnt < 0 ? edge1.WindCnt - 1 : edge1.WindCnt + 1;
-        else if (edge1.WindDelta * edge.WindDelta < 0)
-          edge.WindCnt = edge1.WindCnt;
-        else edge.WindCnt = edge1.WindCnt + edge.WindDelta;
+        } else {
+          edge.WindCnt =
+            edge1.WindDelta * edge.WindDelta < 0
+              ? edge1.WindCnt
+              : edge1.WindCnt + edge.WindDelta;
+        }
       }
+
       edge.WindCnt2 = edge1.WindCnt2;
       edge1 = edge1.NextInAEL;
-      //ie get ready to calc WindCnt2
     }
-    //update WindCnt2 ...
+
     if (edge.isEvenOddFillType(this._clipFillType, this._subjFillType)) {
-      //EvenOdd filling ...
       while (edge1 != edge) {
         if (edge1.WindDelta !== 0) edge.WindCnt2 = edge.WindCnt2 === 0 ? 1 : 0;
         edge1 = edge1.NextInAEL;
@@ -737,8 +729,7 @@ export default class IntersectStore {
     isTopOfScanbeam: boolean,
     useFullRange: boolean
   ) {
-    let $var: DirData = { Dir: null, Left: null, Right: null };
-    this.GetHorzDirection(horzEdge, $var);
+    let $var: HorizontalDirection = new HorizontalDirection(horzEdge);
     let dir: Direction = $var.Dir;
     let horzLeft: number = $var.Left;
     let horzRight: number = $var.Right;
@@ -777,12 +768,12 @@ export default class IntersectStore {
         nextEdge = edge.getNextInAEL(dir);
         //saves eNext for later
         if (
-          (dir == Direction.LeftToRight && edge.Curr.X <= horzRight) ||
-          (dir == Direction.RightToLeft && edge.Curr.X >= horzLeft)
+          (dir === Direction.LeftToRight && edge.Curr.X <= horzRight) ||
+          (dir === Direction.RightToLeft && edge.Curr.X >= horzLeft)
         ) {
           this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);
 
-          const isLeft: boolean = dir == Direction.LeftToRight;
+          const isLeft: boolean = dir === Direction.LeftToRight;
           const edge1: TEdge = isLeft ? horzEdge : edge;
           const edge2: TEdge = isLeft ? edge : horzEdge;
           const isProtected = !(edge == maxPairEdge && isLastHorz);
@@ -821,9 +812,7 @@ export default class IntersectStore {
           this._outPolygon.addOutPt(horzEdge, horzEdge.Bot);
         }
 
-        $var = { Dir: dir, Left: horzLeft, Right: horzRight };
-
-        this.GetHorzDirection(horzEdge, $var);
+        $var = new HorizontalDirection(horzEdge);
         dir = $var.Dir;
         horzLeft = $var.Left;
         horzRight = $var.Right;
@@ -922,18 +911,6 @@ export default class IntersectStore {
       this._activeEdge.delete(maxPairEdge);
     } else {
       console.error("DoMaxima error");
-    }
-  }
-
-  public GetHorzDirection(HorzEdge: TEdge, $var: DirData): void {
-    if (HorzEdge.Bot.X < HorzEdge.Top.X) {
-      $var.Left = HorzEdge.Bot.X;
-      $var.Right = HorzEdge.Top.X;
-      $var.Dir = Direction.LeftToRight;
-    } else {
-      $var.Left = HorzEdge.Top.X;
-      $var.Right = HorzEdge.Bot.X;
-      $var.Dir = Direction.RightToLeft;
     }
   }
 }

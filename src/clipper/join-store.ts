@@ -52,7 +52,7 @@ export default class JoinStore {
 
         if (
           JoinStore._horzSegmentsOverlap(
-            join.pointer1.Pt,
+            join.pointer1.point,
             join.point,
             edge.Bot,
             edge.Top

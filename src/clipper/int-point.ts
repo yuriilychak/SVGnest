@@ -34,6 +34,10 @@ export default class IntPoint {
     return this.X === point.X && this.Y === point.Y;
   }
 
+  public cross(point: IntPoint): number {
+    return this.Y * point.X - this.X * point.Y;
+  }
+
   public slopesNearCollinear(
     point1: IntPoint,
     point2: IntPoint,
@@ -155,7 +159,7 @@ export default class IntPoint {
     return dx * dx + dy * dy <= distSqrd;
   }
 
-  public static getDx(pt1: IntPoint, pt2: IntPoint) {
+  public static deltaX(pt1: IntPoint, pt2: IntPoint) {
     if (pt1.Y == pt2.Y) return Number.MIN_SAFE_INTEGER;
     else return (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
   }

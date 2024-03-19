@@ -19,8 +19,8 @@ export default class OutRec {
     let op: OutPt = this.pointer;
 
     do {
-      op.Idx = this.index;
-      op = op.Prev;
+      op.index = this.index;
+      op = op.prev;
     } while (op !== this.pointer);
   }
 
@@ -41,35 +41,35 @@ export default class OutRec {
     let outPt: OutPt = this.pointer;
 
     while (true) {
-      if (outPt.Prev == outPt || outPt.Prev == outPt.Next) {
+      if (outPt.prev == outPt || outPt.prev == outPt.next) {
         outPt.dispose();
         this.pointer = null;
         return;
       }
       //test for duplicate points and collinear edges ...
       if (
-        outPt.Pt.equal(outPt.Next.Pt) ||
-        outPt.Pt.equal(outPt.Prev.Pt) ||
+        outPt.point.equal(outPt.next.point) ||
+        outPt.point.equal(outPt.prev.point) ||
         (IntPoint.slopesEqual(
-          outPt.Prev.Pt,
-          outPt.Pt,
-          outPt.Next.Pt,
+          outPt.prev.point,
+          outPt.point,
+          outPt.next.point,
           useFullRange
         ) &&
           (!preserveCollinear ||
-            !outPt.Pt.between(outPt.Prev.Pt, outPt.Next.Pt)))
+            !outPt.point.between(outPt.prev.point, outPt.next.point)))
       ) {
         lastOutPt = null;
-        outPt.Prev.Next = outPt.Next;
-        outPt.Next.Prev = outPt.Prev;
-        outPt = outPt.Prev;
+        outPt.prev.next = outPt.next;
+        outPt.next.prev = outPt.prev;
+        outPt = outPt.prev;
       } else if (outPt == lastOutPt) {
         break;
       } else {
         if (lastOutPt === null) {
           lastOutPt = outPt;
         }
-        outPt = outPt.Next;
+        outPt = outPt.next;
       }
     }
     this.pointer = outPt;
@@ -87,8 +87,9 @@ export default class OutRec {
     do {
       result =
         result +
-        (pointer.Prev.Pt.X + pointer.Pt.X) * (pointer.Prev.Pt.Y - pointer.Pt.Y);
-      pointer = pointer.Next;
+        (pointer.prev.point.X + pointer.point.X) *
+          (pointer.prev.point.Y - pointer.point.Y);
+      pointer = pointer.next;
     } while (pointer != this.pointer);
 
     return result * 0.5;
@@ -118,7 +119,7 @@ export default class OutRec {
 
     const pointer1: OutPt = outRec1.bottom;
     const pointer2: OutPt = outRec2.bottom;
-    const offset: IntPoint = IntPoint.sub(pointer1.Pt, pointer2.Pt);
+    const offset: IntPoint = IntPoint.sub(pointer1.point, pointer2.point);
 
     switch (true) {
       case offset.Y < 0:
@@ -129,9 +130,9 @@ export default class OutRec {
         return outRec1;
       case offset.X < 0:
         return outRec2;
-      case pointer1.Next == pointer1:
+      case pointer1.next == pointer1:
         return outRec2;
-      case pointer2.Next == pointer2:
+      case pointer2.next == pointer2:
         return outRec1;
       case OutPt.firstIsBottomPt(pointer1, pointer2):
         return outRec1;

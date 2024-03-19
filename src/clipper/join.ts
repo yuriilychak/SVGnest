@@ -26,29 +26,29 @@ export default class Join {
     let op2: OutPt = this.pointer2;
     let op1b: OutPt = new OutPt();
     let op2b: OutPt = new OutPt();
-    const isHorizontal: boolean = this.pointer1.Pt.Y == this.point.Y;
+    const isHorizontal: boolean = this.pointer1.point.Y == this.point.Y;
 
     if (
       isHorizontal &&
-      this.point.equal(this.pointer1.Pt) &&
-      this.point.equal(this.pointer2.Pt)
+      this.point.equal(this.pointer1.point) &&
+      this.point.equal(this.pointer2.point)
     ) {
       //Strictly Simple join ...
-      op1b = this.pointer1.Next;
+      op1b = this.pointer1.next;
 
-      while (op1b != op1 && this.point.equal(op1b.Pt)) {
-        op1b = op1b.Next;
+      while (op1b != op1 && this.point.equal(op1b.point)) {
+        op1b = op1b.next;
       }
 
-      const reverse1: boolean = op1b.Pt.Y > this.point.Y;
+      const reverse1: boolean = op1b.point.Y > this.point.Y;
 
-      op2b = this.pointer2.Next;
+      op2b = this.pointer2.next;
 
-      while (op2b != op2 && this.point.equal(op2b.Pt)) {
-        op2b = op2b.Next;
+      while (op2b != op2 && this.point.equal(op2b.point)) {
+        op2b = op2b.next;
       }
 
-      const reverse2: boolean = op2b.Pt.Y > this.point.Y;
+      const reverse2: boolean = op2b.point.Y > this.point.Y;
 
       if (reverse1 == reverse2) {
         return false;
@@ -68,51 +68,55 @@ export default class Join {
     if (isHorizontal) {
       op1b = op1;
 
-      while (op1.Prev.Pt.Y == op1.Pt.Y && op1.Prev != op1b && op1.Prev != op2) {
-        op1 = op1.Prev;
+      while (
+        op1.prev.point.Y == op1.point.Y &&
+        op1.prev != op1b &&
+        op1.prev != op2
+      ) {
+        op1 = op1.prev;
       }
 
       while (
-        op1b.Next.Pt.Y == op1b.Pt.Y &&
-        op1b.Next != op1 &&
-        op1b.Next != op2
+        op1b.next.point.Y == op1b.point.Y &&
+        op1b.next != op1 &&
+        op1b.next != op2
       ) {
-        op1b = op1b.Next;
+        op1b = op1b.next;
       }
 
-      if (op1b.Next == op1 || op1b.Next == op2) {
+      if (op1b.next == op1 || op1b.next == op2) {
         return false;
       }
       //a flat 'polygon'
       op2b = op2;
 
       while (
-        op2.Prev.Pt.Y == op2.Pt.Y &&
-        op2.Prev != op2b &&
-        op2.Prev != op1b
+        op2.prev.point.Y == op2.point.Y &&
+        op2.prev != op2b &&
+        op2.prev != op1b
       ) {
-        op2 = op2.Prev;
+        op2 = op2.prev;
       }
 
       while (
-        op2b.Next.Pt.Y == op2b.Pt.Y &&
-        op2b.Next != op2 &&
-        op2b.Next != op1
+        op2b.next.point.Y == op2b.point.Y &&
+        op2b.next != op2 &&
+        op2b.next != op1
       ) {
-        op2b = op2b.Next;
+        op2b = op2b.next;
       }
 
-      if (op2b.Next === op2 || op2b.Next === op1) {
+      if (op2b.next === op2 || op2b.next === op1) {
         return false;
       }
       //a flat 'polygon'
       //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
       const overlap: number[] = Join._getOverlap(
-        op1.Pt.X,
-        op1b.Pt.X,
-        op2.Pt.X,
-        op2b.Pt.X
+        op1.point.X,
+        op1b.point.X,
+        op2.point.X,
+        op2b.point.X
       );
 
       const left: number = overlap[0];
@@ -128,22 +132,22 @@ export default class Join {
       const point: IntPoint = new IntPoint();
       let isDiscardLeftSide: boolean;
 
-      if (op1.Pt.X >= left && op1.Pt.X <= right) {
+      if (op1.point.X >= left && op1.point.X <= right) {
         //Pt = op1.Pt;
-        point.set(op1.Pt);
-        isDiscardLeftSide = op1.Pt.X > op1b.Pt.X;
-      } else if (op2.Pt.X >= left && op2.Pt.X <= right) {
+        point.set(op1.point);
+        isDiscardLeftSide = op1.point.X > op1b.point.X;
+      } else if (op2.point.X >= left && op2.point.X <= right) {
         //Pt = op2.Pt;
-        point.set(op2.Pt);
-        isDiscardLeftSide = op2.Pt.X > op2b.Pt.X;
-      } else if (op1b.Pt.X >= left && op1b.Pt.X <= right) {
+        point.set(op2.point);
+        isDiscardLeftSide = op2.point.X > op2b.point.X;
+      } else if (op1b.point.X >= left && op1b.point.X <= right) {
         //Pt = op1b.Pt;
-        point.set(op1b.Pt);
-        isDiscardLeftSide = op1b.Pt.X > op1.Pt.X;
+        point.set(op1b.point);
+        isDiscardLeftSide = op1b.point.X > op1.point.X;
       } else {
         //Pt = op2b.Pt;
-        point.set(op2b.Pt);
-        isDiscardLeftSide = op2b.Pt.X > op2.Pt.X;
+        point.set(op2b.point);
+        isDiscardLeftSide = op2b.point.X > op2.point.X;
       }
 
       this.pointer1 = op1;
@@ -152,50 +156,50 @@ export default class Join {
       return Join._joinHorz(op1, op1b, op2, op2b, point, isDiscardLeftSide);
     }
 
-    op1b = op1.Next;
+    op1b = op1.next;
 
-    while (op1.Pt.equal(op1b.Pt) && op1b !== op1) {
-      op1b = op1b.Next;
+    while (op1.point.equal(op1b.point) && op1b !== op1) {
+      op1b = op1b.next;
     }
 
     const reverse1: boolean =
-      op1b.Pt.Y > op1.Pt.Y ||
-      !IntPoint.slopesEqual(op1.Pt, op1b.Pt, this.point, isUseFullRange);
+      op1b.point.Y > op1.point.Y ||
+      !IntPoint.slopesEqual(op1.point, op1b.point, this.point, isUseFullRange);
 
     if (reverse1) {
-      op1b = op1.Prev;
+      op1b = op1.prev;
 
-      while (op1.Pt.equal(op1b.Pt) && op1b !== op1) {
-        op1b = op1b.Prev;
+      while (op1.point.equal(op1b.point) && op1b !== op1) {
+        op1b = op1b.prev;
       }
 
       if (
-        op1b.Pt.Y > op1.Pt.Y ||
-        !IntPoint.slopesEqual(op1.Pt, op1b.Pt, this.point, isUseFullRange)
+        op1b.point.Y > op1.point.Y ||
+        !IntPoint.slopesEqual(op1.point, op1b.point, this.point, isUseFullRange)
       )
         return false;
     }
 
-    op2b = op2.Next;
+    op2b = op2.next;
 
-    while (op2.Pt.equal(op2b.Pt) && op2b !== op2) {
-      op2b = op2b.Next;
+    while (op2.point.equal(op2b.point) && op2b !== op2) {
+      op2b = op2b.next;
     }
 
     const reverse2: boolean =
-      op2b.Pt.Y > op2.Pt.Y ||
-      !IntPoint.slopesEqual(op2.Pt, op2b.Pt, this.point, isUseFullRange);
+      op2b.point.Y > op2.point.Y ||
+      !IntPoint.slopesEqual(op2.point, op2b.point, this.point, isUseFullRange);
 
     if (reverse2) {
-      op2b = op2.Prev;
+      op2b = op2.prev;
 
-      while (op2.Pt.equal(op2b.Pt) && op2b !== op2) {
-        op2b = op2b.Prev;
+      while (op2.point.equal(op2b.point) && op2b !== op2) {
+        op2b = op2b.prev;
       }
 
       if (
-        op2b.Pt.Y > op2.Pt.Y ||
-        !IntPoint.slopesEqual(op2.Pt, op2b.Pt, this.point, isUseFullRange)
+        op2b.point.Y > op2.point.Y ||
+        !IntPoint.slopesEqual(op2.point, op2b.point, this.point, isUseFullRange)
       ) {
         return false;
       }
@@ -229,15 +233,15 @@ export default class Join {
     reverse: boolean
   ): void {
     if (reverse) {
-      op1.Prev = op2;
-      op2.Next = op1;
-      op1b.Next = op2b;
-      op2b.Prev = op1b;
+      op1.prev = op2;
+      op2.next = op1;
+      op1b.next = op2b;
+      op2b.prev = op1b;
     } else {
-      op1.Next = op2;
-      op2.Prev = op1;
-      op1b.Prev = op2b;
-      op2b.Next = op1b;
+      op1.next = op2;
+      op2.prev = op1;
+      op1b.prev = op2b;
+      op2b.next = op1b;
     }
   }
 
@@ -249,7 +253,7 @@ export default class Join {
     point: IntPoint,
     isDiscardLeft: boolean
   ): boolean {
-    if (op1.Pt.X > op1b.Pt.X === op2.Pt.X > op2b.Pt.X) {
+    if (op1.point.X > op1b.point.X === op2.point.X > op2b.point.X) {
       return false;
     }
     //When DiscardLeft, we want Op1b to be on the Left of Op1, otherwise we
@@ -258,7 +262,7 @@ export default class Join {
     //when DiscardLeft, make sure we're AT or RIGHT of Pt before adding Op1b,
     //otherwise make sure we're AT or LEFT of Pt. (Likewise with Op2b.)
     let pointers: OutPt[];
-    const reverse: boolean = op1.Pt.X <= op1b.Pt.X === isDiscardLeft;
+    const reverse: boolean = op1.point.X <= op1b.point.X === isDiscardLeft;
 
     pointers = Join._updatePointers(op1, point, reverse);
 
@@ -281,26 +285,26 @@ export default class Join {
     isDiscardLeft: boolean
   ): OutPt[] {
     let primaryPtr: OutPt = inputPtr;
-    let nextPoint: IntPoint = primaryPtr.Next.Pt;
+    let nextPoint: IntPoint = primaryPtr.next.point;
 
     while (
       nextPoint.X <= point.X &&
-      nextPoint.X >= primaryPtr.Pt.X &&
+      nextPoint.X >= primaryPtr.point.X &&
       nextPoint.Y == point.Y
     ) {
-      primaryPtr = primaryPtr.Next;
-      nextPoint = primaryPtr.Next.Pt;
+      primaryPtr = primaryPtr.next;
+      nextPoint = primaryPtr.next.point;
     }
 
-    if (isDiscardLeft && primaryPtr.Pt.X != point.X) {
-      primaryPtr = primaryPtr.Next;
+    if (isDiscardLeft && primaryPtr.point.X != point.X) {
+      primaryPtr = primaryPtr.next;
     }
 
     let secondaryPtr: OutPt = primaryPtr.duplicate(!isDiscardLeft);
 
-    if (IntPoint.unequal(secondaryPtr.Pt, point)) {
+    if (IntPoint.unequal(secondaryPtr.point, point)) {
       primaryPtr = secondaryPtr;
-      primaryPtr.Pt.set(point);
+      primaryPtr.point.set(point);
       secondaryPtr = primaryPtr.duplicate(!isDiscardLeft);
     }
 
