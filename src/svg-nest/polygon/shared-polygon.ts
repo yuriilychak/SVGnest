@@ -26,7 +26,7 @@ export default class SharedPolygon {
     co.AddPath(p, JoinType.Round, EndType.ClosedPolygon);
 
     const newPaths: IntPoint[][] = [];
-    co.Execute(newPaths, offset * this._configuration.clipperScale);
+    co.execute(newPaths, offset * this._configuration.clipperScale);
 
     const result: IPolygon[] = [];
     let i: number = 0;

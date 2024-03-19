@@ -1,3 +1,4 @@
+import LocalMinima from "./local-minima";
 import Scanbeam from "./scanbeam";
 
 export default class ScanbeamStore {
@@ -5,6 +6,17 @@ export default class ScanbeamStore {
 
   constructor() {
     this._data = null;
+  }
+
+  public fromLocalMinima(inputMinima: LocalMinima): void {
+    this._data = null;
+
+    let localMinima: LocalMinima = inputMinima;
+
+    while (localMinima !== null) {
+      this.insert(localMinima.y);
+      localMinima = localMinima.next;
+    }
   }
 
   public insert(y: number): void {

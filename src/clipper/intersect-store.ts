@@ -93,7 +93,7 @@ export default class IntersectStore {
 
           if (point.Y > botY) {
             point.update(
-              Math.abs(edge.Dx) > Math.abs(nextEdge.Dx)
+              Math.abs(edge.deltaX) > Math.abs(nextEdge.deltaX)
                 ? nextEdge.topX(botY)
                 : edge.topX(botY),
               botY
@@ -434,7 +434,7 @@ export default class IntersectStore {
   ) {
     var result;
     var e, prevE;
-    if (e2.isHorizontal || e1.Dx > e2.Dx) {
+    if (e2.isHorizontal || e1.deltaX > e2.deltaX) {
       result = this._outPolygon.addOutPt(e1, pt);
       e2.OutIdx = e1.OutIdx;
       e1.Side = EdgeSide.Left;
@@ -776,7 +776,7 @@ export default class IntersectStore {
         if (
           edge.Curr.X === horzEdge.Top.X &&
           horzEdge.NextInLML !== null &&
-          edge.Dx < horzEdge.NextInLML.Dx
+          edge.deltaX < horzEdge.NextInLML.deltaX
         ) {
           break;
         }
@@ -829,7 +829,7 @@ export default class IntersectStore {
         }
 
         $var = { Dir: dir, Left: horzLeft, Right: horzRight };
-        
+
         this.GetHorzDirection(horzEdge, $var);
         dir = $var.Dir;
         horzLeft = $var.Left;

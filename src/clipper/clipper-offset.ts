@@ -3,6 +3,7 @@ import Clipper from "./clipper";
 import IntPoint from "./int-point";
 import PolyNode from "./poly-node";
 import IntRect from "./int-rect";
+import { almostEqual } from "../util";
 
 export default class ClipperOffset {
   private _destPolys: IntPoint[][] = [];
@@ -60,7 +61,9 @@ export default class ClipperOffset {
     if (endType != EndType.ClosedPolygon) return;
     if (this._lowest.X < 0) this._lowest = new IntPoint(0, k);
     else {
-      var ip = this._polyNodes.childAt(this._lowest.X).at(this._lowest.Y);
+      const ip: IntPoint = this._polyNodes
+        .childAt(this._lowest.X)
+        .at(this._lowest.Y);
       if (
         newNode.at(k).Y > ip.Y ||
         (newNode.at(k).Y == ip.Y && newNode.at(k).X < ip.X)
@@ -69,37 +72,41 @@ export default class ClipperOffset {
     }
   }
 
-  public Execute(solution: IntPoint[][], delta: number) {
+  public execute(solution: IntPoint[][], delta: number) {
     // function (solution, delta)
     solution.length = 0;
     this._fixOrientations();
     this._doOffset(delta);
     //now clean up 'corners' ...
-    var clpr = new Clipper();
-    clpr.addPaths(this._destPolys, PolyType.Subject, true);
+    const clipper: Clipper = new Clipper(false, delta <= 0);
+    clipper.addPaths(this._destPolys, PolyType.Subject, true);
+
     if (delta > 0) {
-      clpr.execute(
+      clipper.execute(
         ClipType.Union,
         solution,
         PolyFillType.Positive,
         PolyFillType.Positive
       );
     } else {
-      var rect: IntRect = IntRect.fromPaths(this._destPolys);
-      var outer = [];
-      outer.push(new IntPoint(rect.left - 10, rect.bottom + 10));
-      outer.push(new IntPoint(rect.right + 10, rect.bottom + 10));
-      outer.push(new IntPoint(rect.right + 10, rect.top - 10));
-      outer.push(new IntPoint(rect.left - 10, rect.top - 10));
-      clpr.addPath(outer, PolyType.Subject, true);
-      clpr.reverseSolution = true;
-      clpr.execute(
+      const rect: IntRect = IntRect.fromPaths(this._destPolys);
+      const outer: IntPoint[] = [
+        new IntPoint(rect.left - 10, rect.bottom + 10),
+        new IntPoint(rect.right + 10, rect.bottom + 10),
+        new IntPoint(rect.right + 10, rect.top - 10),
+        new IntPoint(rect.left - 10, rect.top - 10)
+      ];
+
+      clipper.addPath(outer, PolyType.Subject, true);
+      clipper.execute(
         ClipType.Union,
         solution,
         PolyFillType.Negative,
         PolyFillType.Negative
       );
-      if (solution.length > 0) solution.splice(0, 1);
+      if (solution.length > 0) {
+        solution.splice(0, 1);
+      }
     }
     //console.log(JSON.stringify(solution));
     // function (polytree, delta)
@@ -134,20 +141,24 @@ export default class ClipperOffset {
   }
 
   public static GetUnitNormal(pt1: IntPoint, pt2: IntPoint): IntPoint {
-    var dx = pt2.X - pt1.X;
-    var dy = pt2.Y - pt1.Y;
-    if (dx == 0 && dy == 0) return new IntPoint(0, 0);
-    var f = 1 / Math.sqrt(dx * dx + dy * dy);
-    dx *= f;
-    dy *= f;
-    return new IntPoint(dy, -dx);
+    const d: IntPoint = IntPoint.sub(pt1, pt2);
+
+    if (d.isEmpty) {
+      return d;
+    }
+
+    const f = 1 / Math.sqrt(d.X * d.X + d.Y * d.Y);
+
+    d.X *= f;
+    d.Y *= f;
+    return new IntPoint(d.Y, -d.X);
   }
 
   private _doOffset(delta: number) {
     this._destPolys = new Array();
     this._delta = delta;
     //if Zero offset, just copy any CLOSED polygons to m_p and return ...
-    if (Clipper.near_zero(delta)) {
+    if (almostEqual(delta)) {
       //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount);
       for (var i = 0; i < this._polyNodes.childCount; i++) {
         var node = this._polyNodes.childAt(i);

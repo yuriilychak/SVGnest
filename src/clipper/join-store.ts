@@ -52,13 +52,13 @@ export default class JoinStore {
 
         if (
           JoinStore._horzSegmentsOverlap(
-            join.OutPt1.Pt,
-            join.OffPt,
+            join.pointer1.Pt,
+            join.point,
             edge.Bot,
             edge.Top
           )
         ) {
-          this._joins.push(new Join(join.OutPt1, outPt, join.OffPt));
+          this._joins.push(new Join(join.pointer1, outPt, join.point));
         }
       }
     }
@@ -77,18 +77,18 @@ export default class JoinStore {
   }
 
   private static _horzSegmentsOverlap(
-    Pt1a: IntPoint,
-    Pt1b: IntPoint,
-    Pt2a: IntPoint,
-    Pt2b: IntPoint
+    pointA1: IntPoint,
+    pointB1: IntPoint,
+    pointA2: IntPoint,
+    pointB2: IntPoint
   ): boolean {
-    //precondition: both segments are horizontal
-    if (Pt1a.X > Pt2a.X === Pt1a.X < Pt2b.X) return true;
-    else if (Pt1b.X > Pt2a.X === Pt1b.X < Pt2b.X) return true;
-    else if (Pt2a.X > Pt1a.X === Pt2a.X < Pt1b.X) return true;
-    else if (Pt2b.X > Pt1a.X === Pt2b.X < Pt1b.X) return true;
-    else if (Pt1a.X == Pt2a.X && Pt1b.X == Pt2b.X) return true;
-    else if (Pt1a.X == Pt2b.X && Pt1b.X == Pt2a.X) return true;
-    else return false;
+    return (
+      pointA1.X > pointA2.X === pointA1.X < pointB2.X ||
+      pointB1.X > pointA2.X === pointB1.X < pointB2.X ||
+      pointA2.X > pointA1.X === pointA2.X < pointB1.X ||
+      pointB2.X > pointA1.X === pointB2.X < pointB1.X ||
+      (pointA1.X == pointA2.X && pointB1.X == pointB2.X) ||
+      (pointA1.X == pointB2.X && pointB1.X == pointA2.X)
+    );
   }
 }

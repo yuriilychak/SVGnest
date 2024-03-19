@@ -2,67 +2,104 @@ import { EdgeSide } from "./enums";
 import TEdge from "./edge/t-edge";
 
 export default class LocalMinima {
-  public Y: number = 0;
-  public LeftBound: TEdge = null;
-  public RightBound: TEdge = null;
-  public Next: LocalMinima = null;
+  private _y: number = 0;
+  private _next: LocalMinima = null;
+  private _right: TEdge = null;
+  private _left: TEdge = null;
 
-  constructor(y: number, leftBound: TEdge = null, rightBound: TEdge = null) {
-    this.Y = y;
-    this.LeftBound = leftBound;
-    this.RightBound = rightBound;
+  constructor(y: number, left: TEdge = null, right: TEdge = null) {
+    this._y = y;
+    this._left = left;
+    this._right = right;
   }
 
   public init(edge: TEdge, isClockwise: boolean, isClosed: boolean): void {
     if (isClockwise) {
-      this.LeftBound = edge;
-      this.RightBound = edge.Prev;
+      this._left = edge;
+      this._right = edge.Prev;
     } else {
-      this.LeftBound = edge.Prev;
-      this.RightBound = edge;
+      this._left = edge.Prev;
+      this._right = edge;
     }
 
-    this.LeftBound.Side = EdgeSide.Left;
-    this.RightBound.Side = EdgeSide.Right;
+    this._left.Side = EdgeSide.Left;
+    this._right.Side = EdgeSide.Right;
 
     if (!isClosed) {
-      this.LeftBound.WindDelta = 0;
-    } else if (this.LeftBound.Next == this.RightBound) {
-      this.LeftBound.WindDelta = -1;
+      this._left.WindDelta = 0;
+    } else if (this._left.Next == this._right) {
+      this._left.WindDelta = -1;
     } else {
-      this.LeftBound.WindDelta = 1;
+      this._left.WindDelta = 1;
     }
 
-    this.RightBound.WindDelta = -this.LeftBound.WindDelta;
+    this._right.WindDelta = -this._left.WindDelta;
   }
 
   public insert(localMinima: LocalMinima): LocalMinima {
-    if (localMinima.Y >= this.Y) {
-      localMinima.Next = this;
+    if (localMinima.y >= this.y) {
+      localMinima.next = this;
       return localMinima;
     }
 
     let tmpLocalMinima: LocalMinima = this;
 
     while (
-      tmpLocalMinima.Next !== null &&
-      localMinima.Y < tmpLocalMinima.Next.Y
+      tmpLocalMinima.next !== null &&
+      localMinima.y < tmpLocalMinima.next.y
     ) {
-      tmpLocalMinima = tmpLocalMinima.Next;
+      tmpLocalMinima = tmpLocalMinima.next;
     }
-    localMinima.Next = tmpLocalMinima.Next;
-    tmpLocalMinima.Next = localMinima;
+
+    localMinima.next = tmpLocalMinima.next;
+    tmpLocalMinima.next = localMinima;
 
     return this;
   }
 
   public clean(): void {
-    if (this.LeftBound.OutIdx == LocalMinima._skip) {
-      this.LeftBound = null;
-    } else if (this.RightBound.OutIdx == LocalMinima._skip) {
-      this.RightBound = null;
+    if (this._left.OutIdx == TEdge.skip) {
+      this._left = null;
+    } else if (this._right.OutIdx == TEdge.skip) {
+      this._right = null;
     }
   }
 
-  private static _skip: number = -2;
+  //ie nothing to process
+  //reset all edges ...
+  public reset(): void {
+    let localMinima: LocalMinima = this;
+
+    while (localMinima !== null) {
+      if (localMinima.left != null) {
+        localMinima.left.update(EdgeSide.Left);
+      }
+
+      if (localMinima.right != null) {
+        localMinima.right.update(EdgeSide.Right);
+      }
+
+      localMinima = localMinima.next;
+    }
+  }
+
+  public get left(): TEdge {
+    return this._left;
+  }
+
+  public get right(): TEdge {
+    return this._right;
+  }
+
+  public get next(): LocalMinima {
+    return this._next;
+  }
+
+  protected set next(value: LocalMinima) {
+    this._next = value;
+  }
+
+  public get y(): number {
+    return this._y;
+  }
 }

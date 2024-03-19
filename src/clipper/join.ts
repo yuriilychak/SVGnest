@@ -3,18 +3,18 @@ import OutPt from "./out-pt";
 import OutRec from "./out-rec";
 
 export default class Join {
-  public OutPt1: OutPt;
-  public OutPt2: OutPt;
-  public OffPt: IntPoint;
+  public pointer1: OutPt;
+  public pointer2: OutPt;
+  public point: IntPoint;
 
   constructor(
     outPt1: OutPt = null,
     outPt2: OutPt = null,
     point: IntPoint = null
   ) {
-    this.OutPt1 = outPt1;
-    this.OutPt2 = outPt2;
-    this.OffPt = point !== null ? IntPoint.from(point) : new IntPoint();
+    this.pointer1 = outPt1;
+    this.pointer2 = outPt2;
+    this.point = point !== null ? IntPoint.from(point) : new IntPoint();
   }
 
   public joinPoints(
@@ -22,40 +22,33 @@ export default class Join {
     outRec2: OutRec,
     isUseFullRange: boolean
   ): boolean {
-    let op1: OutPt = this.OutPt1;
-    let op2: OutPt = this.OutPt2;
+    let op1: OutPt = this.pointer1;
+    let op2: OutPt = this.pointer2;
     let op1b: OutPt = new OutPt();
     let op2b: OutPt = new OutPt();
-    //There are 3 kinds of joins for output polygons ...
-    //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
-    //along (horizontal) collinear edges (& Join.OffPt is on the same horizontal).
-    //2. Non-horizontal joins where Join.OutPt1 & Join.OutPt2 are at the same
-    //location at the Bottom of the overlapping segment (& Join.OffPt is above).
-    //3. StrictlySimple joins where edges touch but are not collinear and where
-    //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
-    const isHorizontal: boolean = this.OutPt1.Pt.Y == this.OffPt.Y;
+    const isHorizontal: boolean = this.pointer1.Pt.Y == this.point.Y;
 
     if (
       isHorizontal &&
-      this.OffPt.equal(this.OutPt1.Pt) &&
-      this.OffPt.equal(this.OutPt2.Pt)
+      this.point.equal(this.pointer1.Pt) &&
+      this.point.equal(this.pointer2.Pt)
     ) {
       //Strictly Simple join ...
-      op1b = this.OutPt1.Next;
+      op1b = this.pointer1.Next;
 
-      while (op1b != op1 && this.OffPt.equal(op1b.Pt)) {
+      while (op1b != op1 && this.point.equal(op1b.Pt)) {
         op1b = op1b.Next;
       }
 
-      const reverse1: boolean = op1b.Pt.Y > this.OffPt.Y;
+      const reverse1: boolean = op1b.Pt.Y > this.point.Y;
 
-      op2b = this.OutPt2.Next;
+      op2b = this.pointer2.Next;
 
-      while (op2b != op2 && this.OffPt.equal(op2b.Pt)) {
+      while (op2b != op2 && this.point.equal(op2b.Pt)) {
         op2b = op2b.Next;
       }
 
-      const reverse2: boolean = op2b.Pt.Y > this.OffPt.Y;
+      const reverse2: boolean = op2b.Pt.Y > this.point.Y;
 
       if (reverse1 == reverse2) {
         return false;
@@ -66,21 +59,19 @@ export default class Join {
 
       Join._updatePointerDeps(op1, op2, op1b, op2b, reverse1);
 
-      this.OutPt1 = op1;
-      this.OutPt2 = op1b;
+      this.pointer1 = op1;
+      this.pointer2 = op1b;
 
       return true;
     }
 
     if (isHorizontal) {
-      //treat horizontal joins differently to non-horizontal joins since with
-      //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
-      //may be anywhere along the horizontal edge.
       op1b = op1;
 
       while (op1.Prev.Pt.Y == op1.Pt.Y && op1.Prev != op1b && op1.Prev != op2) {
         op1 = op1.Prev;
       }
+
       while (
         op1b.Next.Pt.Y == op1b.Pt.Y &&
         op1b.Next != op1 &&
@@ -88,6 +79,7 @@ export default class Join {
       ) {
         op1b = op1b.Next;
       }
+
       if (op1b.Next == op1 || op1b.Next == op2) {
         return false;
       }
@@ -101,6 +93,7 @@ export default class Join {
       ) {
         op2 = op2.Prev;
       }
+
       while (
         op2b.Next.Pt.Y == op2b.Pt.Y &&
         op2b.Next != op2 &&
@@ -153,16 +146,12 @@ export default class Join {
         isDiscardLeftSide = op2b.Pt.X > op2.Pt.X;
       }
 
-      this.OutPt1 = op1;
-      this.OutPt2 = op2;
+      this.pointer1 = op1;
+      this.pointer2 = op2;
 
       return Join._joinHorz(op1, op1b, op2, op2b, point, isDiscardLeftSide);
     }
 
-    //nb: For non-horizontal joins ...
-    //    1. Jr.OutPt1.Pt.Y == Jr.OutPt2.Pt.Y
-    //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
-    //make sure the polygons are correctly oriented ...
     op1b = op1.Next;
 
     while (op1.Pt.equal(op1b.Pt) && op1b !== op1) {
@@ -171,17 +160,18 @@ export default class Join {
 
     const reverse1: boolean =
       op1b.Pt.Y > op1.Pt.Y ||
-      !IntPoint.slopesEqual(op1.Pt, op1b.Pt, this.OffPt, isUseFullRange);
+      !IntPoint.slopesEqual(op1.Pt, op1b.Pt, this.point, isUseFullRange);
 
     if (reverse1) {
       op1b = op1.Prev;
+
       while (op1.Pt.equal(op1b.Pt) && op1b !== op1) {
         op1b = op1b.Prev;
       }
 
       if (
         op1b.Pt.Y > op1.Pt.Y ||
-        !IntPoint.slopesEqual(op1.Pt, op1b.Pt, this.OffPt, isUseFullRange)
+        !IntPoint.slopesEqual(op1.Pt, op1b.Pt, this.point, isUseFullRange)
       )
         return false;
     }
@@ -194,7 +184,7 @@ export default class Join {
 
     const reverse2: boolean =
       op2b.Pt.Y > op2.Pt.Y ||
-      !IntPoint.slopesEqual(op2.Pt, op2b.Pt, this.OffPt, isUseFullRange);
+      !IntPoint.slopesEqual(op2.Pt, op2b.Pt, this.point, isUseFullRange);
 
     if (reverse2) {
       op2b = op2.Prev;
@@ -205,7 +195,7 @@ export default class Join {
 
       if (
         op2b.Pt.Y > op2.Pt.Y ||
-        !IntPoint.slopesEqual(op2.Pt, op2b.Pt, this.OffPt, isUseFullRange)
+        !IntPoint.slopesEqual(op2.Pt, op2b.Pt, this.point, isUseFullRange)
       ) {
         return false;
       }
@@ -225,8 +215,8 @@ export default class Join {
 
     Join._updatePointerDeps(op1, op2, op1b, op2b, reverse1);
 
-    this.OutPt1 = op1;
-    this.OutPt2 = op1b;
+    this.pointer1 = op1;
+    this.pointer2 = op1b;
 
     return true;
   }
@@ -310,7 +300,6 @@ export default class Join {
 
     if (IntPoint.unequal(secondaryPtr.Pt, point)) {
       primaryPtr = secondaryPtr;
-      //op2.Pt = Pt;
       primaryPtr.Pt.set(point);
       secondaryPtr = primaryPtr.duplicate(!isDiscardLeft);
     }

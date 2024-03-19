@@ -724,7 +724,7 @@ export default class SvgParser {
     ) as IPolygon;
     const p = this._svgToClipper(polygon, clipperScale);
     // remove self-intersections and find the biggest polygon that's left
-    const simple = Clipper.SimplifyPolygon(p, PolyFillType.NonZero);
+    const simple = Clipper.simplifyPolygon(p, PolyFillType.NonZero);
 
     if (!simple || simple.length == 0) {
       return null;
@@ -732,11 +732,11 @@ export default class SvgParser {
 
     let i = 0;
     let biggest = simple[0];
-    let biggestArea = Math.abs(Clipper.Area(biggest));
+    let biggestArea = Math.abs(Clipper.area(biggest));
     let area;
 
     for (i = 1; i < simple.length; ++i) {
-      area = Math.abs(Clipper.Area(simple[i]));
+      area = Math.abs(Clipper.area(simple[i]));
 
       if (area > biggestArea) {
         biggest = simple[i];
@@ -745,7 +745,7 @@ export default class SvgParser {
     }
 
     // clean up singularities, coincident points and edges
-    const clean = Clipper.CleanPolygon(biggest, curveTolerance * clipperScale);
+    const clean = Clipper.cleanPolygon(biggest, curveTolerance * clipperScale);
 
     if (!clean || clean.length === 0) {
       return null;

@@ -162,8 +162,8 @@ export default function placePaths(
               (clone.at(m).Y + placements.at(j).y) * env.config.clipperScale;
           }
 
-          clone = Clipper.CleanPolygon(clone, cleanTrashold);
-          area = Math.abs(Clipper.Area(clone));
+          clone = Clipper.cleanPolygon(clone, cleanTrashold);
+          area = Math.abs(Clipper.area(clone));
 
           if (clone.length > 2 && area > minScale) {
             clipper.addPath(clone, PolyType.Subject, true);
@@ -199,10 +199,10 @@ export default function placePaths(
         continue;
       }
 
-      finalNfp = Clipper.CleanPolygons(finalNfp, cleanTrashold);
+      finalNfp = Clipper.cleanPolygons(finalNfp, cleanTrashold);
 
       for (j = 0; j < finalNfp.length; ++j) {
-        area = Math.abs(Clipper.Area(finalNfp.at(j)));
+        area = Math.abs(Clipper.area(finalNfp.at(j)));
 
         if (finalNfp.at(j).length < 3 || area < minScale) {
           finalNfp.splice(j, 1);

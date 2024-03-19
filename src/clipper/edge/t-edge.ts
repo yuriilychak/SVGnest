@@ -13,7 +13,7 @@ export default class TEdge {
   public Curr: IntPoint = new IntPoint();
   public Top: IntPoint = new IntPoint();
   public Delta: IntPoint = new IntPoint();
-  public Dx: number = 0;
+  public deltaX: number = 0;
   public PolyTyp: PolyType = PolyType.Subject;
   public Side: EdgeSide = EdgeSide.Left;
   public WindDelta: number = 0;
@@ -34,8 +34,7 @@ export default class TEdge {
     this.Next = nextEdge;
     this.Prev = prevEdge;
     //e.Curr = pt;
-    this.Curr.X = point.X;
-    this.Curr.Y = point.Y;
+    this.Curr.set(point);
     this.OutIdx = -1;
   }
 
@@ -44,7 +43,7 @@ export default class TEdge {
     //if (edge.Bot == edge.Top) alert ("edge.Bot = edge.Top");
     return currentY === this.Top.Y
       ? this.Top.X
-      : this.Bot.X + TEdge.Round(this.Dx * (currentY - this.Bot.Y));
+      : this.Bot.X + TEdge.Round(this.deltaX * (currentY - this.Bot.Y));
   }
 
   public swapPolyIndices(edge: TEdge): void {
@@ -60,29 +59,22 @@ export default class TEdge {
     edge.Side = side;
   }
 
+  public update(side: EdgeSide): void {
+    this.Curr.set(this.Bot);
+    this.Side = side;
+    this.OutIdx = -1;
+  }
+
   public initFromPolyType(polyType: PolyType): void {
-    if (this.Curr.Y >= this.Next.Curr.Y) {
-      //e.Bot = e.Curr;
-      this.Bot.X = this.Curr.X;
-      this.Bot.Y = this.Curr.Y;
-      //e.Top = e.Next.Curr;
-      this.Top.X = this.Next.Curr.X;
-      this.Top.Y = this.Next.Curr.Y;
-    } else {
-      //e.Top = e.Curr;
-      this.Top.X = this.Curr.X;
-      this.Top.Y = this.Curr.Y;
-      //e.Bot = e.Next.Curr;
-      this.Bot.X = this.Next.Curr.X;
-      this.Bot.Y = this.Next.Curr.Y;
-    }
-    this.Delta.X = this.Top.X - this.Bot.X;
-    this.Delta.Y = this.Top.Y - this.Bot.Y;
-    if (this.Delta.Y === 0) {
-      this.Dx = TEdge.horizontal;
-    } else {
-      this.Dx = this.Delta.X / this.Delta.Y;
-    }
+    const condition: boolean = this.Curr.Y >= this.Next.Curr.Y;
+    const bottom: IntPoint = condition ? this.Curr : this.Next.Curr;
+    const top: IntPoint = condition ? this.Next.Curr : this.Curr;
+
+    this.Bot.set(bottom);
+    this.Top.set(top);
+    this.Delta.set(this.Top).sub(this.Bot);
+    this.deltaX =
+      this.Delta.Y === 0 ? TEdge.horizontal : this.Delta.X / this.Delta.Y;
     this.PolyTyp = polyType;
   }
 
@@ -121,7 +113,7 @@ export default class TEdge {
     }
 
     return result !== null &&
-      (result.OutIdx === -2 ||
+      (result.OutIdx === TEdge.skip ||
         (result.NextInAEL === result.PrevInAEL && !result.isHorizontal))
       ? null
       : result;
@@ -275,11 +267,14 @@ export default class TEdge {
         edge.Curr.equal(edge.Top)
       )
         edge = edge.Next;
-      if (edge.Dx != TEdge.horizontal && edge.Prev.Dx != TEdge.horizontal)
+      if (
+        edge.deltaX != TEdge.horizontal &&
+        edge.Prev.deltaX != TEdge.horizontal
+      )
         break;
-      while (edge.Prev.Dx == TEdge.horizontal) edge = edge.Prev;
+      while (edge.Prev.deltaX == TEdge.horizontal) edge = edge.Prev;
       E2 = edge;
-      while (edge.Dx == TEdge.horizontal) edge = edge.Next;
+      while (edge.deltaX == TEdge.horizontal) edge = edge.Next;
       if (edge.Top.Y == edge.Prev.Bot.Y) continue;
       //ie just an intermediate horz.
       if (E2.Prev.Bot.X < edge.Bot.X) edge = E2;
@@ -328,44 +323,45 @@ export default class TEdge {
     ip: IntPoint,
     useFullRange: boolean
   ): boolean {
-    ip.X = 0;
-    ip.Y = 0;
-    var b1, b2;
+    ip.update(0, 0);
+    let b1: number = 0;
+    let b2: number = 0;
     //nb: with very large coordinate values, it's possible for SlopesEqual() to
     //return false but for the edge.Dx value be equal due to double precision rounding.
-    if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.Dx == edge2.Dx) {
-      if (edge2.Bot.Y > edge1.Bot.Y) {
-        ip.X = edge2.Bot.X;
-        ip.Y = edge2.Bot.Y;
-      } else {
-        ip.X = edge1.Bot.X;
-        ip.Y = edge1.Bot.Y;
-      }
+    if (
+      TEdge.slopesEqual(edge1, edge2, useFullRange) ||
+      edge1.deltaX == edge2.deltaX
+    ) {
+      ip.set(edge2.Bot.Y > edge1.Bot.Y ? edge2.Bot : edge1.Bot);
+
       return false;
     } else if (edge1.Delta.X === 0) {
       ip.X = edge1.Bot.X;
       if (edge2.isHorizontal) {
         ip.Y = edge2.Bot.Y;
       } else {
-        b2 = edge2.Bot.Y - edge2.Bot.X / edge2.Dx;
-        ip.Y = TEdge.Round(ip.X / edge2.Dx + b2);
+        b2 = edge2.Bot.Y - edge2.Bot.X / edge2.deltaX;
+        ip.Y = TEdge.Round(ip.X / edge2.deltaX + b2);
       }
     } else if (edge2.Delta.X === 0) {
       ip.X = edge2.Bot.X;
       if (edge1.isHorizontal) {
         ip.Y = edge1.Bot.Y;
       } else {
-        b1 = edge1.Bot.Y - edge1.Bot.X / edge1.Dx;
-        ip.Y = TEdge.Round(ip.X / edge1.Dx + b1);
+        b1 = edge1.Bot.Y - edge1.Bot.X / edge1.deltaX;
+        ip.Y = TEdge.Round(ip.X / edge1.deltaX + b1);
       }
     } else {
-      b1 = edge1.Bot.X - edge1.Bot.Y * edge1.Dx;
-      b2 = edge2.Bot.X - edge2.Bot.Y * edge2.Dx;
-      var q = (b2 - b1) / (edge1.Dx - edge2.Dx);
+      b1 = edge1.Bot.X - edge1.Bot.Y * edge1.deltaX;
+      b2 = edge2.Bot.X - edge2.Bot.Y * edge2.deltaX;
+
+      const q: number = (b2 - b1) / (edge1.deltaX - edge2.deltaX);
+
       ip.Y = TEdge.Round(q);
-      if (Math.abs(edge1.Dx) < Math.abs(edge2.Dx))
-        ip.X = TEdge.Round(edge1.Dx * q + b1);
-      else ip.X = TEdge.Round(edge2.Dx * q + b2);
+      ip.X =
+        Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
+          ? TEdge.Round(edge1.deltaX * q + b1)
+          : TEdge.Round(edge2.deltaX * q + b2);
     }
     if (ip.Y < edge1.Top.Y || ip.Y < edge2.Top.Y) {
       if (edge1.Top.Y > edge2.Top.Y) {
@@ -373,11 +369,15 @@ export default class TEdge {
         ip.X = edge2.topX(edge1.Top.Y);
         return ip.X < edge1.Top.X;
       } else ip.Y = edge2.Top.Y;
-      if (Math.abs(edge1.Dx) < Math.abs(edge2.Dx)) ip.X = edge1.topX(ip.Y);
-      else ip.X = edge2.topX(ip.Y);
+
+      ip.X =
+        Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
+          ? edge1.topX(ip.Y)
+          : edge2.topX(ip.Y);
     }
     return true;
   }
 
-  static horizontal: number = -9007199254740992;
+  public static horizontal: number = -9007199254740992;
+  public static skip: number = -2;
 }

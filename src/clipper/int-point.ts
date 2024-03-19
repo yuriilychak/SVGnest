@@ -16,6 +16,13 @@ export default class IntPoint {
     return this;
   }
 
+  public sub(point: IntPoint): IntPoint {
+    this.X -= point.X;
+    this.Y -= point.Y;
+
+    return this;
+  }
+
   public update(x: number, y: number): IntPoint {
     this.X = x;
     this.Y = y;
@@ -89,6 +96,10 @@ export default class IntPoint {
     this._data[1] = value;
   }
 
+  public get isEmpty(): boolean {
+    return this.X === 0 && this.Y === 0;
+  }
+
   //return a == b;
   public static equal(a: IntPoint, b: IntPoint): boolean {
     return a.X == b.X && a.Y == b.Y;
@@ -101,6 +112,10 @@ export default class IntPoint {
 
   public static from(point: IntPoint): IntPoint {
     return new IntPoint(point.X, point.Y);
+  }
+
+  public static sub(point1: IntPoint, point2: IntPoint): IntPoint {
+    return IntPoint.from(point2).sub(point1);
   }
 
   public static castInt64(a: number): number {
