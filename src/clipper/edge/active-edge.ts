@@ -13,7 +13,7 @@ export default class ActiveEdge {
       TEdge.e2InsertsBeforeE1(this._source, edge)
     ) {
       edge.updateAEL(null, this._source);
-      this._source.PrevInAEL = edge;
+      this._source.prevInAEL = edge;
       this._source = edge;
     } else {
       if (startEdge === null) {
@@ -21,28 +21,28 @@ export default class ActiveEdge {
       }
 
       while (
-        startEdge.NextInAEL !== null &&
-        !TEdge.e2InsertsBeforeE1(startEdge.NextInAEL, edge)
+        startEdge.nextInAEL !== null &&
+        !TEdge.e2InsertsBeforeE1(startEdge.nextInAEL, edge)
       ) {
-        startEdge = startEdge.NextInAEL;
+        startEdge = startEdge.nextInAEL;
       }
 
-      edge.NextInAEL = startEdge.NextInAEL;
+      edge.nextInAEL = startEdge.nextInAEL;
 
-      if (startEdge.NextInAEL !== null) {
-        startEdge.NextInAEL.PrevInAEL = edge;
+      if (startEdge.nextInAEL !== null) {
+        startEdge.nextInAEL.prevInAEL = edge;
       }
 
-      edge.PrevInAEL = startEdge;
-      startEdge.NextInAEL = edge;
+      edge.prevInAEL = startEdge;
+      startEdge.nextInAEL = edge;
     }
   }
 
   public swap(edge1: TEdge, edge2: TEdge): void {
     //check that one or other edge hasn't already been removed from AEL ...
     if (
-      edge1.NextInAEL == edge1.PrevInAEL ||
-      edge2.NextInAEL == edge2.PrevInAEL
+      edge1.nextInAEL == edge1.prevInAEL ||
+      edge2.nextInAEL == edge2.prevInAEL
     ) {
       return;
     }
@@ -50,122 +50,122 @@ export default class ActiveEdge {
     let next: TEdge;
     let prev: TEdge;
 
-    if (edge1.NextInAEL == edge2) {
-      next = edge2.NextInAEL;
+    if (edge1.nextInAEL == edge2) {
+      next = edge2.nextInAEL;
 
       if (next !== null) {
-        next.PrevInAEL = edge1;
+        next.prevInAEL = edge1;
       }
 
-      prev = edge1.PrevInAEL;
+      prev = edge1.prevInAEL;
 
       if (prev !== null) {
-        prev.NextInAEL = edge2;
+        prev.nextInAEL = edge2;
       }
 
       edge1.updateAEL(edge2, next);
       edge2.updateAEL(prev, edge1);
-    } else if (edge2.NextInAEL == edge1) {
-      next = edge1.NextInAEL;
+    } else if (edge2.nextInAEL == edge1) {
+      next = edge1.nextInAEL;
 
       if (next !== null) {
-        next.PrevInAEL = edge2;
+        next.prevInAEL = edge2;
       }
 
-      prev = edge2.PrevInAEL;
+      prev = edge2.prevInAEL;
 
       if (prev !== null) {
-        prev.NextInAEL = edge1;
+        prev.nextInAEL = edge1;
       }
 
       edge1.updateAEL(prev, edge2);
       edge2.updateAEL(edge1, next);
     } else {
-      next = edge1.NextInAEL;
-      prev = edge1.PrevInAEL;
-      edge1.NextInAEL = edge2.NextInAEL;
+      next = edge1.nextInAEL;
+      prev = edge1.prevInAEL;
+      edge1.nextInAEL = edge2.nextInAEL;
 
-      if (edge1.NextInAEL !== null) {
-        edge1.NextInAEL.PrevInAEL = edge1;
+      if (edge1.nextInAEL !== null) {
+        edge1.nextInAEL.prevInAEL = edge1;
       }
 
-      edge1.PrevInAEL = edge2.PrevInAEL;
+      edge1.prevInAEL = edge2.prevInAEL;
 
-      if (edge1.PrevInAEL !== null) {
-        edge1.PrevInAEL.NextInAEL = edge1;
+      if (edge1.prevInAEL !== null) {
+        edge1.prevInAEL.nextInAEL = edge1;
       }
 
-      edge2.NextInAEL = next;
+      edge2.nextInAEL = next;
 
-      if (edge2.NextInAEL !== null) {
-        edge2.NextInAEL.PrevInAEL = edge2;
+      if (edge2.nextInAEL !== null) {
+        edge2.nextInAEL.prevInAEL = edge2;
       }
 
-      edge2.PrevInAEL = prev;
+      edge2.prevInAEL = prev;
 
-      if (edge2.PrevInAEL !== null) {
-        edge2.PrevInAEL.NextInAEL = edge2;
+      if (edge2.prevInAEL !== null) {
+        edge2.prevInAEL.nextInAEL = edge2;
       }
     }
 
-    if (edge1.PrevInAEL === null) {
+    if (edge1.prevInAEL === null) {
       this._source = edge1;
-    } else if (edge2.PrevInAEL === null) {
+    } else if (edge2.prevInAEL === null) {
       this._source = edge2;
     }
   }
 
   public update(edge: TEdge, scabeam: ScanbeamStore): TEdge {
-    if (edge.NextInLML === null) {
+    if (edge.nextInLML === null) {
       console.error("UpdateEdgeIntoAEL: invalid call");
     }
 
-    const prev: TEdge = edge.PrevInAEL;
-    const next: TEdge = edge.NextInAEL;
+    const prev: TEdge = edge.prevInAEL;
+    const next: TEdge = edge.nextInAEL;
 
-    edge.NextInLML.OutIdx = edge.OutIdx;
+    edge.nextInLML.outIndex = edge.outIndex;
 
     if (prev !== null) {
-      prev.NextInAEL = edge.NextInLML;
+      prev.nextInAEL = edge.nextInLML;
     } else {
-      this._source = edge.NextInLML;
+      this._source = edge.nextInLML;
     }
 
     if (next !== null) {
-      next.PrevInAEL = edge.NextInLML;
+      next.prevInAEL = edge.nextInLML;
     }
 
-    edge.NextInLML.Side = edge.Side;
-    edge.NextInLML.WindDelta = edge.WindDelta;
-    edge.NextInLML.WindCnt = edge.WindCnt;
-    edge.NextInLML.WindCnt2 = edge.WindCnt2;
-    edge = edge.NextInLML;
-    edge.Curr.set(edge.Bot);
+    edge.nextInLML.side = edge.side;
+    edge.nextInLML.windDelta = edge.windDelta;
+    edge.nextInLML.windCount1 = edge.windCount1;
+    edge.nextInLML.windCnt2 = edge.windCnt2;
+    edge = edge.nextInLML;
+    edge.current.set(edge.bottom);
     edge.updateAEL(prev, next);
 
     if (!edge.isHorizontal) {
-      scabeam.insert(edge.Top.Y);
+      scabeam.insert(edge.top.y);
     }
 
     return edge;
   }
 
   public delete(edge: TEdge): void {
-    const prev: TEdge = edge.PrevInAEL;
-    const next: TEdge = edge.NextInAEL;
+    const prev: TEdge = edge.prevInAEL;
+    const next: TEdge = edge.nextInAEL;
 
     if (prev === null && next === null && edge !== this._source) {
       return;
     }
     //already deleted
     if (prev !== null) {
-      prev.NextInAEL = next;
+      prev.nextInAEL = next;
     } else {
       this._source = next;
     }
 
     if (next !== null) {
-      next.PrevInAEL = prev;
+      next.prevInAEL = prev;
     }
 
     edge.updateAEL(null, null);

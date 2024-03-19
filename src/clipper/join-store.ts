@@ -23,7 +23,7 @@ export default class JoinStore {
     isTopOfScanbeam: boolean
   ): boolean {
     const canInsert: boolean =
-      edge.OutIdx >= 0 && edge.WindDelta !== 0 && isTopOfScanbeam;
+      edge.outIndex >= 0 && edge.windDelta !== 0 && isTopOfScanbeam;
 
     if (canInsert) {
       this._ghostJoins.push(outPolygon.createHorizontalJoin(edge));
@@ -38,7 +38,7 @@ export default class JoinStore {
     if (
       outPt !== null &&
       edge.isHorizontal &&
-      edge.WindDelta !== 0 &&
+      edge.windDelta !== 0 &&
       joinCount !== 0
     ) {
       const joinCount: number = this._ghostJoins.length;
@@ -54,8 +54,8 @@ export default class JoinStore {
           JoinStore._horzSegmentsOverlap(
             join.pointer1.point,
             join.point,
-            edge.Bot,
-            edge.Top
+            edge.bottom,
+            edge.top
           )
         ) {
           this._joins.push(new Join(join.pointer1, outPt, join.point));
@@ -83,12 +83,12 @@ export default class JoinStore {
     pointB2: IntPoint
   ): boolean {
     return (
-      pointA1.X > pointA2.X === pointA1.X < pointB2.X ||
-      pointB1.X > pointA2.X === pointB1.X < pointB2.X ||
-      pointA2.X > pointA1.X === pointA2.X < pointB1.X ||
-      pointB2.X > pointA1.X === pointB2.X < pointB1.X ||
-      (pointA1.X == pointA2.X && pointB1.X == pointB2.X) ||
-      (pointA1.X == pointB2.X && pointB1.X == pointA2.X)
+      pointA1.x > pointA2.x === pointA1.x < pointB2.x ||
+      pointB1.x > pointA2.x === pointB1.x < pointB2.x ||
+      pointA2.x > pointA1.x === pointA2.x < pointB1.x ||
+      pointB2.x > pointA1.x === pointB2.x < pointB1.x ||
+      (pointA1.x == pointA2.x && pointB1.x == pointB2.x) ||
+      (pointA1.x == pointB2.x && pointB1.x == pointA2.x)
     );
   }
 }

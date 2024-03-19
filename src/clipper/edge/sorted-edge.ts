@@ -9,8 +9,8 @@ export default class SortedEdge {
   public add(edge: TEdge): void {
     edge.updateSEL(null, this._source);
 
-    if (edge.NextInSEL !== null) {
-      edge.NextInSEL.PrevInSEL = edge;
+    if (edge.nextInSEL !== null) {
+      edge.nextInSEL.prevInSEL = edge;
     }
 
     this._source = edge;
@@ -23,21 +23,21 @@ export default class SortedEdge {
     let result: TEdge = edge;
 
     while (result !== null) {
-      result.updateSEL(result.PrevInAEL, result.NextInAEL);
+      result.updateSEL(result.prevInAEL, result.nextInAEL);
 
       if (isUpdateX) {
-        result.Curr.X = result.topX(topY);
+        result.current.x = result.topX(topY);
       }
 
-      result = result.NextInAEL;
+      result = result.nextInAEL;
     }
 
     return result;
   }
 
   public delete(edge: TEdge): void {
-    const prevSEL: TEdge = edge.PrevInSEL;
-    const nextSEL: TEdge = edge.NextInSEL;
+    const prevSEL: TEdge = edge.prevInSEL;
+    const nextSEL: TEdge = edge.nextInSEL;
 
     if (prevSEL === null && nextSEL === null && edge !== this._source) {
       return;
@@ -45,25 +45,25 @@ export default class SortedEdge {
 
     //already deleted
     if (prevSEL !== null) {
-      prevSEL.NextInSEL = nextSEL;
+      prevSEL.nextInSEL = nextSEL;
     } else {
       this._source = nextSEL;
     }
 
     if (nextSEL !== null) {
-      nextSEL.PrevInSEL = prevSEL;
+      nextSEL.prevInSEL = prevSEL;
     }
 
-    edge.NextInSEL = null;
+    edge.nextInSEL = null;
   }
 
   public swap(node: IntersectNode): void {
-    const edge1: TEdge = node.Edge1;
-    const edge2: TEdge = node.Edge2;
+    const edge1: TEdge = node.edge1;
+    const edge2: TEdge = node.edge2;
 
     if (
-      (edge1.NextInSEL === null && edge1.PrevInSEL === null) ||
-      (edge2.NextInSEL === null && edge2.PrevInSEL === null)
+      (edge1.nextInSEL === null && edge1.prevInSEL === null) ||
+      (edge2.nextInSEL === null && edge2.prevInSEL === null)
     ) {
       return;
     }
@@ -71,67 +71,67 @@ export default class SortedEdge {
     let next: TEdge;
     let prev: TEdge;
 
-    if (edge1.NextInSEL == edge2) {
-      next = edge2.NextInSEL;
+    if (edge1.nextInSEL == edge2) {
+      next = edge2.nextInSEL;
 
       if (next !== null) {
-        next.PrevInSEL = edge1;
+        next.prevInSEL = edge1;
       }
 
-      prev = edge1.PrevInSEL;
+      prev = edge1.prevInSEL;
 
       if (prev !== null) {
-        prev.NextInSEL = edge2;
+        prev.nextInSEL = edge2;
       }
 
       edge1.updateSEL(edge2, next);
       edge2.updateSEL(prev, edge1);
-    } else if (edge2.NextInSEL == edge1) {
-      next = edge1.NextInSEL;
+    } else if (edge2.nextInSEL == edge1) {
+      next = edge1.nextInSEL;
 
       if (next !== null) {
-        next.PrevInSEL = edge2;
+        next.prevInSEL = edge2;
       }
 
-      prev = edge2.PrevInSEL;
+      prev = edge2.prevInSEL;
 
       if (prev !== null) {
-        prev.NextInSEL = edge1;
+        prev.nextInSEL = edge1;
       }
 
       edge1.updateSEL(prev, edge2);
       edge2.updateSEL(edge1, next);
     } else {
-      next = edge1.NextInSEL;
-      prev = edge1.PrevInSEL;
-      edge1.NextInSEL = edge2.NextInSEL;
+      next = edge1.nextInSEL;
+      prev = edge1.prevInSEL;
+      edge1.nextInSEL = edge2.nextInSEL;
 
-      if (edge1.NextInSEL !== null) {
-        edge1.NextInSEL.PrevInSEL = edge1;
+      if (edge1.nextInSEL !== null) {
+        edge1.nextInSEL.prevInSEL = edge1;
       }
 
-      edge1.PrevInSEL = edge2.PrevInSEL;
+      edge1.prevInSEL = edge2.prevInSEL;
 
-      if (edge1.PrevInSEL !== null) {
-        edge1.PrevInSEL.NextInSEL = edge1;
+      if (edge1.prevInSEL !== null) {
+        edge1.prevInSEL.nextInSEL = edge1;
       }
 
-      edge2.NextInSEL = next;
+      edge2.nextInSEL = next;
 
-      if (edge2.NextInSEL !== null) {
-        edge2.NextInSEL.PrevInSEL = edge2;
+      if (edge2.nextInSEL !== null) {
+        edge2.nextInSEL.prevInSEL = edge2;
       }
 
-      edge2.PrevInSEL = prev;
+      edge2.prevInSEL = prev;
 
-      if (edge2.PrevInSEL !== null) {
-        edge2.PrevInSEL.NextInSEL = edge2;
+      if (edge2.prevInSEL !== null) {
+        edge2.prevInSEL.nextInSEL = edge2;
       }
     }
 
-    if (edge1.PrevInSEL === null) {
+    if (edge1.prevInSEL === null) {
       this._source = edge1;
-    } else if (edge2.PrevInSEL === null) {
+    } else if (edge2.prevInSEL === null) {
       this._source = edge2;
     }
   }

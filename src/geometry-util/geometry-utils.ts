@@ -161,8 +161,8 @@ export function toNestCoordinates(
   for (i = 0; i < size; ++i) {
     point = polygon[i];
     result.push({
-      x: point.X / scale,
-      y: point.Y / scale
+      x: point.x / scale,
+      y: point.y / scale
     });
   }
 

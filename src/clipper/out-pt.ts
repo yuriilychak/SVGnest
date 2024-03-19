@@ -77,14 +77,14 @@ export default class OutPt {
     let nextOutPt: OutPt = outPt.next;
 
     while (nextOutPt != outPt) {
-      if (nextOutPt.point.Y > outPt.point.Y) {
+      if (nextOutPt.point.y > outPt.point.y) {
         outPt = nextOutPt;
         dups = null;
       } else if (
-        nextOutPt.point.Y === outPt.point.Y &&
-        nextOutPt.point.X <= outPt.point.X
+        nextOutPt.point.y === outPt.point.y &&
+        nextOutPt.point.x <= outPt.point.x
       ) {
-        if (nextOutPt.point.X < outPt.point.X) {
+        if (nextOutPt.point.x < outPt.point.x) {
           dups = null;
           outPt = nextOutPt;
         } else {
@@ -124,23 +124,23 @@ export default class OutPt {
 
       if (
         outPt.next.point.equal(point) ||
-        (offset2.Y === 0 && offset1.Y === 0 && offset2.X > 0 === offset1.X < 0)
+        (offset2.y === 0 && offset1.y === 0 && offset2.x > 0 === offset1.x < 0)
       ) {
         return -1;
       }
 
-      if (offset1.Y < 0 === offset2.Y >= 0) {
-        if (Math.sign(offset1.X) * Math.sign(offset2.X) < 0) {
+      if (offset1.y < 0 === offset2.y >= 0) {
+        if (Math.sign(offset1.x) * Math.sign(offset2.x) < 0) {
           cross = offset2.cross(offset1);
 
           if (cross === 0) {
             return -1;
           }
 
-          if (cross > 0 == offset2.Y - offset1.Y > 0) {
+          if (cross > 0 == offset2.y - offset1.y > 0) {
             result = 1 - result;
           }
-        } else if (offset1.X >= 0 && offset2.X > 0) {
+        } else if (offset1.x >= 0 && offset2.x > 0) {
           result = 1 - result;
         }
       }

@@ -16,24 +16,24 @@ export default class LocalMinima {
   public init(edge: TEdge, isClockwise: boolean, isClosed: boolean): void {
     if (isClockwise) {
       this._left = edge;
-      this._right = edge.Prev;
+      this._right = edge.prev;
     } else {
-      this._left = edge.Prev;
+      this._left = edge.prev;
       this._right = edge;
     }
 
-    this._left.Side = EdgeSide.Left;
-    this._right.Side = EdgeSide.Right;
+    this._left.side = EdgeSide.Left;
+    this._right.side = EdgeSide.Right;
 
     if (!isClosed) {
-      this._left.WindDelta = 0;
-    } else if (this._left.Next == this._right) {
-      this._left.WindDelta = -1;
+      this._left.windDelta = 0;
+    } else if (this._left.next == this._right) {
+      this._left.windDelta = -1;
     } else {
-      this._left.WindDelta = 1;
+      this._left.windDelta = 1;
     }
 
-    this._right.WindDelta = -this._left.WindDelta;
+    this._right.windDelta = -this._left.windDelta;
   }
 
   public insert(localMinima: LocalMinima): LocalMinima {
@@ -58,9 +58,9 @@ export default class LocalMinima {
   }
 
   public clean(): void {
-    if (this._left.OutIdx == TEdge.skip) {
+    if (this._left.outIndex == TEdge.skip) {
       this._left = null;
-    } else if (this._right.OutIdx == TEdge.skip) {
+    } else if (this._right.outIndex == TEdge.skip) {
       this._right = null;
     }
   }

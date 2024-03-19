@@ -83,7 +83,7 @@ export default class Clipper {
     //1. Basic (first) edge initialization ...
 
     //edges[1].Curr = pg[1];
-    edges[1].Curr.set(polygon[1]);
+    edges[1].current.set(polygon[1]);
 
     this._useFullRange = polygon[0].rangeTest(this._useFullRange);
     this._useFullRange = polygon[lastIndex].rangeTest(this._useFullRange);
@@ -104,13 +104,13 @@ export default class Clipper {
     let loopStopEdge: TEdge = startEdge;
 
     while (true) {
-      if (edge1.Curr.equal(edge1.Next.Curr)) {
-        if (edge1 == edge1.Next) {
+      if (edge1.current.equal(edge1.next.current)) {
+        if (edge1 == edge1.next) {
           break;
         }
 
         if (edge1 == startEdge) {
-          startEdge = edge1.Next;
+          startEdge = edge1.next;
         }
 
         edge1 = edge1.remove();
@@ -118,36 +118,36 @@ export default class Clipper {
         continue;
       }
 
-      if (edge1.Prev == edge1.Next) {
+      if (edge1.prev == edge1.next) {
         break;
       }
 
       if (
         isClosed &&
         IntPoint.slopesEqual(
-          edge1.Prev.Curr,
-          edge1.Curr,
-          edge1.Next.Curr,
+          edge1.prev.current,
+          edge1.current,
+          edge1.next.current,
           this._useFullRange
         ) &&
         (!this._preserveCollinear ||
-          !edge1.Curr.between(edge1.Prev.Curr, edge1.Next.Curr))
+          !edge1.current.between(edge1.prev.current, edge1.next.current))
       ) {
         //Collinear edges are allowed for open paths but in closed paths
         //the default is to merge adjacent collinear edges into a single edge.
         //However, if the PreserveCollinear property is enabled, only overlapping
         //collinear edges (ie spikes) will be removed from closed paths.
         if (edge1 == startEdge) {
-          startEdge = edge1.Next;
+          startEdge = edge1.next;
         }
 
         edge1 = edge1.remove();
-        edge1 = edge1.Prev;
+        edge1 = edge1.prev;
         loopStopEdge = edge1;
         continue;
       }
 
-      edge1 = edge1.Next;
+      edge1 = edge1.next;
 
       if (edge1 == loopStopEdge) {
         break;
@@ -155,23 +155,23 @@ export default class Clipper {
     }
 
     if (
-      (!isClosed && edge1 == edge1.Next) ||
-      (isClosed && edge1.Prev == edge1.Next)
+      (!isClosed && edge1 == edge1.next) ||
+      (isClosed && edge1.prev == edge1.next)
     ) {
       return false;
     }
 
     if (!isClosed) {
       this._hasOpenPaths = true;
-      startEdge.Prev.OutIdx = TEdge.skip;
+      startEdge.prev.outIndex = TEdge.skip;
     }
     //3. Do second stage of edge initialization ...
     edge1 = startEdge;
 
     do {
       edge1.initFromPolyType(polyType);
-      edge1 = edge1.Next;
-      isFlat = isFlat && edge1.Curr.Y === startEdge.Curr.Y;
+      edge1 = edge1.next;
+      isFlat = isFlat && edge1.current.y === startEdge.current.y;
     } while (edge1 != startEdge);
 
     //4. Finally, add edge bounds to LocalMinima list ...
@@ -182,24 +182,24 @@ export default class Clipper {
         return false;
       }
 
-      edge1.Prev.OutIdx = TEdge.skip;
+      edge1.prev.outIndex = TEdge.skip;
 
-      if (edge1.Prev.Bot.X < edge1.Prev.Top.X) {
-        edge1.Prev.reverseHorizontal();
+      if (edge1.prev.bottom.x < edge1.prev.top.x) {
+        edge1.prev.reverseHorizontal();
       }
 
-      const locMin: LocalMinima = new LocalMinima(edge1.Bot.Y, null, edge1);
-      locMin.right.Side = EdgeSide.Right;
-      locMin.right.WindDelta = 0;
+      const locMin: LocalMinima = new LocalMinima(edge1.bottom.y, null, edge1);
+      locMin.right.side = EdgeSide.Right;
+      locMin.right.windDelta = 0;
 
-      while (edge1.Next.OutIdx != TEdge.skip) {
-        edge1.NextInLML = edge1.Next;
+      while (edge1.next.outIndex != TEdge.skip) {
+        edge1.nextInLML = edge1.next;
 
-        if (edge1.Bot.X != edge1.Prev.Top.X) {
+        if (edge1.bottom.x != edge1.prev.top.x) {
           edge1.reverseHorizontal();
         }
 
-        edge1 = edge1.Next;
+        edge1 = edge1.next;
       }
 
       this._localMinimaStore.insert(locMin);
@@ -222,9 +222,9 @@ export default class Clipper {
       }
       //E and E.Prev now share a local minima (left aligned if horizontal).
       //Compare their slopes to find which starts which bound ...
-      isClockwise = edge1.deltaX >= edge1.Prev.deltaX;
+      isClockwise = edge1.deltaX >= edge1.prev.deltaX;
 
-      localMinima = new LocalMinima(edge1.Bot.Y);
+      localMinima = new LocalMinima(edge1.bottom.y);
       localMinima.init(edge1, isClockwise, isClosed);
 
       edge1 = this._localMinimaStore.processBound(
@@ -454,7 +454,7 @@ export default class Clipper {
 
     for (i = 0, j = polygonCount - 1; i < polygonCount; ++i) {
       result +=
-        (polygons[j].X + polygons[i].X) * (polygons[j].Y - polygons[i].Y);
+        (polygons[j].x + polygons[i].x) * (polygons[j].y - polygons[i].y);
       j = i;
     }
     return -result * 0.5;

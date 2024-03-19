@@ -67,7 +67,7 @@ export default class PolyNode {
     for (i = 0; i < pointCount; ++i) {
       currPoint = this._polygon.at(i);
       prevPoint = this._polygon.at((i + pointCount - 1) % pointCount);
-      result += (prevPoint.X + currPoint.X) * (prevPoint.Y - currPoint.Y);
+      result += (prevPoint.x + currPoint.x) * (prevPoint.y - currPoint.y);
     }
 
     return -result * 0.5;

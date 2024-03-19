@@ -87,8 +87,8 @@ export default class OutRec {
     do {
       result =
         result +
-        (pointer.prev.point.X + pointer.point.X) *
-          (pointer.prev.point.Y - pointer.point.Y);
+        (pointer.prev.point.x + pointer.point.x) *
+          (pointer.prev.point.y - pointer.point.y);
       pointer = pointer.next;
     } while (pointer != this.pointer);
 
@@ -122,13 +122,13 @@ export default class OutRec {
     const offset: IntPoint = IntPoint.sub(pointer1.point, pointer2.point);
 
     switch (true) {
-      case offset.Y < 0:
+      case offset.y < 0:
         return outRec1;
-      case offset.Y > 0:
+      case offset.y > 0:
         return outRec2;
-      case offset.X > 0:
+      case offset.x > 0:
         return outRec1;
-      case offset.X < 0:
+      case offset.x < 0:
         return outRec2;
       case pointer1.next == pointer1:
         return outRec2;

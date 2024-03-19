@@ -9,149 +9,149 @@ import Int128 from "../int-128";
 import IntPoint from "../int-point";
 
 export default class TEdge {
-  public Bot: IntPoint = new IntPoint();
-  public Curr: IntPoint = new IntPoint();
-  public Top: IntPoint = new IntPoint();
-  public Delta: IntPoint = new IntPoint();
+  public bottom: IntPoint = new IntPoint();
+  public current: IntPoint = new IntPoint();
+  public top: IntPoint = new IntPoint();
+  public delta: IntPoint = new IntPoint();
   public deltaX: number = 0;
-  public PolyTyp: PolyType = PolyType.Subject;
-  public Side: EdgeSide = EdgeSide.Left;
-  public WindDelta: number = 0;
-  public WindCnt: number = 0;
-  public WindCnt2: number = 0;
-  public OutIdx: number = 0;
-  public Next: TEdge = null;
-  public Prev: TEdge = null;
-  public NextInLML: TEdge = null;
-  public NextInAEL: TEdge = null;
-  public PrevInAEL: TEdge = null;
-  public NextInSEL: TEdge = null;
-  public PrevInSEL: TEdge = null;
+  public polyType: PolyType = PolyType.Subject;
+  public side: EdgeSide = EdgeSide.Left;
+  public windDelta: number = 0;
+  public windCount1: number = 0;
+  public windCnt2: number = 0;
+  public outIndex: number = 0;
+  public next: TEdge = null;
+  public prev: TEdge = null;
+  public nextInLML: TEdge = null;
+  public nextInAEL: TEdge = null;
+  public prevInAEL: TEdge = null;
+  public nextInSEL: TEdge = null;
+  public prevInSEL: TEdge = null;
 
   constructor() {}
 
   public init(nextEdge: TEdge, prevEdge: TEdge, point: IntPoint): void {
-    this.Next = nextEdge;
-    this.Prev = prevEdge;
+    this.next = nextEdge;
+    this.prev = prevEdge;
     //e.Curr = pt;
-    this.Curr.set(point);
-    this.OutIdx = -1;
+    this.current.set(point);
+    this.outIndex = -1;
   }
 
   public topX(currentY: number): number {
     //if (edge.Bot == edge.Curr) alert ("edge.Bot = edge.Curr");
     //if (edge.Bot == edge.Top) alert ("edge.Bot = edge.Top");
-    return currentY === this.Top.Y
-      ? this.Top.X
-      : this.Bot.X + TEdge.Round(this.deltaX * (currentY - this.Bot.Y));
+    return currentY === this.top.y
+      ? this.top.x
+      : this.bottom.x + TEdge.Round(this.deltaX * (currentY - this.bottom.y));
   }
 
   public swapPolyIndices(edge: TEdge): void {
     this.swapSides(edge);
 
-    const outIdx: number = this.OutIdx;
+    const outIdx: number = this.outIndex;
 
-    this.OutIdx = edge.OutIdx;
-    edge.OutIdx = outIdx;
+    this.outIndex = edge.outIndex;
+    edge.outIndex = outIdx;
   }
 
   public swapSides(edge: TEdge): void {
-    var side = this.Side;
-    this.Side = edge.Side;
-    edge.Side = side;
+    var side = this.side;
+    this.side = edge.side;
+    edge.side = side;
   }
 
   public update(side: EdgeSide): void {
-    this.Curr.set(this.Bot);
-    this.Side = side;
-    this.OutIdx = -1;
+    this.current.set(this.bottom);
+    this.side = side;
+    this.outIndex = -1;
   }
 
   public initFromPolyType(polyType: PolyType): void {
-    const condition: boolean = this.Curr.Y >= this.Next.Curr.Y;
-    const bottom: IntPoint = condition ? this.Curr : this.Next.Curr;
-    const top: IntPoint = condition ? this.Next.Curr : this.Curr;
+    const condition: boolean = this.current.y >= this.next.current.y;
+    const bottom: IntPoint = condition ? this.current : this.next.current;
+    const top: IntPoint = condition ? this.next.current : this.current;
 
-    this.Bot.set(bottom);
-    this.Top.set(top);
-    this.Delta.set(this.Top).sub(this.Bot);
+    this.bottom.set(bottom);
+    this.top.set(top);
+    this.delta.set(this.top).sub(this.bottom);
     this.deltaX =
-      this.Delta.Y === 0 ? TEdge.horizontal : this.Delta.X / this.Delta.Y;
-    this.PolyTyp = polyType;
+      this.delta.y === 0 ? TEdge.horizontal : this.delta.x / this.delta.y;
+    this.polyType = polyType;
   }
 
   public remove(): TEdge {
     //removes e from double_linked_list (but without removing from memory)
-    this.Prev.Next = this.Next;
-    this.Next.Prev = this.Prev;
-    this.Prev = null; //flag as removed (see ClipperBase.Clear)
-    return this.Next;
+    this.prev.next = this.next;
+    this.next.prev = this.prev;
+    this.prev = null; //flag as removed (see ClipperBase.Clear)
+    return this.next;
   }
 
   public reverseHorizontal(): void {
     //swap horizontal edges' top and bottom x's so they follow the natural
     //progression of the bounds - ie so their xbots will align with the
     //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
-    const tmp: number = this.Top.X;
-    this.Top.X = this.Bot.X;
-    this.Bot.X = tmp;
+    const tmp: number = this.top.x;
+    this.top.x = this.bottom.x;
+    this.bottom.x = tmp;
   }
 
   public isIntermediate(Y: number): boolean {
-    return this.Top.Y == Y && this.NextInLML !== null;
+    return this.top.y == Y && this.nextInLML !== null;
   }
 
   public isMaxima(Y: number): boolean {
-    return this.Top.Y == Y && this.NextInLML === null;
+    return this.top.y == Y && this.nextInLML === null;
   }
 
   public getMaximaPair(): TEdge {
     let result: TEdge = null;
 
-    if (this.Top.equal(this.Next.Top) && this.Next.NextInLML === null) {
-      result = this.Next;
-    } else if (this.Top.equal(this.Prev.Top) && this.Prev.NextInLML === null) {
-      result = this.Prev;
+    if (this.top.equal(this.next.top) && this.next.nextInLML === null) {
+      result = this.next;
+    } else if (this.top.equal(this.prev.top) && this.prev.nextInLML === null) {
+      result = this.prev;
     }
 
     return result !== null &&
-      (result.OutIdx === TEdge.skip ||
-        (result.NextInAEL === result.PrevInAEL && !result.isHorizontal))
+      (result.outIndex === TEdge.skip ||
+        (result.nextInAEL === result.prevInAEL && !result.isHorizontal))
       ? null
       : result;
   }
 
   public getNextInAEL(direction: Direction): TEdge {
-    return direction == Direction.LeftToRight ? this.NextInAEL : this.PrevInAEL;
+    return direction == Direction.LeftToRight ? this.nextInAEL : this.prevInAEL;
   }
 
   public updateAEL(prev: TEdge | null, next: TEdge | null): void {
-    this.PrevInAEL = prev;
-    this.NextInAEL = next;
+    this.prevInAEL = prev;
+    this.nextInAEL = next;
   }
 
   public updateSEL(prev: TEdge | null, next: TEdge | null): void {
-    this.PrevInSEL = prev;
-    this.NextInSEL = next;
+    this.prevInSEL = prev;
+    this.nextInSEL = next;
   }
 
   public isEvenOddFillType(type1: PolyFillType, type2: PolyFillType): boolean {
-    return this.PolyTyp === PolyType.Subject
+    return this.polyType === PolyType.Subject
       ? type1 === PolyFillType.EvenOdd
       : type2 === PolyFillType.EvenOdd;
   }
 
   public getJoinsEdge(useFullRange: boolean): TEdge | null {
-    if (this.WindDelta === 0) {
+    if (this.windDelta === 0) {
       return null;
     }
 
-    if (this._checkJoinCondition(this.PrevInAEL, useFullRange)) {
-      return this.PrevInAEL;
+    if (this._checkJoinCondition(this.prevInAEL, useFullRange)) {
+      return this.prevInAEL;
     }
 
-    return this._checkJoinCondition(this.NextInAEL, useFullRange)
-      ? this.NextInAEL
+    return this._checkJoinCondition(this.nextInAEL, useFullRange)
+      ? this.nextInAEL
       : null;
   }
 
@@ -160,8 +160,8 @@ export default class TEdge {
     clipFillType: PolyFillType,
     isReversed: boolean
   ): number {
-    const isSubject: boolean = this.PolyTyp == PolyType.Subject;
-    const windCount: number = isReversed ? this.WindCnt2 : this.WindCnt;
+    const isSubject: boolean = this.polyType == PolyType.Subject;
+    const windCount: number = isReversed ? this.windCnt2 : this.windCount1;
     const fillType: PolyFillType =
       (isSubject && !isReversed) || (!isSubject && isReversed)
         ? subjFillType
@@ -180,9 +180,9 @@ export default class TEdge {
   private _checkJoinCondition(edge: TEdge, useFullRange: boolean): boolean {
     return (
       edge !== null &&
-      edge.Curr.equal(this.Bot) &&
+      edge.current.equal(this.bottom) &&
       edge.isValid &&
-      edge.Curr.Y > edge.Top.Y &&
+      edge.current.y > edge.top.y &&
       TEdge.slopesEqual(this, edge, useFullRange)
     );
   }
@@ -193,7 +193,7 @@ export default class TEdge {
     clipFillType: PolyFillType
   ): boolean {
     var pft, pft2;
-    if (this.PolyTyp == PolyType.Subject) {
+    if (this.polyType == PolyType.Subject) {
       pft = subjFillType;
       pft2 = clipFillType;
     } else {
@@ -203,16 +203,16 @@ export default class TEdge {
 
     switch (pft) {
       case PolyFillType.EvenOdd:
-        if (this.WindDelta === 0 && this.WindCnt != 1) return false;
+        if (this.windDelta === 0 && this.windCount1 != 1) return false;
         break;
       case PolyFillType.NonZero:
-        if (Math.abs(this.WindCnt) != 1) return false;
+        if (Math.abs(this.windCount1) != 1) return false;
         break;
       case PolyFillType.Positive:
-        if (this.WindCnt != 1) return false;
+        if (this.windCount1 != 1) return false;
         break;
       default:
-        if (this.WindCnt != -1) return false;
+        if (this.windCount1 != -1) return false;
         break;
     }
     switch (clipType) {
@@ -220,53 +220,53 @@ export default class TEdge {
         switch (pft2) {
           case PolyFillType.EvenOdd:
           case PolyFillType.NonZero:
-            return this.WindCnt2 !== 0;
+            return this.windCnt2 !== 0;
           case PolyFillType.Positive:
-            return this.WindCnt2 > 0;
+            return this.windCnt2 > 0;
           default:
-            return this.WindCnt2 < 0;
+            return this.windCnt2 < 0;
         }
       case ClipType.Union:
         switch (pft2) {
           case PolyFillType.EvenOdd:
           case PolyFillType.NonZero:
-            return this.WindCnt2 === 0;
+            return this.windCnt2 === 0;
           case PolyFillType.Positive:
-            return this.WindCnt2 <= 0;
+            return this.windCnt2 <= 0;
           default:
-            return this.WindCnt2 >= 0;
+            return this.windCnt2 >= 0;
         }
       case ClipType.Difference:
-        if (this.PolyTyp == PolyType.Subject)
+        if (this.polyType == PolyType.Subject)
           switch (pft2) {
             case PolyFillType.EvenOdd:
             case PolyFillType.NonZero:
-              return this.WindCnt2 === 0;
+              return this.windCnt2 === 0;
             case PolyFillType.Positive:
-              return this.WindCnt2 <= 0;
+              return this.windCnt2 <= 0;
             default:
-              return this.WindCnt2 >= 0;
+              return this.windCnt2 >= 0;
           }
         else
           switch (pft2) {
             case PolyFillType.EvenOdd:
             case PolyFillType.NonZero:
-              return this.WindCnt2 !== 0;
+              return this.windCnt2 !== 0;
             case PolyFillType.Positive:
-              return this.WindCnt2 > 0;
+              return this.windCnt2 > 0;
             default:
-              return this.WindCnt2 < 0;
+              return this.windCnt2 < 0;
           }
       case ClipType.Xor:
-        if (this.WindDelta === 0)
+        if (this.windDelta === 0)
           switch (pft2) {
             case PolyFillType.EvenOdd:
             case PolyFillType.NonZero:
-              return this.WindCnt2 === 0;
+              return this.windCnt2 === 0;
             case PolyFillType.Positive:
-              return this.WindCnt2 <= 0;
+              return this.windCnt2 <= 0;
             default:
-              return this.WindCnt2 >= 0;
+              return this.windCnt2 >= 0;
           }
         else return true;
     }
@@ -275,11 +275,11 @@ export default class TEdge {
   }
 
   public get isValid(): boolean {
-    return this.OutIdx >= 0 && this.WindDelta !== 0;
+    return this.outIndex >= 0 && this.windDelta !== 0;
   }
 
   public get isHorizontal(): boolean {
-    return this.Delta.Y === 0;
+    return this.delta.y === 0;
   }
 
   public get nextLocMin(): TEdge {
@@ -287,21 +287,21 @@ export default class TEdge {
     var E2;
     for (;;) {
       while (
-        IntPoint.unequal(edge.Bot, edge.Prev.Bot) ||
-        edge.Curr.equal(edge.Top)
+        IntPoint.unequal(edge.bottom, edge.prev.bottom) ||
+        edge.current.equal(edge.top)
       )
-        edge = edge.Next;
+        edge = edge.next;
       if (
         edge.deltaX != TEdge.horizontal &&
-        edge.Prev.deltaX != TEdge.horizontal
+        edge.prev.deltaX != TEdge.horizontal
       )
         break;
-      while (edge.Prev.deltaX == TEdge.horizontal) edge = edge.Prev;
+      while (edge.prev.deltaX == TEdge.horizontal) edge = edge.prev;
       E2 = edge;
-      while (edge.deltaX == TEdge.horizontal) edge = edge.Next;
-      if (edge.Top.Y == edge.Prev.Bot.Y) continue;
+      while (edge.deltaX == TEdge.horizontal) edge = edge.next;
+      if (edge.top.y == edge.prev.bottom.y) continue;
       //ie just an intermediate horz.
-      if (E2.Prev.Bot.X < edge.Bot.X) edge = E2;
+      if (E2.prev.bottom.x < edge.bottom.x) edge = E2;
       break;
     }
     return edge;
@@ -314,13 +314,13 @@ export default class TEdge {
   ): boolean {
     if (useFullRange)
       return Int128.op_Equality(
-        Int128.Int128Mul(edge1.Delta.Y, edge2.Delta.X),
-        Int128.Int128Mul(edge1.Delta.X, edge2.Delta.Y)
+        Int128.Int128Mul(edge1.delta.y, edge2.delta.x),
+        Int128.Int128Mul(edge1.delta.x, edge2.delta.y)
       );
     else
       return (
-        TEdge.castInt64(edge1.Delta.Y * edge2.Delta.X) ==
-        TEdge.castInt64(edge1.Delta.X * edge2.Delta.Y)
+        TEdge.castInt64(edge1.delta.y * edge2.delta.x) ==
+        TEdge.castInt64(edge1.delta.x * edge2.delta.y)
       );
   }
 
@@ -335,10 +335,10 @@ export default class TEdge {
   }
 
   public static e2InsertsBeforeE1(e1: TEdge, e2: TEdge): boolean {
-    if (e2.Curr.X == e1.Curr.X) {
-      if (e2.Top.Y > e1.Top.Y) return e2.Top.X < e1.topX(e2.Top.Y);
-      else return e1.Top.X > e2.topX(e1.Top.Y);
-    } else return e2.Curr.X < e1.Curr.X;
+    if (e2.current.x == e1.current.x) {
+      if (e2.top.y > e1.top.y) return e2.top.x < e1.topX(e2.top.y);
+      else return e1.top.x > e2.topX(e1.top.y);
+    } else return e2.current.x < e1.current.x;
   }
 
   public static intersectPoint(
@@ -356,48 +356,48 @@ export default class TEdge {
       TEdge.slopesEqual(edge1, edge2, useFullRange) ||
       edge1.deltaX == edge2.deltaX
     ) {
-      ip.set(edge2.Bot.Y > edge1.Bot.Y ? edge2.Bot : edge1.Bot);
+      ip.set(edge2.bottom.y > edge1.bottom.y ? edge2.bottom : edge1.bottom);
 
       return false;
-    } else if (edge1.Delta.X === 0) {
-      ip.X = edge1.Bot.X;
+    } else if (edge1.delta.x === 0) {
+      ip.x = edge1.bottom.x;
       if (edge2.isHorizontal) {
-        ip.Y = edge2.Bot.Y;
+        ip.y = edge2.bottom.y;
       } else {
-        b2 = edge2.Bot.Y - edge2.Bot.X / edge2.deltaX;
-        ip.Y = TEdge.Round(ip.X / edge2.deltaX + b2);
+        b2 = edge2.bottom.y - edge2.bottom.x / edge2.deltaX;
+        ip.y = TEdge.Round(ip.x / edge2.deltaX + b2);
       }
-    } else if (edge2.Delta.X === 0) {
-      ip.X = edge2.Bot.X;
+    } else if (edge2.delta.x === 0) {
+      ip.x = edge2.bottom.x;
       if (edge1.isHorizontal) {
-        ip.Y = edge1.Bot.Y;
+        ip.y = edge1.bottom.y;
       } else {
-        b1 = edge1.Bot.Y - edge1.Bot.X / edge1.deltaX;
-        ip.Y = TEdge.Round(ip.X / edge1.deltaX + b1);
+        b1 = edge1.bottom.y - edge1.bottom.x / edge1.deltaX;
+        ip.y = TEdge.Round(ip.x / edge1.deltaX + b1);
       }
     } else {
-      b1 = edge1.Bot.X - edge1.Bot.Y * edge1.deltaX;
-      b2 = edge2.Bot.X - edge2.Bot.Y * edge2.deltaX;
+      b1 = edge1.bottom.x - edge1.bottom.y * edge1.deltaX;
+      b2 = edge2.bottom.x - edge2.bottom.y * edge2.deltaX;
 
       const q: number = (b2 - b1) / (edge1.deltaX - edge2.deltaX);
 
-      ip.Y = TEdge.Round(q);
-      ip.X =
+      ip.y = TEdge.Round(q);
+      ip.x =
         Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
           ? TEdge.Round(edge1.deltaX * q + b1)
           : TEdge.Round(edge2.deltaX * q + b2);
     }
-    if (ip.Y < edge1.Top.Y || ip.Y < edge2.Top.Y) {
-      if (edge1.Top.Y > edge2.Top.Y) {
-        ip.Y = edge1.Top.Y;
-        ip.X = edge2.topX(edge1.Top.Y);
-        return ip.X < edge1.Top.X;
-      } else ip.Y = edge2.Top.Y;
+    if (ip.y < edge1.top.y || ip.y < edge2.top.y) {
+      if (edge1.top.y > edge2.top.y) {
+        ip.y = edge1.top.y;
+        ip.x = edge2.topX(edge1.top.y);
+        return ip.x < edge1.top.x;
+      } else ip.y = edge2.top.y;
 
-      ip.X =
+      ip.x =
         Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
-          ? edge1.topX(ip.Y)
-          : edge2.topX(ip.Y);
+          ? edge1.topX(ip.y)
+          : edge2.topX(ip.y);
     }
     return true;
   }

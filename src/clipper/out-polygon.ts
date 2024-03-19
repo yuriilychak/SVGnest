@@ -69,14 +69,14 @@ export default class OutPolygon {
   }
 
   public createHorizontalJoin(horzEdge: TEdge): Join {
-    let outPt: OutPt = this._data.at(horzEdge.OutIdx).pointer;
-    if (horzEdge.Side != EdgeSide.Left) {
+    let outPt: OutPt = this._data.at(horzEdge.outIndex).pointer;
+    if (horzEdge.side != EdgeSide.Left) {
       outPt = outPt.prev;
     }
 
-    const point: IntPoint = outPt.point.equal(horzEdge.Top)
-      ? horzEdge.Bot
-      : horzEdge.Top;
+    const point: IntPoint = outPt.point.equal(horzEdge.top)
+      ? horzEdge.bottom
+      : horzEdge.top;
 
     return new Join(outPt, null, point);
   }
@@ -117,19 +117,20 @@ export default class OutPolygon {
     activeEdges: TEdge
   ): void {
     this.addOutPt(e1, pt);
-    if (e2.WindDelta == 0) this.addOutPt(e2, pt);
-    if (e1.OutIdx == e2.OutIdx) {
-      e1.OutIdx = -1;
-      e2.OutIdx = -1;
-    } else if (e1.OutIdx < e2.OutIdx) this._appendPolygon(e1, e2, activeEdges);
+    if (e2.windDelta == 0) this.addOutPt(e2, pt);
+    if (e1.outIndex == e2.outIndex) {
+      e1.outIndex = -1;
+      e2.outIndex = -1;
+    } else if (e1.outIndex < e2.outIndex)
+      this._appendPolygon(e1, e2, activeEdges);
     else this._appendPolygon(e2, e1, activeEdges);
   }
 
   public addOutPt(edge: TEdge, point: IntPoint) {
-    var ToFront = edge.Side == EdgeSide.Left;
-    if (edge.OutIdx < 0) {
+    var ToFront = edge.side == EdgeSide.Left;
+    if (edge.outIndex < 0) {
       var outRec: OutRec = this._createRec();
-      outRec.isOpen = edge.WindDelta === 0;
+      outRec.isOpen = edge.windDelta === 0;
       var newOp: OutPt = new OutPt();
       outRec.pointer = newOp;
       newOp.index = outRec.index;
@@ -138,11 +139,11 @@ export default class OutPolygon {
       newOp.next = newOp;
       newOp.prev = newOp;
       if (!outRec.isOpen) this._setHoleState(edge, outRec);
-      edge.OutIdx = outRec.index;
+      edge.outIndex = outRec.index;
       //nb: do this after SetZ !
       return newOp;
     } else {
-      var outRec = this._data[edge.OutIdx];
+      var outRec = this._data[edge.outIndex];
       //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
       var op = outRec.pointer;
       if (ToFront && IntPoint.equal(point, op.point)) return op;
@@ -150,8 +151,8 @@ export default class OutPolygon {
       var newOp = new OutPt();
       newOp.index = outRec.index;
       //newOp.Pt = pt;
-      newOp.point.X = point.X;
-      newOp.point.Y = point.Y;
+      newOp.point.x = point.x;
+      newOp.point.y = point.y;
       newOp.next = op;
       newOp.prev = op.prev;
       newOp.prev.next = newOp;
@@ -217,8 +218,8 @@ export default class OutPolygon {
 
   private _appendPolygon(e1: TEdge, e2: TEdge, activeEdges: TEdge): void {
     //get the start and ends of both output polygons ...
-    var outRec1 = this._data[e1.OutIdx];
-    var outRec2 = this._data[e2.OutIdx];
+    var outRec1 = this._data[e1.outIndex];
+    var outRec2 = this._data[e2.outIndex];
     var holeStateRec;
     if (OutRec.param1RightOfParam2(outRec1, outRec2)) holeStateRec = outRec2;
     else if (OutRec.param1RightOfParam2(outRec2, outRec1))
@@ -230,8 +231,8 @@ export default class OutPolygon {
     var p2_rt = p2_lft.prev;
     var side;
     //join e2 poly onto e1 poly and delete pointers to e2 ...
-    if (e1.Side == EdgeSide.Left) {
-      if (e2.Side == EdgeSide.Left) {
+    if (e1.side == EdgeSide.Left) {
+      if (e2.side == EdgeSide.Left) {
         //z y x a b c
         p2_lft.reverse();
         p2_lft.next = p1_lft;
@@ -249,7 +250,7 @@ export default class OutPolygon {
       }
       side = EdgeSide.Left;
     } else {
-      if (e2.Side == EdgeSide.Right) {
+      if (e2.side == EdgeSide.Right) {
         //a b c z y x
         p2_lft.reverse();
         p1_rt.next = p2_rt;
@@ -273,19 +274,19 @@ export default class OutPolygon {
     outRec2.pointer = null;
     outRec2.bottom = null;
     outRec2.left = outRec1;
-    var OKIdx = e1.OutIdx;
-    var ObsoleteIdx = e2.OutIdx;
-    e1.OutIdx = -1;
+    var OKIdx = e1.outIndex;
+    var ObsoleteIdx = e2.outIndex;
+    e1.outIndex = -1;
     //nb: safe because we only get here via AddLocalMaxPoly
-    e2.OutIdx = -1;
+    e2.outIndex = -1;
     var e = activeEdges;
     while (e !== null) {
-      if (e.OutIdx == ObsoleteIdx) {
-        e.OutIdx = OKIdx;
-        e.Side = side;
+      if (e.outIndex == ObsoleteIdx) {
+        e.outIndex = OKIdx;
+        e.side = side;
         break;
       }
-      e = e.NextInAEL;
+      e = e.nextInAEL;
     }
     outRec2.index = outRec1.index;
   }
@@ -356,14 +357,14 @@ export default class OutPolygon {
 
   private _setHoleState(edge: TEdge, outRec: OutRec): void {
     let isHole: boolean = false;
-    let tmpEdge: TEdge = edge.PrevInAEL;
+    let tmpEdge: TEdge = edge.prevInAEL;
 
     while (tmpEdge !== null) {
-      if (tmpEdge.OutIdx >= 0 && tmpEdge.WindDelta != 0) {
+      if (tmpEdge.outIndex >= 0 && tmpEdge.windDelta != 0) {
         isHole = !isHole;
-        if (outRec.left === null) outRec.left = this._data[tmpEdge.OutIdx];
+        if (outRec.left === null) outRec.left = this._data[tmpEdge.outIndex];
       }
-      tmpEdge = tmpEdge.PrevInAEL;
+      tmpEdge = tmpEdge.prevInAEL;
     }
 
     if (isHole) {

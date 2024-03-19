@@ -15,150 +15,149 @@ export default class LocalMinimaStore {
     if (edge.deltaX == TEdge.horizontal) {
       //it's possible for adjacent overlapping horz edges to start heading left
       //before finishing right, so ...
-      startX = isClockwise ? edge.Prev.Bot.X : edge.Next.Bot.X;
+      startX = isClockwise ? edge.prev.bottom.x : edge.next.bottom.x;
 
-      if (edge.Bot.X !== startX) {
+      if (edge.bottom.x !== startX) {
         edge.reverseHorizontal();
       }
     }
 
-    if (result.OutIdx != TEdge.skip) {
+    if (result.outIndex != TEdge.skip) {
       if (isClockwise) {
         while (
-          result.Top.Y == result.Next.Bot.Y &&
-          result.Next.OutIdx != TEdge.skip
+          result.top.y == result.next.bottom.y &&
+          result.next.outIndex != TEdge.skip
         ) {
-          result = result.Next;
+          result = result.next;
         }
 
         if (
           result.deltaX == TEdge.horizontal &&
-          result.Next.OutIdx != TEdge.skip
+          result.next.outIndex != TEdge.skip
         ) {
           //nb: at the top of a bound, horizontals are added to the bound
           //only when the preceding edge attaches to the horizontal's left vertex
           //unless a Skip edge is encountered when that becomes the top divide
           hEdge = result;
 
-          while (hEdge.Prev.deltaX == TEdge.horizontal) {
-            hEdge = hEdge.Prev;
+          while (hEdge.prev.deltaX == TEdge.horizontal) {
+            hEdge = hEdge.prev;
           }
 
-          if (hEdge.Prev.Top.X == result.Next.Top.X) {
+          if (hEdge.prev.top.x == result.next.top.x) {
             if (!isClockwise) {
-              result = hEdge.Prev;
+              result = hEdge.prev;
             }
-          } else if (hEdge.Prev.Top.X > result.Next.Top.X) {
-            result = hEdge.Prev;
+          } else if (hEdge.prev.top.x > result.next.top.x) {
+            result = hEdge.prev;
           }
         }
 
         while (edge != result) {
-          edge.NextInLML = edge.Next;
+          edge.nextInLML = edge.next;
 
           if (
             edge.deltaX == TEdge.horizontal &&
             edge != startEdge &&
-            edge.Bot.X != edge.Prev.Top.X
+            edge.bottom.x != edge.prev.top.x
           ) {
             edge.reverseHorizontal();
           }
 
-          edge = edge.Next;
+          edge = edge.next;
         }
 
         if (
           edge.deltaX == TEdge.horizontal &&
           edge != startEdge &&
-          edge.Bot.X != edge.Prev.Top.X
+          edge.bottom.x != edge.prev.top.x
         ) {
           edge.reverseHorizontal();
         }
 
-        result = result.Next;
-        //move to the edge just beyond current bound
+        result = result.next;
       } else {
         while (
-          result.Top.Y == result.Prev.Bot.Y &&
-          result.Prev.OutIdx != TEdge.skip
+          result.top.y == result.prev.bottom.y &&
+          result.prev.outIndex != TEdge.skip
         )
-          result = result.Prev;
+          result = result.prev;
         if (
           result.deltaX == TEdge.horizontal &&
-          result.Prev.OutIdx != TEdge.skip
+          result.prev.outIndex != TEdge.skip
         ) {
           hEdge = result;
 
-          while (hEdge.Next.deltaX == TEdge.horizontal) {
-            hEdge = hEdge.Next;
+          while (hEdge.next.deltaX == TEdge.horizontal) {
+            hEdge = hEdge.next;
           }
 
-          if (hEdge.Next.Top.X == result.Prev.Top.X) {
+          if (hEdge.next.top.x == result.prev.top.x) {
             if (!isClockwise) {
-              result = hEdge.Next;
+              result = hEdge.next;
             }
-          } else if (hEdge.Next.Top.X > result.Prev.Top.X) {
-            result = hEdge.Next;
+          } else if (hEdge.next.top.x > result.prev.top.x) {
+            result = hEdge.next;
           }
         }
 
         while (edge != result) {
-          edge.NextInLML = edge.Prev;
+          edge.nextInLML = edge.prev;
 
           if (
             edge.deltaX == TEdge.horizontal &&
             edge != startEdge &&
-            edge.Bot.X != edge.Next.Top.X
+            edge.bottom.x != edge.next.top.x
           ) {
             edge.reverseHorizontal();
           }
-          edge = edge.Prev;
+          edge = edge.prev;
         }
 
         if (
           edge.deltaX == TEdge.horizontal &&
           edge != startEdge &&
-          edge.Bot.X != edge.Next.Top.X
+          edge.bottom.x != edge.next.top.x
         ) {
           edge.reverseHorizontal();
         }
-        result = result.Prev;
+        result = result.prev;
         //move to the edge just beyond current bound
       }
     }
 
-    if (result.OutIdx == TEdge.skip) {
+    if (result.outIndex == TEdge.skip) {
       //if edges still remain in the current bound beyond the skip edge then
       //create another LocMin and call ProcessBound once more
       edge = result;
 
       if (isClockwise) {
-        while (edge.Top.Y == edge.Next.Bot.Y) {
-          edge = edge.Next;
+        while (edge.top.y == edge.next.bottom.y) {
+          edge = edge.next;
         }
         //don't include top horizontals when parsing a bound a second time,
         //they will be contained in the opposite bound ...
         while (edge != result && edge.deltaX == TEdge.horizontal) {
-          edge = edge.Prev;
+          edge = edge.prev;
         }
       } else {
-        while (edge.Top.Y == edge.Prev.Bot.Y) {
-          edge = edge.Prev;
+        while (edge.top.y == edge.prev.bottom.y) {
+          edge = edge.prev;
         }
 
         while (edge != result && edge.deltaX == TEdge.horizontal) {
-          edge = edge.Next;
+          edge = edge.next;
         }
       }
       if (edge == result) {
-        result = isClockwise ? edge.Next : edge.Prev;
+        result = isClockwise ? edge.next : edge.prev;
       } else {
         //there are more edges in the bound beyond result starting with E
 
-        edge = isClockwise ? result.Next : result.Prev;
+        edge = isClockwise ? result.next : result.prev;
 
-        locMin = new LocalMinima(edge.Bot.Y, null, edge);
-        locMin.right.WindDelta = 0;
+        locMin = new LocalMinima(edge.bottom.y, null, edge);
+        locMin.right.windDelta = 0;
         result = this.processBound(locMin.right, isClockwise);
 
         this.insert(locMin);

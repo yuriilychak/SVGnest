@@ -156,10 +156,10 @@ export default function placePaths(
         for (k = 0; k < nfp.length; ++k) {
           clone = toClipperCoordinates(nfp.at(k));
           for (m = 0; m < clone.length; ++m) {
-            clone.at(m).X =
-              (clone.at(m).X + placements.at(j).x) * env.config.clipperScale;
-            clone.at(m).Y =
-              (clone.at(m).Y + placements.at(j).y) * env.config.clipperScale;
+            clone.at(m).x =
+              (clone.at(m).x + placements.at(j).x) * env.config.clipperScale;
+            clone.at(m).y =
+              (clone.at(m).y + placements.at(j).y) * env.config.clipperScale;
           }
 
           clone = Clipper.cleanPolygon(clone, cleanTrashold);

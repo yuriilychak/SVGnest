@@ -30,7 +30,7 @@ function orientation(poly: IntPoint[]): boolean {
   for (i = 0; i < pointCount; ++i) {
     currentPoint = poly[i];
     prevPoint = poly[(i + pointCount - 1) % pointCount];
-    result += (prevPoint.X + currentPoint.X) * (prevPoint.Y - currentPoint.Y);
+    result += (prevPoint.x + currentPoint.x) * (prevPoint.y - currentPoint.y);
   }
 
   return result >= 0;

@@ -10,32 +10,32 @@ export default class IntPoint {
   }
 
   public set(point: IntPoint): IntPoint {
-    this.X = point.X;
-    this.Y = point.Y;
+    this.x = point.x;
+    this.y = point.y;
 
     return this;
   }
 
   public sub(point: IntPoint): IntPoint {
-    this.X -= point.X;
-    this.Y -= point.Y;
+    this.x -= point.x;
+    this.y -= point.y;
 
     return this;
   }
 
   public update(x: number, y: number): IntPoint {
-    this.X = x;
-    this.Y = y;
+    this.x = x;
+    this.y = y;
 
     return this;
   }
 
   public equal(point: IntPoint): boolean {
-    return this.X === point.X && this.Y === point.Y;
+    return this.x === point.x && this.y === point.y;
   }
 
   public cross(point: IntPoint): number {
-    return this.Y * point.X - this.X * point.Y;
+    return this.y * point.x - this.x * point.y;
   }
 
   public slopesNearCollinear(
@@ -53,10 +53,10 @@ export default class IntPoint {
   //perpendicular distance of point (x�,y�) = (Ax� + By� + C)/Sqrt(A� + B�)
   //see http://en.wikipedia.org/wiki/Perpendicular_distance
   public distanceFromLineSqrd(point1: IntPoint, point2: IntPoint): number {
-    const a: number = point1.Y - point2.Y;
-    const b: number = point2.X - point1.X;
-    let c: number = a * point1.X + b * point1.Y;
-    c = a * this.X + b * this.Y - c;
+    const a: number = point1.y - point2.y;
+    const b: number = point2.x - point1.x;
+    let c: number = a * point1.x + b * point1.y;
+    c = a * this.x + b * this.y - c;
 
     return (c * c) / (a * a + b * b);
   }
@@ -64,15 +64,15 @@ export default class IntPoint {
   public between(point1: IntPoint, point2: IntPoint): boolean {
     if (point1.equal(point2) || this.equal(point1) || this.equal(point2)) {
       return false;
-    } else if (point1.X != point2.X) {
-      return this.X > point1.X == this.X < point2.X;
+    } else if (point1.x != point2.x) {
+      return this.x > point1.x == this.x < point2.x;
     } else {
-      return this.Y > point1.Y == this.Y < point2.Y;
+      return this.y > point1.y == this.y < point2.y;
     }
   }
 
   public rangeTest(isFullRange: boolean): boolean {
-    const maxValue: number = Math.max(Math.abs(this.X), Math.abs(this.Y));
+    const maxValue: number = Math.max(Math.abs(this.x), Math.abs(this.y));
 
     if (!isFullRange && maxValue > IntPoint._lowRange) {
       return this.rangeTest(true);
@@ -85,37 +85,37 @@ export default class IntPoint {
     return isFullRange;
   }
 
-  public get X(): number {
+  public get x(): number {
     return this._data[0];
   }
 
-  public set X(value: number) {
+  public set x(value: number) {
     this._data[0] = value;
   }
 
-  public get Y(): number {
+  public get y(): number {
     return this._data[1];
   }
-  public set Y(value: number) {
+  public set y(value: number) {
     this._data[1] = value;
   }
 
   public get isEmpty(): boolean {
-    return this.X === 0 && this.Y === 0;
+    return this.x === 0 && this.y === 0;
   }
 
   //return a == b;
   public static equal(a: IntPoint, b: IntPoint): boolean {
-    return a.X == b.X && a.Y == b.Y;
+    return a.x == b.x && a.y == b.y;
   }
 
   //return a != b;
   public static unequal(a: IntPoint, b: IntPoint): boolean {
-    return a.X != b.X || a.Y != b.Y;
+    return a.x != b.x || a.y != b.y;
   }
 
   public static from(point: IntPoint): IntPoint {
-    return new IntPoint(point.X, point.Y);
+    return new IntPoint(point.x, point.y);
   }
 
   public static sub(point1: IntPoint, point2: IntPoint): IntPoint {
@@ -137,13 +137,13 @@ export default class IntPoint {
     // function (pt1, pt2, pt3, UseFullRange)
     if (isFullRange)
       return Int128.op_Equality(
-        Int128.Int128Mul(pt1.Y - pt2.Y, pt2.X - pt3.X),
-        Int128.Int128Mul(pt1.X - pt2.X, pt2.Y - pt3.Y)
+        Int128.Int128Mul(pt1.y - pt2.y, pt2.x - pt3.x),
+        Int128.Int128Mul(pt1.x - pt2.x, pt2.y - pt3.y)
       );
     else
       return (
-        IntPoint.castInt64((pt1.Y - pt2.Y) * (pt2.X - pt3.X)) -
-          IntPoint.castInt64((pt1.X - pt2.X) * (pt2.Y - pt3.Y)) ===
+        IntPoint.castInt64((pt1.y - pt2.y) * (pt2.x - pt3.x)) -
+          IntPoint.castInt64((pt1.x - pt2.x) * (pt2.y - pt3.y)) ===
         0
       );
   }
@@ -153,15 +153,15 @@ export default class IntPoint {
     point2: IntPoint,
     distSqrd: number
   ): boolean {
-    const dx: number = point1.X - point2.X;
-    const dy: number = point1.Y - point2.Y;
+    const dx: number = point1.x - point2.x;
+    const dy: number = point1.y - point2.y;
 
     return dx * dx + dy * dy <= distSqrd;
   }
 
   public static deltaX(pt1: IntPoint, pt2: IntPoint) {
-    if (pt1.Y == pt2.Y) return Number.MIN_SAFE_INTEGER;
-    else return (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
+    if (pt1.y == pt2.y) return Number.MIN_SAFE_INTEGER;
+    else return (pt2.x - pt1.x) / (pt2.y - pt1.y);
   }
 
   private static _lowRange: number = 47453132; // sqrt(2^53 -1)/2

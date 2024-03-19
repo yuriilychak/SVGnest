@@ -26,21 +26,20 @@ export default class Join {
     let op2: OutPt = this.pointer2;
     let op1b: OutPt = new OutPt();
     let op2b: OutPt = new OutPt();
-    const isHorizontal: boolean = this.pointer1.point.Y == this.point.Y;
+    const isHorizontal: boolean = this.pointer1.point.y == this.point.y;
 
     if (
       isHorizontal &&
       this.point.equal(this.pointer1.point) &&
       this.point.equal(this.pointer2.point)
     ) {
-      //Strictly Simple join ...
       op1b = this.pointer1.next;
 
       while (op1b != op1 && this.point.equal(op1b.point)) {
         op1b = op1b.next;
       }
 
-      const reverse1: boolean = op1b.point.Y > this.point.Y;
+      const reverse1: boolean = op1b.point.y > this.point.y;
 
       op2b = this.pointer2.next;
 
@@ -48,7 +47,7 @@ export default class Join {
         op2b = op2b.next;
       }
 
-      const reverse2: boolean = op2b.point.Y > this.point.Y;
+      const reverse2: boolean = op2b.point.y > this.point.y;
 
       if (reverse1 == reverse2) {
         return false;
@@ -69,7 +68,7 @@ export default class Join {
       op1b = op1;
 
       while (
-        op1.prev.point.Y == op1.point.Y &&
+        op1.prev.point.y == op1.point.y &&
         op1.prev != op1b &&
         op1.prev != op2
       ) {
@@ -77,7 +76,7 @@ export default class Join {
       }
 
       while (
-        op1b.next.point.Y == op1b.point.Y &&
+        op1b.next.point.y == op1b.point.y &&
         op1b.next != op1 &&
         op1b.next != op2
       ) {
@@ -91,7 +90,7 @@ export default class Join {
       op2b = op2;
 
       while (
-        op2.prev.point.Y == op2.point.Y &&
+        op2.prev.point.y == op2.point.y &&
         op2.prev != op2b &&
         op2.prev != op1b
       ) {
@@ -99,7 +98,7 @@ export default class Join {
       }
 
       while (
-        op2b.next.point.Y == op2b.point.Y &&
+        op2b.next.point.y == op2b.point.y &&
         op2b.next != op2 &&
         op2b.next != op1
       ) {
@@ -113,10 +112,10 @@ export default class Join {
       //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
       const overlap: number[] = Join._getOverlap(
-        op1.point.X,
-        op1b.point.X,
-        op2.point.X,
-        op2b.point.X
+        op1.point.x,
+        op1b.point.x,
+        op2.point.x,
+        op2b.point.x
       );
 
       const left: number = overlap[0];
@@ -132,22 +131,22 @@ export default class Join {
       const point: IntPoint = new IntPoint();
       let isDiscardLeftSide: boolean;
 
-      if (op1.point.X >= left && op1.point.X <= right) {
+      if (op1.point.x >= left && op1.point.x <= right) {
         //Pt = op1.Pt;
         point.set(op1.point);
-        isDiscardLeftSide = op1.point.X > op1b.point.X;
-      } else if (op2.point.X >= left && op2.point.X <= right) {
+        isDiscardLeftSide = op1.point.x > op1b.point.x;
+      } else if (op2.point.x >= left && op2.point.x <= right) {
         //Pt = op2.Pt;
         point.set(op2.point);
-        isDiscardLeftSide = op2.point.X > op2b.point.X;
-      } else if (op1b.point.X >= left && op1b.point.X <= right) {
+        isDiscardLeftSide = op2.point.x > op2b.point.x;
+      } else if (op1b.point.x >= left && op1b.point.x <= right) {
         //Pt = op1b.Pt;
         point.set(op1b.point);
-        isDiscardLeftSide = op1b.point.X > op1.point.X;
+        isDiscardLeftSide = op1b.point.x > op1.point.x;
       } else {
         //Pt = op2b.Pt;
         point.set(op2b.point);
-        isDiscardLeftSide = op2b.point.X > op2.point.X;
+        isDiscardLeftSide = op2b.point.x > op2.point.x;
       }
 
       this.pointer1 = op1;
@@ -163,7 +162,7 @@ export default class Join {
     }
 
     const reverse1: boolean =
-      op1b.point.Y > op1.point.Y ||
+      op1b.point.y > op1.point.y ||
       !IntPoint.slopesEqual(op1.point, op1b.point, this.point, isUseFullRange);
 
     if (reverse1) {
@@ -174,7 +173,7 @@ export default class Join {
       }
 
       if (
-        op1b.point.Y > op1.point.Y ||
+        op1b.point.y > op1.point.y ||
         !IntPoint.slopesEqual(op1.point, op1b.point, this.point, isUseFullRange)
       )
         return false;
@@ -187,7 +186,7 @@ export default class Join {
     }
 
     const reverse2: boolean =
-      op2b.point.Y > op2.point.Y ||
+      op2b.point.y > op2.point.y ||
       !IntPoint.slopesEqual(op2.point, op2b.point, this.point, isUseFullRange);
 
     if (reverse2) {
@@ -198,7 +197,7 @@ export default class Join {
       }
 
       if (
-        op2b.point.Y > op2.point.Y ||
+        op2b.point.y > op2.point.y ||
         !IntPoint.slopesEqual(op2.point, op2b.point, this.point, isUseFullRange)
       ) {
         return false;
@@ -253,7 +252,7 @@ export default class Join {
     point: IntPoint,
     isDiscardLeft: boolean
   ): boolean {
-    if (op1.point.X > op1b.point.X === op2.point.X > op2b.point.X) {
+    if (op1.point.x > op1b.point.x === op2.point.x > op2b.point.x) {
       return false;
     }
     //When DiscardLeft, we want Op1b to be on the Left of Op1, otherwise we
@@ -262,7 +261,7 @@ export default class Join {
     //when DiscardLeft, make sure we're AT or RIGHT of Pt before adding Op1b,
     //otherwise make sure we're AT or LEFT of Pt. (Likewise with Op2b.)
     let pointers: OutPt[];
-    const reverse: boolean = op1.point.X <= op1b.point.X === isDiscardLeft;
+    const reverse: boolean = op1.point.x <= op1b.point.x === isDiscardLeft;
 
     pointers = Join._updatePointers(op1, point, reverse);
 
@@ -288,15 +287,15 @@ export default class Join {
     let nextPoint: IntPoint = primaryPtr.next.point;
 
     while (
-      nextPoint.X <= point.X &&
-      nextPoint.X >= primaryPtr.point.X &&
-      nextPoint.Y == point.Y
+      nextPoint.x <= point.x &&
+      nextPoint.x >= primaryPtr.point.x &&
+      nextPoint.y == point.y
     ) {
       primaryPtr = primaryPtr.next;
       nextPoint = primaryPtr.next.point;
     }
 
-    if (isDiscardLeft && primaryPtr.point.X != point.X) {
+    if (isDiscardLeft && primaryPtr.point.x != point.x) {
       primaryPtr = primaryPtr.next;
     }
 

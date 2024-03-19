@@ -58,11 +58,8 @@ export default class IntersectStore {
     if (this._activeEdge.isEmpty) {
       return;
     }
-    //prepare for sorting ...
-    let edge: TEdge = this._sortedEdge.update(this._activeEdge.source, topY);
-    //console.log(JSON.stringify(JSON.decycle( e )));
 
-    //bubblesort ...
+    let edge: TEdge = this._sortedEdge.update(this._activeEdge.source, topY);
     let isModified: boolean = true;
     let point: IntPoint;
     let nextEdge: TEdge;
@@ -72,21 +69,19 @@ export default class IntersectStore {
       isModified = false;
       edge = this._sortedEdge.source;
 
-      while (edge.NextInSEL !== null) {
-        nextEdge = edge.NextInSEL;
+      while (edge.nextInSEL !== null) {
+        nextEdge = edge.nextInSEL;
         point = new IntPoint();
-        //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-        if (edge.Curr.X > nextEdge.Curr.X) {
+
+        if (edge.current.x > nextEdge.current.x) {
           if (
             !TEdge.intersectPoint(edge, nextEdge, point, useFullRange) &&
-            edge.Curr.X > nextEdge.Curr.X + 1
+            edge.current.x > nextEdge.current.x + 1
           ) {
-            //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
-            //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
             console.error("Intersection error");
           }
 
-          if (point.Y > botY) {
+          if (point.y > botY) {
             point.update(
               Math.abs(edge.deltaX) > Math.abs(nextEdge.deltaX)
                 ? nextEdge.topX(botY)
@@ -103,8 +98,8 @@ export default class IntersectStore {
         } else edge = nextEdge;
       }
 
-      if (edge.PrevInSEL !== null) {
-        edge.PrevInSEL.NextInSEL = null;
+      if (edge.prevInSEL !== null) {
+        edge.prevInSEL.nextInSEL = null;
       } else {
         break;
       }
@@ -119,20 +114,15 @@ export default class IntersectStore {
     isProtected: boolean,
     useFullRange: boolean
   ): void {
-    //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
-    //e2 in AEL except when e1 is being inserted at the intersection point ...
     const e1stops: boolean =
-      !isProtected && edge1.NextInLML === null && edge1.Top.equal(point);
+      !isProtected && edge1.nextInLML === null && edge1.top.equal(point);
     const e2stops: boolean =
-      !isProtected && edge2.NextInLML === null && edge2.Top.equal(point);
-    const e1Contributing: boolean = edge1.OutIdx >= 0;
-    const e2Contributing: boolean = edge2.OutIdx >= 0;
+      !isProtected && edge2.nextInLML === null && edge2.top.equal(point);
+    const e1Contributing: boolean = edge1.outIndex >= 0;
+    const e2Contributing: boolean = edge2.outIndex >= 0;
 
-    //if either edge is on an OPEN path ...
-    if (edge1.WindDelta === 0 || edge2.WindDelta === 0) {
-      //ignore subject-subject open path intersections UNLESS they
-      //are both open paths, AND they are both 'contributing maximas' ...
-      if (edge1.WindDelta === 0 && edge2.WindDelta === 0) {
+    if (edge1.windDelta === 0 || edge2.windDelta === 0) {
+      if (edge1.windDelta === 0 && edge2.windDelta === 0) {
         if ((e1stops || e2stops) && e1Contributing && e2Contributing)
           this._outPolygon.addLocalMaxPoly(
             edge1,
@@ -140,50 +130,48 @@ export default class IntersectStore {
             point,
             this._activeEdge.source
           );
-      }
-      //if intersecting a subj line with a subj poly ...
-      else if (
-        edge1.PolyTyp == edge2.PolyTyp &&
-        edge1.WindDelta != edge2.WindDelta &&
+      } else if (
+        edge1.polyType == edge2.polyType &&
+        edge1.windDelta != edge2.windDelta &&
         this._clipType == ClipType.Union
       ) {
-        if (edge1.WindDelta === 0) {
+        if (edge1.windDelta === 0) {
           if (e2Contributing) {
             this._outPolygon.addOutPt(edge1, point);
-            if (e1Contributing) edge1.OutIdx = -1;
+            if (e1Contributing) edge1.outIndex = -1;
           }
         } else {
           if (e1Contributing) {
             this._outPolygon.addOutPt(edge2, point);
             if (e2Contributing) {
-              edge2.OutIdx = -1;
+              edge2.outIndex = -1;
             }
           }
         }
-      } else if (edge1.PolyTyp != edge2.PolyTyp) {
+      } else if (edge1.polyType != edge2.polyType) {
         if (
-          edge1.WindDelta === 0 &&
-          Math.abs(edge2.WindCnt) == 1 &&
-          (this._clipType != ClipType.Union || edge2.WindCnt2 === 0)
+          edge1.windDelta === 0 &&
+          Math.abs(edge2.windCount1) == 1 &&
+          (this._clipType != ClipType.Union || edge2.windCnt2 === 0)
         ) {
           this._outPolygon.addOutPt(edge1, point);
           if (e1Contributing) {
-            edge1.OutIdx = -1;
+            edge1.outIndex = -1;
           }
         } else if (
-          edge2.WindDelta === 0 &&
-          Math.abs(edge1.WindCnt) == 1 &&
-          (this._clipType != ClipType.Union || edge1.WindCnt2 === 0)
+          edge2.windDelta === 0 &&
+          Math.abs(edge1.windCount1) == 1 &&
+          (this._clipType != ClipType.Union || edge1.windCnt2 === 0)
         ) {
           this._outPolygon.addOutPt(edge2, point);
           if (e2Contributing) {
-            edge2.OutIdx = -1;
+            edge2.outIndex = -1;
           }
         }
       }
 
       if (e1stops) {
-        if (edge1.OutIdx < 0) {
+        if (edge1.outIndex < 0) {
           this._activeEdge.delete(edge1);
         } else {
           console.error("Error intersecting polylines");
@@ -191,7 +179,7 @@ export default class IntersectStore {
       }
 
       if (e2stops) {
-        if (edge2.OutIdx < 0) {
+        if (edge2.outIndex < 0) {
           this._activeEdge.delete(edge2);
         } else {
           console.error("Error intersecting polylines");
@@ -200,28 +188,28 @@ export default class IntersectStore {
       return;
     }
 
-    if (edge1.PolyTyp == edge2.PolyTyp) {
+    if (edge1.polyType == edge2.polyType) {
       if (edge1.isEvenOddFillType(this._subjFillType, this._clipFillType)) {
-        const oldE1WindCnt: number = edge1.WindCnt;
-        edge1.WindCnt = edge2.WindCnt;
-        edge2.WindCnt = oldE1WindCnt;
+        const oldE1WindCnt: number = edge1.windCount1;
+        edge1.windCount1 = edge2.windCount1;
+        edge2.windCount1 = oldE1WindCnt;
       } else {
-        edge1.WindCnt =
-          edge1.WindCnt === -edge2.WindDelta
-            ? -edge1.WindCnt
-            : edge1.WindCnt + edge2.WindDelta;
-        edge2.WindCnt =
-          edge2.WindCnt === edge1.WindDelta
-            ? -edge2.WindCnt
-            : edge2.WindCnt - edge1.WindDelta;
+        edge1.windCount1 =
+          edge1.windCount1 === -edge2.windDelta
+            ? -edge1.windCount1
+            : edge1.windCount1 + edge2.windDelta;
+        edge2.windCount1 =
+          edge2.windCount1 === edge1.windDelta
+            ? -edge2.windCount1
+            : edge2.windCount1 - edge1.windDelta;
       }
     } else {
       if (!edge2.isEvenOddFillType(this._subjFillType, this._clipFillType))
-        edge1.WindCnt2 += edge2.WindDelta;
-      else edge1.WindCnt2 = edge1.WindCnt2 === 0 ? 1 : 0;
+        edge1.windCnt2 += edge2.windDelta;
+      else edge1.windCnt2 = edge1.windCnt2 === 0 ? 1 : 0;
       if (!edge1.isEvenOddFillType(this._subjFillType, this._clipFillType))
-        edge2.WindCnt2 -= edge1.WindDelta;
-      else edge2.WindCnt2 = edge2.WindCnt2 === 0 ? 1 : 0;
+        edge2.windCnt2 -= edge1.windDelta;
+      else edge2.windCnt2 = edge2.windCnt2 === 0 ? 1 : 0;
     }
 
     const e1Wc: number = edge1.alignWindCount(
@@ -241,7 +229,7 @@ export default class IntersectStore {
         e2stops ||
         (e1Wc !== 0 && e1Wc != 1) ||
         (e2Wc !== 0 && e2Wc != 1) ||
-        (edge1.PolyTyp != edge2.PolyTyp && this._clipType != ClipType.Xor)
+        (edge1.polyType != edge2.polyType && this._clipType != ClipType.Xor)
       )
         this._outPolygon.addLocalMaxPoly(
           edge1,
@@ -270,7 +258,7 @@ export default class IntersectStore {
       !e1stops &&
       !e2stops
     ) {
-      if (edge1.PolyTyp != edge2.PolyTyp) {
+      if (edge1.polyType != edge2.polyType) {
         this._addLocalMinPoly(edge1, edge2, point, useFullRange);
       } else if (e1Wc == 1 && e2Wc == 1) {
         const e1Wc2: number = edge1.alignWindCount(
@@ -297,8 +285,8 @@ export default class IntersectStore {
             break;
           case ClipType.Difference:
             if (
-              (edge1.PolyTyp == PolyType.Clip && e1Wc2 > 0 && e2Wc2 > 0) ||
-              (edge1.PolyTyp == PolyType.Subject && e1Wc2 <= 0 && e2Wc2 <= 0)
+              (edge1.polyType == PolyType.Clip && e1Wc2 > 0 && e2Wc2 > 0) ||
+              (edge1.polyType == PolyType.Subject && e1Wc2 <= 0 && e2Wc2 <= 0)
             ) {
               this._addLocalMinPoly(edge1, edge2, point, useFullRange);
             }
@@ -314,7 +302,7 @@ export default class IntersectStore {
 
     if (
       e1stops != e2stops &&
-      ((e1stops && edge1.OutIdx >= 0) || (e2stops && edge2.OutIdx >= 0))
+      ((e1stops && edge1.outIndex >= 0) || (e2stops && edge2.outIndex >= 0))
     ) {
       edge1.swapPolyIndices(edge2);
     }
@@ -337,13 +325,13 @@ export default class IntersectStore {
       intersectNode = this._intersections[i];
 
       this._intersectEdges(
-        intersectNode.Edge1,
-        intersectNode.Edge2,
-        intersectNode.Pt,
+        intersectNode.edge1,
+        intersectNode.edge2,
+        intersectNode.point,
         true,
         useFullRange
       );
-      this._activeEdge.swap(intersectNode.Edge1, intersectNode.Edge2);
+      this._activeEdge.swap(intersectNode.edge1, intersectNode.edge2);
     }
 
     this._intersections.length = 0;
@@ -424,102 +412,100 @@ export default class IntersectStore {
     const secondaryEdge: TEdge = condition ? edge2 : edge1;
     let result: OutPt = this._outPolygon.addOutPt(primaryEdge, point);
 
-    secondaryEdge.OutIdx = primaryEdge.OutIdx;
-    primaryEdge.Side = EdgeSide.Left;
-    secondaryEdge.Side = EdgeSide.Right;
+    secondaryEdge.outIndex = primaryEdge.outIndex;
+    primaryEdge.side = EdgeSide.Left;
+    secondaryEdge.side = EdgeSide.Right;
 
     let edge: TEdge = primaryEdge;
     let prevEdge: TEdge =
-      edge.PrevInAEL == secondaryEdge
-        ? secondaryEdge.PrevInAEL
-        : edge.PrevInAEL;
+      edge.prevInAEL == secondaryEdge
+        ? secondaryEdge.prevInAEL
+        : edge.prevInAEL;
 
     if (
       prevEdge !== null &&
       prevEdge.isValid &&
-      prevEdge.topX(point.Y) == edge.topX(point.Y) &&
+      prevEdge.topX(point.y) == edge.topX(point.y) &&
       TEdge.slopesEqual(edge, prevEdge, useFullRange) &&
-      edge.WindDelta !== 0
+      edge.windDelta !== 0
     ) {
       var outPt = this._outPolygon.addOutPt(prevEdge, point);
-      this._joinStore.add(result, outPt, edge.Top);
+      this._joinStore.add(result, outPt, edge.top);
     }
 
     return result;
   }
 
   private _setWindingCount(edge: TEdge): void {
-    let edge1: TEdge = edge.PrevInAEL;
-    //find the edge of the same polytype that immediately preceeds 'edge' in AEL
+    let edge1: TEdge = edge.prevInAEL;
+
     while (
       edge1 !== null &&
-      (edge1.PolyTyp != edge.PolyTyp || edge1.WindDelta === 0)
+      (edge1.polyType != edge.polyType || edge1.windDelta === 0)
     ) {
-      edge1 = edge1.PrevInAEL;
+      edge1 = edge1.prevInAEL;
     }
 
     if (edge1 === null) {
-      edge.WindCnt = edge.WindDelta === 0 ? 1 : edge.WindDelta;
-      edge.WindCnt2 = 0;
+      edge.windCount1 = edge.windDelta === 0 ? 1 : edge.windDelta;
+      edge.windCnt2 = 0;
       edge1 = this._activeEdge.source;
-    } else if (edge.WindDelta === 0 && this._clipType != ClipType.Union) {
-      edge.WindCnt = 1;
-      edge.WindCnt2 = edge1.WindCnt2;
-      edge1 = edge1.NextInAEL;
+    } else if (edge.windDelta === 0 && this._clipType != ClipType.Union) {
+      edge.windCount1 = 1;
+      edge.windCnt2 = edge1.windCnt2;
+      edge1 = edge1.nextInAEL;
     } else if (edge.isEvenOddFillType(this._subjFillType, this._clipFillType)) {
-      if (edge.WindDelta === 0) {
+      if (edge.windDelta === 0) {
         let isInside: boolean = true;
-        let edge2: TEdge = edge1.PrevInAEL;
+        let edge2: TEdge = edge1.prevInAEL;
 
         while (edge2 !== null) {
-          if (edge2.PolyTyp == edge1.PolyTyp && edge2.WindDelta !== 0) {
+          if (edge2.polyType == edge1.polyType && edge2.windDelta !== 0) {
             isInside = !isInside;
           }
-          edge2 = edge2.PrevInAEL;
+          edge2 = edge2.prevInAEL;
         }
-        edge.WindCnt = isInside ? 0 : 1;
+        edge.windCount1 = isInside ? 0 : 1;
       } else {
-        edge.WindCnt = edge.WindDelta;
+        edge.windCount1 = edge.windDelta;
       }
-      edge.WindCnt2 = edge1.WindCnt2;
-      edge1 = edge1.NextInAEL;
+      edge.windCnt2 = edge1.windCnt2;
+      edge1 = edge1.nextInAEL;
     } else {
-      if (edge1.WindCnt * edge1.WindDelta < 0) {
-        if (Math.abs(edge1.WindCnt) > 1) {
-          edge.WindCnt =
-            edge1.WindDelta * edge.WindDelta < 0
-              ? edge1.WindCnt
-              : edge1.WindCnt + edge.WindDelta;
+      if (edge1.windCount1 * edge1.windDelta < 0) {
+        if (Math.abs(edge1.windCount1) > 1) {
+          edge.windCount1 =
+            edge1.windDelta * edge.windDelta < 0
+              ? edge1.windCount1
+              : edge1.windCount1 + edge.windDelta;
         } else {
-          edge.WindCnt = edge.WindDelta === 0 ? 1 : edge.WindDelta;
+          edge.windCount1 = edge.windDelta === 0 ? 1 : edge.windDelta;
         }
       } else {
-        //prev edge is 'increasing' WindCount (WC) away from zero
-        //so we're inside the previous polygon ...
-        if (edge.WindDelta === 0) {
-          edge.WindCnt =
-            edge1.WindCnt < 0 ? edge1.WindCnt - 1 : edge1.WindCnt + 1;
+        if (edge.windDelta === 0) {
+          edge.windCount1 =
+            edge1.windCount1 < 0 ? edge1.windCount1 - 1 : edge1.windCount1 + 1;
         } else {
-          edge.WindCnt =
-            edge1.WindDelta * edge.WindDelta < 0
-              ? edge1.WindCnt
-              : edge1.WindCnt + edge.WindDelta;
+          edge.windCount1 =
+            edge1.windDelta * edge.windDelta < 0
+              ? edge1.windCount1
+              : edge1.windCount1 + edge.windDelta;
         }
       }
 
-      edge.WindCnt2 = edge1.WindCnt2;
-      edge1 = edge1.NextInAEL;
+      edge.windCnt2 = edge1.windCnt2;
+      edge1 = edge1.nextInAEL;
     }
 
     if (edge.isEvenOddFillType(this._clipFillType, this._subjFillType)) {
       while (edge1 != edge) {
-        if (edge1.WindDelta !== 0) edge.WindCnt2 = edge.WindCnt2 === 0 ? 1 : 0;
-        edge1 = edge1.NextInAEL;
+        if (edge1.windDelta !== 0) edge.windCnt2 = edge.windCnt2 === 0 ? 1 : 0;
+        edge1 = edge1.nextInAEL;
       }
     } else {
       while (edge1 != edge) {
-        edge.WindCnt2 += edge1.WindDelta;
-        edge1 = edge1.NextInAEL;
+        edge.windCnt2 += edge1.windDelta;
+        edge1 = edge1.nextInAEL;
       }
     }
   }
@@ -539,8 +525,8 @@ export default class IntersectStore {
     this._setWindingCount(edge1);
 
     if (hasSecondEdge) {
-      edge2.WindCnt = edge1.WindCnt;
-      edge2.WindCnt2 = edge1.WindCnt2;
+      edge2.windCount1 = edge1.windCount1;
+      edge2.windCnt2 = edge1.windCnt2;
     }
 
     if (
@@ -554,8 +540,8 @@ export default class IntersectStore {
     }
 
     return hasSecondEdge
-      ? this._addLocalMinPoly(edge1, edge2, edge1.Bot, useFullRange)
-      : this._outPolygon.addOutPt(edge1, edge1.Bot);
+      ? this._addLocalMinPoly(edge1, edge2, edge1.bottom, useFullRange)
+      : this._outPolygon.addOutPt(edge1, edge1.bottom);
   }
 
   public insertLocalMinimaIntoAEL(
@@ -576,13 +562,13 @@ export default class IntersectStore {
     let outPt2: OutPt;
 
     if (!isLeftBoundEmpty) {
-      this._scanbeamStore.insert(leftBound.Top.Y);
+      this._scanbeamStore.insert(leftBound.top.y);
     }
 
     if (!isRightBoundEmpty) {
       if (rightBound.isHorizontal) {
         this._sortedEdge.add(rightBound);
-      } else this._scanbeamStore.insert(rightBound.Top.Y);
+      } else this._scanbeamStore.insert(rightBound.top.y);
     }
 
     if (isEmpty) {
@@ -593,40 +579,40 @@ export default class IntersectStore {
 
     if (
       leftBound.isValid &&
-      leftBound.PrevInAEL !== null &&
-      leftBound.PrevInAEL.Curr.X == leftBound.Bot.X &&
-      leftBound.PrevInAEL.isValid &&
-      TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, useFullRange)
+      leftBound.prevInAEL !== null &&
+      leftBound.prevInAEL.current.x == leftBound.bottom.x &&
+      leftBound.prevInAEL.isValid &&
+      TEdge.slopesEqual(leftBound.prevInAEL, leftBound, useFullRange)
     ) {
-      outPt2 = this._outPolygon.addOutPt(leftBound.PrevInAEL, leftBound.Bot);
-      this._joinStore.add(outPt1, outPt2, leftBound.Top);
+      outPt2 = this._outPolygon.addOutPt(leftBound.prevInAEL, leftBound.bottom);
+      this._joinStore.add(outPt1, outPt2, leftBound.top);
     }
-    if (leftBound.NextInAEL != rightBound) {
+    if (leftBound.nextInAEL != rightBound) {
       if (
         rightBound.isValid &&
-        rightBound.PrevInAEL.isValid &&
-        TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, useFullRange)
+        rightBound.prevInAEL.isValid &&
+        TEdge.slopesEqual(rightBound.prevInAEL, rightBound, useFullRange)
       ) {
         outPt2 = this._outPolygon.addOutPt(
-          rightBound.PrevInAEL,
-          rightBound.Bot
+          rightBound.prevInAEL,
+          rightBound.bottom
         );
-        this._joinStore.add(outPt1, outPt2, rightBound.Top);
+        this._joinStore.add(outPt1, outPt2, rightBound.top);
       }
 
-      let edge: TEdge = leftBound.NextInAEL;
+      let edge: TEdge = leftBound.nextInAEL;
 
       if (edge !== null)
         while (edge != rightBound) {
           this._intersectEdges(
             rightBound,
             edge,
-            leftBound.Curr,
+            leftBound.current,
             false,
             useFullRange
           );
 
-          edge = edge.NextInAEL;
+          edge = edge.nextInAEL;
         }
     }
   }
@@ -653,36 +639,36 @@ export default class IntersectStore {
       }
 
       if (isMaximaEdge) {
-        prev = edge.PrevInAEL;
+        prev = edge.prevInAEL;
         this._doMaxima(edge, useFullRange);
-        edge = prev === null ? this._activeEdge.source : prev.NextInAEL;
+        edge = prev === null ? this._activeEdge.source : prev.nextInAEL;
       } else {
         //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-        if (edge.isIntermediate(topY) && edge.NextInLML.isHorizontal) {
+        if (edge.isIntermediate(topY) && edge.nextInLML.isHorizontal) {
           edge = this._activeEdge.update(edge, this._scanbeamStore);
-          if (edge.OutIdx >= 0) {
-            this._outPolygon.addOutPt(edge, edge.Bot);
+          if (edge.outIndex >= 0) {
+            this._outPolygon.addOutPt(edge, edge.bottom);
           }
 
           this._sortedEdge.add(edge);
         } else {
-          edge.Curr.update(edge.topX(topY), topY);
+          edge.current.update(edge.topX(topY), topY);
         }
         if (strictlySimple) {
-          prev = edge.PrevInAEL;
+          prev = edge.prevInAEL;
 
           if (
             edge.isValid &&
             prev !== null &&
             prev.isValid &&
-            prev.Curr.X == edge.Curr.X
+            prev.current.x == edge.current.x
           ) {
-            outPt = this._outPolygon.addOutPt(prev, edge.Curr);
-            var op2 = this._outPolygon.addOutPt(edge, edge.Curr);
-            this._joinStore.add(outPt, op2, edge.Curr);
+            outPt = this._outPolygon.addOutPt(prev, edge.current);
+            var op2 = this._outPolygon.addOutPt(edge, edge.current);
+            this._joinStore.add(outPt, op2, edge.current);
           }
         }
-        edge = edge.NextInAEL;
+        edge = edge.nextInAEL;
       }
     }
 
@@ -694,8 +680,8 @@ export default class IntersectStore {
       if (edge.isIntermediate(topY)) {
         outPt = null;
 
-        if (edge.OutIdx >= 0) {
-          outPt = this._outPolygon.addOutPt(edge, edge.Top);
+        if (edge.outIndex >= 0) {
+          outPt = this._outPolygon.addOutPt(edge, edge.top);
         }
 
         edge = this._activeEdge.update(edge, this._scanbeamStore);
@@ -707,7 +693,7 @@ export default class IntersectStore {
         this._updateJoins(edge, outPt, useFullRange);
       }
 
-      edge = edge.NextInAEL;
+      edge = edge.nextInAEL;
     }
   }
 
@@ -729,10 +715,7 @@ export default class IntersectStore {
     isTopOfScanbeam: boolean,
     useFullRange: boolean
   ) {
-    let $var: HorizontalDirection = new HorizontalDirection(horzEdge);
-    let dir: Direction = $var.Dir;
-    let horzLeft: number = $var.Left;
-    let horzRight: number = $var.Right;
+    const dirData: HorizontalDirection = new HorizontalDirection(horzEdge);
     let lastHorzEdge: TEdge = horzEdge;
     let maxPairEdge: TEdge = null;
     let isLastHorz: boolean;
@@ -740,53 +723,46 @@ export default class IntersectStore {
     let nextEdge: TEdge;
 
     while (
-      lastHorzEdge.NextInLML !== null &&
-      lastHorzEdge.NextInLML.isHorizontal
+      lastHorzEdge.nextInLML !== null &&
+      lastHorzEdge.nextInLML.isHorizontal
     ) {
-      lastHorzEdge = lastHorzEdge.NextInLML;
+      lastHorzEdge = lastHorzEdge.nextInLML;
     }
 
-    if (lastHorzEdge.NextInLML === null) {
+    if (lastHorzEdge.nextInLML === null) {
       maxPairEdge = lastHorzEdge.getMaximaPair();
     }
 
     while (true) {
       isLastHorz = horzEdge == lastHorzEdge;
-      edge = horzEdge.getNextInAEL(dir);
+      edge = horzEdge.getNextInAEL(dirData.direction);
 
       while (edge !== null) {
-        //Break if we've got to the end of an intermediate horizontal edge ...
-        //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
         if (
-          edge.Curr.X === horzEdge.Top.X &&
-          horzEdge.NextInLML !== null &&
-          edge.deltaX < horzEdge.NextInLML.deltaX
+          edge.current.x === horzEdge.top.x &&
+          horzEdge.nextInLML !== null &&
+          edge.deltaX < horzEdge.nextInLML.deltaX
         ) {
           break;
         }
 
-        nextEdge = edge.getNextInAEL(dir);
+        nextEdge = edge.getNextInAEL(dirData.direction);
         //saves eNext for later
-        if (
-          (dir === Direction.LeftToRight && edge.Curr.X <= horzRight) ||
-          (dir === Direction.RightToLeft && edge.Curr.X >= horzLeft)
-        ) {
+        if (dirData.getIncluded(edge.current)) {
           this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);
 
-          const isLeft: boolean = dir === Direction.LeftToRight;
+          const isLeft: boolean = dirData.direction === Direction.LeftToRight;
           const edge1: TEdge = isLeft ? horzEdge : edge;
           const edge2: TEdge = isLeft ? edge : horzEdge;
           const isProtected = !(edge == maxPairEdge && isLastHorz);
           const point: IntPoint = isProtected
-            ? new IntPoint(edge.Curr.X, horzEdge.Curr.Y)
-            : edge.Top;
-          //so far we're still in range of the horizontal Edge  but make sure
-          //we're at the last of consec. horizontals when matching with eMaxPair
+            ? new IntPoint(edge.current.x, horzEdge.current.y)
+            : edge.top;
 
           this._intersectEdges(edge1, edge2, point, isProtected, useFullRange);
 
           if (!isProtected) {
-            if (maxPairEdge.OutIdx >= 0) {
+            if (maxPairEdge.outIndex >= 0) {
               console.error("ProcessHorizontal error");
             }
 
@@ -794,10 +770,7 @@ export default class IntersectStore {
           }
 
           this._activeEdge.swap(horzEdge, edge);
-        } else if (
-          (dir == Direction.LeftToRight && edge.Curr.X >= horzRight) ||
-          (dir == Direction.RightToLeft && edge.Curr.X <= horzLeft)
-        ) {
+        } else if (dirData.getExcluded(edge.current)) {
           break;
         }
 
@@ -806,24 +779,21 @@ export default class IntersectStore {
       //end while
       this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);
 
-      if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
+      if (horzEdge.nextInLML !== null && horzEdge.nextInLML.isHorizontal) {
         horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
-        if (horzEdge.OutIdx >= 0) {
-          this._outPolygon.addOutPt(horzEdge, horzEdge.Bot);
+        if (horzEdge.outIndex >= 0) {
+          this._outPolygon.addOutPt(horzEdge, horzEdge.bottom);
         }
 
-        $var = new HorizontalDirection(horzEdge);
-        dir = $var.Dir;
-        horzLeft = $var.Left;
-        horzRight = $var.Right;
+        dirData.update(horzEdge);
       } else {
         break;
       }
     }
     //end for (;;)
-    if (horzEdge.NextInLML !== null) {
-      if (horzEdge.OutIdx >= 0) {
-        const op1: OutPt = this._outPolygon.addOutPt(horzEdge, horzEdge.Top);
+    if (horzEdge.nextInLML !== null) {
+      if (horzEdge.outIndex >= 0) {
+        const op1: OutPt = this._outPolygon.addOutPt(horzEdge, horzEdge.top);
 
         horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
 
@@ -831,14 +801,15 @@ export default class IntersectStore {
         this._updateJoins(horzEdge, op1, useFullRange);
       } else horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
     } else if (maxPairEdge !== null) {
-      if (maxPairEdge.OutIdx >= 0) {
-        const isLefDirection: boolean = dir == Direction.LeftToRight;
+      if (maxPairEdge.outIndex >= 0) {
+        const isLefDirection: boolean =
+          dirData.direction == Direction.LeftToRight;
         const edge1: TEdge = isLefDirection ? horzEdge : maxPairEdge;
         const edge2: TEdge = isLefDirection ? maxPairEdge : horzEdge;
 
-        this._intersectEdges(edge1, edge2, horzEdge.Top, false, useFullRange);
+        this._intersectEdges(edge1, edge2, horzEdge.top, false, useFullRange);
 
-        if (maxPairEdge.OutIdx >= 0) {
+        if (maxPairEdge.outIndex >= 0) {
           console.error("ProcessHorizontal error");
         }
       } else {
@@ -846,8 +817,8 @@ export default class IntersectStore {
         this._activeEdge.delete(maxPairEdge);
       }
     } else {
-      if (horzEdge.OutIdx >= 0) {
-        this._outPolygon.addOutPt(horzEdge, horzEdge.Top);
+      if (horzEdge.outIndex >= 0) {
+        this._outPolygon.addOutPt(horzEdge, horzEdge.top);
       }
 
       this._activeEdge.delete(horzEdge);
@@ -865,16 +836,16 @@ export default class IntersectStore {
       return;
     }
 
-    const outPt2: OutPt = this._outPolygon.addOutPt(joinEdge, edge.Bot);
-    this._joinStore.add(outPt1, outPt2, edge.Top);
+    const outPt2: OutPt = this._outPolygon.addOutPt(joinEdge, edge.bottom);
+    this._joinStore.add(outPt1, outPt2, edge.top);
   }
 
   private _doMaxima(edge: TEdge, useFullRange: boolean): void {
     const maxPairEdge: TEdge = edge.getMaximaPair();
 
     if (maxPairEdge === null) {
-      if (edge.OutIdx >= 0) {
-        this._outPolygon.addOutPt(edge, edge.Top);
+      if (edge.outIndex >= 0) {
+        this._outPolygon.addOutPt(edge, edge.top);
       }
 
       this._activeEdge.delete(edge);
@@ -882,30 +853,30 @@ export default class IntersectStore {
       return;
     }
 
-    let nextEdge: TEdge = edge.NextInAEL;
+    let nextEdge: TEdge = edge.nextInAEL;
     let isUseLines: boolean = true;
 
     while (nextEdge !== null && nextEdge != maxPairEdge) {
-      this._intersectEdges(edge, nextEdge, edge.Top, true, useFullRange);
+      this._intersectEdges(edge, nextEdge, edge.top, true, useFullRange);
       this._activeEdge.swap(edge, nextEdge);
-      nextEdge = edge.NextInAEL;
+      nextEdge = edge.nextInAEL;
     }
 
-    if (edge.OutIdx == -1 && maxPairEdge.OutIdx == -1) {
+    if (edge.outIndex == -1 && maxPairEdge.outIndex == -1) {
       this._activeEdge.delete(edge);
       this._activeEdge.delete(maxPairEdge);
-    } else if (edge.OutIdx >= 0 && maxPairEdge.OutIdx >= 0) {
-      this._intersectEdges(edge, maxPairEdge, edge.Top, false, useFullRange);
-    } else if (isUseLines && edge.WindDelta === 0) {
-      if (edge.OutIdx >= 0) {
-        this._outPolygon.addOutPt(edge, edge.Top);
-        edge.OutIdx = -1;
+    } else if (edge.outIndex >= 0 && maxPairEdge.outIndex >= 0) {
+      this._intersectEdges(edge, maxPairEdge, edge.top, false, useFullRange);
+    } else if (isUseLines && edge.windDelta === 0) {
+      if (edge.outIndex >= 0) {
+        this._outPolygon.addOutPt(edge, edge.top);
+        edge.outIndex = -1;
       }
       this._activeEdge.delete(edge);
 
-      if (maxPairEdge.OutIdx >= 0) {
-        this._outPolygon.addOutPt(maxPairEdge, edge.Top);
-        maxPairEdge.OutIdx = -1;
+      if (maxPairEdge.outIndex >= 0) {
+        this._outPolygon.addOutPt(maxPairEdge, edge.top);
+        maxPairEdge.outIndex = -1;
       }
 
       this._activeEdge.delete(maxPairEdge);

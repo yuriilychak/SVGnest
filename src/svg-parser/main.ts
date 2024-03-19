@@ -803,8 +803,8 @@ export default class SvgParser {
 
     for (i = 0; i < count; ++i) {
       result.push({
-        x: polygon[i].X / clipperScale,
-        y: polygon[i].Y / clipperScale
+        x: polygon[i].x / clipperScale,
+        y: polygon[i].y / clipperScale
       });
     }
 
