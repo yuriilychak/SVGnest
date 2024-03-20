@@ -1,5 +1,5 @@
 import { IPoint } from "../interfaces";
-import { almostEqual } from "../util";
+import { almostEqual, clipperRound } from "../util";
 
 export default class Point implements IPoint {
   private _offset: number = 0;
@@ -105,6 +105,16 @@ export default class Point implements IPoint {
     return this.scale(scale / this.length);
   }
 
+  public normal(): Point {
+    const x: number = this.x;
+    const y: number = this.y;
+
+    this.x = y;
+    this.y = -x;
+
+    return this;
+  }
+
   public checkIntersect(point1: IPoint, point2: IPoint): boolean {
     return (
       Point._checkIntersect(this.x, point1.x, point2.x) &&
@@ -161,8 +171,25 @@ export default class Point implements IPoint {
     return this;
   }
 
+  public skew(sin: number, cos: number): Point {
+    const x: number = this.x;
+    const y: number = this.y;
+
+    this.x = x * cos - y * sin;
+    this.y = x * sin + y * cos;
+
+    return this;
+  }
+
   public equal(point: Point): boolean {
     return this.x === point.x && this.y === point.y;
+  }
+
+  public clipperRound(): Point {
+    this.x = clipperRound(this.x);
+    this.y = clipperRound(this.y);
+
+    return this;
   }
 
   public slopesNearCollinear(

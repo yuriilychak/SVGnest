@@ -156,3 +156,7 @@ export function importPolygons(data: Float64Array): IPolygon[] {
 
   return result;
 }
+
+export function clipperRound(a: number): number {
+  return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
+}

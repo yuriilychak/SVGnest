@@ -24,7 +24,7 @@ export default class SharedPolygon {
       miterLimit,
       this._configuration.curveTolerance * this._configuration.clipperScale
     );
-    co.AddPath(p, JoinType.Round, EndType.ClosedPolygon);
+    co.addPath(p, JoinType.Round, EndType.ClosedPolygon);
 
     const newPaths: Point[][] = [];
     co.execute(newPaths, offset * this._configuration.clipperScale);
