@@ -1,15 +1,14 @@
 import { Point } from "../geom";
 
-export default class OutPt {
+export default class OutPt extends Point {
   public index: number = 0;
-  public point: Point = Point.empty();
   public next: OutPt = null;
   public prev: OutPt = null;
 
   public duplicate(isInsertAfter: boolean): OutPt {
     const result: OutPt = new OutPt();
 
-    result.point.set(this.point);
+    result.set(this);
     result.index = this.index;
 
     if (isInsertAfter) {
@@ -47,7 +46,7 @@ export default class OutPt {
     }
   }
 
-  public reverse(): void {
+  public reversePointer(): void {
     let pointer1: OutPt = this;
     let pointer2: OutPt;
 
@@ -77,14 +76,11 @@ export default class OutPt {
     let nextOutPt: OutPt = outPt.next;
 
     while (nextOutPt != outPt) {
-      if (nextOutPt.point.y > outPt.point.y) {
+      if (nextOutPt.y > outPt.y) {
         outPt = nextOutPt;
         dups = null;
-      } else if (
-        nextOutPt.point.y === outPt.point.y &&
-        nextOutPt.point.x <= outPt.point.x
-      ) {
-        if (nextOutPt.point.x < outPt.point.x) {
+      } else if (nextOutPt.y === outPt.y && nextOutPt.x <= outPt.x) {
+        if (nextOutPt.x < outPt.x) {
           dups = null;
           outPt = nextOutPt;
         } else {
@@ -103,7 +99,7 @@ export default class OutPt {
 
         dups = dups.next;
 
-        while (!dups.point.equal(outPt.point)) {
+        while (!dups.equal(outPt)) {
           dups = dups.next;
         }
       }
@@ -119,11 +115,11 @@ export default class OutPt {
     let cross: number;
 
     while (true) {
-      offset1.set(outPt.point).sub(point);
-      offset2.set(outPt.next.point).sub(point);
+      offset1.set(outPt).sub(point);
+      offset2.set(outPt.next).sub(point);
 
       if (
-        outPt.next.point.equal(point) ||
+        outPt.next.equal(point) ||
         (offset2.y === 0 && offset1.y === 0 && offset2.x > 0 === offset1.x < 0)
       ) {
         return -1;
@@ -160,7 +156,7 @@ export default class OutPt {
     let res: number = 0;
 
     do {
-      res = OutPt.pointInPolygon(outPt.point, outPt2);
+      res = OutPt.pointInPolygon(outPt, outPt2);
 
       if (res >= 0) {
         return res != 0;
@@ -175,35 +171,35 @@ export default class OutPt {
   public static firstIsBottomPt(point1: OutPt, point2: OutPt): boolean {
     let outPt: OutPt = point1.prev;
 
-    while (outPt.point.equal(point1.point) && outPt != point1) {
+    while (outPt.equal(point1) && outPt != point1) {
       outPt = outPt.prev;
     }
 
-    const dx1p: number = Math.abs(Point.deltaX(point1.point, outPt.point));
+    const dx1p: number = Math.abs(Point.deltaX(point1, outPt));
 
     outPt = point1.next;
 
-    while (outPt.point.equal(point1.point) && outPt != point1) {
+    while (outPt.equal(point1) && outPt != point1) {
       outPt = outPt.next;
     }
 
-    const dx1n: number = Math.abs(Point.deltaX(point1.point, outPt.point));
+    const dx1n: number = Math.abs(Point.deltaX(point1, outPt));
 
     outPt = point2.prev;
 
-    while (outPt.point.equal(point2.point) && outPt != point2) {
+    while (outPt.equal(point2) && outPt != point2) {
       outPt = outPt.prev;
     }
 
-    const dx2p: number = Math.abs(Point.deltaX(point2.point, outPt.point));
+    const dx2p: number = Math.abs(Point.deltaX(point2, outPt));
 
     outPt = point2.next;
 
-    while (outPt.point.equal(point2.point) && outPt != point2) {
+    while (outPt.equal(point2) && outPt != point2) {
       outPt = outPt.next;
     }
 
-    const dx2n: number = Math.abs(Point.deltaX(point2.point, outPt.point));
+    const dx2n: number = Math.abs(Point.deltaX(point2, outPt));
 
     return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
   }

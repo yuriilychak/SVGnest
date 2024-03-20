@@ -73,10 +73,10 @@ export default class IntersectStore {
         nextEdge = edge.nextInSEL;
         point = Point.empty();
 
-        if (edge.current.x > nextEdge.current.x) {
+        if (edge.x > nextEdge.x) {
           if (
             !TEdge.intersectPoint(edge, nextEdge, point) &&
-            edge.current.x > nextEdge.current.x + 1
+            edge.x > nextEdge.x + 1
           ) {
             console.error("Intersection error");
           }
@@ -327,7 +327,7 @@ export default class IntersectStore {
       this._intersectEdges(
         intersectNode.edge1,
         intersectNode.edge2,
-        intersectNode.point,
+        intersectNode,
         true,
         useFullRange
       );
@@ -580,7 +580,7 @@ export default class IntersectStore {
     if (
       leftBound.isValid &&
       leftBound.prevInAEL !== null &&
-      leftBound.prevInAEL.current.x == leftBound.bottom.x &&
+      leftBound.prevInAEL.x == leftBound.x &&
       leftBound.prevInAEL.isValid &&
       TEdge.slopesEqual(leftBound.prevInAEL, leftBound)
     ) {
@@ -607,7 +607,7 @@ export default class IntersectStore {
           this._intersectEdges(
             rightBound,
             edge,
-            leftBound.current,
+            leftBound,
             false,
             useFullRange
           );
@@ -652,7 +652,7 @@ export default class IntersectStore {
 
           this._sortedEdge.add(edge);
         } else {
-          edge.current.update(edge.topX(topY), topY);
+          edge.update(edge.topX(topY), topY);
         }
         if (strictlySimple) {
           prev = edge.prevInAEL;
@@ -661,11 +661,11 @@ export default class IntersectStore {
             edge.isValid &&
             prev !== null &&
             prev.isValid &&
-            prev.current.x == edge.current.x
+            prev.x == edge.x
           ) {
-            outPt = this._outPolygon.addOutPt(prev, edge.current);
-            var op2 = this._outPolygon.addOutPt(edge, edge.current);
-            this._joinStore.add(outPt, op2, edge.current);
+            outPt = this._outPolygon.addOutPt(prev, edge);
+            var op2 = this._outPolygon.addOutPt(edge, edge);
+            this._joinStore.add(outPt, op2, edge);
           }
         }
         edge = edge.nextInAEL;
@@ -739,7 +739,7 @@ export default class IntersectStore {
 
       while (edge !== null) {
         if (
-          edge.current.x === horzEdge.top.x &&
+          edge.x === horzEdge.top.x &&
           horzEdge.nextInLML !== null &&
           edge.deltaX < horzEdge.nextInLML.deltaX
         ) {
@@ -748,7 +748,7 @@ export default class IntersectStore {
 
         nextEdge = edge.getNextInAEL(dirData.direction);
         //saves eNext for later
-        if (dirData.getIncluded(edge.current)) {
+        if (dirData.getIncluded(edge)) {
           this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);
 
           const isLeft: boolean = dirData.direction === Direction.LeftToRight;
@@ -756,7 +756,7 @@ export default class IntersectStore {
           const edge2: TEdge = isLeft ? edge : horzEdge;
           const isProtected = !(edge == maxPairEdge && isLastHorz);
           const point: Point = isProtected
-            ? Point.fromCords(edge.current.x, horzEdge.current.y)
+            ? Point.fromCords(edge.x, horzEdge.y)
             : edge.top;
 
           this._intersectEdges(edge1, edge2, point, isProtected, useFullRange);
@@ -770,7 +770,7 @@ export default class IntersectStore {
           }
 
           this._activeEdge.swap(horzEdge, edge);
-        } else if (dirData.getExcluded(edge.current)) {
+        } else if (dirData.getExcluded(edge)) {
           break;
         }
 

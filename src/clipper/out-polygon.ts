@@ -58,7 +58,7 @@ export default class OutPolygon {
       polygon = new Array(pointCount);
 
       for (j = 0; j < pointCount; ++j) {
-        polygon[j] = outPt.point;
+        polygon[j] = outPt;
         outPt = outPt.prev;
       }
 
@@ -74,7 +74,7 @@ export default class OutPolygon {
       outPt = outPt.prev;
     }
 
-    const point: Point = outPt.point.equal(horzEdge.top)
+    const point: Point = outPt.equal(horzEdge.top)
       ? horzEdge.bottom
       : horzEdge.top;
 
@@ -97,7 +97,7 @@ export default class OutPolygon {
     }
 
     for (var i = 0, ilen = joins.length; i < ilen; i++) {
-      this._joinCommonEdges(joins[i], useFullRange, reverseSolution);
+      this._joinCommonEdges(joins[i], reverseSolution);
     }
 
     for (var i = 0, ilen = this._data.length; i < ilen; i++) {
@@ -135,7 +135,7 @@ export default class OutPolygon {
       outRec.pointer = newOp;
       newOp.index = outRec.index;
       //newOp.Pt = pt;
-      newOp.point.set(point);
+      newOp.set(point);
       newOp.next = newOp;
       newOp.prev = newOp;
       if (!outRec.isOpen) this._setHoleState(edge, outRec);
@@ -146,13 +146,12 @@ export default class OutPolygon {
       var outRec = this._data[edge.outIndex];
       //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
       var op = outRec.pointer;
-      if (ToFront && point.equal(op.point)) return op;
-      else if (!ToFront && point.equal(op.prev.point)) return op.prev;
+      if (ToFront && point.equal(op)) return op;
+      else if (!ToFront && point.equal(op.prev)) return op.prev;
       var newOp = new OutPt();
       newOp.index = outRec.index;
       //newOp.Pt = pt;
-      newOp.point.x = point.x;
-      newOp.point.y = point.y;
+      newOp.set(point);
       newOp.next = op;
       newOp.prev = op.prev;
       newOp.prev.next = newOp;
@@ -173,7 +172,7 @@ export default class OutPolygon {
       {
         var op2 = op.next;
         while (op2 != outrec.pointer) {
-          if (op.point.equal(op2.point) && op2.next != op && op2.prev != op) {
+          if (op.equal(op2) && op2.next != op && op2.prev != op) {
             //split the polygon into two ...
             var op3 = op.prev;
             var op4 = op2.prev;
@@ -230,7 +229,7 @@ export default class OutPolygon {
     if (e1.side == EdgeSide.Left) {
       if (e2.side == EdgeSide.Left) {
         //z y x a b c
-        p2_lft.reverse();
+        p2_lft.reversePointer();
         p2_lft.next = p1_lft;
         p1_lft.prev = p2_lft;
         p1_rt.next = p2_rt;
@@ -248,7 +247,7 @@ export default class OutPolygon {
     } else {
       if (e2.side == EdgeSide.Right) {
         //a b c z y x
-        p2_lft.reverse();
+        p2_lft.reversePointer();
         p1_rt.next = p2_rt;
         p2_rt.prev = p1_rt;
         p2_lft.next = p1_lft;
@@ -287,11 +286,7 @@ export default class OutPolygon {
     outRec2.index = outRec1.index;
   }
 
-  private _joinCommonEdges(
-    join: Join,
-    useFullRange: boolean,
-    reverseSolution: boolean
-  ) {
+  private _joinCommonEdges(join: Join, reverseSolution: boolean) {
     let outRec1: OutRec = this._getRec(join.pointer1.index);
     let outRec2: OutRec = this._getRec(join.pointer2.index);
 

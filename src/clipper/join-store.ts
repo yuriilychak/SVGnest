@@ -52,13 +52,13 @@ export default class JoinStore {
 
         if (
           JoinStore._horzSegmentsOverlap(
-            join.pointer1.point,
-            join.point,
+            join.pointer1,
+            join,
             edge.bottom,
             edge.top
           )
         ) {
-          this._joins.push(new Join(join.pointer1, outPt, join.point));
+          this._joins.push(new Join(join.pointer1, outPt, join));
         }
       }
     }

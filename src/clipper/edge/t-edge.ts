@@ -7,9 +7,8 @@ import {
   PolyType
 } from "../enums";
 
-export default class TEdge {
+export default class TEdge extends Point {
   public bottom: Point = Point.empty();
-  public current: Point = Point.empty();
   public top: Point = Point.empty();
   public delta: Point = Point.empty();
   public deltaX: number = 0;
@@ -27,13 +26,11 @@ export default class TEdge {
   public nextInSEL: TEdge = null;
   public prevInSEL: TEdge = null;
 
-  constructor() {}
-
   public init(nextEdge: TEdge, prevEdge: TEdge, point: Point): void {
     this.next = nextEdge;
     this.prev = prevEdge;
     //e.Curr = pt;
-    this.current.set(point);
+    this.set(point);
     this.outIndex = -1;
   }
 
@@ -61,15 +58,15 @@ export default class TEdge {
   }
 
   public fromSide(side: EdgeSide): void {
-    this.current.set(this.bottom);
+    this.set(this.bottom);
     this.side = side;
     this.outIndex = -1;
   }
 
   public initFromPolyType(polyType: PolyType): void {
-    const condition: boolean = this.current.y >= this.next.current.y;
-    const bottom: Point = condition ? this.current : this.next.current;
-    const top: Point = condition ? this.next.current : this.current;
+    const condition: boolean = this.y >= this.next.y;
+    const bottom: Point = condition ? this : this.next;
+    const top: Point = condition ? this.next : this;
 
     this.bottom.set(bottom);
     this.top.set(top);
@@ -179,9 +176,9 @@ export default class TEdge {
   private _checkJoinCondition(edge: TEdge, useFullRange: boolean): boolean {
     return (
       edge !== null &&
-      edge.current.equal(this.bottom) &&
+      edge.equal(this.bottom) &&
       edge.isValid &&
-      edge.current.y > edge.top.y &&
+      edge.y > edge.top.y &&
       TEdge.slopesEqual(this, edge)
     );
   }
@@ -285,10 +282,7 @@ export default class TEdge {
     let edge: TEdge = this;
     var E2;
     for (;;) {
-      while (
-        !edge.bottom.equal(edge.prev.bottom) ||
-        edge.current.equal(edge.top)
-      )
+      while (!edge.bottom.equal(edge.prev.bottom) || edge.equal(edge.top))
         edge = edge.next;
       if (
         edge.deltaX != TEdge.horizontal &&
@@ -315,10 +309,10 @@ export default class TEdge {
   }
 
   public static e2InsertsBeforeE1(e1: TEdge, e2: TEdge): boolean {
-    if (e2.current.x == e1.current.x) {
+    if (e2.x == e1.x) {
       if (e2.top.y > e1.top.y) return e2.top.x < e1.topX(e2.top.y);
       else return e1.top.x > e2.topX(e1.top.y);
-    } else return e2.current.x < e1.current.x;
+    } else return e2.x < e1.x;
   }
 
   public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: Point): boolean {

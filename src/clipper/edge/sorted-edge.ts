@@ -26,7 +26,7 @@ export default class SortedEdge {
       result.updateSEL(result.prevInAEL, result.nextInAEL);
 
       if (isUpdateX) {
-        result.current.x = result.topX(topY);
+        result.x = result.topX(topY);
       }
 
       result = result.nextInAEL;

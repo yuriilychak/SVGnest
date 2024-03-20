@@ -83,7 +83,7 @@ export default class Clipper {
     //1. Basic (first) edge initialization ...
 
     //edges[1].Curr = pg[1];
-    edges[1].current.set(polygon[1]);
+    edges[1].set(polygon[1]);
 
     this._useFullRange = polygon[0].rangeTest(this._useFullRange);
     this._useFullRange = polygon[lastIndex].rangeTest(this._useFullRange);
@@ -104,7 +104,7 @@ export default class Clipper {
     let loopStopEdge: TEdge = startEdge;
 
     while (true) {
-      if (edge1.current.equal(edge1.next.current)) {
+      if (edge1.equal(edge1.next)) {
         if (edge1 == edge1.next) {
           break;
         }
@@ -124,13 +124,8 @@ export default class Clipper {
 
       if (
         isClosed &&
-        Point.slopesEqual(
-          edge1.prev.current,
-          edge1.current,
-          edge1.next.current
-        ) &&
-        (!this._preserveCollinear ||
-          !edge1.current.between(edge1.prev.current, edge1.next.current))
+        Point.slopesEqual(edge1.prev, edge1, edge1.next) &&
+        (!this._preserveCollinear || !edge1.between(edge1.prev, edge1.next))
       ) {
         //Collinear edges are allowed for open paths but in closed paths
         //the default is to merge adjacent collinear edges into a single edge.
@@ -170,7 +165,7 @@ export default class Clipper {
     do {
       edge1.initFromPolyType(polyType);
       edge1 = edge1.next;
-      isFlat = isFlat && edge1.current.y === startEdge.current.y;
+      isFlat = isFlat && edge1.y === startEdge.y;
     } while (edge1 != startEdge);
 
     //4. Finally, add edge bounds to LocalMinima list ...
@@ -387,7 +382,7 @@ export default class Clipper {
 
     for (i = 0; i < pointCount; ++i) {
       outPt = outPts.at(i);
-      outPt.point = polygon[i];
+      outPt.set(polygon[i]);
       outPt.next = outPts[(i + 1) % pointCount];
       outPt.next.prev = outPt;
       outPt.index = 0;
@@ -396,21 +391,15 @@ export default class Clipper {
     outPt = outPts[0];
 
     while (outPt.index == 0 && outPt.next !== outPt.prev) {
-      if (Point.pointsAreClose(outPt.point, outPt.prev.point, squareDistance)) {
+      if (Point.pointsAreClose(outPt, outPt.prev, squareDistance)) {
         outPt = outPt.exclude();
         --pointCount;
-      } else if (
-        Point.pointsAreClose(outPt.prev.point, outPt.next.point, squareDistance)
-      ) {
+      } else if (Point.pointsAreClose(outPt.prev, outPt.next, squareDistance)) {
         outPt.next.exclude();
         outPt = outPt.exclude();
         pointCount -= 2;
       } else if (
-        outPt.point.slopesNearCollinear(
-          outPt.prev.point,
-          outPt.next.point,
-          squareDistance
-        )
+        outPt.slopesNearCollinear(outPt.prev, outPt.next, squareDistance)
       ) {
         outPt = outPt.exclude();
         --pointCount;
@@ -427,7 +416,7 @@ export default class Clipper {
     const result: Point[] = new Array(pointCount);
 
     for (i = 0; i < pointCount; ++i) {
-      result[i] = Point.from(outPt.point);
+      result[i] = Point.from(outPt);
       outPt = outPt.next;
     }
 

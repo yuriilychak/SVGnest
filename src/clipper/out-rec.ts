@@ -24,7 +24,7 @@ export default class OutRec {
 
   public reverse(): void {
     if (this.pointer !== null) {
-      this.pointer.reverse();
+      this.pointer.reversePointer();
     }
   }
 
@@ -46,11 +46,10 @@ export default class OutRec {
       }
       //test for duplicate points and collinear edges ...
       if (
-        outPt.point.equal(outPt.next.point) ||
-        outPt.point.equal(outPt.prev.point) ||
-        (Point.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point) &&
-          (!preserveCollinear ||
-            !outPt.point.between(outPt.prev.point, outPt.next.point)))
+        outPt.equal(outPt.next) ||
+        outPt.equal(outPt.prev) ||
+        (Point.slopesEqual(outPt.prev, outPt, outPt.next) &&
+          (!preserveCollinear || !outPt.between(outPt.prev, outPt.next)))
       ) {
         lastOutPt = null;
         outPt.prev.next = outPt.next;
@@ -83,9 +82,7 @@ export default class OutRec {
 
     do {
       result =
-        result +
-        (pointer.prev.point.x + pointer.point.x) *
-          (pointer.prev.point.y - pointer.point.y);
+        result + (pointer.prev.x + pointer.x) * (pointer.prev.y - pointer.y);
       pointer = pointer.next;
     } while (pointer != this.pointer);
 
@@ -116,7 +113,7 @@ export default class OutRec {
 
     const pointer1: OutPt = outRec1._bottom;
     const pointer2: OutPt = outRec2._bottom;
-    const offset: Point = Point.sub(pointer1.point, pointer2.point);
+    const offset: Point = Point.sub(pointer1, pointer2);
 
     switch (true) {
       case offset.y < 0:

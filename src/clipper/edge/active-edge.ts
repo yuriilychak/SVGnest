@@ -140,7 +140,7 @@ export default class ActiveEdge {
     edge.nextInLML.windCount1 = edge.windCount1;
     edge.nextInLML.windCnt2 = edge.windCnt2;
     edge = edge.nextInLML;
-    edge.current.set(edge.bottom);
+    edge.set(edge.bottom);
     edge.updateAEL(prev, next);
 
     if (!edge.isHorizontal) {
