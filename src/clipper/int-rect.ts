@@ -16,6 +16,15 @@ export default class IntRect {
     this._data[3] = bottom;
   }
 
+  public export(offset: number): Point[] {
+    return [
+      Point.fromCords(this.left - offset, this.bottom + offset),
+      Point.fromCords(this.right + offset, this.bottom + offset),
+      Point.fromCords(this.right + offset, this.top - offset),
+      Point.fromCords(this.left - offset, this.top - offset)
+    ];
+  }
+
   public get left(): number {
     return this._data[0];
   }

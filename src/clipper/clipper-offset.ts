@@ -31,26 +31,28 @@ export default class ClipperOffset {
   }
 
   public addPath(path: Point[], joinType: JoinType, endType: EndType) {
-    var lastIndex: number = path.length - 1;
+    let lastIndex: number = path.length - 1;
 
     if (lastIndex < 0) {
       return;
     }
 
     const node: PolyNode = new PolyNode(joinType, endType);
+    const firstPoint: Point = path[0];
 
     if (endType == EndType.ClosedLine || endType == EndType.ClosedPolygon) {
-      while (lastIndex > 0 && path[0].equal(path[lastIndex])) {
+      while (lastIndex > 0 && firstPoint.equal(path[lastIndex])) {
         --lastIndex;
       }
     }
 
-    node.add(path[0]);
+    node.add(firstPoint);
 
     let i: number = 0;
     let j: number = 0;
     let k: number = 0;
     let point: Point;
+    let currentPoint: Point;
 
     for (i = 1; i <= lastIndex; ++i) {
       point = path.at(i);
@@ -59,9 +61,11 @@ export default class ClipperOffset {
         ++j;
         node.add(point);
 
+        currentPoint = node.at(k);
+
         if (
-          point.y > node.at(k).y ||
-          (point.y == node.at(k).y && point.x < node.at(k).x)
+          point.y > currentPoint.y ||
+          (point.y == currentPoint.y && point.x < currentPoint.x)
         )
           k = j;
       }
@@ -84,10 +88,11 @@ export default class ClipperOffset {
       this._lowest.update(0, k);
     } else {
       point = this._polyNodes.childAt(this._lowest.x).at(this._lowest.y);
+      currentPoint = node.at(k);
 
       if (
-        node.at(k).y > point.y ||
-        (node.at(k).y == point.y && node.at(k).x < point.x)
+        currentPoint.y > point.y ||
+        (currentPoint.y == point.y && currentPoint.x < point.x)
       )
         this._lowest.update(this._polyNodes.childCount - 1, k);
     }
@@ -111,12 +116,7 @@ export default class ClipperOffset {
       );
     } else {
       const rect: IntRect = IntRect.fromPaths(this._destPolys);
-      const outer: Point[] = [
-        Point.fromCords(rect.left - 10, rect.bottom + 10),
-        Point.fromCords(rect.right + 10, rect.bottom + 10),
-        Point.fromCords(rect.right + 10, rect.top - 10),
-        Point.fromCords(rect.left - 10, rect.top - 10)
-      ];
+      const outer: Point[] = rect.export(10);
 
       clipper.addPath(outer, PolyType.Subject, true);
       clipper.execute(
@@ -125,94 +125,111 @@ export default class ClipperOffset {
         PolyFillType.Negative,
         PolyFillType.Negative
       );
+
       if (solution.length > 0) {
         solution.splice(0, 1);
       }
     }
-    //console.log(JSON.stringify(solution));
-    // function (polytree, delta)
   }
 
   //fixup orientations of all closed paths if the orientation of the
   //closed path with the lowermost vertex is wrong ...
   private _fixOrientations(): void {
     const childCount: number = this._polyNodes.childCount;
-    let i: number = 0;
+    const lowestX: number = this._lowest.x;
     let node: PolyNode;
+    let i: number = 0;
 
-    if (
-      this._lowest.x >= 0 &&
-      !this._polyNodes.childAt(this._lowest.x).orientation
-    ) {
+    if (lowestX >= 0 && !this._polyNodes.childAt(lowestX).orientation) {
       for (i = 0; i < childCount; ++i) {
         node = this._polyNodes.childAt(i);
+
         if (
           node.endType == EndType.ClosedPolygon ||
           (node.endType == EndType.ClosedLine && node.orientation)
-        )
+        ) {
           node.reverse();
+        }
       }
     } else {
       for (i = 0; i < childCount; ++i) {
         node = this._polyNodes.childAt(i);
-        if (node.endType == EndType.ClosedLine && !node.orientation)
+
+        if (node.endType == EndType.ClosedLine && !node.orientation) {
           node.reverse();
+        }
       }
     }
   }
 
   private _doOffset(delta: number) {
-    this._destPolys = new Array();
+    this._destPolys = [];
     this._delta = delta;
-    //if Zero offset, just copy any CLOSED polygons to m_p and return ...
+
+    let i: number = 0;
+    let j: number = 0;
+    let k: number = 0;
+    let node: PolyNode;
+
     if (almostEqual(delta)) {
-      //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount);
-      for (var i = 0; i < this._polyNodes.childCount; i++) {
-        var node = this._polyNodes.childAt(i);
-        if (node.endType == EndType.ClosedPolygon)
+      for (i = 0; i < this._polyNodes.childCount; ++i) {
+        node = this._polyNodes.childAt(i);
+
+        if (node.endType == EndType.ClosedPolygon) {
           this._destPolys.push(node.polygon);
+        }
       }
+
       return;
     }
-    //see offset_triginometry3.svg in the documentation folder ...
-    if (this._miterLimit > 2)
-      this._miterLim = 2 / (this._miterLimit * this._miterLimit);
-    else this._miterLim = 0.5;
-    var y;
-    if (this._arcTolerance <= 0) y = ClipperOffset.def_arc_tolerance;
-    else if (
-      this._arcTolerance >
-      Math.abs(delta) * ClipperOffset.def_arc_tolerance
-    )
-      y = Math.abs(delta) * ClipperOffset.def_arc_tolerance;
-    else y = this._arcTolerance;
+
+    const miterLimit: number = Math.max(this._miterLimit, 2);
+    this._miterLim = 2 / (miterLimit * miterLimit);
+    let y: number =
+      this._arcTolerance <= 0
+        ? ClipperOffset.def_arc_tolerance
+        : Math.min(
+            Math.abs(delta) * ClipperOffset.def_arc_tolerance,
+            this._arcTolerance
+          );
     //see offset_triginometry2.svg in the documentation folder ...
-    var steps = 3.14159265358979 / Math.acos(1 - y / Math.abs(delta));
-    this._sin = Math.sin(ClipperOffset.two_pi / steps);
-    this._cos = Math.cos(ClipperOffset.two_pi / steps);
-    this._stepsPerRad = steps / ClipperOffset.two_pi;
-    if (delta < 0) this._sin = -this._sin;
-    //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount * 2);
-    for (var i = 0; i < this._polyNodes.childCount; i++) {
-      var node = this._polyNodes.childAt(i);
+    const angle: number = Math.acos(1 - y / Math.abs(delta)) * 2;
+    const steps: number = (Math.PI * 2) / angle;
+    this._sin = Math.sin(angle);
+    this._cos = Math.cos(angle);
+    this._stepsPerRad = 1 / angle;
+
+    if (delta < 0) {
+      this._sin = -this._sin;
+    }
+
+    const point: Point = Point.empty();
+
+    for (i = 0; i < this._polyNodes.childCount; ++i) {
+      node = this._polyNodes.childAt(i);
+
       this._srcPoly = node.polygon;
-      var len = this._srcPoly.length;
+      const len: number = this._srcPoly.length;
       if (
         len == 0 ||
         (delta <= 0 && (len < 3 || node.endType != EndType.ClosedPolygon))
-      )
+      ) {
         continue;
-      this._destPoly = new Array();
+      }
+      this._destPoly = [];
+
       if (len == 1) {
         if (node.joinType == JoinType.Round) {
-          const point = Point.fromCords(1, 0);
-          for (var j = 1; j <= steps; ++j) {
+          point.update(1, 0);
+
+          for (j = 1; j <= steps; ++j) {
             this._insert(point, 0, delta);
             point.skew(this._sin, this._cos);
           }
         } else {
-          const point = Point.fromCords(-1, -1);
-          for (var j = 0; j < 4; ++j) {
+          point.update(-1, -1);
+
+          for (j = 0; j < 4; ++j) {
             this._insert(point, 0, delta);
 
             if (point.x < 0) {
@@ -225,76 +242,84 @@ export default class ClipperOffset {
           }
         }
         this._destPolys.push(this._destPoly);
+
         continue;
       }
-      //build m_normals ...
+
       this._normals.length = 0;
-      //this.m_normals.set_Capacity(len);
-      for (var j = 0; j < len - 1; ++j) {
+
+      for (j = 0; j < len - 1; ++j) {
         this._normals.push(
-          ClipperOffset.GetUnitNormal(this._srcPoly[j], this._srcPoly[j + 1])
+          ClipperOffset.getUnitNormal(this._srcPoly[j], this._srcPoly[j + 1])
         );
       }
 
-      if (
+      this._normals.push(
         node.endType == EndType.ClosedLine ||
-        node.endType == EndType.ClosedPolygon
-      )
-        this._normals.push(
-          ClipperOffset.GetUnitNormal(this._srcPoly[len - 1], this._srcPoly[0])
-        );
-      else this._normals.push(Point.from(this._normals[len - 2]));
+          node.endType == EndType.ClosedPolygon
+          ? ClipperOffset.getUnitNormal(
+              this._srcPoly[len - 1],
+              this._srcPoly[0]
+            )
+          : Point.from(this._normals[len - 2])
+      );
+
       if (node.endType == EndType.ClosedPolygon) {
-        var k = len - 1;
-        for (var j = 0; j < len; ++j) {
+        k = len - 1;
+
+        for (j = 0; j < len; ++j) {
           k = this._offsetPoint(j, k, node.joinType);
         }
+
         this._destPolys.push(this._destPoly);
       } else if (node.endType == EndType.ClosedLine) {
-        var k = len - 1;
-        for (var j = 0; j < len; ++j) {
+        k = len - 1;
+
+        for (j = 0; j < len; ++j) {
           k = this._offsetPoint(j, k, node.joinType);
         }
+
         this._destPolys.push(this._destPoly);
         this._destPoly = new Array();
         //re-build m_normals ...
-        var n = this._normals[len - 1];
-        for (var j = len - 1; j > 0; --j) {
+        const n: Point = this._normals[len - 1];
+        for (j = len - 1; j > 0; --j) {
           this._normals[j] = Point.reverse(this._normals.at(j - 1));
         }
         this._normals[0] = Point.reverse(n);
         k = 0;
-        for (var j = len - 1; j >= 0; --j) {
+        for (j = len - 1; j >= 0; --j) {
           k = this._offsetPoint(j, k, node.joinType);
         }
         this._destPolys.push(this._destPoly);
       } else {
-        var k = 0;
-        for (var j = 1; j < len - 1; ++j) {
+        k = 0;
+
+        for (j = 1; j < len - 1; ++j) {
           k = this._offsetPoint(j, k, node.joinType);
         }
 
         if (node.endType == EndType.OpenButt) {
-          var j = len - 1;
+          j = len - 1;
           this._insertFromNormal(j, j, delta);
           this._insertFromNormal(j, j, -delta);
         } else {
-          var j = len - 1;
+          j = len - 1;
           k = len - 2;
           this._sinA = 0;
           this._normals[j] = Point.reverse(this._normals.at(j));
 
           this._offsetWithType(node.endType, j, k);
         }
-        //re-build m_normals ...
-        for (var j = len - 1; j > 0; --j) {
+
+        for (j = len - 1; j > 0; --j) {
           this._normals[j] = Point.reverse(this._normals.at(j - 1));
         }
 
         this._normals[0] = Point.reverse(this._normals.at(1));
         k = len - 1;
 
-        for (var j = k - 1; j > 0; --j) {
+        for (j = k - 1; j > 0; --j) {
           k = this._offsetPoint(j, k, node.joinType);
         }
 
@@ -321,14 +346,13 @@ export default class ClipperOffset {
   }
 
   private _offsetPoint(j: number, k: number, jointype: number) {
-    this._sinA = this._normals.at(j).cross(this._normals.at(k));
+    this._sinA = Math.max(
+      Math.min(this._normals.at(j).cross(this._normals.at(k)), 1),
+      -1
+    );
 
-    if (this._sinA < 0.00005 && this._sinA > -0.00005) {
+    if (almostEqual(this._sinA, 0, 0.00005)) {
       return k;
-    } else if (this._sinA > 1) {
-      this._sinA = 1.0;
-    } else if (this._sinA < -1) {
-      this._sinA = -1.0;
     }
 
     if (this._sinA * this._delta < 0) {
@@ -338,7 +362,8 @@ export default class ClipperOffset {
     } else
       switch (jointype) {
         case JoinType.Miter: {
-          var r = 1 + this._normals.at(k).dot(this._normals.at(j));
+          const r: number = 1 + this._normals.at(k).dot(this._normals.at(j));
+
           if (r >= this._miterLim) {
             this._doMiter(j, k, r);
           } else {
@@ -353,7 +378,9 @@ export default class ClipperOffset {
           this._doRound(j, k);
           break;
       }
+
     k = j;
+
     return k;
   }
 
@@ -362,17 +389,8 @@ export default class ClipperOffset {
       Math.atan2(this._sinA, this._normals.at(k).dot(this._normals.at(j))) / 4
     );
 
-    this._insert(
-      Point.normal(this._normals.at(k)).scale(-dx).add(this._normals.at(k)),
-      j,
-      this._delta
-    );
-
-    this._insert(
-      Point.normal(this._normals.at(j)).scale(dx).add(this._normals.at(j)),
-      j,
-      this._delta
-    );
+    this._insertSquare(k, j, -dx);
+    this._insertSquare(j, j, dx);
   }
 
   private _doRound(j: number, k: number): void {
@@ -380,7 +398,9 @@ export default class ClipperOffset {
       this._sinA,
       this._normals.at(k).dot(this._normals.at(j))
     );
-    const steps = ClipperOffset.castInt32(this._stepsPerRad * Math.abs(a));
+    const steps: number = ClipperOffset.castInt32(
+      this._stepsPerRad * Math.abs(a)
+    );
     const point: Point = Point.from(this._normals.at(k));
     let i: number = 0;
 
@@ -397,6 +417,20 @@ export default class ClipperOffset {
       Point.from(this._normals.at(k)).add(this._normals.at(j)),
       this._delta / r,
       j
+    );
+  }
+
+  private _insertSquare(
+    normalIndex: number,
+    polyIndex: number,
+    scale: number
+  ): void {
+    const normal: Point = this._normals.at(normalIndex);
+
+    this._insert(
+      Point.normal(normal).scale(scale).add(normal),
+      polyIndex,
+      this._delta
     );
   }
 
@@ -417,8 +451,8 @@ export default class ClipperOffset {
     );
   }
 
-  public static GetUnitNormal(pt1: Point, pt2: Point): Point {
-    const d: Point = Point.sub(pt1, pt2);
+  public static getUnitNormal(point1: Point, point2: Point): Point {
+    const d: Point = Point.sub(point1, point2);
 
     return d.isEmpty ? d : d.normalize().normal();
   }
@@ -427,6 +461,5 @@ export default class ClipperOffset {
     return ~~clipperRound(a);
   }
 
-  static two_pi: number = Math.PI * 2;
   static def_arc_tolerance: number = 0.25;
 }
