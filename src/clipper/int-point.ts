@@ -1,5 +1,3 @@
-import Int128 from "./int-128";
-
 export default class IntPoint {
   private _data: Float64Array;
 
@@ -30,6 +28,13 @@ export default class IntPoint {
     return this;
   }
 
+  public round(): IntPoint {
+    this.x = Math.round(this.x);
+    this.y = Math.round(this.y);
+
+    return this;
+  }
+
   public equal(point: IntPoint): boolean {
     return this.x === point.x && this.y === point.y;
   }
@@ -46,12 +51,6 @@ export default class IntPoint {
     return this.distanceFromLineSqrd(point1, point2) < distSqrd;
   }
 
-  //The equation of a line in general form (Ax + By + C = 0)
-  //given 2 points (x�,y�) & (x�,y�) is ...
-  //(y� - y�)x + (x� - x�)y + (y� - y�)x� - (x� - x�)y� = 0
-  //A = (y� - y�); B = (x� - x�); C = (y� - y�)x� - (x� - x�)y�
-  //perpendicular distance of point (x�,y�) = (Ax� + By� + C)/Sqrt(A� + B�)
-  //see http://en.wikipedia.org/wiki/Perpendicular_distance
   public distanceFromLineSqrd(point1: IntPoint, point2: IntPoint): number {
     const a: number = point1.y - point2.y;
     const b: number = point2.x - point1.x;
@@ -115,37 +114,49 @@ export default class IntPoint {
   }
 
   public static from(point: IntPoint): IntPoint {
-    return new IntPoint(point.x, point.y);
+    return IntPoint.fromCords(point.x, point.y);
   }
 
   public static sub(point1: IntPoint, point2: IntPoint): IntPoint {
     return IntPoint.from(point2).sub(point1);
   }
 
-  public static castInt64(a: number): number {
-    if (a < -2147483648 || a > 2147483647)
-      return a < 0 ? Math.ceil(a) : Math.floor(a);
-    else return ~~a;
+  public static empty(): IntPoint {
+    return new IntPoint();
+  }
+
+  public static fromCords(x: number, y: number): IntPoint {
+    return IntPoint.empty().update(x, y);
   }
 
   public static slopesEqual(
     pt1: IntPoint,
     pt2: IntPoint,
-    pt3: IntPoint,
-    isFullRange: boolean = false
+    pt3: IntPoint = null
   ): boolean {
-    // function (pt1, pt2, pt3, UseFullRange)
-    if (isFullRange)
-      return Int128.op_Equality(
-        Int128.Int128Mul(pt1.y - pt2.y, pt2.x - pt3.x),
-        Int128.Int128Mul(pt1.x - pt2.x, pt2.y - pt3.y)
-      );
-    else
-      return (
-        IntPoint.castInt64((pt1.y - pt2.y) * (pt2.x - pt3.x)) -
-          IntPoint.castInt64((pt1.x - pt2.x) * (pt2.y - pt3.y)) ===
-        0
-      );
+    const offset1 = IntPoint.from(pt1);
+    const offset2 = IntPoint.from(pt2);
+
+    if (pt3 !== null) {
+      offset1.sub(pt2);
+      offset2.sub(pt3);
+    }
+
+    offset1.round();
+    offset2.round();
+
+    if (
+      Math.sign(offset1.y) * Math.sign(offset2.x) !==
+      Math.sign(offset1.x) * Math.sign(offset2.y)
+    ) {
+      return false;
+    }
+
+    const array = new BigUint64Array(2);
+    array[0] = BigInt(Math.abs(offset1.y)) * BigInt(Math.abs(offset2.x));
+    array[1] = BigInt(Math.abs(offset1.x)) * BigInt(Math.abs(offset2.y));
+
+    return array[0] === array[1];
   }
 
   public static pointsAreClose(
@@ -159,7 +170,7 @@ export default class IntPoint {
     return dx * dx + dy * dy <= distSqrd;
   }
 
-  public static deltaX(pt1: IntPoint, pt2: IntPoint) {
+  public static deltaX(pt1: IntPoint, pt2: IntPoint): number {
     if (pt1.y == pt2.y) return Number.MIN_SAFE_INTEGER;
     else return (pt2.x - pt1.x) / (pt2.y - pt1.y);
   }

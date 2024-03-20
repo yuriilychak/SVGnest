@@ -60,7 +60,7 @@ function minkowskiDifference(a: IPolygon, b: IPolygon): IPolygon[] {
 
     for (j = 0; j < sizeA; ++j) {
       pointA = a.at(j);
-      currentPath[j] = new IntPoint(
+      currentPath[j] = IntPoint.fromCords(
         (pointA.x - pointB.x) * scale,
         (pointA.y - pointB.y) * scale
       );

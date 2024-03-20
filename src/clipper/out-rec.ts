@@ -51,8 +51,7 @@ export default class OutRec {
         (IntPoint.slopesEqual(
           outPt.prev.point,
           outPt.point,
-          outPt.next.point,
-          useFullRange
+          outPt.next.point
         ) &&
           (!preserveCollinear ||
             !outPt.point.between(outPt.prev.point, outPt.next.point)))

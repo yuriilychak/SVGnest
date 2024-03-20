@@ -2,7 +2,7 @@ import IntPoint from "./int-point";
 
 export default class OutPt {
   public index: number = 0;
-  public point: IntPoint = new IntPoint();
+  public point: IntPoint = IntPoint.empty();
   public next: OutPt = null;
   public prev: OutPt = null;
 
@@ -114,8 +114,8 @@ export default class OutPt {
   public static pointInPolygon(point: IntPoint, outPt: OutPt): number {
     let result: number = 0;
     let startOp: OutPt = outPt;
-    let offset1: IntPoint = new IntPoint();
-    let offset2: IntPoint = new IntPoint();
+    let offset1: IntPoint = IntPoint.empty();
+    let offset2: IntPoint = IntPoint.empty();
     let cross: number;
 
     while (true) {

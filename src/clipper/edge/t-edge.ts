@@ -5,14 +5,13 @@ import {
   PolyFillType,
   PolyType
 } from "../enums";
-import Int128 from "../int-128";
 import IntPoint from "../int-point";
 
 export default class TEdge {
-  public bottom: IntPoint = new IntPoint();
-  public current: IntPoint = new IntPoint();
-  public top: IntPoint = new IntPoint();
-  public delta: IntPoint = new IntPoint();
+  public bottom: IntPoint = IntPoint.empty();
+  public current: IntPoint = IntPoint.empty();
+  public top: IntPoint = IntPoint.empty();
+  public delta: IntPoint = IntPoint.empty();
   public deltaX: number = 0;
   public polyType: PolyType = PolyType.Subject;
   public side: EdgeSide = EdgeSide.Left;
@@ -183,7 +182,7 @@ export default class TEdge {
       edge.current.equal(this.bottom) &&
       edge.isValid &&
       edge.current.y > edge.top.y &&
-      TEdge.slopesEqual(this, edge, useFullRange)
+      TEdge.slopesEqual(this, edge)
     );
   }
 
@@ -307,27 +306,8 @@ export default class TEdge {
     return edge;
   }
 
-  public static slopesEqual(
-    edge1: TEdge,
-    edge2: TEdge,
-    useFullRange: boolean
-  ): boolean {
-    if (useFullRange)
-      return Int128.op_Equality(
-        Int128.Int128Mul(edge1.delta.y, edge2.delta.x),
-        Int128.Int128Mul(edge1.delta.x, edge2.delta.y)
-      );
-    else
-      return (
-        TEdge.castInt64(edge1.delta.y * edge2.delta.x) ==
-        TEdge.castInt64(edge1.delta.x * edge2.delta.y)
-      );
-  }
-
-  public static castInt64(a: number): number {
-    if (a < -2147483648 || a > 2147483647)
-      return a < 0 ? Math.ceil(a) : Math.floor(a);
-    else return ~~a;
+  public static slopesEqual(edge1: TEdge, edge2: TEdge): boolean {
+    return IntPoint.slopesEqual(edge1.delta, edge2.delta);
   }
 
   public static Round(value: number): number {
@@ -344,18 +324,14 @@ export default class TEdge {
   public static intersectPoint(
     edge1: TEdge,
     edge2: TEdge,
-    ip: IntPoint,
-    useFullRange: boolean
+    ip: IntPoint
   ): boolean {
     ip.update(0, 0);
     let b1: number = 0;
     let b2: number = 0;
     //nb: with very large coordinate values, it's possible for SlopesEqual() to
     //return false but for the edge.Dx value be equal due to double precision rounding.
-    if (
-      TEdge.slopesEqual(edge1, edge2, useFullRange) ||
-      edge1.deltaX == edge2.deltaX
-    ) {
+    if (TEdge.slopesEqual(edge1, edge2) || edge1.deltaX == edge2.deltaX) {
       ip.set(edge2.bottom.y > edge1.bottom.y ? edge2.bottom : edge1.bottom);
 
       return false;

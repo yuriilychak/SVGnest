@@ -36,8 +36,5 @@
     "webpack-cli": "^5.1.4",
     "worker-loader": "^3.0.8"
   },
-  "type": "module",
-  "dependencies": {
-    "js-clipper": "^1.0.1"
-  }
+  "type": "module"
 }

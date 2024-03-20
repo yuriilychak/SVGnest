@@ -14,7 +14,7 @@ export default class Join {
   ) {
     this._pointer1 = outPt1;
     this._pointer2 = outPt2;
-    this._point = point !== null ? IntPoint.from(point) : new IntPoint();
+    this._point = point !== null ? IntPoint.from(point) : IntPoint.empty();
   }
 
   public joinPoints(
@@ -128,7 +128,7 @@ export default class Join {
       //DiscardLeftSide: when overlapping edges are joined, a spike will created
       //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
       //on the discard Side as either may still be needed for other joins ...
-      const point: IntPoint = new IntPoint();
+      const point: IntPoint = IntPoint.empty();
       let isDiscardLeftSide: boolean;
 
       if (op1.point.x >= left && op1.point.x <= right) {
@@ -163,7 +163,7 @@ export default class Join {
 
     const reverse1: boolean =
       op1b.point.y > op1.point.y ||
-      !IntPoint.slopesEqual(op1.point, op1b.point, this._point, isUseFullRange);
+      !IntPoint.slopesEqual(op1.point, op1b.point, this._point);
 
     if (reverse1) {
       op1b = op1.prev;
@@ -174,12 +174,7 @@ export default class Join {
 
       if (
         op1b.point.y > op1.point.y ||
-        !IntPoint.slopesEqual(
-          op1.point,
-          op1b.point,
-          this._point,
-          isUseFullRange
-        )
+        !IntPoint.slopesEqual(op1.point, op1b.point, this._point)
       )
         return false;
     }
@@ -192,7 +187,7 @@ export default class Join {
 
     const reverse2: boolean =
       op2b.point.y > op2.point.y ||
-      !IntPoint.slopesEqual(op2.point, op2b.point, this._point, isUseFullRange);
+      !IntPoint.slopesEqual(op2.point, op2b.point, this._point);
 
     if (reverse2) {
       op2b = op2.prev;
@@ -203,12 +198,7 @@ export default class Join {
 
       if (
         op2b.point.y > op2.point.y ||
-        !IntPoint.slopesEqual(
-          op2.point,
-          op2b.point,
-          this._point,
-          isUseFullRange
-        )
+        !IntPoint.slopesEqual(op2.point, op2b.point, this._point)
       ) {
         return false;
       }

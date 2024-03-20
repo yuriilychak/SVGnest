@@ -71,11 +71,11 @@ export default class IntersectStore {
 
       while (edge.nextInSEL !== null) {
         nextEdge = edge.nextInSEL;
-        point = new IntPoint();
+        point = IntPoint.empty();
 
         if (edge.current.x > nextEdge.current.x) {
           if (
-            !TEdge.intersectPoint(edge, nextEdge, point, useFullRange) &&
+            !TEdge.intersectPoint(edge, nextEdge, point) &&
             edge.current.x > nextEdge.current.x + 1
           ) {
             console.error("Intersection error");
@@ -426,7 +426,7 @@ export default class IntersectStore {
       prevEdge !== null &&
       prevEdge.isValid &&
       prevEdge.topX(point.y) == edge.topX(point.y) &&
-      TEdge.slopesEqual(edge, prevEdge, useFullRange) &&
+      TEdge.slopesEqual(edge, prevEdge) &&
       edge.windDelta !== 0
     ) {
       var outPt = this._outPolygon.addOutPt(prevEdge, point);
@@ -582,7 +582,7 @@ export default class IntersectStore {
       leftBound.prevInAEL !== null &&
       leftBound.prevInAEL.current.x == leftBound.bottom.x &&
       leftBound.prevInAEL.isValid &&
-      TEdge.slopesEqual(leftBound.prevInAEL, leftBound, useFullRange)
+      TEdge.slopesEqual(leftBound.prevInAEL, leftBound)
     ) {
       outPt2 = this._outPolygon.addOutPt(leftBound.prevInAEL, leftBound.bottom);
       this._joinStore.add(outPt1, outPt2, leftBound.top);
@@ -591,7 +591,7 @@ export default class IntersectStore {
       if (
         rightBound.isValid &&
         rightBound.prevInAEL.isValid &&
-        TEdge.slopesEqual(rightBound.prevInAEL, rightBound, useFullRange)
+        TEdge.slopesEqual(rightBound.prevInAEL, rightBound)
       ) {
         outPt2 = this._outPolygon.addOutPt(
           rightBound.prevInAEL,
@@ -756,7 +756,7 @@ export default class IntersectStore {
           const edge2: TEdge = isLeft ? edge : horzEdge;
           const isProtected = !(edge == maxPairEdge && isLastHorz);
           const point: IntPoint = isProtected
-            ? new IntPoint(edge.current.x, horzEdge.current.y)
+            ? IntPoint.fromCords(edge.current.x, horzEdge.current.y)
             : edge.top;
 
           this._intersectEdges(edge1, edge2, point, isProtected, useFullRange);

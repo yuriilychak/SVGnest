@@ -789,7 +789,10 @@ export default class SvgParser {
 
     for (i = 0; i < polygon.length; ++i) {
       result.push(
-        new IntPoint(polygon[i].x * clipperScale, polygon[i].y * clipperScale)
+        IntPoint.fromCords(
+          polygon[i].x * clipperScale,
+          polygon[i].y * clipperScale
+        )
       );
     }
 

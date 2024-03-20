@@ -143,7 +143,7 @@ export function toClipperCoordinates(
 
   for (i = 0; i < size; ++i) {
     point = polygon[i];
-    result.push(new IntPoint(point.x * scale, point.y * scale));
+    result.push(IntPoint.fromCords(point.x * scale, point.y * scale));
   }
 
   return result;

@@ -127,8 +127,7 @@ export default class Clipper {
         IntPoint.slopesEqual(
           edge1.prev.current,
           edge1.current,
-          edge1.next.current,
-          this._useFullRange
+          edge1.next.current
         ) &&
         (!this._preserveCollinear ||
           !edge1.current.between(edge1.prev.current, edge1.next.current))
