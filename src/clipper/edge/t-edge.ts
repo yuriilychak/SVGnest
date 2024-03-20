@@ -1,3 +1,4 @@
+import { Point } from "../../geom";
 import {
   ClipType,
   Direction,
@@ -5,13 +6,12 @@ import {
   PolyFillType,
   PolyType
 } from "../enums";
-import IntPoint from "../int-point";
 
 export default class TEdge {
-  public bottom: IntPoint = IntPoint.empty();
-  public current: IntPoint = IntPoint.empty();
-  public top: IntPoint = IntPoint.empty();
-  public delta: IntPoint = IntPoint.empty();
+  public bottom: Point = Point.empty();
+  public current: Point = Point.empty();
+  public top: Point = Point.empty();
+  public delta: Point = Point.empty();
   public deltaX: number = 0;
   public polyType: PolyType = PolyType.Subject;
   public side: EdgeSide = EdgeSide.Left;
@@ -29,7 +29,7 @@ export default class TEdge {
 
   constructor() {}
 
-  public init(nextEdge: TEdge, prevEdge: TEdge, point: IntPoint): void {
+  public init(nextEdge: TEdge, prevEdge: TEdge, point: Point): void {
     this.next = nextEdge;
     this.prev = prevEdge;
     //e.Curr = pt;
@@ -68,8 +68,8 @@ export default class TEdge {
 
   public initFromPolyType(polyType: PolyType): void {
     const condition: boolean = this.current.y >= this.next.current.y;
-    const bottom: IntPoint = condition ? this.current : this.next.current;
-    const top: IntPoint = condition ? this.next.current : this.current;
+    const bottom: Point = condition ? this.current : this.next.current;
+    const top: Point = condition ? this.next.current : this.current;
 
     this.bottom.set(bottom);
     this.top.set(top);
@@ -286,7 +286,7 @@ export default class TEdge {
     var E2;
     for (;;) {
       while (
-        IntPoint.unequal(edge.bottom, edge.prev.bottom) ||
+        !edge.bottom.equal(edge.prev.bottom) ||
         edge.current.equal(edge.top)
       )
         edge = edge.next;
@@ -307,7 +307,7 @@ export default class TEdge {
   }
 
   public static slopesEqual(edge1: TEdge, edge2: TEdge): boolean {
-    return IntPoint.slopesEqual(edge1.delta, edge2.delta);
+    return Point.slopesEqual(edge1.delta, edge2.delta);
   }
 
   public static Round(value: number): number {
@@ -321,11 +321,7 @@ export default class TEdge {
     } else return e2.current.x < e1.current.x;
   }
 
-  public static intersectPoint(
-    edge1: TEdge,
-    edge2: TEdge,
-    ip: IntPoint
-  ): boolean {
+  public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: Point): boolean {
     ip.update(0, 0);
     let b1: number = 0;
     let b2: number = 0;

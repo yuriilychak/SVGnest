@@ -1,10 +1,10 @@
+import { Point } from "../geom";
 import { EndType, JoinType } from "./enums";
-import IntPoint from "./int-point";
 
 export default class PolyNode {
   private _joinType: JoinType;
   private _endType: EndType;
-  private _polygon: IntPoint[];
+  private _polygon: Point[];
   private _children: PolyNode[];
 
   constructor(
@@ -17,11 +17,11 @@ export default class PolyNode {
     this._polygon = [];
   }
 
-  public at(index: number): IntPoint {
+  public at(index: number): Point {
     return this._polygon[index];
   }
 
-  public add(point: IntPoint): void {
+  public add(point: Point): void {
     this._polygon.push(point);
   }
 
@@ -49,7 +49,7 @@ export default class PolyNode {
     return this._children.length;
   }
 
-  public get polygon(): IntPoint[] {
+  public get polygon(): Point[] {
     return this._polygon;
   }
   public get area(): number {
@@ -61,8 +61,8 @@ export default class PolyNode {
 
     let result: number = 0;
     let i: number = 0;
-    let currPoint: IntPoint;
-    let prevPoint: IntPoint;
+    let currPoint: Point;
+    let prevPoint: Point;
 
     for (i = 0; i < pointCount; ++i) {
       currPoint = this._polygon.at(i);

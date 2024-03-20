@@ -1,4 +1,4 @@
-import IntPoint from "./int-point";
+import { Point } from "../geom";
 
 export default class IntRect {
   private _data: Float64Array;
@@ -48,7 +48,7 @@ export default class IntRect {
     this._data[3] = value;
   }
 
-  public static fromPaths(paths: IntPoint[][]): IntRect {
+  public static fromPaths(paths: Point[][]): IntRect {
     let firstValidPath: number = 0;
     const pathCount: number = paths.length;
 
@@ -63,8 +63,8 @@ export default class IntRect {
       return new IntRect();
     }
 
-    let path: IntPoint[] = paths[firstValidPath];
-    let point: IntPoint = path.at(0);
+    let path: Point[] = paths[firstValidPath];
+    let point: Point = path.at(0);
     let i: number = 0;
     let j: number = 0;
     let pointCount: number = 0;

@@ -1,5 +1,4 @@
 import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from "./enums";
-import IntPoint from "./int-point";
 import IntersectNode from "./intersect-node";
 import JoinStore from "./join-store";
 import OutPolygon from "./out-polygon";
@@ -7,6 +6,7 @@ import OutPt from "./out-pt";
 import ScanbeamStore from "./scanbeam-store";
 import { TEdge, SortedEdge, ActiveEdge } from "./edge";
 import HorizontalDirection from "./horizontal-direction";
+import { Point } from "../geom";
 
 export default class IntersectStore {
   private _intersections: IntersectNode[];
@@ -61,7 +61,7 @@ export default class IntersectStore {
 
     let edge: TEdge = this._sortedEdge.update(this._activeEdge.source, topY);
     let isModified: boolean = true;
-    let point: IntPoint;
+    let point: Point;
     let nextEdge: TEdge;
     let newNode: IntersectNode;
 
@@ -71,7 +71,7 @@ export default class IntersectStore {
 
       while (edge.nextInSEL !== null) {
         nextEdge = edge.nextInSEL;
-        point = IntPoint.empty();
+        point = Point.empty();
 
         if (edge.current.x > nextEdge.current.x) {
           if (
@@ -110,7 +110,7 @@ export default class IntersectStore {
   private _intersectEdges(
     edge1: TEdge,
     edge2: TEdge,
-    point: IntPoint,
+    point: Point,
     isProtected: boolean,
     useFullRange: boolean
   ): void {
@@ -403,7 +403,7 @@ export default class IntersectStore {
   private _addLocalMinPoly(
     edge1: TEdge,
     edge2: TEdge,
-    point: IntPoint,
+    point: Point,
     useFullRange: boolean
   ): OutPt {
     const condition: boolean =
@@ -755,8 +755,8 @@ export default class IntersectStore {
           const edge1: TEdge = isLeft ? horzEdge : edge;
           const edge2: TEdge = isLeft ? edge : horzEdge;
           const isProtected = !(edge == maxPairEdge && isLastHorz);
-          const point: IntPoint = isProtected
-            ? IntPoint.fromCords(edge.current.x, horzEdge.current.y)
+          const point: Point = isProtected
+            ? Point.fromCords(edge.current.x, horzEdge.current.y)
             : edge.top;
 
           this._intersectEdges(edge1, edge2, point, isProtected, useFullRange);

@@ -1,27 +1,19 @@
-import IntPoint from "./int-point";
+import { Point } from "../geom";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
 
 export default class Join {
   private _pointer1: OutPt;
   private _pointer2: OutPt;
-  private _point: IntPoint;
+  private _point: Point;
 
-  constructor(
-    outPt1: OutPt = null,
-    outPt2: OutPt = null,
-    point: IntPoint = null
-  ) {
+  constructor(outPt1: OutPt = null, outPt2: OutPt = null, point: Point = null) {
     this._pointer1 = outPt1;
     this._pointer2 = outPt2;
-    this._point = point !== null ? IntPoint.from(point) : IntPoint.empty();
+    this._point = point !== null ? Point.from(point) : Point.empty();
   }
 
-  public joinPoints(
-    outRec1: OutRec,
-    outRec2: OutRec,
-    isUseFullRange: boolean
-  ): boolean {
+  public joinPoints(outRec1: OutRec, outRec2: OutRec): boolean {
     let op1: OutPt = this._pointer1;
     let op2: OutPt = this._pointer2;
     let op1b: OutPt = new OutPt();
@@ -128,7 +120,7 @@ export default class Join {
       //DiscardLeftSide: when overlapping edges are joined, a spike will created
       //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
       //on the discard Side as either may still be needed for other joins ...
-      const point: IntPoint = IntPoint.empty();
+      const point: Point = Point.empty();
       let isDiscardLeftSide: boolean;
 
       if (op1.point.x >= left && op1.point.x <= right) {
@@ -163,7 +155,7 @@ export default class Join {
 
     const reverse1: boolean =
       op1b.point.y > op1.point.y ||
-      !IntPoint.slopesEqual(op1.point, op1b.point, this._point);
+      !Point.slopesEqual(op1.point, op1b.point, this._point);
 
     if (reverse1) {
       op1b = op1.prev;
@@ -174,7 +166,7 @@ export default class Join {
 
       if (
         op1b.point.y > op1.point.y ||
-        !IntPoint.slopesEqual(op1.point, op1b.point, this._point)
+        !Point.slopesEqual(op1.point, op1b.point, this._point)
       )
         return false;
     }
@@ -187,7 +179,7 @@ export default class Join {
 
     const reverse2: boolean =
       op2b.point.y > op2.point.y ||
-      !IntPoint.slopesEqual(op2.point, op2b.point, this._point);
+      !Point.slopesEqual(op2.point, op2b.point, this._point);
 
     if (reverse2) {
       op2b = op2.prev;
@@ -198,7 +190,7 @@ export default class Join {
 
       if (
         op2b.point.y > op2.point.y ||
-        !IntPoint.slopesEqual(op2.point, op2b.point, this._point)
+        !Point.slopesEqual(op2.point, op2b.point, this._point)
       ) {
         return false;
       }
@@ -232,7 +224,7 @@ export default class Join {
     return this._pointer2;
   }
 
-  public get point(): IntPoint {
+  public get point(): Point {
     return this._point;
   }
 
@@ -261,7 +253,7 @@ export default class Join {
     op1b: OutPt,
     op2: OutPt,
     op2b: OutPt,
-    point: IntPoint,
+    point: Point,
     isDiscardLeft: boolean
   ): boolean {
     if (op1.point.x > op1b.point.x === op2.point.x > op2b.point.x) {
@@ -292,11 +284,11 @@ export default class Join {
 
   private static _updatePointers(
     inputPtr: OutPt,
-    point: IntPoint,
+    point: Point,
     isDiscardLeft: boolean
   ): OutPt[] {
     let primaryPtr: OutPt = inputPtr;
-    let nextPoint: IntPoint = primaryPtr.next.point;
+    let nextPoint: Point = primaryPtr.next.point;
 
     while (
       nextPoint.x <= point.x &&
@@ -313,7 +305,7 @@ export default class Join {
 
     let secondaryPtr: OutPt = primaryPtr.duplicate(!isDiscardLeft);
 
-    if (IntPoint.unequal(secondaryPtr.point, point)) {
+    if (!point.equal(secondaryPtr.point)) {
       primaryPtr = secondaryPtr;
       primaryPtr.point.set(point);
       secondaryPtr = primaryPtr.duplicate(!isDiscardLeft);

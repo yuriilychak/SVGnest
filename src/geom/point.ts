@@ -154,6 +154,58 @@ export default class Point implements IPoint {
     );
   }
 
+  public round(): Point {
+    this.x = Math.round(this.x);
+    this.y = Math.round(this.y);
+
+    return this;
+  }
+
+  public equal(point: Point): boolean {
+    return this.x === point.x && this.y === point.y;
+  }
+
+  public slopesNearCollinear(
+    point1: Point,
+    point2: Point,
+    distSqrd: number
+  ): boolean {
+    return this.distanceFromLineSqrd(point1, point2) < distSqrd;
+  }
+
+  public distanceFromLineSqrd(point1: Point, point2: Point): number {
+    const a: number = point1.y - point2.y;
+    const b: number = point2.x - point1.x;
+    let c: number = a * point1.x + b * point1.y;
+    c = a * this.x + b * this.y - c;
+
+    return (c * c) / (a * a + b * b);
+  }
+
+  public between(point1: Point, point2: Point): boolean {
+    if (point1.equal(point2) || this.equal(point1) || this.equal(point2)) {
+      return false;
+    } else if (point1.x != point2.x) {
+      return this.x > point1.x == this.x < point2.x;
+    } else {
+      return this.y > point1.y == this.y < point2.y;
+    }
+  }
+
+  public rangeTest(isFullRange: boolean): boolean {
+    const maxValue: number = Math.max(Math.abs(this.x), Math.abs(this.y));
+
+    if (!isFullRange && maxValue > Point._lowRange) {
+      return this.rangeTest(true);
+    }
+
+    if (isFullRange && maxValue > Point._highRange) {
+      console.error("Coordinate outside allowed range in RangeTest().");
+    }
+
+    return isFullRange;
+  }
+
   public get x(): number {
     return this._data[this._offset];
   }
@@ -176,6 +228,56 @@ export default class Point implements IPoint {
 
   public get length(): number {
     return Math.sqrt(this.squareLength);
+  }
+
+  public get isEmpty(): boolean {
+    return this.x === 0 && this.y === 0;
+  }
+
+  public static slopesEqual(
+    pt1: Point,
+    pt2: Point,
+    pt3: Point = null
+  ): boolean {
+    const offset1 = Point.from(pt1);
+    const offset2 = Point.from(pt2);
+
+    if (pt3 !== null) {
+      offset1.sub(pt2);
+      offset2.sub(pt3);
+    }
+
+    offset1.round();
+    offset2.round();
+
+    if (
+      Math.sign(offset1.y) * Math.sign(offset2.x) !==
+      Math.sign(offset1.x) * Math.sign(offset2.y)
+    ) {
+      return false;
+    }
+
+    const array = new BigUint64Array(2);
+    array[0] = BigInt(Math.abs(offset1.y)) * BigInt(Math.abs(offset2.x));
+    array[1] = BigInt(Math.abs(offset1.x)) * BigInt(Math.abs(offset2.y));
+
+    return array[0] === array[1];
+  }
+
+  public static pointsAreClose(
+    point1: Point,
+    point2: Point,
+    distSqrd: number
+  ): boolean {
+    const point = Point.sub(point2, point1);
+
+    return point.squareLength <= distSqrd;
+  }
+
+  public static deltaX(pt1: Point, pt2: Point): number {
+    return pt1.y == pt2.y
+      ? Number.MIN_SAFE_INTEGER
+      : (pt2.x - pt1.x) / (pt2.y - pt1.y);
   }
 
   public static min(point1: IPoint, point2: IPoint): Point {
@@ -270,4 +372,7 @@ export default class Point implements IPoint {
       Math.abs(2 * x - a - b) <= Math.abs(a - b)
     );
   }
+
+  private static _lowRange: number = 47453132; // sqrt(2^53 -1)/2
+  private static _highRange: number = 4503599627370495; // sqrt(2^106 -1)/2
 }

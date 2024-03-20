@@ -16,7 +16,7 @@ import {
 } from "./interfaces";
 import { pointInPolygon, polygonArea } from "../geometry-util";
 import { IPolygon, IPoint, SvgNestConfiguration } from "../interfaces";
-import { PolyFillType, IntPoint, Clipper } from "../clipper";
+import { PolyFillType, Clipper } from "../clipper";
 
 export default class SvgParser {
   private allowedElements: Array<PrimitiveTagName> = [
@@ -783,13 +783,13 @@ export default class SvgParser {
   }
 
   // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
-  _svgToClipper(polygon: IPolygon, clipperScale: number): IntPoint[] {
+  _svgToClipper(polygon: IPolygon, clipperScale: number): Point[] {
     const result = [];
     let i = 0;
 
     for (i = 0; i < polygon.length; ++i) {
       result.push(
-        IntPoint.fromCords(
+        Point.fromCords(
           polygon[i].x * clipperScale,
           polygon[i].y * clipperScale
         )
@@ -799,7 +799,7 @@ export default class SvgParser {
     return result;
   }
 
-  private _clipperToSvg(polygon: IntPoint[], clipperScale: number): IPolygon {
+  private _clipperToSvg(polygon: Point[], clipperScale: number): IPolygon {
     const count = polygon.length;
     const result: IPolygon = new Array<IPoint>() as IPolygon;
     let i = 0;

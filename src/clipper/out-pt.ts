@@ -1,8 +1,8 @@
-import IntPoint from "./int-point";
+import { Point } from "../geom";
 
 export default class OutPt {
   public index: number = 0;
-  public point: IntPoint = IntPoint.empty();
+  public point: Point = Point.empty();
   public next: OutPt = null;
   public prev: OutPt = null;
 
@@ -103,7 +103,7 @@ export default class OutPt {
 
         dups = dups.next;
 
-        while (IntPoint.unequal(dups.point, outPt.point)) {
+        while (!dups.point.equal(outPt.point)) {
           dups = dups.next;
         }
       }
@@ -111,11 +111,11 @@ export default class OutPt {
     return outPt;
   }
 
-  public static pointInPolygon(point: IntPoint, outPt: OutPt): number {
+  public static pointInPolygon(point: Point, outPt: OutPt): number {
     let result: number = 0;
     let startOp: OutPt = outPt;
-    let offset1: IntPoint = IntPoint.empty();
-    let offset2: IntPoint = IntPoint.empty();
+    let offset1: Point = Point.empty();
+    let offset2: Point = Point.empty();
     let cross: number;
 
     while (true) {
@@ -175,35 +175,35 @@ export default class OutPt {
   public static firstIsBottomPt(point1: OutPt, point2: OutPt): boolean {
     let outPt: OutPt = point1.prev;
 
-    while (IntPoint.equal(outPt.point, point1.point) && outPt != point1) {
+    while (outPt.point.equal(point1.point) && outPt != point1) {
       outPt = outPt.prev;
     }
 
-    const dx1p: number = Math.abs(IntPoint.deltaX(point1.point, outPt.point));
+    const dx1p: number = Math.abs(Point.deltaX(point1.point, outPt.point));
 
     outPt = point1.next;
 
-    while (IntPoint.equal(outPt.point, point1.point) && outPt != point1) {
+    while (outPt.point.equal(point1.point) && outPt != point1) {
       outPt = outPt.next;
     }
 
-    const dx1n: number = Math.abs(IntPoint.deltaX(point1.point, outPt.point));
+    const dx1n: number = Math.abs(Point.deltaX(point1.point, outPt.point));
 
     outPt = point2.prev;
 
-    while (IntPoint.equal(outPt.point, point2.point) && outPt != point2) {
+    while (outPt.point.equal(point2.point) && outPt != point2) {
       outPt = outPt.prev;
     }
 
-    const dx2p: number = Math.abs(IntPoint.deltaX(point2.point, outPt.point));
+    const dx2p: number = Math.abs(Point.deltaX(point2.point, outPt.point));
 
     outPt = point2.next;
 
-    while (IntPoint.equal(outPt.point, point2.point) && outPt != point2) {
+    while (outPt.point.equal(point2.point) && outPt != point2) {
       outPt = outPt.next;
     }
 
-    const dx2n: number = Math.abs(IntPoint.deltaX(point2.point, outPt.point));
+    const dx2n: number = Math.abs(Point.deltaX(point2.point, outPt.point));
 
     return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
   }

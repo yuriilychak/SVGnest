@@ -1,7 +1,8 @@
 import { almostEqual } from "../../util";
 import { IPolygon, SvgNestConfiguration } from "../../interfaces";
 import { toNestCoordinates, toClipperCoordinates } from "../../geometry-util";
-import { ClipperOffset, IntPoint, JoinType, EndType } from "../../clipper";
+import { ClipperOffset, JoinType, EndType } from "../../clipper";
+import { Point } from "../../geom";
 
 export default class SharedPolygon {
   private _configuration: SvgNestConfiguration;
@@ -17,7 +18,7 @@ export default class SharedPolygon {
       return [polygon];
     }
 
-    const p: IntPoint[] = this.svgToClipper(polygon);
+    const p: Point[] = this.svgToClipper(polygon);
     const miterLimit: number = 2;
     const co = new ClipperOffset(
       miterLimit,
@@ -25,7 +26,7 @@ export default class SharedPolygon {
     );
     co.AddPath(p, JoinType.Round, EndType.ClosedPolygon);
 
-    const newPaths: IntPoint[][] = [];
+    const newPaths: Point[][] = [];
     co.execute(newPaths, offset * this._configuration.clipperScale);
 
     const result: IPolygon[] = [];
@@ -39,11 +40,11 @@ export default class SharedPolygon {
   }
 
   // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
-  protected svgToClipper(polygon: IPolygon): IntPoint[] {
+  protected svgToClipper(polygon: IPolygon): Point[] {
     return toClipperCoordinates(polygon, this._configuration.clipperScale);
   }
 
-  protected clipperToSvg(polygon: IntPoint[]): IPolygon {
+  protected clipperToSvg(polygon: Point[]): IPolygon {
     return toNestCoordinates(polygon, this._configuration.clipperScale);
   }
 

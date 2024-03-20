@@ -1,4 +1,4 @@
-import IntPoint from "./int-point";
+import { Point } from "../geom";
 import OutPt from "./out-pt";
 
 export default class OutRec {
@@ -48,11 +48,7 @@ export default class OutRec {
       if (
         outPt.point.equal(outPt.next.point) ||
         outPt.point.equal(outPt.prev.point) ||
-        (IntPoint.slopesEqual(
-          outPt.prev.point,
-          outPt.point,
-          outPt.next.point
-        ) &&
+        (Point.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point) &&
           (!preserveCollinear ||
             !outPt.point.between(outPt.prev.point, outPt.next.point)))
       ) {
@@ -120,7 +116,7 @@ export default class OutRec {
 
     const pointer1: OutPt = outRec1._bottom;
     const pointer2: OutPt = outRec2._bottom;
-    const offset: IntPoint = IntPoint.sub(pointer1.point, pointer2.point);
+    const offset: Point = Point.sub(pointer1.point, pointer2.point);
 
     switch (true) {
       case offset.y < 0:

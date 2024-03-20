@@ -1,22 +1,22 @@
 import { ClipType, EndType, JoinType, PolyType, PolyFillType } from "./enums";
 import Clipper from "./clipper";
-import IntPoint from "./int-point";
 import PolyNode from "./poly-node";
 import IntRect from "./int-rect";
 import { almostEqual } from "../util";
+import { Point } from "../geom";
 
 export default class ClipperOffset {
-  private _destPolys: IntPoint[][] = [];
-  private _srcPoly: IntPoint[] = [];
-  private _destPoly: IntPoint[] = [];
-  private _normals: IntPoint[] = [];
+  private _destPolys: Point[][] = [];
+  private _srcPoly: Point[] = [];
+  private _destPoly: Point[] = [];
+  private _normals: Point[] = [];
   private _delta: number = 0;
   private _sinA: number = 0;
   private _sin: number = 0;
   private _cos: number = 0;
   private _miterLim: number = 0;
   private _stepsPerRad: number = 0;
-  private _lowest = IntPoint.empty();
+  private _lowest = Point.empty();
   private _polyNodes: PolyNode = new PolyNode();
   private _miterLimit: number = 0;
   private _arcTolerance: number = 0;
@@ -30,19 +30,19 @@ export default class ClipperOffset {
     this._arcTolerance = arcTolerance;
   }
 
-  public AddPath(path: IntPoint[], joinType: JoinType, endType: EndType) {
+  public AddPath(path: Point[], joinType: JoinType, endType: EndType) {
     var highI = path.length - 1;
     if (highI < 0) return;
     var newNode = new PolyNode(joinType, endType);
     //strip duplicate points from path and also get index to the lowest point ...
     if (endType == EndType.ClosedLine || endType == EndType.ClosedPolygon)
-      while (highI > 0 && IntPoint.equal(path[0], path[highI])) highI--;
+      while (highI > 0 && path[0].equal(path[highI])) highI--;
     //newNode.m_polygon.set_Capacity(highI + 1);
     newNode.add(path[0]);
     var j = 0,
       k = 0;
     for (var i = 1; i <= highI; i++)
-      if (IntPoint.unequal(newNode.at(j), path[i])) {
+      if (!newNode.at(j).equal(path[i])) {
         j++;
         newNode.add(path[i]);
         if (
@@ -59,20 +59,20 @@ export default class ClipperOffset {
     this._polyNodes.addChild(newNode);
     //if this path's lowest pt is lower than all the others then update m_lowest
     if (endType != EndType.ClosedPolygon) return;
-    if (this._lowest.x < 0) this._lowest = IntPoint.fromCords(0, k);
+    if (this._lowest.x < 0) this._lowest = Point.fromCords(0, k);
     else {
-      const ip: IntPoint = this._polyNodes
+      const ip: Point = this._polyNodes
         .childAt(this._lowest.x)
         .at(this._lowest.y);
       if (
         newNode.at(k).y > ip.y ||
         (newNode.at(k).y == ip.y && newNode.at(k).x < ip.x)
       )
-        this._lowest = IntPoint.fromCords(this._polyNodes.childCount - 1, k);
+        this._lowest = Point.fromCords(this._polyNodes.childCount - 1, k);
     }
   }
 
-  public execute(solution: IntPoint[][], delta: number) {
+  public execute(solution: Point[][], delta: number) {
     // function (solution, delta)
     solution.length = 0;
     this._fixOrientations();
@@ -90,11 +90,11 @@ export default class ClipperOffset {
       );
     } else {
       const rect: IntRect = IntRect.fromPaths(this._destPolys);
-      const outer: IntPoint[] = [
-        IntPoint.fromCords(rect.left - 10, rect.bottom + 10),
-        IntPoint.fromCords(rect.right + 10, rect.bottom + 10),
-        IntPoint.fromCords(rect.right + 10, rect.top - 10),
-        IntPoint.fromCords(rect.left - 10, rect.top - 10)
+      const outer: Point[] = [
+        Point.fromCords(rect.left - 10, rect.bottom + 10),
+        Point.fromCords(rect.right + 10, rect.bottom + 10),
+        Point.fromCords(rect.right + 10, rect.top - 10),
+        Point.fromCords(rect.left - 10, rect.top - 10)
       ];
 
       clipper.addPath(outer, PolyType.Subject, true);
@@ -140,8 +140,8 @@ export default class ClipperOffset {
     }
   }
 
-  public static GetUnitNormal(pt1: IntPoint, pt2: IntPoint): IntPoint {
-    const d: IntPoint = IntPoint.sub(pt1, pt2);
+  public static GetUnitNormal(pt1: Point, pt2: Point): Point {
+    const d: Point = Point.sub(pt1, pt2);
 
     if (d.isEmpty) {
       return d;
@@ -151,7 +151,7 @@ export default class ClipperOffset {
 
     d.x *= f;
     d.y *= f;
-    return IntPoint.fromCords(d.y, -d.x);
+    return Point.fromCords(d.y, -d.x);
   }
 
   private _doOffset(delta: number) {
@@ -202,7 +202,7 @@ export default class ClipperOffset {
             Y = 0;
           for (var j = 1; j <= steps; j++) {
             this._destPoly.push(
-              IntPoint.fromCords(
+              Point.fromCords(
                 ClipperOffset.Round(this._srcPoly[0].x + X * delta),
                 ClipperOffset.Round(this._srcPoly[0].y + Y * delta)
               )
@@ -216,7 +216,7 @@ export default class ClipperOffset {
             Y = -1;
           for (var j = 0; j < 4; ++j) {
             this._destPoly.push(
-              IntPoint.fromCords(
+              Point.fromCords(
                 ClipperOffset.Round(this._srcPoly[0].x + X * delta),
                 ClipperOffset.Round(this._srcPoly[0].y + Y * delta)
               )
@@ -245,7 +245,7 @@ export default class ClipperOffset {
         );
       else
         this._normals.push(
-          IntPoint.fromCords(this._normals[len - 2].x, this._normals[len - 2].y)
+          Point.fromCords(this._normals[len - 2].x, this._normals[len - 2].y)
         );
       if (node.endType == EndType.ClosedPolygon) {
         var k = len - 1;
@@ -261,11 +261,11 @@ export default class ClipperOffset {
         //re-build m_normals ...
         var n = this._normals[len - 1];
         for (var j = len - 1; j > 0; j--)
-          this._normals[j] = IntPoint.fromCords(
+          this._normals[j] = Point.fromCords(
             -this._normals[j - 1].x,
             -this._normals[j - 1].y
           );
-        this._normals[0] = IntPoint.fromCords(-n.x, -n.y);
+        this._normals[0] = Point.fromCords(-n.x, -n.y);
         k = 0;
         for (var j = len - 1; j >= 0; j--)
           k = this._offsetPoint(j, k, node.joinType);
@@ -277,14 +277,14 @@ export default class ClipperOffset {
         var pt1;
         if (node.endType == EndType.OpenButt) {
           var j = len - 1;
-          pt1 = IntPoint.fromCords(
+          pt1 = Point.fromCords(
             ClipperOffset.Round(
               this._srcPoly[j].x + this._normals[j].x * delta
             ),
             ClipperOffset.Round(this._srcPoly[j].y + this._normals[j].y * delta)
           );
           this._destPoly.push(pt1);
-          pt1 = IntPoint.fromCords(
+          pt1 = Point.fromCords(
             ClipperOffset.Round(
               this._srcPoly[j].x - this._normals[j].x * delta
             ),
@@ -295,7 +295,7 @@ export default class ClipperOffset {
           var j = len - 1;
           k = len - 2;
           this._sinA = 0;
-          this._normals[j] = IntPoint.fromCords(
+          this._normals[j] = Point.fromCords(
             -this._normals[j].x,
             -this._normals[j].y
           );
@@ -304,11 +304,11 @@ export default class ClipperOffset {
         }
         //re-build m_normals ...
         for (var j = len - 1; j > 0; j--)
-          this._normals[j] = IntPoint.fromCords(
+          this._normals[j] = Point.fromCords(
             -this._normals[j - 1].x,
             -this._normals[j - 1].y
           );
-        this._normals[0] = IntPoint.fromCords(
+        this._normals[0] = Point.fromCords(
           -this._normals[1].x,
           -this._normals[1].y
         );
@@ -316,14 +316,14 @@ export default class ClipperOffset {
         for (var j = k - 1; j > 0; --j)
           k = this._offsetPoint(j, k, node.joinType);
         if (node.endType == EndType.OpenButt) {
-          pt1 = IntPoint.fromCords(
+          pt1 = Point.fromCords(
             ClipperOffset.Round(
               this._srcPoly[0].x - this._normals[0].x * delta
             ),
             ClipperOffset.Round(this._srcPoly[0].y - this._normals[0].y * delta)
           );
           this._destPoly.push(pt1);
-          pt1 = IntPoint.fromCords(
+          pt1 = Point.fromCords(
             ClipperOffset.Round(
               this._srcPoly[0].x + this._normals[0].x * delta
             ),
@@ -350,7 +350,7 @@ export default class ClipperOffset {
     else if (this._sinA < -1) this._sinA = -1.0;
     if (this._sinA * this._delta < 0) {
       this._destPoly.push(
-        IntPoint.fromCords(
+        Point.fromCords(
           ClipperOffset.Round(
             this._srcPoly[j].x + this._normals[k].x * this._delta
           ),
@@ -360,10 +360,10 @@ export default class ClipperOffset {
         )
       );
       this._destPoly.push(
-        IntPoint.fromCords(this._srcPoly[j].x, this._srcPoly[j].y)
+        Point.fromCords(this._srcPoly[j].x, this._srcPoly[j].y)
       );
       this._destPoly.push(
-        IntPoint.fromCords(
+        Point.fromCords(
           ClipperOffset.Round(
             this._srcPoly[j].x + this._normals[j].x * this._delta
           ),
@@ -403,7 +403,7 @@ export default class ClipperOffset {
       ) / 4
     );
     this._destPoly.push(
-      IntPoint.fromCords(
+      Point.fromCords(
         ClipperOffset.Round(
           this._srcPoly[j].x +
             this._delta * (this._normals[k].x - this._normals[k].y * dx)
@@ -415,7 +415,7 @@ export default class ClipperOffset {
       )
     );
     this._destPoly.push(
-      IntPoint.fromCords(
+      Point.fromCords(
         ClipperOffset.Round(
           this._srcPoly[j].x +
             this._delta * (this._normals[j].x + this._normals[j].y * dx)
@@ -442,7 +442,7 @@ export default class ClipperOffset {
       X2;
     for (var i = 0; i < steps; ++i) {
       this._destPoly.push(
-        IntPoint.fromCords(
+        Point.fromCords(
           ClipperOffset.Round(this._srcPoly[j].x + X * this._delta),
           ClipperOffset.Round(this._srcPoly[j].y + Y * this._delta)
         )
@@ -452,7 +452,7 @@ export default class ClipperOffset {
       Y = X2 * this._sin + Y * this._cos;
     }
     this._destPoly.push(
-      IntPoint.fromCords(
+      Point.fromCords(
         ClipperOffset.Round(
           this._srcPoly[j].x + this._normals[j].x * this._delta
         ),
@@ -466,7 +466,7 @@ export default class ClipperOffset {
   private _doMiter(j: number, k: number, r: number) {
     var q = this._delta / r;
     this._destPoly.push(
-      IntPoint.fromCords(
+      Point.fromCords(
         ClipperOffset.Round(
           this._srcPoly[j].x + (this._normals[k].x + this._normals[j].x) * q
         ),

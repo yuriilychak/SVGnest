@@ -1,6 +1,5 @@
 import { ClipType, EdgeSide, PolyFillType, PolyType } from "./enums";
 import JoinStore from "./join-store";
-import IntPoint from "./int-point";
 import LocalMinima from "./local-minima";
 import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
@@ -8,6 +7,7 @@ import { TEdge } from "./edge";
 import IntersectStore from "./intersect-store";
 import ScanbeamStore from "./scanbeam-store";
 import LocalMinimaStore from "./local-minima-store";
+import { Point } from "../geom";
 
 export default class Clipper {
   private _useFullRange: boolean = false;
@@ -40,7 +40,7 @@ export default class Clipper {
   }
 
   public addPaths(
-    ppg: IntPoint[][],
+    ppg: Point[][],
     polyType: PolyType,
     closed: boolean
   ): boolean {
@@ -58,7 +58,7 @@ export default class Clipper {
   }
 
   public addPath(
-    polygon: IntPoint[],
+    polygon: Point[],
     polyType: PolyType,
     isClosed: boolean
   ): boolean {
@@ -124,7 +124,7 @@ export default class Clipper {
 
       if (
         isClosed &&
-        IntPoint.slopesEqual(
+        Point.slopesEqual(
           edge1.prev.current,
           edge1.current,
           edge1.next.current
@@ -246,7 +246,7 @@ export default class Clipper {
 
   public execute(
     clipType: ClipType,
-    solution: IntPoint[][],
+    solution: Point[][],
     subjFillType: PolyFillType,
     clipFillType: PolyFillType
   ): boolean {
@@ -367,9 +367,9 @@ export default class Clipper {
   //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have
   //both x & y coords within 1 unit, then the second vertex will be stripped.
   public static cleanPolygon(
-    polygon: IntPoint[],
+    polygon: Point[],
     distance: number = 1.415
-  ): IntPoint[] {
+  ): Point[] {
     let pointCount: number = polygon.length;
 
     if (pointCount == 0) {
@@ -396,17 +396,11 @@ export default class Clipper {
     outPt = outPts[0];
 
     while (outPt.index == 0 && outPt.next !== outPt.prev) {
-      if (
-        IntPoint.pointsAreClose(outPt.point, outPt.prev.point, squareDistance)
-      ) {
+      if (Point.pointsAreClose(outPt.point, outPt.prev.point, squareDistance)) {
         outPt = outPt.exclude();
         --pointCount;
       } else if (
-        IntPoint.pointsAreClose(
-          outPt.prev.point,
-          outPt.next.point,
-          squareDistance
-        )
+        Point.pointsAreClose(outPt.prev.point, outPt.next.point, squareDistance)
       ) {
         outPt.next.exclude();
         outPt = outPt.exclude();
@@ -430,17 +424,17 @@ export default class Clipper {
       return [];
     }
 
-    const result: IntPoint[] = new Array(pointCount);
+    const result: Point[] = new Array(pointCount);
 
     for (i = 0; i < pointCount; ++i) {
-      result[i] = IntPoint.from(outPt.point);
+      result[i] = Point.from(outPt.point);
       outPt = outPt.next;
     }
 
     return result;
   }
 
-  public static area(polygons: IntPoint[]): number {
+  public static area(polygons: Point[]): number {
     const polygonCount: number = polygons.length;
 
     if (polygonCount < 3) {
@@ -460,10 +454,10 @@ export default class Clipper {
   }
 
   public static simplifyPolygon(
-    poly: IntPoint[],
+    poly: Point[],
     fillType: PolyFillType
-  ): IntPoint[][] {
-    const result: IntPoint[][] = [];
+  ): Point[][] {
+    const result: Point[][] = [];
     const clipper: Clipper = new Clipper(true);
 
     clipper.addPath(poly, PolyType.Subject, true);
@@ -472,11 +466,8 @@ export default class Clipper {
     return result;
   }
 
-  public static cleanPolygons(
-    polys: IntPoint[][],
-    distance: number
-  ): IntPoint[][] {
-    const result: IntPoint[][] = new Array(polys.length);
+  public static cleanPolygons(polys: Point[][], distance: number): Point[][] {
+    const result: Point[][] = new Array(polys.length);
     const polygonCount: number = polys.length;
     let i: number = 0;
 
@@ -488,7 +479,7 @@ export default class Clipper {
   }
 
   private static _getPolygonLastIndex(
-    polygon: IntPoint[],
+    polygon: Point[],
     isClosed: boolean
   ): number {
     let result: number = polygon.length - 1;

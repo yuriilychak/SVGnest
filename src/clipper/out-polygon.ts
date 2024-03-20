@@ -1,9 +1,9 @@
 import { EdgeSide } from "./enums";
-import IntPoint from "./int-point";
 import Join from "./join";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
 import TEdge from "./edge/t-edge";
+import { Point } from "../geom";
 
 export default class OutPolygon {
   private _data: OutRec[];
@@ -30,7 +30,7 @@ export default class OutPolygon {
     this._data.length = 0;
   }
 
-  public build(result: IntPoint[][]): IntPoint[][] {
+  public build(result: Point[][]): Point[][] {
     result.length = 0;
 
     const recordCount: number = this._data.length;
@@ -39,7 +39,7 @@ export default class OutPolygon {
     let outRec: OutRec;
     let outPt: OutPt;
     let pointCount: number;
-    let polygon: IntPoint[];
+    let polygon: Point[];
 
     for (i = 0; i < recordCount; ++i) {
       outRec = this._data.at(i);
@@ -74,7 +74,7 @@ export default class OutPolygon {
       outPt = outPt.prev;
     }
 
-    const point: IntPoint = outPt.point.equal(horzEdge.top)
+    const point: Point = outPt.point.equal(horzEdge.top)
       ? horzEdge.bottom
       : horzEdge.top;
 
@@ -113,7 +113,7 @@ export default class OutPolygon {
   public addLocalMaxPoly(
     e1: TEdge,
     e2: TEdge,
-    pt: IntPoint,
+    pt: Point,
     activeEdges: TEdge
   ): void {
     this.addOutPt(e1, pt);
@@ -126,7 +126,7 @@ export default class OutPolygon {
     else this._appendPolygon(e2, e1, activeEdges);
   }
 
-  public addOutPt(edge: TEdge, point: IntPoint) {
+  public addOutPt(edge: TEdge, point: Point) {
     var ToFront = edge.side == EdgeSide.Left;
     if (edge.outIndex < 0) {
       var outRec: OutRec = this._createRec();
@@ -146,8 +146,8 @@ export default class OutPolygon {
       var outRec = this._data[edge.outIndex];
       //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
       var op = outRec.pointer;
-      if (ToFront && IntPoint.equal(point, op.point)) return op;
-      else if (!ToFront && IntPoint.equal(point, op.prev.point)) return op.prev;
+      if (ToFront && point.equal(op.point)) return op;
+      else if (!ToFront && point.equal(op.prev.point)) return op.prev;
       var newOp = new OutPt();
       newOp.index = outRec.index;
       //newOp.Pt = pt;
@@ -173,11 +173,7 @@ export default class OutPolygon {
       {
         var op2 = op.next;
         while (op2 != outrec.pointer) {
-          if (
-            IntPoint.equal(op.point, op2.point) &&
-            op2.next != op &&
-            op2.prev != op
-          ) {
+          if (op.point.equal(op2.point) && op2.next != op && op2.prev != op) {
             //split the polygon into two ...
             var op3 = op.prev;
             var op4 = op2.prev;
@@ -305,7 +301,7 @@ export default class OutPolygon {
 
     const holeStateRec: OutRec = OutRec.getHoleStartRec(outRec1, outRec2);
 
-    if (!join.joinPoints(outRec1, outRec2, useFullRange)) {
+    if (!join.joinPoints(outRec1, outRec2)) {
       return;
     }
 

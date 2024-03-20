@@ -1,15 +1,15 @@
-import IntPoint from "./int-point";
+import { Point } from "../geom";
 import TEdge from "./edge/t-edge";
 
 export default class IntersectNode {
   private _edge1: TEdge;
   private _edge2: TEdge;
-  private _point: IntPoint;
+  private _point: Point;
 
-  constructor(edge1: TEdge, edge2: TEdge, point: IntPoint) {
+  constructor(edge1: TEdge, edge2: TEdge, point: Point) {
     this._edge1 = edge1;
     this._edge2 = edge2;
-    this._point = IntPoint.from(point);
+    this._point = Point.from(point);
   }
 
   public get edgesAdjacent(): boolean {
@@ -27,7 +27,7 @@ export default class IntersectNode {
     return this._edge2;
   }
 
-  public get point(): IntPoint {
+  public get point(): Point {
     return this._point;
   }
 

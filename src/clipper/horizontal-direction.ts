@@ -1,6 +1,6 @@
+import { Point } from "../geom";
 import { TEdge } from "./edge";
 import { Direction } from "./enums";
-import IntPoint from "./int-point";
 
 export default class HorizontalDirection {
   private _left: number;
@@ -19,14 +19,14 @@ export default class HorizontalDirection {
     }
   }
 
-  getIncluded(point: IntPoint): boolean {
+  getIncluded(point: Point): boolean {
     return (
       (this._direction === Direction.LeftToRight && point.x <= this._right) ||
       (this._direction === Direction.RightToLeft && point.x >= this._left)
     );
   }
 
-  getExcluded(point: IntPoint): boolean {
+  getExcluded(point: Point): boolean {
     return (
       (this._direction == Direction.LeftToRight && point.x >= this._right) ||
       (this._direction == Direction.RightToLeft && point.x <= this._left)

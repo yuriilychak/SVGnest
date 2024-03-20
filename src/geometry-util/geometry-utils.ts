@@ -4,7 +4,6 @@
 import { Rect, Point } from "../geom";
 import { IPolygon, IPoint } from "../interfaces";
 import { TripleStatus } from "../enums";
-import { IntPoint } from "../clipper";
 
 //TODO: depreacete when polygone will be moved to class
 
@@ -135,28 +134,25 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): TripleStatus {
 export function toClipperCoordinates(
   polygon: IPolygon,
   scale: number = 1
-): IntPoint[] {
+): Point[] {
   const size: number = polygon.length;
-  const result: IntPoint[] = [];
+  const result: Point[] = [];
   let i: number = 0;
   let point: IPoint;
 
   for (i = 0; i < size; ++i) {
     point = polygon[i];
-    result.push(IntPoint.fromCords(point.x * scale, point.y * scale));
+    result.push(Point.fromCords(point.x * scale, point.y * scale));
   }
 
   return result;
 }
 
-export function toNestCoordinates(
-  polygon: IntPoint[],
-  scale: number
-): IPolygon {
+export function toNestCoordinates(polygon: Point[], scale: number): IPolygon {
   const size: number = polygon.length;
   const result: IPolygon = new Array<IPoint>() as IPolygon;
   let i: number = 0;
-  let point: IntPoint;
+  let point: Point;
 
   for (i = 0; i < size; ++i) {
     point = polygon[i];

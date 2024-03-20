@@ -1,8 +1,8 @@
-import IntPoint from "./int-point";
 import Join from "./join";
 import OutPolygon from "./out-polygon";
 import OutPt from "./out-pt";
 import TEdge from "./edge/t-edge";
+import { Point } from "../geom";
 
 export default class JoinStore {
   private _ghostJoins: Join[];
@@ -13,7 +13,7 @@ export default class JoinStore {
     this._joins = [];
   }
 
-  public add(outPt1: OutPt, outPt2: OutPt, point: IntPoint): void {
+  public add(outPt1: OutPt, outPt2: OutPt, point: Point): void {
     this._joins.push(new Join(outPt1, outPt2, point));
   }
 
@@ -77,10 +77,10 @@ export default class JoinStore {
   }
 
   private static _horzSegmentsOverlap(
-    pointA1: IntPoint,
-    pointB1: IntPoint,
-    pointA2: IntPoint,
-    pointB2: IntPoint
+    pointA1: Point,
+    pointB1: Point,
+    pointA2: Point,
+    pointB2: Point
   ): boolean {
     return (
       pointA1.x > pointA2.x === pointA1.x < pointB2.x ||

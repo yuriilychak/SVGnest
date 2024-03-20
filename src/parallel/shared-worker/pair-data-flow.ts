@@ -18,14 +18,14 @@ import {
 } from "../../interfaces";
 import { instantiate, __AdaptedExports } from "../../asm";
 import { Rect, Point } from "../../geom";
-import { IntPoint, ClipType, PolyFillType, PolyType } from "../../clipper";
+import { ClipType, PolyFillType, PolyType } from "../../clipper";
 
-function orientation(poly: IntPoint[]): boolean {
+function orientation(poly: Point[]): boolean {
   const pointCount: number = poly.length;
   let result: number = 0;
   let i: number = 0;
-  let prevPoint: IntPoint;
-  let currentPoint: IntPoint;
+  let prevPoint: Point;
+  let currentPoint: Point;
 
   for (i = 0; i < pointCount; ++i) {
     currentPoint = poly[i];
@@ -40,13 +40,13 @@ function minkowskiDifference(a: IPolygon, b: IPolygon): IPolygon[] {
   const scale: number = 10000000;
   const sizeA: number = a.length;
   const sizeB: number = b.length;
-  const solutions: IntPoint[][] = [];
-  const quads: IntPoint[][] = [];
+  const solutions: Point[][] = [];
+  const quads: Point[][] = [];
   let pointB: IPoint;
   let pointA: IPoint;
-  let currentPath: IntPoint[];
-  let nextPath: IntPoint[];
-  let quad: IntPoint[];
+  let currentPath: Point[];
+  let nextPath: Point[];
+  let quad: Point[];
   let i: number = 0;
   let j: number = 0;
   let clipperNfp;
@@ -60,7 +60,7 @@ function minkowskiDifference(a: IPolygon, b: IPolygon): IPolygon[] {
 
     for (j = 0; j < sizeA; ++j) {
       pointA = a.at(j);
-      currentPath[j] = IntPoint.fromCords(
+      currentPath[j] = Point.fromCords(
         (pointA.x - pointB.x) * scale,
         (pointA.y - pointB.y) * scale
       );
