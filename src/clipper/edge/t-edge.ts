@@ -1,7 +1,7 @@
 import { Point } from "../../geom";
 import { clipperRound } from "../../util";
 import { ClipType, EdgeSide, PolyFillType, PolyType } from "../enums";
-import EdgeRecord from "./edge-record";
+import PointRecord from "../point-record";
 
 export default class TEdge extends Point {
   public bottom: Point = Point.empty();
@@ -15,20 +15,17 @@ export default class TEdge extends Point {
   public windCnt2: number = 0;
   public outIndex: number = 0;
   public nextInLML: TEdge = null;
-  private _ael: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
-  private _sel: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
-  private _current: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
+  private _ael: PointRecord<TEdge> = new PointRecord<TEdge>();
+  private _sel: PointRecord<TEdge> = new PointRecord<TEdge>();
+  private _current: PointRecord<TEdge> = new PointRecord<TEdge>();
 
   public init(nextEdge: TEdge, prevEdge: TEdge, point: Point): void {
     this._current.update(prevEdge, nextEdge);
-    //e.Curr = pt;
     this.set(point);
     this.outIndex = -1;
   }
 
   public topX(currentY: number): number {
-    //if (edge.Bot == edge.Curr) alert ("edge.Bot = edge.Curr");
-    //if (edge.Bot == edge.Top) alert ("edge.Bot = edge.Top");
     return currentY === this.top.y
       ? this.top.x
       : this.bottom.x + clipperRound(this.deltaX * (currentY - this.bottom.y));
@@ -44,7 +41,7 @@ export default class TEdge extends Point {
   }
 
   public swapSides(edge: TEdge): void {
-    var side = this.side;
+    const side: EdgeSide = this.side;
     this.side = edge.side;
     edge.side = side;
   }
@@ -69,7 +66,6 @@ export default class TEdge extends Point {
   }
 
   public remove(): TEdge {
-    //removes e from double_linked_list (but without removing from memory)
     this._current.prev.next = this._current.next;
     this._current.next.prev = this._current.prev;
     this._current.prev = null; //flag as removed (see ClipperBase.Clear)
@@ -77,9 +73,6 @@ export default class TEdge extends Point {
   }
 
   public reverseHorizontal(): void {
-    //swap horizontal edges' top and bottom x's so they follow the natural
-    //progression of the bounds - ie so their xbots will align with the
-    //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
     const tmp: number = this.top.x;
     this.top.x = this.bottom.x;
     this.bottom.x = tmp;
@@ -272,11 +265,11 @@ export default class TEdge extends Point {
     this._current.prev = value;
   }
 
-  public get sel(): EdgeRecord<TEdge> {
+  public get sel(): PointRecord<TEdge> {
     return this._sel;
   }
 
-  public get ael(): EdgeRecord<TEdge> {
+  public get ael(): PointRecord<TEdge> {
     return this._ael;
   }
 
@@ -289,25 +282,39 @@ export default class TEdge extends Point {
   }
 
   public get nextLocMin(): TEdge {
-    let edge: TEdge = this;
-    var E2;
-    for (;;) {
-      while (!edge.bottom.equal(edge.prev.bottom) || edge.equal(edge.top))
-        edge = edge.next;
+    let edge1: TEdge = this;
+    let edge2: TEdge;
+
+    while (true) {
+      while (!edge1.bottom.equal(edge1.prev.bottom) || edge1.equal(edge1.top))
+        edge1 = edge1.next;
       if (
-        edge.deltaX != TEdge.horizontal &&
-        edge.prev.deltaX != TEdge.horizontal
-      )
+        edge1.deltaX != TEdge.horizontal &&
+        edge1.prev.deltaX != TEdge.horizontal
+      ) {
         break;
-      while (edge.prev.deltaX == TEdge.horizontal) edge = edge.prev;
-      E2 = edge;
-      while (edge.deltaX == TEdge.horizontal) edge = edge.next;
-      if (edge.top.y == edge.prev.bottom.y) continue;
-      //ie just an intermediate horz.
-      if (E2.prev.bottom.x < edge.bottom.x) edge = E2;
+      }
+
+      while (edge1.prev.deltaX == TEdge.horizontal) {
+        edge1 = edge1.prev;
+      }
+
+      edge2 = edge1;
+
+      while (edge1.deltaX == TEdge.horizontal) {
+        edge1 = edge1.next;
+      }
+
+      if (edge1.top.y == edge1.prev.bottom.y) {
+        continue;
+      }
+      if (edge2.prev.bottom.x < edge1.bottom.x) {
+        edge1 = edge2;
+      }
       break;
     }
-    return edge;
+
+    return edge1;
   }
 
   public static slopesEqual(edge1: TEdge, edge2: TEdge): boolean {
@@ -333,13 +340,14 @@ export default class TEdge extends Point {
 
     let b1: number = 0;
     let b2: number = 0;
-    //nb: with very large coordinate values, it's possible for SlopesEqual() to
-    //return false but for the edge.Dx value be equal due to double precision rounding.
+
     if (TEdge.slopesEqual(edge1, edge2) || edge1.deltaX == edge2.deltaX) {
       point.set(edge2.bottom.y > edge1.bottom.y ? edge2.bottom : edge1.bottom);
 
       return false;
-    } else if (edge1.delta.x === 0) {
+    }
+
+    if (edge1.delta.x === 0) {
       point.x = edge1.bottom.x;
 
       if (edge2.isHorizontal) {
@@ -350,6 +358,7 @@ export default class TEdge extends Point {
       }
     } else if (edge2.delta.x === 0) {
       point.x = edge2.bottom.x;
+
       if (edge1.isHorizontal) {
         point.y = edge1.bottom.y;
       } else {
@@ -362,26 +371,27 @@ export default class TEdge extends Point {
 
       const q: number = (b2 - b1) / (edge1.deltaX - edge2.deltaX);
 
-      point.y = clipperRound(q);
-      point.x =
+      point.update(
         Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
           ? clipperRound(edge1.deltaX * q + b1)
-          : clipperRound(edge2.deltaX * q + b2);
+          : clipperRound(edge2.deltaX * q + b2),
+        clipperRound(q)
+      );
     }
     if (point.y < edge1.top.y || point.y < edge2.top.y) {
       if (edge1.top.y > edge2.top.y) {
         point.update(edge2.topX(edge1.top.y), edge1.top.y);
 
         return point.x < edge1.top.x;
-      } else {
-        point.y = edge2.top.y;
       }
 
+      point.y = edge2.top.y;
       point.x =
         Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
           ? edge1.topX(point.y)
           : edge2.topX(point.y);
     }
+
     return true;
   }
 

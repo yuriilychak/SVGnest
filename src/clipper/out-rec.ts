@@ -23,17 +23,14 @@ export default class OutRec {
   }
 
   public reverse(): void {
-    if (this.pointer !== null) {
+    if (this.hasPointer) {
       this.pointer.reversePointer();
     }
   }
 
   //FixupOutPolygon() - removes duplicate points and simplifies consecutive
   //parallel edges by removing the middle vertex.
-  public fixupOutPolygon(
-    useFullRange: boolean,
-    preserveCollinear: boolean
-  ): void {
+  public fixupOutPolygon(preserveCollinear: boolean): void {
     this._bottom = null;
     let lastOutPt: OutPt = null;
     let outPt: OutPt = this.pointer;
@@ -42,6 +39,7 @@ export default class OutRec {
       if (outPt.prev == outPt || outPt.prev == outPt.next) {
         outPt.dispose();
         this.pointer = null;
+
         return;
       }
       //test for duplicate points and collinear edges ...
@@ -71,6 +69,10 @@ export default class OutRec {
     this._bottom = null;
   }
 
+  public checkArea(reverseSolution: boolean): boolean {
+    return (this.isHole !== reverseSolution) === this.area > 0;
+  }
+
   public get area(): number {
     let pointer: OutPt = this.pointer;
 
@@ -87,6 +89,10 @@ export default class OutRec {
     } while (pointer != this.pointer);
 
     return result * 0.5;
+  }
+
+  public get hasPointer(): boolean {
+    return this.pointer !== null;
   }
 
   public static param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {

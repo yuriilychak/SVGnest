@@ -339,7 +339,6 @@ export default class Clipper {
       this._outPolygon.fixOrientations(
         this._joinStore.joins,
         this._reverseSolution,
-        this._useFullRange,
         this._strictlySimple
       );
 

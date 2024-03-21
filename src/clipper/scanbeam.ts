@@ -19,7 +19,6 @@ export default class Scanbeam {
     }
 
     if (y !== scanbeam.y) {
-      //ie ignores duplicates
       scanbeam.next = new Scanbeam(y, scanbeam.next);
     }
 

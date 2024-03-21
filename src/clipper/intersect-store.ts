@@ -427,7 +427,7 @@ export default class IntersectStore {
       TEdge.slopesEqual(edge, prevEdge) &&
       edge.windDelta !== 0
     ) {
-      var outPt = this._outPolygon.addOutPt(prevEdge, point);
+      const outPt: OutPt = this._outPolygon.addOutPt(prevEdge, point);
       this._joinStore.add(result, outPt, edge.top);
     }
 

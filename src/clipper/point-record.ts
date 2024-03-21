@@ -1,7 +1,7 @@
-import { Point } from "../../geom";
-import { Direction } from "../enums";
+import { Point } from "../geom";
+import { Direction } from "./enums";
 
-export default class EdgeRecord<T extends Point> {
+export default class PointRecord<T extends Point> {
   private _next: T;
   private _prev: T;
 

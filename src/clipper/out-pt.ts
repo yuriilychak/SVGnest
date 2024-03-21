@@ -1,9 +1,15 @@
 import { Point } from "../geom";
+import PointRecord from "./point-record";
 
 export default class OutPt extends Point {
   public index: number = 0;
-  public next: OutPt = null;
-  public prev: OutPt = null;
+  private _source: PointRecord<OutPt> = new PointRecord();
+
+  init(index: number, point: Point, prev: OutPt, next: OutPt): void {
+    this.set(point);
+    this.index = index;
+    this._source.update(prev, next);
+  }
 
   public duplicate(isInsertAfter: boolean): OutPt {
     const result: OutPt = new OutPt();
@@ -12,25 +18,25 @@ export default class OutPt extends Point {
     result.index = this.index;
 
     if (isInsertAfter) {
-      result.next = this.next;
+      result.next = this._source.next;
       result.prev = this;
-      this.next.prev = result;
-      this.next = result;
+      this._source.next.prev = result;
+      this._source.next = result;
     } else {
-      result.prev = this.prev;
+      result.prev = this._source.prev;
       result.next = this;
-      this.prev.next = result;
-      this.prev = result;
+      this._source.prev.next = result;
+      this._source.prev = result;
     }
 
     return result;
   }
 
   public exclude(): OutPt {
-    const result: OutPt = this.prev;
+    const result: OutPt = this._source.prev;
 
-    result.next = this.next;
-    this.next.prev = result;
+    result.next = this._source.next;
+    this._source.next.prev = result;
 
     result.index = 0;
 
@@ -105,6 +111,22 @@ export default class OutPt extends Point {
       }
     }
     return outPt;
+  }
+
+  public get next(): OutPt {
+    return this._source.next;
+  }
+
+  public set next(value: OutPt) {
+    this._source.next = value;
+  }
+
+  public get prev(): OutPt {
+    return this._source.prev;
+  }
+
+  public set prev(value: OutPt) {
+    this._source.prev = value;
   }
 
   public static pointInPolygon(point: Point, outPt: OutPt): number {
