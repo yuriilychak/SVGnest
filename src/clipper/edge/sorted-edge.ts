@@ -9,8 +9,8 @@ export default class SortedEdge {
   public add(edge: TEdge): void {
     edge.updateSEL(null, this._source);
 
-    if (edge.nextInSEL !== null) {
-      edge.nextInSEL.prevInSEL = edge;
+    if (edge.sel.next !== null) {
+      edge.sel.next.sel.prev = edge;
     }
 
     this._source = edge;
@@ -36,8 +36,8 @@ export default class SortedEdge {
   }
 
   public delete(edge: TEdge): void {
-    const prevSEL: TEdge = edge.prevInSEL;
-    const nextSEL: TEdge = edge.nextInSEL;
+    const prevSEL: TEdge = edge.sel.prev;
+    const nextSEL: TEdge = edge.sel.next;
 
     if (prevSEL === null && nextSEL === null && edge !== this._source) {
       return;
@@ -45,16 +45,16 @@ export default class SortedEdge {
 
     //already deleted
     if (prevSEL !== null) {
-      prevSEL.nextInSEL = nextSEL;
+      prevSEL.sel.next = nextSEL;
     } else {
       this._source = nextSEL;
     }
 
     if (nextSEL !== null) {
-      nextSEL.prevInSEL = prevSEL;
+      nextSEL.sel.prev = prevSEL;
     }
 
-    edge.nextInSEL = null;
+    edge.sel.next = null;
   }
 
   public swap(node: IntersectNode): void {
@@ -62,8 +62,8 @@ export default class SortedEdge {
     const edge2: TEdge = node.edge2;
 
     if (
-      (edge1.nextInSEL === null && edge1.prevInSEL === null) ||
-      (edge2.nextInSEL === null && edge2.prevInSEL === null)
+      (edge1.sel.next === null && edge1.sel.prev === null) ||
+      (edge2.sel.next === null && edge2.sel.prev === null)
     ) {
       return;
     }
@@ -71,67 +71,67 @@ export default class SortedEdge {
     let next: TEdge;
     let prev: TEdge;
 
-    if (edge1.nextInSEL == edge2) {
-      next = edge2.nextInSEL;
+    if (edge1.sel.next == edge2) {
+      next = edge2.sel.next;
 
       if (next !== null) {
-        next.prevInSEL = edge1;
+        next.sel.prev = edge1;
       }
 
-      prev = edge1.prevInSEL;
+      prev = edge1.sel.prev;
 
       if (prev !== null) {
-        prev.nextInSEL = edge2;
+        prev.sel.next = edge2;
       }
 
       edge1.updateSEL(edge2, next);
       edge2.updateSEL(prev, edge1);
-    } else if (edge2.nextInSEL == edge1) {
-      next = edge1.nextInSEL;
+    } else if (edge2.sel.next == edge1) {
+      next = edge1.sel.next;
 
       if (next !== null) {
-        next.prevInSEL = edge2;
+        next.sel.prev = edge2;
       }
 
-      prev = edge2.prevInSEL;
+      prev = edge2.sel.prev;
 
       if (prev !== null) {
-        prev.nextInSEL = edge1;
+        prev.sel.next = edge1;
       }
 
       edge1.updateSEL(prev, edge2);
       edge2.updateSEL(edge1, next);
     } else {
-      next = edge1.nextInSEL;
-      prev = edge1.prevInSEL;
-      edge1.nextInSEL = edge2.nextInSEL;
+      next = edge1.sel.next;
+      prev = edge1.sel.prev;
+      edge1.sel.next = edge2.sel.next;
 
-      if (edge1.nextInSEL !== null) {
-        edge1.nextInSEL.prevInSEL = edge1;
+      if (edge1.sel.next !== null) {
+        edge1.sel.next.sel.prev = edge1;
       }
 
-      edge1.prevInSEL = edge2.prevInSEL;
+      edge1.sel.prev = edge2.sel.prev;
 
-      if (edge1.prevInSEL !== null) {
-        edge1.prevInSEL.nextInSEL = edge1;
+      if (edge1.sel.prev !== null) {
+        edge1.sel.prev.sel.next = edge1;
       }
 
-      edge2.nextInSEL = next;
+      edge2.sel.next = next;
 
-      if (edge2.nextInSEL !== null) {
-        edge2.nextInSEL.prevInSEL = edge2;
+      if (edge2.sel.next !== null) {
+        edge2.sel.next.sel.prev = edge2;
       }
 
-      edge2.prevInSEL = prev;
+      edge2.sel.prev = prev;
 
-      if (edge2.prevInSEL !== null) {
-        edge2.prevInSEL.nextInSEL = edge2;
+      if (edge2.sel.prev !== null) {
+        edge2.sel.prev.sel.next = edge2;
       }
     }
 
-    if (edge1.prevInSEL === null) {
+    if (edge1.sel.prev === null) {
       this._source = edge1;
-    } else if (edge2.prevInSEL === null) {
+    } else if (edge2.sel.prev === null) {
       this._source = edge2;
     }
   }

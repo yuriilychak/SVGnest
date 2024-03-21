@@ -14,8 +14,7 @@ export default class IntersectNode extends Point {
 
   public get edgesAdjacent(): boolean {
     return (
-      this._edge1.nextInSEL == this._edge2 ||
-      this._edge1.prevInSEL == this._edge2
+      this._edge1.sel.next == this._edge2 || this._edge1.sel.prev == this._edge2
     );
   }
 

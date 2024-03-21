@@ -69,8 +69,8 @@ export default class IntersectStore {
       isModified = false;
       edge = this._sortedEdge.source;
 
-      while (edge.nextInSEL !== null) {
-        nextEdge = edge.nextInSEL;
+      while (edge.sel.next !== null) {
+        nextEdge = edge.sel.next;
         point = Point.empty();
 
         if (edge.x > nextEdge.x) {
@@ -98,8 +98,8 @@ export default class IntersectStore {
         } else edge = nextEdge;
       }
 
-      if (edge.prevInSEL !== null) {
-        edge.prevInSEL.nextInSEL = null;
+      if (edge.sel.prev !== null) {
+        edge.sel.prev.sel.next = null;
       } else {
         break;
       }

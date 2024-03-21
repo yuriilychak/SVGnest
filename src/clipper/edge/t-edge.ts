@@ -6,6 +6,7 @@ import {
   PolyFillType,
   PolyType
 } from "../enums";
+import EdgeRecord from "./edge-record";
 
 export default class TEdge extends Point {
   public bottom: Point = Point.empty();
@@ -18,17 +19,14 @@ export default class TEdge extends Point {
   public windCount1: number = 0;
   public windCnt2: number = 0;
   public outIndex: number = 0;
-  public next: TEdge = null;
-  public prev: TEdge = null;
   public nextInLML: TEdge = null;
   public nextInAEL: TEdge = null;
   public prevInAEL: TEdge = null;
-  public nextInSEL: TEdge = null;
-  public prevInSEL: TEdge = null;
+  private _sel: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
+  private _current: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
 
   public init(nextEdge: TEdge, prevEdge: TEdge, point: Point): void {
-    this.next = nextEdge;
-    this.prev = prevEdge;
+    this._current.update(prevEdge, nextEdge);
     //e.Curr = pt;
     this.set(point);
     this.outIndex = -1;
@@ -64,9 +62,9 @@ export default class TEdge extends Point {
   }
 
   public initFromPolyType(polyType: PolyType): void {
-    const condition: boolean = this.y >= this.next.y;
-    const bottom: Point = condition ? this : this.next;
-    const top: Point = condition ? this.next : this;
+    const condition: boolean = this.y >= this._current.next.y;
+    const bottom: Point = condition ? this : this._current.next;
+    const top: Point = condition ? this._current.next : this;
 
     this.bottom.set(bottom);
     this.top.set(top);
@@ -78,10 +76,10 @@ export default class TEdge extends Point {
 
   public remove(): TEdge {
     //removes e from double_linked_list (but without removing from memory)
-    this.prev.next = this.next;
-    this.next.prev = this.prev;
-    this.prev = null; //flag as removed (see ClipperBase.Clear)
-    return this.next;
+    this._current.prev.next = this._current.next;
+    this._current.next.prev = this._current.prev;
+    this._current.prev = null; //flag as removed (see ClipperBase.Clear)
+    return this._current.next;
   }
 
   public reverseHorizontal(): void {
@@ -104,10 +102,16 @@ export default class TEdge extends Point {
   public getMaximaPair(): TEdge {
     let result: TEdge = null;
 
-    if (this.top.equal(this.next.top) && this.next.nextInLML === null) {
-      result = this.next;
-    } else if (this.top.equal(this.prev.top) && this.prev.nextInLML === null) {
-      result = this.prev;
+    if (
+      this.top.equal(this._current.next.top) &&
+      this._current.next.nextInLML === null
+    ) {
+      result = this._current.next;
+    } else if (
+      this.top.equal(this._current.prev.top) &&
+      this._current.prev.nextInLML === null
+    ) {
+      result = this._current.prev;
     }
 
     return result !== null &&
@@ -127,8 +131,7 @@ export default class TEdge extends Point {
   }
 
   public updateSEL(prev: TEdge | null, next: TEdge | null): void {
-    this.prevInSEL = prev;
-    this.nextInSEL = next;
+    this._sel.update(prev, next);
   }
 
   public isEvenOddFillType(type1: PolyFillType, type2: PolyFillType): boolean {
@@ -268,6 +271,26 @@ export default class TEdge extends Point {
     }
 
     return true;
+  }
+
+  public get next(): TEdge {
+    return this._current.next;
+  }
+
+  public set next(value: TEdge) {
+    this._current.next = value;
+  }
+
+  public get prev(): TEdge {
+    return this._current.prev;
+  }
+
+  public set prev(value: TEdge) {
+    this._current.prev = value;
+  }
+
+  public get sel(): EdgeRecord<TEdge> {
+    return this._sel;
   }
 
   public get isValid(): boolean {

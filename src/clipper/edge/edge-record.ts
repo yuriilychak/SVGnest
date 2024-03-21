@@ -1,0 +1,49 @@
+import { Point } from "../../geom";
+
+export default class EdgeRecord<T extends Point> {
+  private _next: T;
+  private _prev: T;
+
+  constructor() {
+    this._next = null;
+    this._prev = null;
+  }
+
+  public update(prev: T, next: T): void {
+    this._prev = prev;
+    this._next = next;
+  }
+
+  public clean() {
+    this._prev = null;
+    this._next = null;
+  }
+
+  public get next(): T {
+    return this._next;
+  }
+
+  public set next(value: T) {
+    this._next = value;
+  }
+
+  public get prev(): T {
+    return this._prev;
+  }
+
+  public set prev(value: T) {
+    this._prev = value;
+  }
+
+  public get hasPrev(): boolean {
+    return this._prev !== null;
+  }
+
+  public get hasNext(): boolean {
+    return this._next !== null;
+  }
+
+  public get isEmpty(): boolean {
+    return this._next === null && this._prev === null;
+  }
+}
