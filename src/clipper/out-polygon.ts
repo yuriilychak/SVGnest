@@ -281,7 +281,7 @@ export default class OutPolygon {
         e.side = side;
         break;
       }
-      e = e.nextInAEL;
+      e = e.ael.next;
     }
     outRec2.index = outRec1.index;
   }
@@ -348,14 +348,14 @@ export default class OutPolygon {
 
   private _setHoleState(edge: TEdge, outRec: OutRec): void {
     let isHole: boolean = false;
-    let tmpEdge: TEdge = edge.prevInAEL;
+    let tmpEdge: TEdge = edge.ael.prev;
 
     while (tmpEdge !== null) {
       if (tmpEdge.outIndex >= 0 && tmpEdge.windDelta != 0) {
         isHole = !isHole;
         if (outRec.left === null) outRec.left = this._data[tmpEdge.outIndex];
       }
-      tmpEdge = tmpEdge.prevInAEL;
+      tmpEdge = tmpEdge.ael.prev;
     }
 
     if (isHole) {

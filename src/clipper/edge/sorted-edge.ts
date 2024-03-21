@@ -7,9 +7,9 @@ export default class SortedEdge {
   //SEL pointers in PEdge are reused to build a list of horizontal edges.
   //However, we don't need to worry about order with horizontal edge processing.
   public add(edge: TEdge): void {
-    edge.updateSEL(null, this._source);
+    edge.sel.update(null, this._source);
 
-    if (edge.sel.next !== null) {
+    if (edge.sel.hasNext) {
       edge.sel.next.sel.prev = edge;
     }
 
@@ -23,34 +23,34 @@ export default class SortedEdge {
     let result: TEdge = edge;
 
     while (result !== null) {
-      result.updateSEL(result.prevInAEL, result.nextInAEL);
+      result.sel.update(result.ael.prev, result.ael.next);
 
       if (isUpdateX) {
         result.x = result.topX(topY);
       }
 
-      result = result.nextInAEL;
+      result = result.ael.next;
     }
 
     return result;
   }
 
   public delete(edge: TEdge): void {
-    const prevSEL: TEdge = edge.sel.prev;
-    const nextSEL: TEdge = edge.sel.next;
-
-    if (prevSEL === null && nextSEL === null && edge !== this._source) {
+    if (edge.sel.isEmpty && edge !== this._source) {
       return;
     }
 
+    const prevSEL: TEdge = edge.sel.prev;
+    const nextSEL: TEdge = edge.sel.next;
+
     //already deleted
-    if (prevSEL !== null) {
+    if (edge.sel.hasPrev) {
       prevSEL.sel.next = nextSEL;
     } else {
       this._source = nextSEL;
     }
 
-    if (nextSEL !== null) {
+    if (edge.sel.hasNext) {
       nextSEL.sel.prev = prevSEL;
     }
 
@@ -61,77 +61,74 @@ export default class SortedEdge {
     const edge1: TEdge = node.edge1;
     const edge2: TEdge = node.edge2;
 
-    if (
-      (edge1.sel.next === null && edge1.sel.prev === null) ||
-      (edge2.sel.next === null && edge2.sel.prev === null)
-    ) {
+    if (edge1.sel.isEmpty || edge2.sel.isEmpty) {
       return;
     }
 
     let next: TEdge;
     let prev: TEdge;
 
-    if (edge1.sel.next == edge2) {
+    if (edge1.sel.next === edge2) {
       next = edge2.sel.next;
 
-      if (next !== null) {
+      if (edge2.sel.hasNext) {
         next.sel.prev = edge1;
       }
 
       prev = edge1.sel.prev;
 
-      if (prev !== null) {
+      if (edge1.sel.hasPrev) {
         prev.sel.next = edge2;
       }
 
-      edge1.updateSEL(edge2, next);
-      edge2.updateSEL(prev, edge1);
+      edge1.sel.update(edge2, next);
+      edge2.sel.update(prev, edge1);
     } else if (edge2.sel.next == edge1) {
       next = edge1.sel.next;
 
-      if (next !== null) {
+      if (edge1.sel.hasNext) {
         next.sel.prev = edge2;
       }
 
       prev = edge2.sel.prev;
 
-      if (prev !== null) {
+      if (edge2.sel.hasPrev) {
         prev.sel.next = edge1;
       }
 
-      edge1.updateSEL(prev, edge2);
-      edge2.updateSEL(edge1, next);
+      edge1.sel.update(prev, edge2);
+      edge2.sel.update(edge1, next);
     } else {
       next = edge1.sel.next;
       prev = edge1.sel.prev;
       edge1.sel.next = edge2.sel.next;
 
-      if (edge1.sel.next !== null) {
+      if (edge1.sel.hasNext) {
         edge1.sel.next.sel.prev = edge1;
       }
 
       edge1.sel.prev = edge2.sel.prev;
 
-      if (edge1.sel.prev !== null) {
+      if (edge1.sel.hasPrev) {
         edge1.sel.prev.sel.next = edge1;
       }
 
       edge2.sel.next = next;
 
-      if (edge2.sel.next !== null) {
+      if (edge2.sel.hasNext) {
         edge2.sel.next.sel.prev = edge2;
       }
 
       edge2.sel.prev = prev;
 
-      if (edge2.sel.prev !== null) {
+      if (edge2.sel.hasPrev) {
         edge2.sel.prev.sel.next = edge2;
       }
     }
 
-    if (edge1.sel.prev === null) {
+    if (!edge1.sel.hasPrev) {
       this._source = edge1;
-    } else if (edge2.sel.prev === null) {
+    } else if (!edge2.sel.hasPrev) {
       this._source = edge2;
     }
   }

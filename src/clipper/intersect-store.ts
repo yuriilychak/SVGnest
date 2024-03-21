@@ -69,7 +69,7 @@ export default class IntersectStore {
       isModified = false;
       edge = this._sortedEdge.source;
 
-      while (edge.sel.next !== null) {
+      while (edge.sel.hasNext) {
         nextEdge = edge.sel.next;
         point = Point.empty();
 
@@ -98,7 +98,7 @@ export default class IntersectStore {
         } else edge = nextEdge;
       }
 
-      if (edge.sel.prev !== null) {
+      if (edge.sel.hasPrev) {
         edge.sel.prev.sel.next = null;
       } else {
         break;
@@ -418,9 +418,7 @@ export default class IntersectStore {
 
     let edge: TEdge = primaryEdge;
     let prevEdge: TEdge =
-      edge.prevInAEL == secondaryEdge
-        ? secondaryEdge.prevInAEL
-        : edge.prevInAEL;
+      edge.ael.prev == secondaryEdge ? secondaryEdge.ael.prev : edge.ael.prev;
 
     if (
       prevEdge !== null &&
@@ -437,13 +435,13 @@ export default class IntersectStore {
   }
 
   private _setWindingCount(edge: TEdge): void {
-    let edge1: TEdge = edge.prevInAEL;
+    let edge1: TEdge = edge.ael.prev;
 
     while (
       edge1 !== null &&
       (edge1.polyType != edge.polyType || edge1.windDelta === 0)
     ) {
-      edge1 = edge1.prevInAEL;
+      edge1 = edge1.ael.prev;
     }
 
     if (edge1 === null) {
@@ -453,24 +451,24 @@ export default class IntersectStore {
     } else if (edge.windDelta === 0 && this._clipType != ClipType.Union) {
       edge.windCount1 = 1;
       edge.windCnt2 = edge1.windCnt2;
-      edge1 = edge1.nextInAEL;
+      edge1 = edge1.ael.next;
     } else if (edge.isEvenOddFillType(this._subjFillType, this._clipFillType)) {
       if (edge.windDelta === 0) {
         let isInside: boolean = true;
-        let edge2: TEdge = edge1.prevInAEL;
+        let edge2: TEdge = edge1.ael.prev;
 
         while (edge2 !== null) {
           if (edge2.polyType == edge1.polyType && edge2.windDelta !== 0) {
             isInside = !isInside;
           }
-          edge2 = edge2.prevInAEL;
+          edge2 = edge2.ael.prev;
         }
         edge.windCount1 = isInside ? 0 : 1;
       } else {
         edge.windCount1 = edge.windDelta;
       }
       edge.windCnt2 = edge1.windCnt2;
-      edge1 = edge1.nextInAEL;
+      edge1 = edge1.ael.next;
     } else {
       if (edge1.windCount1 * edge1.windDelta < 0) {
         if (Math.abs(edge1.windCount1) > 1) {
@@ -494,18 +492,18 @@ export default class IntersectStore {
       }
 
       edge.windCnt2 = edge1.windCnt2;
-      edge1 = edge1.nextInAEL;
+      edge1 = edge1.ael.next;
     }
 
     if (edge.isEvenOddFillType(this._clipFillType, this._subjFillType)) {
       while (edge1 != edge) {
         if (edge1.windDelta !== 0) edge.windCnt2 = edge.windCnt2 === 0 ? 1 : 0;
-        edge1 = edge1.nextInAEL;
+        edge1 = edge1.ael.next;
       }
     } else {
       while (edge1 != edge) {
         edge.windCnt2 += edge1.windDelta;
-        edge1 = edge1.nextInAEL;
+        edge1 = edge1.ael.next;
       }
     }
   }
@@ -579,28 +577,28 @@ export default class IntersectStore {
 
     if (
       leftBound.isValid &&
-      leftBound.prevInAEL !== null &&
-      leftBound.prevInAEL.x == leftBound.x &&
-      leftBound.prevInAEL.isValid &&
-      TEdge.slopesEqual(leftBound.prevInAEL, leftBound)
+      leftBound.ael.prev !== null &&
+      leftBound.ael.prev.x == leftBound.x &&
+      leftBound.ael.prev.isValid &&
+      TEdge.slopesEqual(leftBound.ael.prev, leftBound)
     ) {
-      outPt2 = this._outPolygon.addOutPt(leftBound.prevInAEL, leftBound.bottom);
+      outPt2 = this._outPolygon.addOutPt(leftBound.ael.prev, leftBound.bottom);
       this._joinStore.add(outPt1, outPt2, leftBound.top);
     }
-    if (leftBound.nextInAEL != rightBound) {
+    if (leftBound.ael.next != rightBound) {
       if (
         rightBound.isValid &&
-        rightBound.prevInAEL.isValid &&
-        TEdge.slopesEqual(rightBound.prevInAEL, rightBound)
+        rightBound.ael.prev.isValid &&
+        TEdge.slopesEqual(rightBound.ael.prev, rightBound)
       ) {
         outPt2 = this._outPolygon.addOutPt(
-          rightBound.prevInAEL,
+          rightBound.ael.prev,
           rightBound.bottom
         );
         this._joinStore.add(outPt1, outPt2, rightBound.top);
       }
 
-      let edge: TEdge = leftBound.nextInAEL;
+      let edge: TEdge = leftBound.ael.next;
 
       if (edge !== null)
         while (edge != rightBound) {
@@ -612,7 +610,7 @@ export default class IntersectStore {
             useFullRange
           );
 
-          edge = edge.nextInAEL;
+          edge = edge.ael.next;
         }
     }
   }
@@ -639,9 +637,9 @@ export default class IntersectStore {
       }
 
       if (isMaximaEdge) {
-        prev = edge.prevInAEL;
+        prev = edge.ael.prev;
         this._doMaxima(edge, useFullRange);
-        edge = prev === null ? this._activeEdge.source : prev.nextInAEL;
+        edge = prev === null ? this._activeEdge.source : prev.ael.next;
       } else {
         //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
         if (edge.isIntermediate(topY) && edge.nextInLML.isHorizontal) {
@@ -655,20 +653,20 @@ export default class IntersectStore {
           edge.update(edge.topX(topY), topY);
         }
         if (strictlySimple) {
-          prev = edge.prevInAEL;
+          prev = edge.ael.prev;
 
           if (
             edge.isValid &&
-            prev !== null &&
+            edge.ael.hasPrev &&
             prev.isValid &&
             prev.x == edge.x
           ) {
             outPt = this._outPolygon.addOutPt(prev, edge);
-            var op2 = this._outPolygon.addOutPt(edge, edge);
+            const op2: OutPt = this._outPolygon.addOutPt(edge, edge);
             this._joinStore.add(outPt, op2, edge);
           }
         }
-        edge = edge.nextInAEL;
+        edge = edge.ael.next;
       }
     }
 
@@ -685,15 +683,15 @@ export default class IntersectStore {
         }
 
         edge = this._activeEdge.update(edge, this._scanbeamStore);
-        //if output polygons share an edge, they'll need joining later ...
+
         if (outPt === null) {
           continue;
         }
 
-        this._updateJoins(edge, outPt, useFullRange);
+        this._updateJoins(edge, outPt);
       }
 
-      edge = edge.nextInAEL;
+      edge = edge.ael.next;
     }
   }
 
@@ -735,7 +733,7 @@ export default class IntersectStore {
 
     while (true) {
       isLastHorz = horzEdge == lastHorzEdge;
-      edge = horzEdge.getNextInAEL(dirData.direction);
+      edge = horzEdge.ael.getNext(dirData.direction);
 
       while (edge !== null) {
         if (
@@ -746,7 +744,7 @@ export default class IntersectStore {
           break;
         }
 
-        nextEdge = edge.getNextInAEL(dirData.direction);
+        nextEdge = edge.ael.getNext(dirData.direction);
         //saves eNext for later
         if (dirData.getIncluded(edge)) {
           this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);
@@ -798,7 +796,7 @@ export default class IntersectStore {
         horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
 
         //nb: HorzEdge is no longer horizontal here
-        this._updateJoins(horzEdge, op1, useFullRange);
+        this._updateJoins(horzEdge, op1);
       } else horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
     } else if (maxPairEdge !== null) {
       if (maxPairEdge.outIndex >= 0) {
@@ -825,12 +823,8 @@ export default class IntersectStore {
     }
   }
 
-  private _updateJoins(
-    edge: TEdge,
-    outPt1: OutPt,
-    useFullRange: boolean
-  ): void {
-    const joinEdge: TEdge = edge.getJoinsEdge(useFullRange);
+  private _updateJoins(edge: TEdge, outPt1: OutPt): void {
+    const joinEdge: TEdge = edge.getJoinsEdge();
 
     if (joinEdge === null) {
       return;
@@ -853,13 +847,13 @@ export default class IntersectStore {
       return;
     }
 
-    let nextEdge: TEdge = edge.nextInAEL;
+    let nextEdge: TEdge = edge.ael.next;
     let isUseLines: boolean = true;
 
     while (nextEdge !== null && nextEdge != maxPairEdge) {
       this._intersectEdges(edge, nextEdge, edge.top, true, useFullRange);
       this._activeEdge.swap(edge, nextEdge);
-      nextEdge = edge.nextInAEL;
+      nextEdge = edge.ael.next;
     }
 
     if (edge.outIndex == -1 && maxPairEdge.outIndex == -1) {

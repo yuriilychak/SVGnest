@@ -6,14 +6,14 @@ export default class ActiveEdge {
 
   public insert(edge: TEdge, startEdge: TEdge = null): void {
     if (this._source === null) {
-      edge.updateAEL(null, null);
+      edge.ael.clean();
       this._source = edge;
     } else if (
       startEdge === null &&
       TEdge.e2InsertsBeforeE1(this._source, edge)
     ) {
-      edge.updateAEL(null, this._source);
-      this._source.prevInAEL = edge;
+      edge.ael.update(null, this._source);
+      this._source.ael.prev = edge;
       this._source = edge;
     } else {
       if (startEdge === null) {
@@ -21,96 +21,93 @@ export default class ActiveEdge {
       }
 
       while (
-        startEdge.nextInAEL !== null &&
-        !TEdge.e2InsertsBeforeE1(startEdge.nextInAEL, edge)
+        startEdge.ael.hasNext &&
+        !TEdge.e2InsertsBeforeE1(startEdge.ael.next, edge)
       ) {
-        startEdge = startEdge.nextInAEL;
+        startEdge = startEdge.ael.next;
       }
 
-      edge.nextInAEL = startEdge.nextInAEL;
+      edge.ael.next = startEdge.ael.next;
 
-      if (startEdge.nextInAEL !== null) {
-        startEdge.nextInAEL.prevInAEL = edge;
+      if (startEdge.ael.hasNext) {
+        startEdge.ael.next.ael.prev = edge;
       }
 
-      edge.prevInAEL = startEdge;
-      startEdge.nextInAEL = edge;
+      edge.ael.prev = startEdge;
+      startEdge.ael.next = edge;
     }
   }
 
   public swap(edge1: TEdge, edge2: TEdge): void {
     //check that one or other edge hasn't already been removed from AEL ...
-    if (
-      edge1.nextInAEL == edge1.prevInAEL ||
-      edge2.nextInAEL == edge2.prevInAEL
-    ) {
+    if (edge1.ael.isLooped || edge2.ael.isLooped) {
       return;
     }
 
     let next: TEdge;
     let prev: TEdge;
 
-    if (edge1.nextInAEL == edge2) {
-      next = edge2.nextInAEL;
+    if (edge1.ael.next == edge2) {
+      next = edge2.ael.next;
 
-      if (next !== null) {
-        next.prevInAEL = edge1;
+      if (edge2.ael.hasNext) {
+        next.ael.prev = edge1;
       }
 
-      prev = edge1.prevInAEL;
+      prev = edge1.ael.prev;
 
-      if (prev !== null) {
-        prev.nextInAEL = edge2;
+      if (edge1.ael.hasPrev) {
+        prev.ael.next = edge2;
       }
 
-      edge1.updateAEL(edge2, next);
-      edge2.updateAEL(prev, edge1);
-    } else if (edge2.nextInAEL == edge1) {
-      next = edge1.nextInAEL;
+      edge1.ael.update(edge2, next);
+      edge2.ael.update(prev, edge1);
+    } else if (edge2.ael.next == edge1) {
+      next = edge1.ael.next;
 
-      if (next !== null) {
-        next.prevInAEL = edge2;
+      if (edge1.ael.hasNext) {
+        next.ael.prev = edge2;
       }
 
-      prev = edge2.prevInAEL;
+      prev = edge2.ael.prev;
 
-      if (prev !== null) {
-        prev.nextInAEL = edge1;
+      if (edge2.ael.hasPrev) {
+        prev.ael.next = edge1;
       }
 
-      edge1.updateAEL(prev, edge2);
-      edge2.updateAEL(edge1, next);
+      edge1.ael.update(prev, edge2);
+      edge2.ael.update(edge1, next);
     } else {
-      next = edge1.nextInAEL;
-      prev = edge1.prevInAEL;
-      edge1.nextInAEL = edge2.nextInAEL;
+      next = edge1.ael.next;
+      prev = edge1.ael.prev;
+      edge1.ael.next = edge2.ael.next;
 
-      if (edge1.nextInAEL !== null) {
-        edge1.nextInAEL.prevInAEL = edge1;
+      if (edge1.ael.hasNext) {
+        edge1.ael.next.ael.prev = edge1;
       }
 
-      edge1.prevInAEL = edge2.prevInAEL;
+      edge1.ael.prev = edge2.ael.prev;
 
-      if (edge1.prevInAEL !== null) {
-        edge1.prevInAEL.nextInAEL = edge1;
+      if (edge1.ael.hasPrev) {
+        edge1.ael.prev.ael.next = edge1;
       }
 
-      edge2.nextInAEL = next;
+      edge2.ael.next = next;
 
-      if (edge2.nextInAEL !== null) {
-        edge2.nextInAEL.prevInAEL = edge2;
+      if (edge2.ael.hasNext) {
+        edge2.ael.next.ael.prev = edge2;
       }
 
-      edge2.prevInAEL = prev;
+      edge2.ael.prev = prev;
 
-      if (edge2.prevInAEL !== null) {
-        edge2.prevInAEL.nextInAEL = edge2;
+      if (edge2.ael.hasPrev) {
+        edge2.ael.prev.ael.next = edge2;
       }
     }
 
-    if (edge1.prevInAEL === null) {
+    if (!edge1.ael.hasPrev) {
       this._source = edge1;
-    } else if (edge2.prevInAEL === null) {
+    } else if (!edge2.ael.hasPrev) {
       this._source = edge2;
     }
   }
@@ -120,19 +117,19 @@ export default class ActiveEdge {
       console.error("UpdateEdgeIntoAEL: invalid call");
     }
 
-    const prev: TEdge = edge.prevInAEL;
-    const next: TEdge = edge.nextInAEL;
+    const prev: TEdge = edge.ael.prev;
+    const next: TEdge = edge.ael.next;
 
     edge.nextInLML.outIndex = edge.outIndex;
 
     if (prev !== null) {
-      prev.nextInAEL = edge.nextInLML;
+      prev.ael.next = edge.nextInLML;
     } else {
       this._source = edge.nextInLML;
     }
 
     if (next !== null) {
-      next.prevInAEL = edge.nextInLML;
+      next.ael.prev = edge.nextInLML;
     }
 
     edge.nextInLML.side = edge.side;
@@ -141,7 +138,7 @@ export default class ActiveEdge {
     edge.nextInLML.windCnt2 = edge.windCnt2;
     edge = edge.nextInLML;
     edge.set(edge.bottom);
-    edge.updateAEL(prev, next);
+    edge.ael.update(prev, next);
 
     if (!edge.isHorizontal) {
       scabeam.insert(edge.top.y);
@@ -151,24 +148,24 @@ export default class ActiveEdge {
   }
 
   public delete(edge: TEdge): void {
-    const prev: TEdge = edge.prevInAEL;
-    const next: TEdge = edge.nextInAEL;
+    const prev: TEdge = edge.ael.prev;
+    const next: TEdge = edge.ael.next;
 
     if (prev === null && next === null && edge !== this._source) {
       return;
     }
     //already deleted
     if (prev !== null) {
-      prev.nextInAEL = next;
+      prev.ael.next = next;
     } else {
       this._source = next;
     }
 
     if (next !== null) {
-      next.prevInAEL = prev;
+      next.ael.prev = prev;
     }
 
-    edge.updateAEL(null, null);
+    edge.ael.update(null, null);
   }
 
   public clean(): void {

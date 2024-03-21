@@ -1,11 +1,6 @@
 import { Point } from "../../geom";
-import {
-  ClipType,
-  Direction,
-  EdgeSide,
-  PolyFillType,
-  PolyType
-} from "../enums";
+import { clipperRound } from "../../util";
+import { ClipType, EdgeSide, PolyFillType, PolyType } from "../enums";
 import EdgeRecord from "./edge-record";
 
 export default class TEdge extends Point {
@@ -20,8 +15,7 @@ export default class TEdge extends Point {
   public windCnt2: number = 0;
   public outIndex: number = 0;
   public nextInLML: TEdge = null;
-  public nextInAEL: TEdge = null;
-  public prevInAEL: TEdge = null;
+  private _ael: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
   private _sel: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
   private _current: EdgeRecord<TEdge> = new EdgeRecord<TEdge>();
 
@@ -37,7 +31,7 @@ export default class TEdge extends Point {
     //if (edge.Bot == edge.Top) alert ("edge.Bot = edge.Top");
     return currentY === this.top.y
       ? this.top.x
-      : this.bottom.x + TEdge.Round(this.deltaX * (currentY - this.bottom.y));
+      : this.bottom.x + clipperRound(this.deltaX * (currentY - this.bottom.y));
   }
 
   public swapPolyIndices(edge: TEdge): void {
@@ -116,22 +110,9 @@ export default class TEdge extends Point {
 
     return result !== null &&
       (result.outIndex === TEdge.skip ||
-        (result.nextInAEL === result.prevInAEL && !result.isHorizontal))
+        (result._ael.next === result._ael.prev && !result.isHorizontal))
       ? null
       : result;
-  }
-
-  public getNextInAEL(direction: Direction): TEdge {
-    return direction == Direction.LeftToRight ? this.nextInAEL : this.prevInAEL;
-  }
-
-  public updateAEL(prev: TEdge | null, next: TEdge | null): void {
-    this.prevInAEL = prev;
-    this.nextInAEL = next;
-  }
-
-  public updateSEL(prev: TEdge | null, next: TEdge | null): void {
-    this._sel.update(prev, next);
   }
 
   public isEvenOddFillType(type1: PolyFillType, type2: PolyFillType): boolean {
@@ -140,18 +121,16 @@ export default class TEdge extends Point {
       : type2 === PolyFillType.EvenOdd;
   }
 
-  public getJoinsEdge(useFullRange: boolean): TEdge | null {
+  public getJoinsEdge(): TEdge | null {
     if (this.windDelta === 0) {
       return null;
     }
 
-    if (this._checkJoinCondition(this.prevInAEL, useFullRange)) {
-      return this.prevInAEL;
+    if (this._checkJoinCondition(this._ael.prev)) {
+      return this._ael.prev;
     }
 
-    return this._checkJoinCondition(this.nextInAEL, useFullRange)
-      ? this.nextInAEL
-      : null;
+    return this._checkJoinCondition(this._ael.next) ? this._ael.next : null;
   }
 
   public alignWindCount(
@@ -176,7 +155,7 @@ export default class TEdge extends Point {
     }
   }
 
-  private _checkJoinCondition(edge: TEdge, useFullRange: boolean): boolean {
+  private _checkJoinCondition(edge: TEdge): boolean {
     return (
       edge !== null &&
       edge.equal(this.bottom) &&
@@ -191,32 +170,36 @@ export default class TEdge extends Point {
     subjFillType: PolyFillType,
     clipFillType: PolyFillType
   ): boolean {
-    var pft, pft2;
-    if (this.polyType == PolyType.Subject) {
-      pft = subjFillType;
-      pft2 = clipFillType;
-    } else {
-      pft = clipFillType;
-      pft2 = subjFillType;
-    }
+    const isSubject: boolean = this.polyType == PolyType.Subject;
+    const type1: PolyFillType = isSubject ? subjFillType : clipFillType;
+    const type2: PolyFillType = isSubject ? clipFillType : subjFillType;
 
-    switch (pft) {
+    switch (type1) {
       case PolyFillType.EvenOdd:
-        if (this.windDelta === 0 && this.windCount1 != 1) return false;
+        if (this.windDelta === 0 && this.windCount1 !== 1) {
+          return false;
+        }
         break;
       case PolyFillType.NonZero:
-        if (Math.abs(this.windCount1) != 1) return false;
+        if (Math.abs(this.windCount1) !== 1) {
+          return false;
+        }
         break;
       case PolyFillType.Positive:
-        if (this.windCount1 != 1) return false;
+        if (this.windCount1 !== 1) {
+          return false;
+        }
         break;
       default:
-        if (this.windCount1 != -1) return false;
+        if (this.windCount1 !== -1) {
+          return false;
+        }
         break;
     }
+
     switch (clipType) {
       case ClipType.Intersection:
-        switch (pft2) {
+        switch (type2) {
           case PolyFillType.EvenOdd:
           case PolyFillType.NonZero:
             return this.windCnt2 !== 0;
@@ -226,7 +209,7 @@ export default class TEdge extends Point {
             return this.windCnt2 < 0;
         }
       case ClipType.Union:
-        switch (pft2) {
+        switch (type2) {
           case PolyFillType.EvenOdd:
           case PolyFillType.NonZero:
             return this.windCnt2 === 0;
@@ -237,7 +220,7 @@ export default class TEdge extends Point {
         }
       case ClipType.Difference:
         if (this.polyType == PolyType.Subject)
-          switch (pft2) {
+          switch (type2) {
             case PolyFillType.EvenOdd:
             case PolyFillType.NonZero:
               return this.windCnt2 === 0;
@@ -247,7 +230,7 @@ export default class TEdge extends Point {
               return this.windCnt2 >= 0;
           }
         else
-          switch (pft2) {
+          switch (type2) {
             case PolyFillType.EvenOdd:
             case PolyFillType.NonZero:
               return this.windCnt2 !== 0;
@@ -258,7 +241,7 @@ export default class TEdge extends Point {
           }
       case ClipType.Xor:
         if (this.windDelta === 0)
-          switch (pft2) {
+          switch (type2) {
             case PolyFillType.EvenOdd:
             case PolyFillType.NonZero:
               return this.windCnt2 === 0;
@@ -291,6 +274,10 @@ export default class TEdge extends Point {
 
   public get sel(): EdgeRecord<TEdge> {
     return this._sel;
+  }
+
+  public get ael(): EdgeRecord<TEdge> {
+    return this._ael;
   }
 
   public get isValid(): boolean {
@@ -327,42 +314,47 @@ export default class TEdge extends Point {
     return Point.slopesEqual(edge1.delta, edge2.delta);
   }
 
-  public static Round(value: number): number {
-    return value < 0 ? -Math.round(Math.abs(value)) : Math.round(value);
+  public static e2InsertsBeforeE1(edge1: TEdge, edge2: TEdge): boolean {
+    if (edge2.x === edge1.x) {
+      return edge2.top.y > edge1.top.y
+        ? edge2.top.x < edge1.topX(edge2.top.y)
+        : edge1.top.x > edge2.topX(edge1.top.y);
+    }
+
+    return edge2.x < edge1.x;
   }
 
-  public static e2InsertsBeforeE1(e1: TEdge, e2: TEdge): boolean {
-    if (e2.x == e1.x) {
-      if (e2.top.y > e1.top.y) return e2.top.x < e1.topX(e2.top.y);
-      else return e1.top.x > e2.topX(e1.top.y);
-    } else return e2.x < e1.x;
-  }
+  public static intersectPoint(
+    edge1: TEdge,
+    edge2: TEdge,
+    point: Point
+  ): boolean {
+    point.update(0, 0);
 
-  public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: Point): boolean {
-    ip.update(0, 0);
     let b1: number = 0;
     let b2: number = 0;
     //nb: with very large coordinate values, it's possible for SlopesEqual() to
     //return false but for the edge.Dx value be equal due to double precision rounding.
     if (TEdge.slopesEqual(edge1, edge2) || edge1.deltaX == edge2.deltaX) {
-      ip.set(edge2.bottom.y > edge1.bottom.y ? edge2.bottom : edge1.bottom);
+      point.set(edge2.bottom.y > edge1.bottom.y ? edge2.bottom : edge1.bottom);
 
       return false;
     } else if (edge1.delta.x === 0) {
-      ip.x = edge1.bottom.x;
+      point.x = edge1.bottom.x;
+
       if (edge2.isHorizontal) {
-        ip.y = edge2.bottom.y;
+        point.y = edge2.bottom.y;
       } else {
         b2 = edge2.bottom.y - edge2.bottom.x / edge2.deltaX;
-        ip.y = TEdge.Round(ip.x / edge2.deltaX + b2);
+        point.y = clipperRound(point.x / edge2.deltaX + b2);
       }
     } else if (edge2.delta.x === 0) {
-      ip.x = edge2.bottom.x;
+      point.x = edge2.bottom.x;
       if (edge1.isHorizontal) {
-        ip.y = edge1.bottom.y;
+        point.y = edge1.bottom.y;
       } else {
         b1 = edge1.bottom.y - edge1.bottom.x / edge1.deltaX;
-        ip.y = TEdge.Round(ip.x / edge1.deltaX + b1);
+        point.y = clipperRound(point.x / edge1.deltaX + b1);
       }
     } else {
       b1 = edge1.bottom.x - edge1.bottom.y * edge1.deltaX;
@@ -370,23 +362,25 @@ export default class TEdge extends Point {
 
       const q: number = (b2 - b1) / (edge1.deltaX - edge2.deltaX);
 
-      ip.y = TEdge.Round(q);
-      ip.x =
+      point.y = clipperRound(q);
+      point.x =
         Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
-          ? TEdge.Round(edge1.deltaX * q + b1)
-          : TEdge.Round(edge2.deltaX * q + b2);
+          ? clipperRound(edge1.deltaX * q + b1)
+          : clipperRound(edge2.deltaX * q + b2);
     }
-    if (ip.y < edge1.top.y || ip.y < edge2.top.y) {
+    if (point.y < edge1.top.y || point.y < edge2.top.y) {
       if (edge1.top.y > edge2.top.y) {
-        ip.y = edge1.top.y;
-        ip.x = edge2.topX(edge1.top.y);
-        return ip.x < edge1.top.x;
-      } else ip.y = edge2.top.y;
+        point.update(edge2.topX(edge1.top.y), edge1.top.y);
 
-      ip.x =
+        return point.x < edge1.top.x;
+      } else {
+        point.y = edge2.top.y;
+      }
+
+      point.x =
         Math.abs(edge1.deltaX) < Math.abs(edge2.deltaX)
-          ? edge1.topX(ip.y)
-          : edge2.topX(ip.y);
+          ? edge1.topX(point.y)
+          : edge2.topX(point.y);
     }
     return true;
   }

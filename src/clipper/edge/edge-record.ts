@@ -1,4 +1,5 @@
 import { Point } from "../../geom";
+import { Direction } from "../enums";
 
 export default class EdgeRecord<T extends Point> {
   private _next: T;
@@ -7,6 +8,10 @@ export default class EdgeRecord<T extends Point> {
   constructor() {
     this._next = null;
     this._prev = null;
+  }
+
+  public getNext(direction: Direction): T {
+    return direction == Direction.LeftToRight ? this._next : this._prev;
   }
 
   public update(prev: T, next: T): void {
@@ -41,6 +46,10 @@ export default class EdgeRecord<T extends Point> {
 
   public get hasNext(): boolean {
     return this._next !== null;
+  }
+
+  public get isLooped(): boolean {
+    return this._prev === this._next;
   }
 
   public get isEmpty(): boolean {
