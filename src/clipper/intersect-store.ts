@@ -701,7 +701,7 @@ export default class IntersectStore {
 
     while (true) {
       isLastHorz = horzEdge == lastHorzEdge;
-      edge = horzEdge.ael.getNext(dirData.direction);
+      edge = horzEdge.ael.getByDirection(dirData.direction);
 
       while (edge !== null) {
         if (
@@ -712,7 +712,7 @@ export default class IntersectStore {
           break;
         }
 
-        nextEdge = edge.ael.getNext(dirData.direction);
+        nextEdge = edge.ael.getByDirection(dirData.direction);
         //saves eNext for later
         if (dirData.getIncluded(edge)) {
           this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);

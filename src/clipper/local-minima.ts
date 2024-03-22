@@ -1,39 +1,40 @@
 import { EdgeSide } from "./enums";
 import TEdge from "./edge/t-edge";
+import PointRecord from "./point-record";
 
 export default class LocalMinima {
   private _y: number = 0;
-  private _next: LocalMinima = null;
-  private _right: TEdge = null;
-  private _left: TEdge = null;
+  private _next: LocalMinima | null = null;
+  private _source: PointRecord<TEdge>;
 
-  constructor(y: number, left: TEdge = null, right: TEdge = null) {
+  constructor(
+    y: number,
+    left: TEdge | null = null,
+    right: TEdge | null = null
+  ) {
     this._y = y;
-    this._left = left;
-    this._right = right;
+    this._source = new PointRecord<TEdge>(left, right);
   }
 
   public init(edge: TEdge, isClockwise: boolean, isClosed: boolean): void {
     if (isClockwise) {
-      this._left = edge;
-      this._right = edge.source.prev;
+      this._source.update(edge, edge.source.prev);
     } else {
-      this._left = edge.source.prev;
-      this._right = edge;
+      this._source.update(edge.source.prev, edge);
     }
 
-    this._left.side = EdgeSide.Left;
-    this._right.side = EdgeSide.Right;
+    this._source.unsafePev.side = EdgeSide.Left;
+    this._source.unsafeNext.side = EdgeSide.Right;
 
     if (!isClosed) {
-      this._left.windDelta = 0;
-    } else if (this._left.source.next == this._right) {
-      this._left.windDelta = -1;
+      this._source.unsafePev.windDelta = 0;
+    } else if (this._source.unsafePev.source.next == this._source.unsafeNext) {
+      this._source.unsafePev.windDelta = -1;
     } else {
-      this._left.windDelta = 1;
+      this._source.unsafePev.windDelta = 1;
     }
 
-    this._right.windDelta = -this._left.windDelta;
+    this._source.unsafeNext.windDelta = -this._source.unsafePev.windDelta;
   }
 
   public insert(localMinima: LocalMinima): LocalMinima {
@@ -58,17 +59,17 @@ export default class LocalMinima {
   }
 
   public clean(): void {
-    if (this._left.isSkipped) {
-      this._left = null;
-    } else if (this._right.isSkipped) {
-      this._right = null;
+    if (this._source.unsafePev.isSkipped) {
+      this._source.prev = null;
+    } else if (this._source.unsafeNext.isSkipped) {
+      this._source.next = null;
     }
   }
 
   //ie nothing to process
   //reset all edges ...
   public reset(): void {
-    let localMinima: LocalMinima = this;
+    let localMinima: LocalMinima | null = this;
 
     while (localMinima !== null) {
       if (localMinima.left != null) {
@@ -83,19 +84,27 @@ export default class LocalMinima {
     }
   }
 
-  public get left(): TEdge {
-    return this._left;
+  public get unsafeLeft(): TEdge {
+    return this._source.unsafePev;
   }
 
-  public get right(): TEdge {
-    return this._right;
+  public get left(): TEdge | null {
+    return this._source.prev;
   }
 
-  public get next(): LocalMinima {
+  public get right(): TEdge | null {
+    return this._source.next;
+  }
+
+  public get unsafeRight(): TEdge {
+    return this._source.unsafeNext;
+  }
+
+  public get next(): LocalMinima | null {
     return this._next;
   }
 
-  protected set next(value: LocalMinima) {
+  protected set next(value: LocalMinima | null) {
     this._next = value;
   }
 

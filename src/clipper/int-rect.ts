@@ -61,10 +61,7 @@ export default class IntRect {
     let firstValidPath: number = 0;
     const pathCount: number = paths.length;
 
-    while (
-      firstValidPath < pathCount &&
-      paths.at(firstValidPath).length === 0
-    ) {
+    while (firstValidPath < pathCount && paths[firstValidPath].length === 0) {
       ++firstValidPath;
     }
 

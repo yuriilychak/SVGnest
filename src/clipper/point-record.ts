@@ -5,13 +5,21 @@ export default class PointRecord<T extends Point> {
   private _next: T | null;
   private _prev: T | null;
 
-  constructor() {
-    this._next = null;
-    this._prev = null;
+  constructor(prev: T | null = null, next: T | null = null) {
+    this._next = prev;
+    this._prev = next;
   }
 
-  public getNext(direction: Direction): T | null {
-    return direction == Direction.LeftToRight ? this._next : this._prev;
+  public getByFlag(isClockwise: boolean): T | null {
+    return isClockwise ? this._next : this._prev;
+  }
+
+  public getByFlagUnsafe(isClockwise: boolean): T {
+    return this.getByFlag(isClockwise) as T;
+  }
+
+  public getByDirection(direction: Direction): T | null {
+    return this.getByFlag(direction == Direction.LeftToRight);
   }
 
   public update(prev: T | null, next: T | null): void {

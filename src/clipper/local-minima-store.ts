@@ -2,24 +2,20 @@ import { TEdge } from "./edge";
 import LocalMinima from "./local-minima";
 
 export default class LocalMinimaStore {
-  private _source: LocalMinima = null;
-  private _current: LocalMinima = null;
+  private _source: LocalMinima | null = null;
+  private _current: LocalMinima | null = null;
 
-  public processBound(edge: TEdge, isClockwise: boolean): TEdge {
+  public processBound(inputEdge: TEdge, isClockwise: boolean): TEdge | null {
+    let edge: TEdge | null = inputEdge;
     let startEdge: TEdge = edge;
-    let result: TEdge = edge;
+    let result: TEdge | null = edge;
     let hEdge: TEdge;
-    let startX: number = 0;
     let locMin: LocalMinima;
 
-    if (edge.isHorizontalX) {
-      //it's possible for adjacent overlapping horz edges to start heading left
-      //before finishing right, so ...
-      startX = isClockwise
-        ? edge.source.prev.bottom.x
-        : edge.source.next.bottom.x;
+    if (edge.isHorizontalX && !edge.source.isEmpty) {
+      const tmpEdge: TEdge = edge.source.getByFlagUnsafe(!isClockwise);
 
-      if (edge.bottom.x !== startX) {
+      if (edge.bottom.x !== tmpEdge.bottom.x) {
         edge.reverseHorizontal();
       }
     }
@@ -27,35 +23,49 @@ export default class LocalMinimaStore {
     if (!result.isSkipped) {
       if (isClockwise) {
         while (
-          result.top.y == result.source.next.bottom.y &&
-          !result.source.next.isSkipped
+          result.source.hasNext &&
+          result.top.y == result.source.unsafeNext.bottom.y &&
+          !result.source.unsafeNext.isSkipped
         ) {
-          result = result.source.next;
+          result = result.source.unsafeNext;
         }
 
-        if (result.isHorizontalX && !result.source.next.isSkipped) {
+        if (
+          result.isHorizontalX &&
+          result.source.hasNext &&
+          !result.source.unsafeNext.isSkipped
+        ) {
           hEdge = result;
 
-          while (hEdge.source.prev.isHorizontalX) {
-            hEdge = hEdge.source.prev;
+          while (hEdge.source.hasPrev && hEdge.source.unsafePev.isHorizontalX) {
+            hEdge = hEdge.source.unsafePev;
           }
 
-          if (hEdge.source.prev.top.x == result.source.next.top.x) {
+          if (
+            hEdge.source.hasPrev &&
+            result.source.hasNext &&
+            hEdge.source.unsafePev.top.x === result.source.unsafeNext.top.x
+          ) {
             if (!isClockwise) {
-              result = hEdge.source.prev;
+              result = hEdge.source.unsafePev;
             }
-          } else if (hEdge.source.prev.top.x > result.source.next.top.x) {
-            result = hEdge.source.prev;
+          } else if (
+            hEdge.source.hasPrev &&
+            result.source.hasNext &&
+            hEdge.source.unsafePev.top.x > result.source.unsafeNext.top.x
+          ) {
+            result = hEdge.source.unsafePev;
           }
         }
 
-        while (edge != result) {
+        while (edge != result && edge !== null) {
           edge.nextInLML = edge.source.next;
 
           if (
             edge.isHorizontalX &&
-            edge != startEdge &&
-            edge.bottom.x != edge.source.prev.top.x
+            edge !== startEdge &&
+            edge.source.hasPrev &&
+            edge.bottom.x != edge.source.unsafePev.top.x
           ) {
             edge.reverseHorizontal();
           }
@@ -64,9 +74,11 @@ export default class LocalMinimaStore {
         }
 
         if (
+          edge !== null &&
           edge.isHorizontalX &&
-          edge != startEdge &&
-          edge.bottom.x != edge.source.prev.top.x
+          edge !== startEdge &&
+          edge.source.hasPrev &&
+          edge.bottom.x !== edge.source.unsafePev.top.x
         ) {
           edge.reverseHorizontal();
         }
@@ -74,85 +86,118 @@ export default class LocalMinimaStore {
         result = result.source.next;
       } else {
         while (
-          result.top.y == result.source.prev.bottom.y &&
-          !result.source.prev.isSkipped
+          result !== null &&
+          result.source.hasPrev &&
+          result.top.y === result.source.unsafePev.bottom.y &&
+          !result.source.unsafePev.isSkipped
         ) {
           result = result.source.prev;
         }
-        if (result.isHorizontalX && !result.source.prev.isSkipped) {
+        if (
+          result !== null &&
+          result.isHorizontalX &&
+          result.source.hasPrev &&
+          !result.source.unsafePev.isSkipped
+        ) {
           hEdge = result;
 
-          while (hEdge.source.next.isHorizontalX) {
-            hEdge = hEdge.source.next;
+          while (
+            hEdge.source.hasNext &&
+            hEdge.source.unsafeNext.isHorizontalX
+          ) {
+            hEdge = hEdge.source.unsafeNext;
           }
 
-          if (hEdge.source.next.top.x == result.source.prev.top.x) {
+          if (
+            hEdge.source.hasNext &&
+            result.source.hasPrev &&
+            hEdge.source.unsafeNext.top.x === result.source.unsafePev.top.x
+          ) {
             if (!isClockwise) {
-              result = hEdge.source.next;
+              result = hEdge.source.unsafeNext;
             }
-          } else if (hEdge.source.next.top.x > result.source.prev.top.x) {
-            result = hEdge.source.next;
+          } else if (
+            hEdge.source.hasNext &&
+            result.source.hasPrev &&
+            hEdge.source.unsafeNext.top.x > result.source.unsafePev.top.x
+          ) {
+            result = hEdge.source.unsafeNext;
           }
         }
 
-        while (edge != result) {
-          edge.nextInLML = edge.source.prev;
+        while (edge !== result) {
+          if (edge !== null) {
+            edge.nextInLML = edge.source.prev;
+          }
 
           if (
+            edge !== null &&
             edge.isHorizontalX &&
             edge != startEdge &&
-            edge.bottom.x != edge.source.next.top.x
+            edge.source.hasNext &&
+            edge.bottom.x !== edge.source.unsafeNext.top.x
           ) {
             edge.reverseHorizontal();
           }
-          edge = edge.source.prev;
+
+          if (edge !== null) {
+            edge = edge.source.prev;
+          }
         }
 
         if (
+          edge !== null &&
           edge.isHorizontalX &&
           edge != startEdge &&
-          edge.bottom.x != edge.source.next.top.x
+          edge.source.hasNext &&
+          edge.bottom.x !== edge.source.unsafeNext.top.x
         ) {
           edge.reverseHorizontal();
         }
-        result = result.source.prev;
-        //move to the edge just beyond current bound
+
+        if (result !== null) {
+          result = result.source.prev;
+        }
       }
     }
 
-    if (result.isSkipped) {
-      //if edges still remain in the current bound beyond the skip edge then
-      //create another LocMin and call ProcessBound once more
-      edge = result;
+    if (result !== null && result.isSkipped) {
+      edge = result as TEdge;
 
       if (isClockwise) {
-        while (edge.top.y == edge.source.next.bottom.y) {
-          edge = edge.source.next;
+        while (
+          edge.source.hasNext &&
+          edge.top.y === edge.source.unsafeNext.bottom.y
+        ) {
+          edge = edge.source.unsafeNext;
         }
         //don't include top horizontals when parsing a bound a second time,
         //they will be contained in the opposite bound ...
-        while (edge != result && edge.isHorizontalX) {
+        while (edge !== result && edge !== null && edge.isHorizontalX) {
           edge = edge.source.prev;
         }
       } else {
-        while (edge.top.y == edge.source.prev.bottom.y) {
-          edge = edge.source.prev;
+        while (
+          edge.source.hasPrev &&
+          edge.top.y === edge.source.unsafePev.bottom.y
+        ) {
+          edge = edge.source.unsafePev;
         }
 
-        while (edge != result && edge.isHorizontalX) {
+        while (edge !== result && edge !== null && edge.isHorizontalX) {
           edge = edge.source.next;
         }
       }
       if (edge == result) {
-        result = isClockwise ? edge.source.next : edge.source.prev;
+        result = edge.source.getByFlagUnsafe(isClockwise);
       } else {
         //there are more edges in the bound beyond result starting with E
 
-        edge = isClockwise ? result.source.next : result.source.prev;
+        edge = result.source.getByFlagUnsafe(isClockwise);
 
         locMin = new LocalMinima(edge.bottom.y, null, edge);
-        locMin.right.windDelta = 0;
-        result = this.processBound(locMin.right, isClockwise);
+        locMin.unsafeLeft.windDelta = 0;
+        result = this.processBound(locMin.unsafeRight, isClockwise);
 
         this.insert(locMin);
       }
@@ -186,11 +231,11 @@ export default class LocalMinimaStore {
     this._current = this._current.next;
   }
 
-  public get source(): LocalMinima {
+  public get source(): LocalMinima | null {
     return this._source;
   }
 
-  public get current(): LocalMinima {
+  public get current(): LocalMinima | null {
     return this._current;
   }
 

@@ -55,7 +55,7 @@ export default class ClipperOffset {
     let currentPoint: Point;
 
     for (i = 1; i <= lastIndex; ++i) {
-      point = path.at(i);
+      point = path[i];
 
       if (!node.at(j).equal(point)) {
         ++j;
@@ -284,7 +284,7 @@ export default class ClipperOffset {
         //re-build m_normals ...
         const n: Point = this._normals[len - 1];
         for (j = len - 1; j > 0; --j) {
-          this._normals[j] = Point.reverse(this._normals.at(j - 1));
+          this._normals[j] = Point.reverse(this._normals[j - 1]);
         }
         this._normals[0] = Point.reverse(n);
         k = 0;
@@ -307,16 +307,16 @@ export default class ClipperOffset {
           j = len - 1;
           k = len - 2;
           this._sinA = 0;
-          this._normals[j] = Point.reverse(this._normals.at(j));
+          this._normals[j] = Point.reverse(this._normals[j]);
 
           this._offsetWithType(node.endType, j, k);
         }
 
         for (j = len - 1; j > 0; --j) {
-          this._normals[j] = Point.reverse(this._normals.at(j - 1));
+          this._normals[j] = Point.reverse(this._normals[j - 1]);
         }
 
-        this._normals[0] = Point.reverse(this._normals.at(1));
+        this._normals[0] = Point.reverse(this._normals[1]);
         k = len - 1;
 
         for (j = k - 1; j > 0; --j) {
@@ -347,7 +347,7 @@ export default class ClipperOffset {
 
   private _offsetPoint(j: number, k: number, jointype: number) {
     this._sinA = Math.max(
-      Math.min(this._normals.at(j).cross(this._normals.at(k)), 1),
+      Math.min(this._normals[j].cross(this._normals[k]), 1),
       -1
     );
 
@@ -357,12 +357,12 @@ export default class ClipperOffset {
 
     if (this._sinA * this._delta < 0) {
       this._insertFromNormal(k, j, this._delta);
-      this._destPoly.push(Point.from(this._srcPoly.at(j)));
+      this._destPoly.push(Point.from(this._srcPoly[j]));
       this._insertFromNormal(j, j, this._delta);
     } else
       switch (jointype) {
         case JoinType.Miter: {
-          const r: number = 1 + this._normals.at(k).dot(this._normals.at(j));
+          const r: number = 1 + this._normals[k].dot(this._normals[j]);
 
           if (r >= this._miterLim) {
             this._doMiter(j, k, r);
@@ -386,7 +386,7 @@ export default class ClipperOffset {
 
   private _doSquare(j: number, k: number): void {
     const dx: number = Math.tan(
-      Math.atan2(this._sinA, this._normals.at(k).dot(this._normals.at(j))) / 4
+      Math.atan2(this._sinA, this._normals[k].dot(this._normals[j])) / 4
     );
 
     this._insertSquare(k, j, -dx);
@@ -396,12 +396,12 @@ export default class ClipperOffset {
   private _doRound(j: number, k: number): void {
     const a: number = Math.atan2(
       this._sinA,
-      this._normals.at(k).dot(this._normals.at(j))
+      this._normals[k].dot(this._normals[j])
     );
     const steps: number = ClipperOffset.castInt32(
       this._stepsPerRad * Math.abs(a)
     );
-    const point: Point = Point.from(this._normals.at(k));
+    const point: Point = Point.from(this._normals[k]);
     let i: number = 0;
 
     for (i = 0; i < steps; ++i) {
@@ -414,7 +414,7 @@ export default class ClipperOffset {
 
   private _doMiter(j: number, k: number, r: number): void {
     this._insert(
-      Point.from(this._normals.at(k)).add(this._normals.at(j)),
+      Point.from(this._normals[k]).add(this._normals[j]),
       this._delta / r,
       j
     );
@@ -425,7 +425,7 @@ export default class ClipperOffset {
     polyIndex: number,
     scale: number
   ): void {
-    const normal: Point = this._normals.at(normalIndex);
+    const normal: Point = this._normals[normalIndex];
 
     this._insert(
       Point.normal(normal).scale(scale).add(normal),
@@ -439,14 +439,14 @@ export default class ClipperOffset {
     polyIndex: number,
     scale: number
   ): void {
-    this._insert(this._normals.at(normalIndex), polyIndex, scale);
+    this._insert(this._normals[normalIndex], polyIndex, scale);
   }
 
   private _insert(point: Point, polyIndex: number, scale: number): void {
     this._destPoly.push(
       Point.from(point)
         .scale(scale)
-        .add(this._srcPoly.at(polyIndex))
+        .add(this._srcPoly[polyIndex])
         .clipperRound()
     );
   }

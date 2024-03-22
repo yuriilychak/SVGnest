@@ -26,15 +26,18 @@ export default class Clipper {
     strictlySimple: boolean = false,
     reverseSolution: boolean = false
   ) {
+    const outPolygon: OutPolygon = new OutPolygon();
+    const joinStore: JoinStore = new JoinStore();
+    const scanbeamStore: ScanbeamStore = new ScanbeamStore();
     this._strictlySimple = strictlySimple;
     this._reverseSolution = reverseSolution;
-    this._outPolygon = new OutPolygon();
-    this._joinStore = new JoinStore();
-    this._scanbeamStore = new ScanbeamStore();
+    this._outPolygon = outPolygon;
+    this._joinStore = joinStore;
+    this._scanbeamStore = scanbeamStore;
     this._intersectStore = new IntersectStore(
-      this._outPolygon,
-      this._joinStore,
-      this._scanbeamStore
+      outPolygon,
+      joinStore,
+      scanbeamStore
     );
     this._localMinimaStore = new LocalMinimaStore();
   }
@@ -109,7 +112,7 @@ export default class Clipper {
           break;
         }
 
-        if (edge1 == startEdge) {
+        if (edge1 == startEdge && edge1 !== null) {
           startEdge = edge1.source.next;
         }
 
@@ -202,7 +205,7 @@ export default class Clipper {
     }
 
     let isClockwise: boolean = false;
-    let minEdge: TEdge = null;
+    let minEdge: TEdge | null = null;
     let localMinima: LocalMinima;
 
     while (true) {
@@ -212,22 +215,23 @@ export default class Clipper {
         break;
       }
 
-      if (minEdge == null) {
+      if (minEdge === null) {
         minEdge = edge1;
       }
       //E and E.Prev now share a local minima (left aligned if horizontal).
       //Compare their slopes to find which starts which bound ...
-      isClockwise = edge1.deltaX >= edge1.source.prev.deltaX;
+      isClockwise =
+        edge1.source.hasPrev && edge1.deltaX >= edge1.source.unsafePev.deltaX;
 
       localMinima = new LocalMinima(edge1.bottom.y);
       localMinima.init(edge1, isClockwise, isClosed);
 
       edge1 = this._localMinimaStore.processBound(
-        localMinima.left,
+        localMinima.unsafeLeft,
         isClockwise
       );
       edge2 = this._localMinimaStore.processBound(
-        localMinima.right,
+        localMinima.unsafeRight,
         !isClockwise
       );
 
