@@ -40,3 +40,9 @@ export enum JoinType {
   Round = 1,
   Miter = 2
 }
+
+export enum Index {
+  Skip = -2,
+  Empty = -1,
+  First = 0
+}

@@ -1,35 +1,43 @@
 export default class Scanbeam {
   private _y: number;
-  private _next: Scanbeam;
+  private _next: Scanbeam | null;
 
-  constructor(y: number, next: Scanbeam = null) {
+  constructor(y: number, next: Scanbeam | null = null) {
     this._y = y;
     this._next = next;
   }
 
-  public insert(y: number) {
+  public insert(y: number): Scanbeam {
     if (y > this._y) {
       return new Scanbeam(y, this);
     }
 
-    let scanbeam: Scanbeam = this;
+    let scanbeam: Scanbeam | null = this;
 
-    while (scanbeam.hasNext && y <= scanbeam.next.y) {
+    while (
+      scanbeam !== null &&
+      scanbeam.hasNext &&
+      y <= scanbeam.unsafeNext.y
+    ) {
       scanbeam = scanbeam.next;
     }
 
-    if (y !== scanbeam.y) {
+    if (scanbeam !== null && y !== scanbeam.y) {
       scanbeam.next = new Scanbeam(y, scanbeam.next);
     }
 
     return this;
   }
 
-  public get next(): Scanbeam {
+  public get unsafeNext(): Scanbeam {
+    return this._next as Scanbeam;
+  }
+
+  public get next(): Scanbeam | null {
     return this._next;
   }
 
-  protected set next(value: Scanbeam) {
+  protected set next(value: Scanbeam | null) {
     this._next = value;
   }
 

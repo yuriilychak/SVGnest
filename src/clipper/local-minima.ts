@@ -16,9 +16,9 @@ export default class LocalMinima {
   public init(edge: TEdge, isClockwise: boolean, isClosed: boolean): void {
     if (isClockwise) {
       this._left = edge;
-      this._right = edge.prev;
+      this._right = edge.source.prev;
     } else {
-      this._left = edge.prev;
+      this._left = edge.source.prev;
       this._right = edge;
     }
 
@@ -27,7 +27,7 @@ export default class LocalMinima {
 
     if (!isClosed) {
       this._left.windDelta = 0;
-    } else if (this._left.next == this._right) {
+    } else if (this._left.source.next == this._right) {
       this._left.windDelta = -1;
     } else {
       this._left.windDelta = 1;
@@ -58,9 +58,9 @@ export default class LocalMinima {
   }
 
   public clean(): void {
-    if (this._left.outIndex == TEdge.skip) {
+    if (this._left.isSkipped) {
       this._left = null;
-    } else if (this._right.outIndex == TEdge.skip) {
+    } else if (this._right.isSkipped) {
       this._right = null;
     }
   }

@@ -18,14 +18,14 @@ export default class OutPt extends Point {
     result.index = this.index;
 
     if (isInsertAfter) {
-      result.next = this._source.next;
+      result.next = this._source.unsafeNext;
       result.prev = this;
-      this._source.next.prev = result;
+      this._source.unsafeNext.prev = result;
       this._source.next = result;
     } else {
       result.prev = this._source.prev;
       result.next = this;
-      this._source.prev.next = result;
+      this._source.unsafePev.next = result;
       this._source.prev = result;
     }
 
@@ -36,7 +36,7 @@ export default class OutPt extends Point {
     const result: OutPt = this._source.prev;
 
     result.next = this._source.next;
-    this._source.next.prev = result;
+    this._source.unsafeNext.prev = result;
 
     result.index = 0;
 
@@ -78,7 +78,7 @@ export default class OutPt extends Point {
 
   public get bottomPt(): OutPt {
     let outPt: OutPt = this;
-    let dups: OutPt = null;
+    let dups: OutPt | null = null;
     let nextOutPt: OutPt = outPt.next;
 
     while (nextOutPt != outPt) {

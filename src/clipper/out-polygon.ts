@@ -69,7 +69,7 @@ export default class OutPolygon {
   }
 
   public createHorizontalJoin(horzEdge: TEdge): Join {
-    let outPt: OutPt = this._data.at(horzEdge.outIndex).pointer;
+    let outPt: OutPt = this._data.at(horzEdge.index).pointer;
 
     if (horzEdge.side != EdgeSide.Left) {
       outPt = outPt.prev;
@@ -134,10 +134,10 @@ export default class OutPolygon {
       this.addOutPt(edge2, point);
     }
 
-    if (edge1.outIndex === edge2.outIndex) {
-      edge1.outIndex = -1;
-      edge2.outIndex = -1;
-    } else if (edge1.outIndex < edge2.outIndex) {
+    if (edge1.index === edge2.index) {
+      edge1.clearIndex();
+      edge2.clearIndex();
+    } else if (edge1.index < edge2.index) {
       this._appendPolygon(edge1, edge2, activeEdges);
     } else {
       this._appendPolygon(edge2, edge1, activeEdges);
@@ -149,7 +149,7 @@ export default class OutPolygon {
     let outRec: OutRec;
     let newOp: OutPt;
 
-    if (edge.outIndex < 0) {
+    if (!edge.isIndexDefined) {
       outRec = this._createRec();
       outRec.isOpen = edge.windDelta === 0;
       newOp = new OutPt();
@@ -160,12 +160,12 @@ export default class OutPolygon {
         this._setHoleState(edge, outRec);
       }
 
-      edge.outIndex = outRec.index;
+      edge.index = outRec.index;
       //nb: do this after SetZ !
       return newOp;
     }
 
-    outRec = this._data[edge.outIndex];
+    outRec = this._data[edge.index];
 
     const outPt: OutPt = outRec.pointer;
 
@@ -254,8 +254,8 @@ export default class OutPolygon {
 
   private _appendPolygon(edge1: TEdge, edge2: TEdge, activeEdges: TEdge): void {
     //get the start and ends of both output polygons ...
-    const outRec1: OutRec = this._data[edge1.outIndex];
-    const outRec2: OutRec = this._data[edge2.outIndex];
+    const outRec1: OutRec = this._data[edge1.index];
+    const outRec2: OutRec = this._data[edge2.index];
     let holeStateRec: OutRec;
 
     if (OutRec.param1RightOfParam2(outRec1, outRec2)) {
@@ -320,17 +320,17 @@ export default class OutPolygon {
     outRec2.cleanBottom();
     outRec2.left = outRec1;
 
-    const newIndex: number = edge1.outIndex;
-    const obsoleteIndex: number = edge2.outIndex;
+    const newIndex: number = edge1.index;
+    const obsoleteIndex: number = edge2.index;
 
-    edge1.outIndex = -1;
-    edge2.outIndex = -1;
+    edge1.clearIndex();
+    edge2.clearIndex();
 
     let edge: TEdge = activeEdges;
 
     while (edge !== null) {
-      if (edge.outIndex == obsoleteIndex) {
-        edge.outIndex = newIndex;
+      if (edge.index == obsoleteIndex) {
+        edge.index = newIndex;
         edge.side = side;
         break;
       }
@@ -399,9 +399,9 @@ export default class OutPolygon {
     let tmpEdge: TEdge = edge.ael.prev;
 
     while (tmpEdge !== null) {
-      if (tmpEdge.outIndex >= 0 && tmpEdge.windDelta != 0) {
+      if (tmpEdge.isValid) {
         isHole = !isHole;
-        if (outRec.left === null) outRec.left = this._data[tmpEdge.outIndex];
+        if (outRec.left === null) outRec.left = this._data[tmpEdge.index];
       }
       tmpEdge = tmpEdge.ael.prev;
     }

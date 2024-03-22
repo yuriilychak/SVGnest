@@ -5,6 +5,7 @@
   "compilerOptions": {
     "outDir": "./dist/",
     "noImplicitAny": true,
+    "strictNullChecks": false,
     "module": "es6",
     "target": "es6",
     "allowJs": true,

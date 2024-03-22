@@ -104,13 +104,13 @@ export default class Clipper {
     let loopStopEdge: TEdge = startEdge;
 
     while (true) {
-      if (edge1.equal(edge1.next)) {
-        if (edge1 == edge1.next) {
+      if (edge1.source.hasNext && edge1.equal(edge1.source.unsafeNext)) {
+        if (edge1 == edge1.source.next) {
           break;
         }
 
         if (edge1 == startEdge) {
-          startEdge = edge1.next;
+          startEdge = edge1.source.next;
         }
 
         edge1 = edge1.remove();
@@ -118,30 +118,31 @@ export default class Clipper {
         continue;
       }
 
-      if (edge1.prev == edge1.next) {
+      if (edge1.source.prev == edge1.source.next) {
         break;
       }
 
       if (
         isClosed &&
-        Point.slopesEqual(edge1.prev, edge1, edge1.next) &&
-        (!this._preserveCollinear || !edge1.between(edge1.prev, edge1.next))
+        Point.slopesEqual(edge1.source.prev, edge1, edge1.source.next) &&
+        (!this._preserveCollinear ||
+          !edge1.between(edge1.source.prev, edge1.source.next))
       ) {
         //Collinear edges are allowed for open paths but in closed paths
         //the default is to merge adjacent collinear edges into a single edge.
         //However, if the PreserveCollinear property is enabled, only overlapping
         //collinear edges (ie spikes) will be removed from closed paths.
         if (edge1 == startEdge) {
-          startEdge = edge1.next;
+          startEdge = edge1.source.next;
         }
 
         edge1 = edge1.remove();
-        edge1 = edge1.prev;
+        edge1 = edge1.source.prev;
         loopStopEdge = edge1;
         continue;
       }
 
-      edge1 = edge1.next;
+      edge1 = edge1.source.next;
 
       if (edge1 == loopStopEdge) {
         break;
@@ -149,22 +150,22 @@ export default class Clipper {
     }
 
     if (
-      (!isClosed && edge1 == edge1.next) ||
-      (isClosed && edge1.prev == edge1.next)
+      (!isClosed && edge1 == edge1.source.next) ||
+      (isClosed && edge1.source.prev == edge1.source.next)
     ) {
       return false;
     }
 
     if (!isClosed) {
       this._hasOpenPaths = true;
-      startEdge.prev.outIndex = TEdge.skip;
+      startEdge.source.prev.skip();
     }
     //3. Do second stage of edge initialization ...
     edge1 = startEdge;
 
     do {
       edge1.initFromPolyType(polyType);
-      edge1 = edge1.next;
+      edge1 = edge1.source.next;
       isFlat = isFlat && edge1.y === startEdge.y;
     } while (edge1 != startEdge);
 
@@ -176,24 +177,24 @@ export default class Clipper {
         return false;
       }
 
-      edge1.prev.outIndex = TEdge.skip;
+      edge1.source.prev.skip();
 
-      if (edge1.prev.bottom.x < edge1.prev.top.x) {
-        edge1.prev.reverseHorizontal();
+      if (edge1.source.prev.bottom.x < edge1.source.prev.top.x) {
+        edge1.source.prev.reverseHorizontal();
       }
 
       const locMin: LocalMinima = new LocalMinima(edge1.bottom.y, null, edge1);
       locMin.right.side = EdgeSide.Right;
       locMin.right.windDelta = 0;
 
-      while (edge1.next.outIndex != TEdge.skip) {
-        edge1.nextInLML = edge1.next;
+      while (!edge1.source.next.isSkipped) {
+        edge1.nextInLML = edge1.source.next;
 
-        if (edge1.bottom.x != edge1.prev.top.x) {
+        if (edge1.bottom.x != edge1.source.prev.top.x) {
           edge1.reverseHorizontal();
         }
 
-        edge1 = edge1.next;
+        edge1 = edge1.source.next;
       }
 
       this._localMinimaStore.insert(locMin);
@@ -216,7 +217,7 @@ export default class Clipper {
       }
       //E and E.Prev now share a local minima (left aligned if horizontal).
       //Compare their slopes to find which starts which bound ...
-      isClockwise = edge1.deltaX >= edge1.prev.deltaX;
+      isClockwise = edge1.deltaX >= edge1.source.prev.deltaX;
 
       localMinima = new LocalMinima(edge1.bottom.y);
       localMinima.init(edge1, isClockwise, isClosed);
@@ -284,11 +285,7 @@ export default class Clipper {
       rightBound = this._localMinimaStore.current.right;
       this._localMinimaStore.pop();
 
-      this._intersectStore.insertLocalMinimaIntoAEL(
-        leftBound,
-        rightBound,
-        this._useFullRange
-      );
+      this._intersectStore.insertLocalMinimaIntoAEL(leftBound, rightBound);
     }
   }
 
@@ -306,7 +303,7 @@ export default class Clipper {
       do {
         this._insertLocalMinimaIntoAEL(botY);
         this._joinStore.clean(false);
-        this._intersectStore.processHorizontals(false, this._useFullRange);
+        this._intersectStore.processHorizontals(false);
 
         if (this._scanbeamStore.isEmpty) {
           break;
@@ -314,19 +311,12 @@ export default class Clipper {
 
         topY = this._scanbeamStore.pop();
         //console.log("botY:" + botY + ", topY:" + topY);
-        if (
-          !this._intersectStore.processIntersections(
-            botY,
-            topY,
-            this._useFullRange
-          )
-        ) {
+        if (!this._intersectStore.processIntersections(botY, topY)) {
           return false;
         }
 
         this._intersectStore.processEdgesAtTopOfScanbeam(
           topY,
-          this._useFullRange,
           this._strictlySimple
         );
 
@@ -484,6 +474,4 @@ export default class Clipper {
 
     return result;
   }
-
-  static tolerance: number = 1e-20;
 }

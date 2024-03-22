@@ -1,6 +1,6 @@
 import { Point } from "../../geom";
 import { clipperRound } from "../../util";
-import { ClipType, EdgeSide, PolyFillType, PolyType } from "../enums";
+import { ClipType, EdgeSide, Index, PolyFillType, PolyType } from "../enums";
 import PointRecord from "../point-record";
 
 export default class TEdge extends Point {
@@ -13,16 +13,24 @@ export default class TEdge extends Point {
   public windDelta: number = 0;
   public windCount1: number = 0;
   public windCnt2: number = 0;
-  public outIndex: number = 0;
-  public nextInLML: TEdge = null;
+  public index: number = 0;
+  public nextInLML: TEdge | null = null;
   private _ael: PointRecord<TEdge> = new PointRecord<TEdge>();
   private _sel: PointRecord<TEdge> = new PointRecord<TEdge>();
-  private _current: PointRecord<TEdge> = new PointRecord<TEdge>();
+  private _source: PointRecord<TEdge> = new PointRecord<TEdge>();
 
   public init(nextEdge: TEdge, prevEdge: TEdge, point: Point): void {
-    this._current.update(prevEdge, nextEdge);
+    this._source.update(prevEdge, nextEdge);
     this.set(point);
-    this.outIndex = -1;
+    this.index = Index.Empty;
+  }
+
+  public skip(): void {
+    this.index = Index.Skip;
+  }
+
+  public clearIndex(): void {
+    this.index = Index.Empty;
   }
 
   public topX(currentY: number): number {
@@ -34,10 +42,10 @@ export default class TEdge extends Point {
   public swapPolyIndices(edge: TEdge): void {
     this.swapSides(edge);
 
-    const outIdx: number = this.outIndex;
+    const outIdx: number = this.index;
 
-    this.outIndex = edge.outIndex;
-    edge.outIndex = outIdx;
+    this.index = edge.index;
+    edge.index = outIdx;
   }
 
   public swapSides(edge: TEdge): void {
@@ -49,27 +57,35 @@ export default class TEdge extends Point {
   public fromSide(side: EdgeSide): void {
     this.set(this.bottom);
     this.side = side;
-    this.outIndex = -1;
+    this.index = Index.Empty;
   }
 
   public initFromPolyType(polyType: PolyType): void {
-    const condition: boolean = this.y >= this._current.next.y;
-    const bottom: Point = condition ? this : this._current.next;
-    const top: Point = condition ? this._current.next : this;
+    const condition: boolean =
+      this._source.hasNext && this.y >= this._source.unsafeNext.y;
+    const bottom: Point = condition ? this : this._source.unsafeNext;
+    const top: Point = condition ? this._source.unsafeNext : this;
 
     this.bottom.set(bottom);
     this.top.set(top);
     this.delta.set(this.top).sub(this.bottom);
     this.deltaX =
-      this.delta.y === 0 ? TEdge.horizontal : this.delta.x / this.delta.y;
+      this.delta.y === 0
+        ? Number.MIN_SAFE_INTEGER
+        : this.delta.x / this.delta.y;
     this.polyType = polyType;
   }
 
-  public remove(): TEdge {
-    this._current.prev.next = this._current.next;
-    this._current.next.prev = this._current.prev;
-    this._current.prev = null; //flag as removed (see ClipperBase.Clear)
-    return this._current.next;
+  public remove(): TEdge | null {
+    if (this._source === null) {
+      return null;
+    }
+
+    this._source.unsafePev.source.next = this._source.next;
+    this._source.unsafeNext.source.prev = this._source.prev;
+    this._source.prev = null;
+
+    return this._source.next;
   }
 
   public reverseHorizontal(): void {
@@ -86,24 +102,26 @@ export default class TEdge extends Point {
     return this.top.y == Y && this.nextInLML === null;
   }
 
-  public getMaximaPair(): TEdge {
-    let result: TEdge = null;
+  public getMaximaPair(): TEdge | null {
+    let result: TEdge | null = null;
 
     if (
-      this.top.equal(this._current.next.top) &&
-      this._current.next.nextInLML === null
+      this._source.hasNext &&
+      this.top.equal(this._source.unsafeNext.top) &&
+      this._source.unsafeNext.nextInLML === null
     ) {
-      result = this._current.next;
+      result = this._source.next;
     } else if (
-      this.top.equal(this._current.prev.top) &&
-      this._current.prev.nextInLML === null
+      this._source.hasPrev &&
+      this.top.equal(this._source.unsafePev.top) &&
+      this._source.unsafePev.nextInLML === null
     ) {
-      result = this._current.prev;
+      result = this._source.prev;
     }
 
     return result !== null &&
-      (result.outIndex === TEdge.skip ||
-        (result._ael.next === result._ael.prev && !result.isHorizontal))
+      (result.isSkipped ||
+        (result._ael.next === result._ael.prev && !result.isHorizontalY))
       ? null
       : result;
   }
@@ -148,7 +166,7 @@ export default class TEdge extends Point {
     }
   }
 
-  private _checkJoinCondition(edge: TEdge): boolean {
+  private _checkJoinCondition(edge: TEdge | null): boolean {
     return (
       edge !== null &&
       edge.equal(this.bottom) &&
@@ -249,22 +267,6 @@ export default class TEdge extends Point {
     return true;
   }
 
-  public get next(): TEdge {
-    return this._current.next;
-  }
-
-  public set next(value: TEdge) {
-    this._current.next = value;
-  }
-
-  public get prev(): TEdge {
-    return this._current.prev;
-  }
-
-  public set prev(value: TEdge) {
-    this._current.prev = value;
-  }
-
   public get sel(): PointRecord<TEdge> {
     return this._sel;
   }
@@ -273,42 +275,80 @@ export default class TEdge extends Point {
     return this._ael;
   }
 
-  public get isValid(): boolean {
-    return this.outIndex >= 0 && this.windDelta !== 0;
+  public get source(): PointRecord<TEdge> {
+    return this._source;
   }
 
-  public get isHorizontal(): boolean {
+  public get isValid(): boolean {
+    return this.isIndexDefined && this.windDelta !== 0;
+  }
+
+  public get isHorizontalY(): boolean {
     return this.delta.y === 0;
   }
 
-  public get nextLocMin(): TEdge {
-    let edge1: TEdge = this;
-    let edge2: TEdge;
+  public get isSkipped(): boolean {
+    return this.index === Index.Skip;
+  }
+
+  public get isHorizontalX(): boolean {
+    return this.deltaX === Number.MIN_SAFE_INTEGER;
+  }
+
+  public get isIndexDefined(): boolean {
+    return this.index >= 0;
+  }
+
+  public get nextLocMin(): TEdge | null {
+    let edge1: TEdge | null = this;
+    let edge2: TEdge | null = null;
 
     while (true) {
-      while (!edge1.bottom.equal(edge1.prev.bottom) || edge1.equal(edge1.top))
-        edge1 = edge1.next;
+      while (
+        edge1 !== null &&
+        edge1.source.hasPrev &&
+        (!edge1.bottom.equal(edge1.source.unsafePev.bottom) ||
+          edge1.equal(edge1.top))
+      ) {
+        edge1 = edge1.source.next;
+      }
+
       if (
-        edge1.deltaX != TEdge.horizontal &&
-        edge1.prev.deltaX != TEdge.horizontal
+        edge1 !== null &&
+        !edge1.isHorizontalX &&
+        edge1.source.hasPrev &&
+        !edge1.source.unsafePev.isHorizontalX
       ) {
         break;
       }
 
-      while (edge1.prev.deltaX == TEdge.horizontal) {
-        edge1 = edge1.prev;
+      while (
+        edge1 !== null &&
+        edge1.source.hasPrev &&
+        edge1.source.unsafePev.isHorizontalX
+      ) {
+        edge1 = edge1.source.prev;
       }
 
       edge2 = edge1;
 
-      while (edge1.deltaX == TEdge.horizontal) {
-        edge1 = edge1.next;
+      while (edge1 !== null && edge1.isHorizontalX) {
+        edge1 = edge1.source.next;
       }
 
-      if (edge1.top.y == edge1.prev.bottom.y) {
+      if (
+        edge1 !== null &&
+        edge1.source.hasPrev &&
+        edge1.top.y == edge1.source.unsafePev.bottom.y
+      ) {
         continue;
       }
-      if (edge2.prev.bottom.x < edge1.bottom.x) {
+      if (
+        edge1 !== null &&
+        edge2 !== null &&
+        edge2.source.hasPrev &&
+        edge2.source.unsafePev.bottom.x < edge1.bottom.x
+      ) {
         edge1 = edge2;
       }
       break;
@@ -350,7 +390,7 @@ export default class TEdge extends Point {
     if (edge1.delta.x === 0) {
       point.x = edge1.bottom.x;
 
-      if (edge2.isHorizontal) {
+      if (edge2.isHorizontalY) {
         point.y = edge2.bottom.y;
       } else {
         b2 = edge2.bottom.y - edge2.bottom.x / edge2.deltaX;
@@ -359,7 +399,7 @@ export default class TEdge extends Point {
     } else if (edge2.delta.x === 0) {
       point.x = edge2.bottom.x;
 
-      if (edge1.isHorizontal) {
+      if (edge1.isHorizontalY) {
         point.y = edge1.bottom.y;
       } else {
         b1 = edge1.bottom.y - edge1.bottom.x / edge1.deltaX;
@@ -394,8 +434,4 @@ export default class TEdge extends Point {
 
     return true;
   }
-
-  public static horizontal: number = -9007199254740992;
-
-  public static skip: number = -2;
 }

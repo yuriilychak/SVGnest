@@ -1,8 +1,9 @@
 import IntersectNode from "../intersect-node";
+import PointRecord from "../point-record";
 import TEdge from "./t-edge";
 
 export default class SortedEdge {
-  private _source: TEdge = null;
+  private _source: TEdge | null = null;
 
   //SEL pointers in PEdge are reused to build a list of horizontal edges.
   //However, we don't need to worry about order with horizontal edge processing.
@@ -10,17 +11,17 @@ export default class SortedEdge {
     edge.sel.update(null, this._source);
 
     if (edge.sel.hasNext) {
-      edge.sel.next.sel.prev = edge;
+      edge.sel.unsafeNext.sel.prev = edge;
     }
 
     this._source = edge;
   }
 
-  public update(edge: TEdge, topY: number = Number.NaN): TEdge {
+  public update(edge: TEdge, topY: number = Number.NaN): TEdge | null {
     this._source = edge;
 
     const isUpdateX: boolean = !Number.isNaN(topY);
-    let result: TEdge = edge;
+    let result: TEdge | null = edge;
 
     while (result !== null) {
       result.sel.update(result.ael.prev, result.ael.next);
@@ -40,21 +41,22 @@ export default class SortedEdge {
       return;
     }
 
-    const prevSEL: TEdge = edge.sel.prev;
-    const nextSEL: TEdge = edge.sel.next;
+    const record: PointRecord<TEdge> = edge.sel;
+    const prev: TEdge | null = record.prev;
+    const next: TEdge | null = record.next;
 
     //already deleted
-    if (edge.sel.hasPrev) {
-      prevSEL.sel.next = nextSEL;
+    if (record.hasPrev) {
+      record.unsafePev.sel.next = next;
     } else {
-      this._source = nextSEL;
+      this._source = next;
     }
 
     if (edge.sel.hasNext) {
-      nextSEL.sel.prev = prevSEL;
+      record.unsafeNext.sel.prev = prev;
     }
 
-    edge.sel.next = null;
+    record.next = null;
   }
 
   public swap(node: IntersectNode): void {
@@ -65,64 +67,71 @@ export default class SortedEdge {
       return;
     }
 
-    let next: TEdge;
-    let prev: TEdge;
+    let next: TEdge | null;
+    let prev: TEdge | null;
+    let record: PointRecord<TEdge>;
 
     if (edge1.sel.next === edge2) {
-      next = edge2.sel.next;
+      record = edge2.sel;
+      next = record.next;
 
-      if (edge2.sel.hasNext) {
-        next.sel.prev = edge1;
+      if (record.hasNext) {
+        record.unsafeNext.sel.prev = edge1;
       }
 
-      prev = edge1.sel.prev;
+      record = edge1.sel;
+      prev = record.prev;
 
-      if (edge1.sel.hasPrev) {
-        prev.sel.next = edge2;
+      if (record.hasPrev) {
+        record.unsafePev.sel.next = edge2;
       }
 
       edge1.sel.update(edge2, next);
       edge2.sel.update(prev, edge1);
     } else if (edge2.sel.next == edge1) {
-      next = edge1.sel.next;
+      record = edge1.sel;
+      next = record.next;
 
-      if (edge1.sel.hasNext) {
-        next.sel.prev = edge2;
+      if (record.hasNext) {
+        record.unsafeNext.sel.prev = edge2;
       }
 
-      prev = edge2.sel.prev;
+      record = edge2.sel;
+      prev = record.prev;
 
-      if (edge2.sel.hasPrev) {
-        prev.sel.next = edge1;
+      if (record.hasPrev) {
+        record.unsafePev.sel.next = edge1;
       }
 
       edge1.sel.update(prev, edge2);
       edge2.sel.update(edge1, next);
     } else {
-      next = edge1.sel.next;
-      prev = edge1.sel.prev;
+      record = edge1.sel;
+      next = record.next;
+      prev = record.prev;
       edge1.sel.next = edge2.sel.next;
 
-      if (edge1.sel.hasNext) {
-        edge1.sel.next.sel.prev = edge1;
+      if (record.hasNext) {
+        record.unsafeNext.sel.prev = edge1;
       }
 
-      edge1.sel.prev = edge2.sel.prev;
+      record.prev = edge2.sel.prev;
 
-      if (edge1.sel.hasPrev) {
-        edge1.sel.prev.sel.next = edge1;
+      if (record.hasPrev) {
+        record.unsafePev.sel.next = edge1;
       }
 
-      edge2.sel.next = next;
+      record = edge2.sel;
+      record.next = next;
 
-      if (edge2.sel.hasNext) {
-        edge2.sel.next.sel.prev = edge2;
+      if (record.hasNext) {
+        record.unsafeNext.sel.prev = edge2;
       }
 
-      edge2.sel.prev = prev;
+      record.prev = prev;
 
-      if (edge2.sel.hasPrev) {
-        edge2.sel.prev.sel.next = edge2;
+      if (record.hasPrev) {
+        record.unsafePev.sel.next = edge2;
       }
     }
 
@@ -137,7 +146,11 @@ export default class SortedEdge {
     this._source = null;
   }
 
-  public get source(): TEdge {
+  public get unsafeSource(): TEdge {
+    return this._source as TEdge;
+  }
+
+  public get source(): TEdge | null {
     return this._source;
   }
 

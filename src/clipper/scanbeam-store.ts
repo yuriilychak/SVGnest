@@ -2,7 +2,7 @@ import LocalMinima from "./local-minima";
 import Scanbeam from "./scanbeam";
 
 export default class ScanbeamStore {
-  private _data: Scanbeam;
+  private _data: Scanbeam | null;
 
   constructor() {
     this._data = null;
@@ -24,6 +24,10 @@ export default class ScanbeamStore {
   }
 
   public pop(): number {
+    if (this._data === null) {
+      return -1;
+    }
+
     const result: number = this._data.y;
     this._data = this._data.next;
 

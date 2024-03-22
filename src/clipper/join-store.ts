@@ -22,8 +22,7 @@ export default class JoinStore {
     edge: TEdge,
     isTopOfScanbeam: boolean
   ): boolean {
-    const canInsert: boolean =
-      edge.outIndex >= 0 && edge.windDelta !== 0 && isTopOfScanbeam;
+    const canInsert: boolean = edge.isValid && isTopOfScanbeam;
 
     if (canInsert) {
       this._ghostJoins.push(outPolygon.createHorizontalJoin(edge));
@@ -37,7 +36,7 @@ export default class JoinStore {
 
     if (
       outPt !== null &&
-      edge.isHorizontal &&
+      edge.isHorizontalY &&
       edge.windDelta !== 0 &&
       joinCount !== 0
     ) {

@@ -264,7 +264,7 @@ export default class Point implements IPoint {
   public static slopesEqual(
     pt1: Point,
     pt2: Point,
-    pt3: Point = null
+    pt3: Point | null = null
   ): boolean {
     const offset1 = Point.from(pt1);
     const offset2 = Point.from(pt2);

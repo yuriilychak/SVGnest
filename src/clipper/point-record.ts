@@ -2,19 +2,19 @@ import { Point } from "../geom";
 import { Direction } from "./enums";
 
 export default class PointRecord<T extends Point> {
-  private _next: T;
-  private _prev: T;
+  private _next: T | null;
+  private _prev: T | null;
 
   constructor() {
     this._next = null;
     this._prev = null;
   }
 
-  public getNext(direction: Direction): T {
+  public getNext(direction: Direction): T | null {
     return direction == Direction.LeftToRight ? this._next : this._prev;
   }
 
-  public update(prev: T, next: T): void {
+  public update(prev: T | null, next: T | null): void {
     this._prev = prev;
     this._next = next;
   }
@@ -24,19 +24,27 @@ export default class PointRecord<T extends Point> {
     this._next = null;
   }
 
-  public get next(): T {
+  public get unsafeNext(): T {
+    return this._next as T;
+  }
+
+  public get unsafePev(): T {
+    return this._prev as T;
+  }
+
+  public get next(): T | null {
     return this._next;
   }
 
-  public set next(value: T) {
+  public set next(value: T | null) {
     this._next = value;
   }
 
-  public get prev(): T {
+  public get prev(): T | null {
     return this._prev;
   }
 
-  public set prev(value: T) {
+  public set prev(value: T | null) {
     this._prev = value;
   }
 
