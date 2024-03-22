@@ -11,7 +11,7 @@ export default class ScanbeamStore {
   public fromLocalMinima(inputMinima: LocalMinima): void {
     this._data = null;
 
-    let localMinima: LocalMinima = inputMinima;
+    let localMinima: LocalMinima | null = inputMinima;
 
     while (localMinima !== null) {
       this.insert(localMinima.y);

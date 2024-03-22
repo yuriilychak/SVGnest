@@ -18,25 +18,29 @@ export default class OutPt extends Point {
     result.index = this.index;
 
     if (isInsertAfter) {
-      result.next = this._source.unsafeNext;
-      result.prev = this;
-      this._source.unsafeNext.prev = result;
+      result.source.next = this._source.unsafeNext;
+      result.source.prev = this;
+      this._source.unsafeNext.source.prev = result;
       this._source.next = result;
     } else {
-      result.prev = this._source.prev;
-      result.next = this;
-      this._source.unsafePev.next = result;
+      result.source.prev = this._source.prev;
+      result.source.next = this;
+      this._source.unsafePev.source.next = result;
       this._source.prev = result;
     }
 
     return result;
   }
 
-  public exclude(): OutPt {
-    const result: OutPt = this._source.prev;
+  public exclude(): OutPt | null {
+    if (!this._source.hasPrev) {
+      return null;
+    }
 
-    result.next = this._source.next;
-    this._source.unsafeNext.prev = result;
+    const result: OutPt = this._source.unsafePev;
+
+    result.source.next = this._source.next;
+    this._source.unsafeNext.source.prev = result;
 
     result.index = 0;
 
@@ -44,33 +48,44 @@ export default class OutPt extends Point {
   }
 
   public dispose(): void {
-    let pointer: OutPt = this;
-    pointer.prev.next = null;
+    let pointer: OutPt | null = this;
+
+    if (this._source.hasPrev) {
+      pointer.source.unsafePev.source.next = null;
+    }
 
     while (pointer !== null) {
-      pointer = pointer.next;
+      pointer = pointer.source.next;
     }
   }
 
   public reversePointer(): void {
-    let pointer1: OutPt = this;
-    let pointer2: OutPt;
+    let pointer1: OutPt | null = this;
+    let pointer2: OutPt | null = null;
 
     do {
-      pointer2 = pointer1.next;
-      pointer1.next = pointer1.prev;
-      pointer1.prev = pointer2;
+      if (pointer1 === null) {
+        break;
+      }
+
+      pointer2 = pointer1.source.next;
+      pointer1.source.next = pointer1.source.prev;
+      pointer1.source.prev = pointer2;
       pointer1 = pointer2;
     } while (pointer1 !== this);
   }
 
   public get pointCount(): number {
     let result: number = 0;
-    let outPt: OutPt = this;
+    let outPt: OutPt | null = this;
 
     do {
+      if (outPt === null) {
+        break;
+      }
+
       ++result;
-      outPt = outPt.next;
+      outPt = outPt.source.next;
     } while (outPt !== this);
 
     return result;
@@ -79,9 +94,9 @@ export default class OutPt extends Point {
   public get bottomPt(): OutPt {
     let outPt: OutPt = this;
     let dups: OutPt | null = null;
-    let nextOutPt: OutPt = outPt.next;
+    let nextOutPt: OutPt = outPt.source.unsafeNext;
 
-    while (nextOutPt != outPt) {
+    while (nextOutPt !== outPt) {
       if (nextOutPt.y > outPt.y) {
         outPt = nextOutPt;
         dups = null;
@@ -90,43 +105,34 @@ export default class OutPt extends Point {
           dups = null;
           outPt = nextOutPt;
         } else {
-          if (nextOutPt.next !== outPt && nextOutPt.prev !== outPt)
+          if (
+            nextOutPt.source.next !== outPt &&
+            nextOutPt.source.prev !== outPt
+          )
             dups = nextOutPt;
         }
       }
-      nextOutPt = nextOutPt.next;
+      nextOutPt = nextOutPt.source.unsafeNext;
     }
 
     if (dups !== null) {
-      while (dups != nextOutPt) {
+      while (dups !== nextOutPt) {
         if (!OutPt.firstIsBottomPt(nextOutPt, dups)) {
           outPt = dups;
         }
 
-        dups = dups.next;
+        dups = dups.source.unsafeNext;
 
         while (!dups.equal(outPt)) {
-          dups = dups.next;
+          dups = dups.source.unsafeNext;
         }
       }
     }
     return outPt;
   }
 
-  public get next(): OutPt {
-    return this._source.next;
-  }
-
-  public set next(value: OutPt) {
-    this._source.next = value;
-  }
-
-  public get prev(): OutPt {
-    return this._source.prev;
-  }
-
-  public set prev(value: OutPt) {
-    this._source.prev = value;
+  public get source(): PointRecord<OutPt> {
+    return this._source;
   }
 
   public static pointInPolygon(point: Point, outPt: OutPt): number {
@@ -138,10 +144,10 @@ export default class OutPt extends Point {
 
     while (true) {
       offset1.set(outPt).sub(point);
-      offset2.set(outPt.next).sub(point);
+      offset2.set(outPt.source.unsafeNext).sub(point);
 
       if (
-        outPt.next.equal(point) ||
+        point.equal(outPt.source.unsafeNext) ||
         (offset2.y === 0 && offset1.y === 0 && offset2.x > 0 === offset1.x < 0)
       ) {
         return -1;
@@ -163,7 +169,7 @@ export default class OutPt extends Point {
         }
       }
 
-      outPt = outPt.next;
+      outPt = outPt.source.unsafeNext;
 
       if (startOp == outPt) {
         break;
@@ -184,41 +190,41 @@ export default class OutPt extends Point {
         return res != 0;
       }
 
-      outPt = outPt.next;
+      outPt = outPt.source.unsafeNext;
     } while (outPt != outPt1);
 
     return true;
   }
 
   public static firstIsBottomPt(point1: OutPt, point2: OutPt): boolean {
-    let outPt: OutPt = point1.prev;
+    let outPt: OutPt = point1.source.unsafePev;
 
     while (outPt.equal(point1) && outPt != point1) {
-      outPt = outPt.prev;
+      outPt = outPt.source.unsafePev;
     }
 
     const dx1p: number = Math.abs(Point.deltaX(point1, outPt));
 
-    outPt = point1.next;
+    outPt = point1.source.unsafeNext;
 
     while (outPt.equal(point1) && outPt != point1) {
-      outPt = outPt.next;
+      outPt = outPt.source.unsafeNext;
     }
 
     const dx1n: number = Math.abs(Point.deltaX(point1, outPt));
 
-    outPt = point2.prev;
+    outPt = point2.source.unsafePev;
 
     while (outPt.equal(point2) && outPt != point2) {
-      outPt = outPt.prev;
+      outPt = outPt.source.unsafePev;
     }
 
     const dx2p: number = Math.abs(Point.deltaX(point2, outPt));
 
-    outPt = point2.next;
+    outPt = point2.source.unsafeNext;
 
     while (outPt.equal(point2) && outPt != point2) {
-      outPt = outPt.next;
+      outPt = outPt.source.unsafeNext;
     }
 
     const dx2n: number = Math.abs(Point.deltaX(point2, outPt));

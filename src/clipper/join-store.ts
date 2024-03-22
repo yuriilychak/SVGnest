@@ -51,7 +51,7 @@ export default class JoinStore {
 
         if (
           JoinStore._horzSegmentsOverlap(
-            join.pointer1,
+            join.pointer1 as OutPt,
             join,
             edge.bottom,
             edge.top

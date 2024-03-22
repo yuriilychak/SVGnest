@@ -127,7 +127,7 @@ export default class Clipper {
 
       if (
         isClosed &&
-        Point.slopesEqual(edge1.source.prev, edge1, edge1.source.next) &&
+        Point.slopesEqual(edge1.source.unsafePev, edge1, edge1.source.next) &&
         (!this._preserveCollinear ||
           !edge1.between(edge1.source.prev, edge1.source.next))
       ) {
@@ -376,29 +376,39 @@ export default class Clipper {
     for (i = 0; i < pointCount; ++i) {
       outPt = outPts.at(i);
       outPt.set(polygon[i]);
-      outPt.next = outPts[(i + 1) % pointCount];
-      outPt.next.prev = outPt;
+      outPt.source.next = outPts[(i + 1) % pointCount];
+      outPt.source.unsafeNext.source.prev = outPt;
       outPt.index = 0;
     }
 
     outPt = outPts[0];
 
-    while (outPt.index == 0 && outPt.next !== outPt.prev) {
-      if (Point.pointsAreClose(outPt, outPt.prev, squareDistance)) {
+    while (outPt.index == 0 && outPt.source.next !== outPt.source.prev) {
+      if (Point.pointsAreClose(outPt, outPt.source.unsafePev, squareDistance)) {
         outPt = outPt.exclude();
         --pointCount;
-      } else if (Point.pointsAreClose(outPt.prev, outPt.next, squareDistance)) {
-        outPt.next.exclude();
+      } else if (
+        Point.pointsAreClose(
+          outPt.source.unsafePev,
+          outPt.source.unsafeNext,
+          squareDistance
+        )
+      ) {
+        outPt.source.unsafeNext.exclude();
         outPt = outPt.exclude();
         pointCount -= 2;
       } else if (
-        outPt.slopesNearCollinear(outPt.prev, outPt.next, squareDistance)
+        outPt.slopesNearCollinear(
+          outPt.source.unsafePev,
+          outPt.source.unsafeNext,
+          squareDistance
+        )
       ) {
         outPt = outPt.exclude();
         --pointCount;
       } else {
         outPt.index = 1;
-        outPt = outPt.next;
+        outPt = outPt.source.next;
       }
     }
 
@@ -410,7 +420,7 @@ export default class Clipper {
 
     for (i = 0; i < pointCount; ++i) {
       result[i] = Point.from(outPt);
-      outPt = outPt.next;
+      outPt = outPt.source.next;
     }
 
     return result;

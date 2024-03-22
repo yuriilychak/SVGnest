@@ -18,13 +18,11 @@ export default class OutPolygon {
     let outRec: OutRec;
 
     for (i = 0; i < recordCount; ++i) {
-      outRec = this._data.at(i);
+      outRec = this._data[i];
 
-      if (outRec.hasPointer) {
+      if (outRec.pointer !== null) {
         outRec.pointer.dispose();
       }
-
-      this._data[i] = null;
     }
 
     this._data.length = 0;
@@ -42,13 +40,13 @@ export default class OutPolygon {
     let polygon: Point[];
 
     for (i = 0; i < recordCount; ++i) {
-      outRec = this._data.at(i);
+      outRec = this._data[i];
 
-      if (!outRec.hasPointer || outRec.pointer.prev === null) {
+      if (outRec.pointer === null || !outRec.pointer.source.hasPrev) {
         continue;
       }
 
-      outPt = outRec.pointer.prev;
+      outPt = outRec.pointer.source.unsafePev;
       pointCount = outPt.pointCount;
 
       if (pointCount < 2) {
@@ -58,8 +56,8 @@ export default class OutPolygon {
       polygon = new Array(pointCount);
 
       for (j = 0; j < pointCount; ++j) {
-        polygon[j] = outPt;
-        outPt = outPt.prev;
+        polygon[j] = outPt.clone();
+        outPt = outPt.source.unsafePev;
       }
 
       result.push(polygon);
@@ -69,10 +67,10 @@ export default class OutPolygon {
   }
 
   public createHorizontalJoin(horzEdge: TEdge): Join {
-    let outPt: OutPt = this._data.at(horzEdge.index).pointer;
+    let outPt: OutPt = this._data[horzEdge.index].pointer as OutPt;
 
     if (horzEdge.side != EdgeSide.Left) {
-      outPt = outPt.prev;
+      outPt = outPt.source.unsafePev;
     }
 
     const point: Point = outPt.equal(horzEdge.top)
@@ -99,8 +97,7 @@ export default class OutPolygon {
         continue;
       }
 
-      //@ts-ignore
-      if ((outRec.isHole ^ reverseSolution) == outRec.area > 0) {
+      if ((outRec.isHole !== reverseSolution) === outRec.area > 0) {
         outRec.reverse();
       }
     }
@@ -167,18 +164,18 @@ export default class OutPolygon {
 
     outRec = this._data[edge.index];
 
-    const outPt: OutPt = outRec.pointer;
+    const outPt: OutPt = outRec.pointer as OutPt;
 
     if (isToFront && point.equal(outPt)) {
       return outPt;
-    } else if (!isToFront && point.equal(outPt.prev)) {
-      return outPt.prev;
+    } else if (!isToFront && point.equal(outPt.source.unsafePev)) {
+      return outPt.source.unsafePev;
     }
 
     newOp = new OutPt();
-    newOp.init(outRec.index, point, outPt.prev, outPt);
-    newOp.prev.next = newOp;
-    outPt.prev = newOp;
+    newOp.init(outRec.index, point, outPt.source.unsafePev, outPt);
+    newOp.source.unsafePev.source.next = newOp;
+    outPt.source.prev = newOp;
 
     if (isToFront) {
       outRec.pointer = newOp;
@@ -197,30 +194,30 @@ export default class OutPolygon {
     let outPt4: OutPt;
 
     while (i < this._data.length) {
-      outRec1 = this._data.at(i++);
+      outRec1 = this._data[i++];
 
       if (!outRec1.hasPointer) {
         continue;
       }
 
-      outPt1 = outRec1.pointer;
+      outPt1 = outRec1.unsafePointer;
 
       do //for each Pt in Polygon until duplicate found do ...
       {
-        outPt2 = outPt1.next;
+        outPt2 = outPt1.source.unsafeNext;
 
         while (outPt2 != outRec1.pointer) {
           if (
             outPt1.equal(outPt2) &&
-            outPt2.next != outPt1 &&
-            outPt2.prev != outPt1
+            outPt2.source.unsafeNext != outPt1 &&
+            outPt2.source.prev != outPt1
           ) {
-            outPt3 = outPt1.prev;
-            outPt4 = outPt2.prev;
-            outPt1.prev = outPt4;
-            outPt4.next = outPt1;
-            outPt2.prev = outPt3;
-            outPt3.next = outPt2;
+            outPt3 = outPt1.source.unsafePev;
+            outPt4 = outPt2.source.unsafePev;
+            outPt1.source.prev = outPt4;
+            outPt4.source.next = outPt1;
+            outPt2.source.prev = outPt3;
+            outPt3.source.next = outPt2;
             outRec1.pointer = outPt1;
             outRec2 = this._createRec();
             outRec2.pointer = outPt2;
@@ -244,10 +241,10 @@ export default class OutPolygon {
             outPt2 = outPt1;
           }
 
-          outPt2 = outPt2.next;
+          outPt2 = outPt2.source.unsafeNext;
         }
 
-        outPt1 = outPt1.next;
+        outPt1 = outPt1.source.unsafeNext;
       } while (outPt1 !== outRec1.pointer);
     }
   }
@@ -266,10 +263,10 @@ export default class OutPolygon {
       holeStateRec = OutRec.getLowermostRec(outRec1, outRec2);
     }
 
-    let leftPointer1: OutPt = outRec1.pointer;
-    let rightPointer1: OutPt = leftPointer1.prev;
-    let leftPointer2: OutPt = outRec2.pointer;
-    let rightPointer2: OutPt = leftPointer2.prev;
+    let leftPointer1: OutPt = outRec1.pointer as OutPt;
+    let rightPointer1: OutPt = leftPointer1.source.unsafePev;
+    let leftPointer2: OutPt = outRec2.pointer as OutPt;
+    let rightPointer2: OutPt = leftPointer2.source.unsafePev;
     let side: EdgeSide;
 
     //join e2 poly onto e1 poly and delete pointers to e2 ...
@@ -277,32 +274,32 @@ export default class OutPolygon {
       if (edge2.side == EdgeSide.Left) {
         //z y x a b c
         leftPointer2.reversePointer();
-        leftPointer2.next = leftPointer1;
-        leftPointer1.prev = leftPointer2;
-        rightPointer1.next = rightPointer2;
-        rightPointer2.prev = rightPointer1;
+        leftPointer2.source.next = leftPointer1;
+        leftPointer1.source.prev = leftPointer2;
+        rightPointer1.source.next = rightPointer2;
+        rightPointer2.source.prev = rightPointer1;
         outRec1.pointer = rightPointer2;
       } else {
         //x y z a b c
-        rightPointer2.next = leftPointer1;
-        leftPointer1.prev = rightPointer2;
-        leftPointer2.prev = rightPointer1;
-        rightPointer1.next = leftPointer2;
+        rightPointer2.source.next = leftPointer1;
+        leftPointer1.source.prev = rightPointer2;
+        leftPointer2.source.prev = rightPointer1;
+        rightPointer1.source.next = leftPointer2;
         outRec1.pointer = leftPointer2;
       }
       side = EdgeSide.Left;
     } else {
       if (edge2.side == EdgeSide.Right) {
         leftPointer2.reversePointer();
-        rightPointer1.next = rightPointer2;
-        rightPointer2.prev = rightPointer1;
-        leftPointer2.next = leftPointer1;
-        leftPointer1.prev = leftPointer2;
+        rightPointer1.source.next = rightPointer2;
+        rightPointer2.source.prev = rightPointer1;
+        leftPointer2.source.next = leftPointer1;
+        leftPointer1.source.prev = leftPointer2;
       } else {
-        rightPointer1.next = leftPointer2;
-        leftPointer2.prev = rightPointer1;
-        leftPointer1.prev = rightPointer2;
-        rightPointer2.next = leftPointer1;
+        rightPointer1.source.next = leftPointer2;
+        leftPointer2.source.prev = rightPointer1;
+        leftPointer1.source.prev = rightPointer2;
+        rightPointer2.source.next = leftPointer1;
       }
       side = EdgeSide.Right;
     }
@@ -326,7 +323,7 @@ export default class OutPolygon {
     edge1.clearIndex();
     edge2.clearIndex();
 
-    let edge: TEdge = activeEdges;
+    let edge: TEdge | null = activeEdges;
 
     while (edge !== null) {
       if (edge.index == obsoleteIndex) {
@@ -340,8 +337,8 @@ export default class OutPolygon {
   }
 
   private _joinCommonEdges(join: Join, reverseSolution: boolean) {
-    const outRec1: OutRec = this._getRec(join.pointer1.index);
-    let outRec2: OutRec = this._getRec(join.pointer2.index);
+    const outRec1: OutRec = this._getRec((join.pointer1 as OutPt).index);
+    let outRec2: OutRec = this._getRec((join.pointer2 as OutPt).index);
 
     if (!outRec1.hasPointer || !outRec2.hasPointer) {
       return;
@@ -360,14 +357,18 @@ export default class OutPolygon {
       outRec2.pointer = join.pointer2;
       outRec2.updateOutPtIdxs();
 
-      if (OutPt.poly2ContainsPoly1(outRec2.pointer, outRec1.pointer)) {
+      if (
+        OutPt.poly2ContainsPoly1(outRec2.unsafePointer, outRec1.unsafePointer)
+      ) {
         outRec2.isHole = !outRec1.isHole;
         outRec2.left = outRec1;
 
         if (outRec2.checkArea(reverseSolution)) {
           outRec2.reverse();
         }
-      } else if (OutPt.poly2ContainsPoly1(outRec1.pointer, outRec2.pointer)) {
+      } else if (
+        OutPt.poly2ContainsPoly1(outRec1.unsafePointer, outRec2.unsafePointer)
+      ) {
         outRec2.isHole = outRec1.isHole;
         outRec1.isHole = !outRec2.isHole;
         outRec2.left = outRec1.left;
@@ -396,12 +397,15 @@ export default class OutPolygon {
 
   private _setHoleState(edge: TEdge, outRec: OutRec): void {
     let isHole: boolean = false;
-    let tmpEdge: TEdge = edge.ael.prev;
+    let tmpEdge: TEdge | null = edge.ael.prev;
 
     while (tmpEdge !== null) {
       if (tmpEdge.isValid) {
         isHole = !isHole;
-        if (outRec.left === null) outRec.left = this._data[tmpEdge.index];
+
+        if (outRec.left === null) {
+          outRec.left = this._data[tmpEdge.index];
+        }
       }
       tmpEdge = tmpEdge.ael.prev;
     }
