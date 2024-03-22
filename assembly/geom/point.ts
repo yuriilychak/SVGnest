@@ -1,4 +1,4 @@
-import { TOLERANCE, almostEqual } from "../util";
+import { TOLERANCE, almostEqual, clipperRound } from "../util";
 
 export default class Point {
   private _offset: u32 = 0;
@@ -58,12 +58,29 @@ export default class Point {
     return this;
   }
 
+  public skew(sin: f64, cos: f64): Point {
+    const x: f64 = this.x;
+    const y: f64 = this.y;
+
+    this.x = x * cos - y * sin;
+    this.y = x * sin + y * cos;
+
+    return this;
+  }
+
   public dot(value: Point): f64 {
     return value.x * this.x + value.y * this.y;
   }
 
   public cross(value: Point): f64 {
     return this.y * value.x - this.x * value.y;
+  }
+
+  public round(): Point {
+    this.x = Math.round(this.x);
+    this.y = Math.round(this.y);
+
+    return this;
   }
 
   public abs(): Point {
@@ -73,9 +90,44 @@ export default class Point {
     return this;
   }
 
+  public rangeTest(isFullRange: boolean): boolean {
+    const maxValue: f64 = Math.max(Math.abs(this.x), Math.abs(this.y));
+
+    if (!isFullRange && maxValue > Point._lowRange) {
+      return this.rangeTest(true);
+    }
+
+    if (isFullRange && maxValue > Point._highRange) {
+      console.error("Coordinate outside allowed range in RangeTest().");
+    }
+
+    return isFullRange;
+  }
+
   public reverse(): Point {
     this.x = -this.x;
     this.y = -this.y;
+
+    return this;
+  }
+
+  public normal(): Point {
+    const x: f64 = this.x;
+    const y: f64 = this.y;
+
+    this.x = y;
+    this.y = -x;
+
+    return this;
+  }
+
+  public equal(point: Point | null): boolean {
+    return point !== null && this.x === point.x && this.y === point.y;
+  }
+
+  public clipperRound(): Point {
+    this.x = clipperRound(this.x);
+    this.y = clipperRound(this.y);
 
     return this;
   }
@@ -109,6 +161,39 @@ export default class Point {
       Point._checkIntersect(this.x, point1.x, point2.x) &&
       Point._checkIntersect(this.y, point1.y, point2.y)
     );
+  }
+
+  public slopesNearCollinear(
+    point1: Point,
+    point2: Point,
+    distSqrd: f64
+  ): boolean {
+    return this.distanceFromLineSqrd(point1, point2) < distSqrd;
+  }
+
+  public distanceFromLineSqrd(point1: Point, point2: Point): f64 {
+    const a: f64 = point1.y - point2.y;
+    const b: f64 = point2.x - point1.x;
+    let c: f64 = a * point1.x + b * point1.y;
+    c = a * this.x + b * this.y - c;
+
+    return (c * c) / (a * a + b * b);
+  }
+
+  public between(point1: Point | null, point2: Point | null): boolean {
+    if (point1 === null || point2 === null) {
+      return false;
+    }
+
+    if (point1.equal(point2) || this.equal(point1) || this.equal(point2)) {
+      return false;
+    }
+
+    if (point1.x != point2.x) {
+      return this.x > point1.x == this.x < point2.x;
+    }
+
+    return this.y > point1.y == this.y < point2.y;
   }
 
   // returns true if p lies on the line segment defined by AB, but not at any endpoints
@@ -167,6 +252,10 @@ export default class Point {
 
   public set y(value: f64) {
     this._data[this._offset + 1] = value;
+  }
+
+  public get isEmpty(): boolean {
+    return this.x === 0 && this.y === 0;
   }
 
   public get squareLength(): f64 {
@@ -263,10 +352,57 @@ export default class Point {
     return result;
   }
 
+  public static slopesEqual(
+    pt1: Point | null,
+    pt2: Point | null,
+    pt3: Point | null = null
+  ): boolean {
+    if (pt1 === null || pt2 === null) {
+      return false;
+    }
+
+    const offset1 = Point.from(pt1);
+    const offset2 = Point.from(pt2);
+
+    if (pt3 !== null) {
+      offset1.sub(pt2);
+      offset2.sub(pt3);
+    }
+
+    offset1.round();
+    offset2.round();
+
+    return (
+      Math.sign(offset1.y) * Math.sign(offset2.x) ===
+        Math.sign(offset1.x) * Math.sign(offset2.y) &&
+      u64(Math.abs(offset1.y)) * u64(Math.abs(offset2.x)) ===
+        u64(Math.abs(offset1.x)) * u64(Math.abs(offset2.y))
+    );
+  }
+
+  public static deltaX(pt1: Point, pt2: Point): f64 {
+    return pt1.y == pt2.y
+      ? Number.MIN_SAFE_INTEGER
+      : (pt2.x - pt1.x) / (pt2.y - pt1.y);
+  }
+
+  public static pointsAreClose(
+    point1: Point,
+    point2: Point,
+    distSqrd: f64
+  ): boolean {
+    const point = Point.sub(point2, point1);
+
+    return point.squareLength <= distSqrd;
+  }
+
   private static _checkIntersect(x: f64, a: f64, b: f64): boolean {
     return (
       (Number.isFinite(x) && almostEqual(a, b)) ||
       Math.abs(2 * x - a - b) <= Math.abs(a - b)
     );
   }
+
+  private static _lowRange: f64 = 47453132;
+  private static _highRange: f64 = 4503599627370495;
 }

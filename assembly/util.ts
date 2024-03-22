@@ -10,3 +10,7 @@ export function almostEqual(
 ): boolean {
   return Math.abs(a - b) < tolerance;
 }
+
+export function clipperRound(a: f64): f64 {
+  return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
+}

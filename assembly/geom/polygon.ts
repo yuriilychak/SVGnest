@@ -368,19 +368,29 @@ export default class Polygon {
     return true;
   }
 
+  public offsetPoints(point: Point): void {
+    let i: u16 = 0;
+    const pointCount: u16 = this.length;
+
+    for (i = 0; i < pointCount; ++i) {
+      this.at(i).add(point);
+    }
+  }
+
   public static updatePoint(
     data: Float64Array,
     index: u16,
     point: Point,
-    offset: u32 = 0
+    offset: u32 = 0,
+    scale: f64 = 1
   ): void {
     const innerOffset: u32 = POLYGON_CONFIG_SIZE + offset + 2 * index;
 
-    data[innerOffset] = point.x;
-    data[innerOffset + 1] = point.y;
+    data[innerOffset] = point.x * scale;
+    data[innerOffset + 1] = point.y * scale;
   }
 
-  public static fromPoints(points: Point[]): Polygon {
+  public static fromPoints(points: Point[], scale: f64 = 1): Polygon {
     const pointCount: u16 = u16(points.length);
     const size: u32 = POLYGON_CONFIG_SIZE + (pointCount << 1);
     const data = new Float64Array(size);
@@ -398,7 +408,7 @@ export default class Polygon {
     data[9] = 0; //  child count
     // Points
     for (i = 0; i < pointCount; ++i) {
-      Polygon.updatePoint(data, i, points[i]);
+      Polygon.updatePoint(data, i, points[i], 0, scale);
     }
 
     return new Polygon(data);

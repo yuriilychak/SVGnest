@@ -1,3 +1,4 @@
+import { ClipType, Clipper, PolyFillType, PolyType } from "./clipper";
 import { TripleStatus } from "./enums";
 import { Polygon, Point, Vector } from "./geom";
 import { TOLERANCE, almostEqual } from "./util";
@@ -828,4 +829,95 @@ export function noFitPolygon(
   }
 
   return result;
+}
+
+function orientation(poly: Point[]): boolean {
+  const pointCount: u16 = u16(poly.length);
+  let result: f64 = 0;
+  let i: u16 = 0;
+  let prevPoint: Point;
+  let currentPoint: Point;
+
+  for (i = 0; i < pointCount; ++i) {
+    currentPoint = poly.at(i);
+    prevPoint = poly.at((i + pointCount - 1) % pointCount);
+    result += (prevPoint.x + currentPoint.x) * (prevPoint.y - currentPoint.y);
+  }
+
+  return result >= 0;
+}
+
+export function minkowskiDifference(a: Polygon, b: Polygon): Polygon[] {
+  const scale: f64 = 10000000;
+  const sizeA: u16 = u16(a.length);
+  const sizeB: u16 = u16(b.length);
+  const solutions: Point[][] = [];
+  const quads: Point[][] = [];
+  let pointB: Point;
+  let pointA: Point;
+  let currentPath: Point[];
+  let nextPath: Point[];
+  let quad: Point[];
+  let i: u16 = 0;
+  let j: u16 = 0;
+  let sArea: f64;
+
+  for (i = 0; i < sizeB; ++i) {
+    pointB = b.at(i);
+    currentPath = new Array(sizeA);
+
+    for (j = 0; j < sizeA; ++j) {
+      pointA = a.at(j);
+      currentPath[j] = Point.from(pointA).sub(pointB).scale(scale);
+    }
+
+    solutions.push(currentPath);
+  }
+
+  for (i = 0; i < sizeB; ++i) {
+    currentPath = solutions[i];
+    nextPath = solutions[(i + 1) % sizeB];
+
+    for (j = 0; j < sizeA; ++j) {
+      quad = [
+        currentPath[j],
+        nextPath[j],
+        nextPath[(j + 1) % sizeA],
+        currentPath[(j + 1) % sizeA]
+      ];
+
+      if (orientation(quad)) {
+        quad.reverse();
+      }
+      quads.push(quad);
+    }
+  }
+  const clipper: Clipper = new Clipper();
+
+  clipper.addPaths(quads, PolyType.Subject, true);
+  clipper.execute(
+    ClipType.Union,
+    solutions,
+    PolyFillType.NonZero,
+    PolyFillType.NonZero
+  );
+
+  const solutionCount: number = solutions.length;
+  let clipperNfp: Polygon = Polygon.fromPoints(solutions.at(0), 1 / scale);
+  let n: Polygon;
+  let largestArea: number = clipperNfp.area;
+
+  for (i = 1; i < solutionCount; ++i) {
+    n = Polygon.fromPoints(solutions.at(i), 1 / scale);
+    sArea = n.area;
+
+    if (largestArea > sArea) {
+      clipperNfp = n;
+      largestArea = sArea;
+    }
+  }
+
+  clipperNfp.offsetPoints(b.at(0));
+
+  return [clipperNfp];
 }
