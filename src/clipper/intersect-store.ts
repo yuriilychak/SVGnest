@@ -62,7 +62,10 @@ export default class IntersectStore {
       return;
     }
 
-    let edge: TEdge = this._sortedEdge.update(this._activeEdge.source, topY);
+    let edge: TEdge | null = this._sortedEdge.update(
+      this._activeEdge.source,
+      topY
+    );
     let isModified: boolean = true;
     let point: Point;
     let nextEdge: TEdge;
@@ -72,8 +75,8 @@ export default class IntersectStore {
       isModified = false;
       edge = this._sortedEdge.source;
 
-      while (edge.sel.hasNext) {
-        nextEdge = edge.sel.next;
+      while (edge !== null && edge.sel.hasNext) {
+        nextEdge = edge.sel.unsafeNext;
         point = Point.empty();
 
         if (edge.x > nextEdge.x) {
@@ -101,8 +104,8 @@ export default class IntersectStore {
         } else edge = nextEdge;
       }
 
-      if (edge.sel.hasPrev) {
-        edge.sel.prev.sel.next = null;
+      if (edge !== null && edge.sel.hasPrev) {
+        edge.sel.unsafePev.sel.next = null;
       } else {
         break;
       }
@@ -130,7 +133,7 @@ export default class IntersectStore {
             edge1,
             edge2,
             point,
-            this._activeEdge.source
+            this._activeEdge.source as TEdge
           );
       } else if (
         edge1.polyType == edge2.polyType &&
@@ -239,7 +242,7 @@ export default class IntersectStore {
           edge1,
           edge2,
           point,
-          this._activeEdge.source
+          this._activeEdge.source as TEdge
         );
       else {
         this._outPolygon.addOutPt(edge1, point);
@@ -412,7 +415,9 @@ export default class IntersectStore {
 
     let edge: TEdge = primaryEdge;
     let prevEdge: TEdge =
-      edge.ael.prev == secondaryEdge ? secondaryEdge.ael.prev : edge.ael.prev;
+      edge.ael.prev == secondaryEdge
+        ? secondaryEdge.ael.unsafePev
+        : edge.ael.unsafePev;
 
     if (
       prevEdge !== null &&
@@ -429,7 +434,7 @@ export default class IntersectStore {
   }
 
   private _setWindingCount(edge: TEdge): void {
-    let edge1: TEdge = edge.ael.prev;
+    let edge1: TEdge | null = edge.ael.prev;
 
     while (
       edge1 !== null &&
@@ -449,7 +454,7 @@ export default class IntersectStore {
     } else if (edge.isEvenOddFillType(this._subjFillType, this._clipFillType)) {
       if (edge.windDelta === 0) {
         let isInside: boolean = true;
-        let edge2: TEdge = edge1.ael.prev;
+        let edge2: TEdge | null = edge1.ael.prev;
 
         while (edge2 !== null) {
           if (edge2.polyType == edge1.polyType && edge2.windDelta !== 0) {
@@ -491,11 +496,16 @@ export default class IntersectStore {
 
     if (edge.isEvenOddFillType(this._clipFillType, this._subjFillType)) {
       while (edge1 != edge) {
-        if (edge1.windDelta !== 0) edge.windCnt2 = edge.windCnt2 === 0 ? 1 : 0;
-        edge1 = edge1.ael.next;
+        if (edge1 !== null && edge1.windDelta !== 0) {
+          edge.windCnt2 = edge.windCnt2 === 0 ? 1 : 0;
+        }
+
+        if (edge1 !== null) {
+          edge1 = edge1.ael.next;
+        }
       }
     } else {
-      while (edge1 != edge) {
+      while (edge1 !== null && edge1 !== edge) {
         edge.windCnt2 += edge1.windDelta;
         edge1 = edge1.ael.next;
       }
@@ -504,18 +514,17 @@ export default class IntersectStore {
 
   private _insertLocalMinimaIntoAEL(
     edge1: TEdge,
-    edge2: TEdge = null
+    edge2: TEdge | null = null
   ): OutPt | null {
-    const hasSecondEdge: boolean = edge2 !== null;
     this._activeEdge.insert(edge1);
 
-    if (hasSecondEdge) {
+    if (edge2 !== null) {
       this._activeEdge.insert(edge2, edge1);
     }
 
     this._setWindingCount(edge1);
 
-    if (hasSecondEdge) {
+    if (edge2 !== null) {
       edge2.windCount1 = edge1.windCount1;
       edge2.windCnt2 = edge1.windCnt2;
     }
@@ -530,7 +539,7 @@ export default class IntersectStore {
       return null;
     }
 
-    return hasSecondEdge
+    return edge2 !== null
       ? this._addLocalMinPoly(edge1, edge2, edge1.bottom)
       : this._outPolygon.addOutPt(edge1, edge1.bottom);
   }
@@ -540,8 +549,8 @@ export default class IntersectStore {
     const isRightBoundEmpty: boolean = rightBound === null;
     const isEmpty: boolean = isLeftBoundEmpty || isRightBoundEmpty;
     const edge1: TEdge = isLeftBoundEmpty ? rightBound : leftBound;
-    const edge2: TEdge = !isEmpty ? rightBound : null;
-    const outPt1: OutPt = this._insertLocalMinimaIntoAEL(edge1, edge2);
+    const edge2: TEdge | null = !isEmpty ? rightBound : null;
+    const outPt1: OutPt | null = this._insertLocalMinimaIntoAEL(edge1, edge2);
     let outPt2: OutPt;
 
     if (!isLeftBoundEmpty) {
@@ -558,7 +567,7 @@ export default class IntersectStore {
       return;
     }
 
-    this._joinStore.exportGhosts(outPt1, rightBound);
+    this._joinStore.exportGhosts(outPt1 as OutPt, rightBound);
 
     if (
       leftBound.isValid &&
@@ -568,38 +577,38 @@ export default class IntersectStore {
       TEdge.slopesEqual(leftBound.ael.prev, leftBound)
     ) {
       outPt2 = this._outPolygon.addOutPt(leftBound.ael.prev, leftBound.bottom);
-      this._joinStore.add(outPt1, outPt2, leftBound.top);
+      this._joinStore.add(outPt1 as OutPt, outPt2, leftBound.top);
     }
     if (leftBound.ael.next != rightBound) {
       if (
         rightBound.isValid &&
-        rightBound.ael.prev.isValid &&
-        TEdge.slopesEqual(rightBound.ael.prev, rightBound)
+        rightBound.ael.unsafePev.isValid &&
+        TEdge.slopesEqual(rightBound.ael.unsafePev, rightBound)
       ) {
         outPt2 = this._outPolygon.addOutPt(
-          rightBound.ael.prev,
+          rightBound.ael.unsafePev,
           rightBound.bottom
         );
-        this._joinStore.add(outPt1, outPt2, rightBound.top);
+        this._joinStore.add(outPt1 as OutPt, outPt2, rightBound.top);
       }
 
-      let edge: TEdge = leftBound.ael.next;
+      let edge: TEdge | null = leftBound.ael.next;
 
       if (edge !== null)
-        while (edge != rightBound) {
+        while (edge !== rightBound) {
           this._intersectEdges(rightBound, edge, leftBound, false);
 
-          edge = edge.ael.next;
+          edge = edge.ael.unsafeNext;
         }
     }
   }
 
   public processEdgesAtTopOfScanbeam(topY: number, strictlySimple: boolean) {
-    let edge: TEdge = this._activeEdge.source;
-    let outPt: OutPt;
+    let edge: TEdge | null = this._activeEdge.source;
+    let outPt: OutPt | null;
     let isMaximaEdge: boolean;
-    let prev: TEdge;
-    let maxPairEdge: TEdge;
+    let prev: TEdge | null;
+    let maxPairEdge: TEdge | null;
 
     while (edge !== null) {
       //1. process maxima, treating them as if they're 'bent' horizontal edges,
@@ -617,18 +626,23 @@ export default class IntersectStore {
         edge = prev === null ? this._activeEdge.source : prev.ael.next;
       } else {
         //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-        if (edge.isIntermediate(topY) && edge.nextInLML.isHorizontalY) {
+        if (
+          edge !== null &&
+          edge.isIntermediate(topY) &&
+          edge.nextInLML !== null &&
+          edge.nextInLML.isHorizontalY
+        ) {
           edge = this._activeEdge.update(edge, this._scanbeamStore);
-          if (edge.isIndexDefined) {
+          if (edge !== null && edge.isIndexDefined) {
             this._outPolygon.addOutPt(edge, edge.bottom);
           }
 
-          this._sortedEdge.add(edge);
+          this._sortedEdge.add(edge as TEdge);
         } else {
           edge.update(edge.topX(topY), topY);
         }
-        if (strictlySimple) {
-          prev = edge.ael.prev;
+        if (edge !== null && strictlySimple) {
+          prev = edge.ael.unsafePev;
 
           if (
             edge.isValid &&
@@ -641,7 +655,10 @@ export default class IntersectStore {
             this._joinStore.add(outPt, op2, edge);
           }
         }
-        edge = edge.ael.next;
+
+        if (edge !== null) {
+          edge = edge.ael.next;
+        }
       }
     }
 
@@ -663,15 +680,17 @@ export default class IntersectStore {
           continue;
         }
 
-        this._updateJoins(edge, outPt);
+        this._updateJoins(edge as TEdge, outPt);
       }
 
-      edge = edge.ael.next;
+      if (edge !== null) {
+        edge = edge.ael.next;
+      }
     }
   }
 
   public processHorizontals(isTopOfScanbeam: boolean): void {
-    let edge: TEdge = this._sortedEdge.source;
+    let edge: TEdge | null = this._sortedEdge.source;
 
     while (edge !== null) {
       this._sortedEdge.delete(edge);
@@ -683,10 +702,10 @@ export default class IntersectStore {
   private _processHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
     const dirData: HorizontalDirection = new HorizontalDirection(horzEdge);
     let lastHorzEdge: TEdge = horzEdge;
-    let maxPairEdge: TEdge = null;
+    let maxPairEdge: TEdge | null = null;
     let isLastHorz: boolean;
-    let edge: TEdge;
-    let nextEdge: TEdge;
+    let edge: TEdge | null = null;
+    let nextEdge: TEdge | null = null;
 
     while (
       lastHorzEdge.nextInLML !== null &&
@@ -728,7 +747,7 @@ export default class IntersectStore {
           this._intersectEdges(edge1, edge2, point, isProtected);
 
           if (!isProtected) {
-            if (maxPairEdge.isIndexDefined) {
+            if (maxPairEdge !== null && maxPairEdge.isIndexDefined) {
               console.error("ProcessHorizontal error");
             }
 
@@ -746,7 +765,10 @@ export default class IntersectStore {
       this._joinStore.addGhost(this._outPolygon, horzEdge, isTopOfScanbeam);
 
       if (horzEdge.nextInLML !== null && horzEdge.nextInLML.isHorizontalY) {
-        horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
+        horzEdge = this._activeEdge.update(
+          horzEdge,
+          this._scanbeamStore
+        ) as TEdge;
         if (horzEdge.isIndexDefined) {
           this._outPolygon.addOutPt(horzEdge, horzEdge.bottom);
         }
@@ -761,11 +783,18 @@ export default class IntersectStore {
       if (horzEdge.isIndexDefined) {
         const op1: OutPt = this._outPolygon.addOutPt(horzEdge, horzEdge.top);
 
-        horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
+        horzEdge = this._activeEdge.update(
+          horzEdge,
+          this._scanbeamStore
+        ) as TEdge;
 
         //nb: HorzEdge is no longer horizontal here
         this._updateJoins(horzEdge, op1);
-      } else horzEdge = this._activeEdge.update(horzEdge, this._scanbeamStore);
+      } else
+        horzEdge = this._activeEdge.update(
+          horzEdge,
+          this._scanbeamStore
+        ) as TEdge;
     } else if (maxPairEdge !== null) {
       if (maxPairEdge.isIndexDefined) {
         const isLefDirection: boolean =
@@ -792,7 +821,7 @@ export default class IntersectStore {
   }
 
   private _updateJoins(edge: TEdge, outPt1: OutPt): void {
-    const joinEdge: TEdge = edge.getJoinsEdge();
+    const joinEdge: TEdge | null = edge.getJoinsEdge();
 
     if (joinEdge === null) {
       return;
@@ -803,7 +832,7 @@ export default class IntersectStore {
   }
 
   private _doMaxima(edge: TEdge): void {
-    const maxPairEdge: TEdge = edge.getMaximaPair();
+    const maxPairEdge: TEdge | null = edge.getMaximaPair();
 
     if (maxPairEdge === null) {
       if (edge.isIndexDefined) {
@@ -815,7 +844,7 @@ export default class IntersectStore {
       return;
     }
 
-    let nextEdge: TEdge = edge.ael.next;
+    let nextEdge: TEdge | null = edge.ael.next;
     let isUseLines: boolean = true;
 
     while (nextEdge !== null && nextEdge != maxPairEdge) {

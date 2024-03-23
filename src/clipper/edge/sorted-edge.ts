@@ -17,7 +17,7 @@ export default class SortedEdge {
     this._source = edge;
   }
 
-  public update(edge: TEdge, topY: number = Number.NaN): TEdge | null {
+  public update(edge: TEdge | null, topY: number = Number.NaN): TEdge | null {
     this._source = edge;
 
     const isUpdateX: boolean = !Number.isNaN(topY);

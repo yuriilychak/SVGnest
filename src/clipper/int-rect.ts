@@ -70,18 +70,18 @@ export default class IntRect {
     }
 
     let path: Point[] = paths[firstValidPath];
-    let point: Point = path.at(0);
+    let point: Point = path[0];
     let i: number = 0;
     let j: number = 0;
     let pointCount: number = 0;
     const result: IntRect = new IntRect(point.x, point.x, point.y, point.y);
 
     for (i = firstValidPath; i < pathCount; ++i) {
-      path = paths.at(i);
+      path = paths[i];
       pointCount = path.length;
 
       for (j = 0; j < pointCount; ++j) {
-        point = path.at(j);
+        point = path[j];
         result.left = Math.min(point.x, result.left);
         result.right = Math.max(point.x, result.right);
         result.top = Math.min(point.y, result.top);

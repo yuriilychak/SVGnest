@@ -100,20 +100,24 @@ export default class Clipper {
       edges[i].init(edges[i + 1], edges[i - 1], polygon[i]);
     }
 
-    let startEdge: TEdge = edges[0];
+    let startEdge: TEdge | null = edges[0];
     //2. Remove duplicate vertices, and (when closed) collinear edges ...
-    let edge1: TEdge = startEdge;
+    let edge1: TEdge | null = startEdge;
     let edge2: TEdge;
-    let loopStopEdge: TEdge = startEdge;
+    let loopStopEdge: TEdge | null = startEdge;
 
     while (true) {
-      if (edge1.source.hasNext && edge1.equal(edge1.source.unsafeNext)) {
+      if (
+        edge1 !== null &&
+        edge1.source.hasNext &&
+        edge1.equal(edge1.source.unsafeNext)
+      ) {
         if (edge1 == edge1.source.next) {
           break;
         }
 
         if (edge1 == startEdge && edge1 !== null) {
-          startEdge = edge1.source.next;
+          startEdge = edge1.source.unsafeNext;
         }
 
         edge1 = edge1.remove();
@@ -121,15 +125,16 @@ export default class Clipper {
         continue;
       }
 
-      if (edge1.source.prev == edge1.source.next) {
+      if (edge1 !== null && edge1.source.prev == edge1.source.next) {
         break;
       }
 
       if (
         isClosed &&
+        edge1 !== null &&
         Point.slopesEqual(edge1.source.unsafePev, edge1, edge1.source.next) &&
         (!this._preserveCollinear ||
-          !edge1.between(edge1.source.prev, edge1.source.next))
+          !edge1.between(edge1.source.unsafePev, edge1.source.unsafeNext))
       ) {
         //Collinear edges are allowed for open paths but in closed paths
         //the default is to merge adjacent collinear edges into a single edge.
@@ -139,13 +144,17 @@ export default class Clipper {
           startEdge = edge1.source.next;
         }
 
-        edge1 = edge1.remove();
-        edge1 = edge1.source.prev;
+        if (edge1 !== null) {
+          edge1 = edge1.remove() as TEdge;
+          edge1 = edge1.source.prev;
+        }
         loopStopEdge = edge1;
         continue;
       }
 
-      edge1 = edge1.source.next;
+      if (edge1 !== null) {
+        edge1 = edge1.source.next;
+      }
 
       if (edge1 == loopStopEdge) {
         break;
@@ -153,23 +162,23 @@ export default class Clipper {
     }
 
     if (
-      (!isClosed && edge1 == edge1.source.next) ||
-      (isClosed && edge1.source.prev == edge1.source.next)
+      (!isClosed && edge1 !== null && edge1 === edge1.source.next) ||
+      (isClosed && edge1 !== null && edge1.source.isLooped)
     ) {
       return false;
     }
 
-    if (!isClosed) {
+    if (startEdge !== null && !isClosed) {
       this._hasOpenPaths = true;
-      startEdge.source.prev.skip();
+      startEdge.source.unsafePev.skip();
     }
     //3. Do second stage of edge initialization ...
-    edge1 = startEdge;
+    edge1 = startEdge as TEdge;
 
     do {
       edge1.initFromPolyType(polyType);
-      edge1 = edge1.source.next;
-      isFlat = isFlat && edge1.y === startEdge.y;
+      edge1 = edge1.source.unsafeNext;
+      isFlat = isFlat && startEdge !== null && edge1.y === startEdge.y;
     } while (edge1 != startEdge);
 
     //4. Finally, add edge bounds to LocalMinima list ...
@@ -180,20 +189,24 @@ export default class Clipper {
         return false;
       }
 
-      edge1.source.prev.skip();
+      if (edge1 === null) {
+        return false;
+      }
 
-      if (edge1.source.prev.bottom.x < edge1.source.prev.top.x) {
-        edge1.source.prev.reverseHorizontal();
+      edge1.source.unsafePev.skip();
+
+      if (edge1.source.unsafePev.bottom.x < edge1.source.unsafePev.top.x) {
+        edge1.source.unsafePev.reverseHorizontal();
       }
 
       const locMin: LocalMinima = new LocalMinima(edge1.bottom.y, null, edge1);
-      locMin.right.side = EdgeSide.Right;
-      locMin.right.windDelta = 0;
+      locMin.unsafeRight.side = EdgeSide.Right;
+      locMin.unsafeRight.windDelta = 0;
 
-      while (!edge1.source.next.isSkipped) {
+      while (edge1 !== null && !edge1.source.unsafeNext.isSkipped) {
         edge1.nextInLML = edge1.source.next;
 
-        if (edge1.bottom.x != edge1.source.prev.top.x) {
+        if (edge1.bottom.x != edge1.source.unsafePev.top.x) {
           edge1.reverseHorizontal();
         }
 
@@ -209,6 +222,10 @@ export default class Clipper {
     let localMinima: LocalMinima;
 
     while (true) {
+      if (edge1 === null) {
+        break;
+      }
+
       edge1 = edge1.nextLocMin;
 
       if (edge1 === minEdge) {
@@ -221,24 +238,28 @@ export default class Clipper {
       //E and E.Prev now share a local minima (left aligned if horizontal).
       //Compare their slopes to find which starts which bound ...
       isClockwise =
-        edge1.source.hasPrev && edge1.deltaX >= edge1.source.unsafePev.deltaX;
+        edge1 !== null &&
+        edge1.source.hasPrev &&
+        edge1.deltaX >= edge1.source.unsafePev.deltaX;
 
-      localMinima = new LocalMinima(edge1.bottom.y);
-      localMinima.init(edge1, isClockwise, isClosed);
+      if (edge1 !== null) {
+        localMinima = new LocalMinima(edge1.bottom.y);
+        localMinima.init(edge1, isClockwise, isClosed);
+        edge1 = this._localMinimaStore.processBound(
+          localMinima.unsafeLeft,
+          isClockwise
+        );
+        edge2 = this._localMinimaStore.processBound(
+          localMinima.unsafeRight,
+          !isClockwise
+        ) as TEdge;
 
-      edge1 = this._localMinimaStore.processBound(
-        localMinima.unsafeLeft,
-        isClockwise
-      );
-      edge2 = this._localMinimaStore.processBound(
-        localMinima.unsafeRight,
-        !isClockwise
-      );
+        localMinima.clean();
 
-      localMinima.clean();
-      this._localMinimaStore.insert(localMinima);
-      if (!isClockwise) {
-        edge1 = edge2;
+        this._localMinimaStore.insert(localMinima);
+        if (!isClockwise) {
+          edge1 = edge2;
+        }
       }
     }
     return true;
@@ -278,18 +299,21 @@ export default class Clipper {
   }
 
   private _insertLocalMinimaIntoAEL(botY: number): void {
-    let leftBound: TEdge;
-    let rightBound: TEdge;
+    let leftBound: TEdge | null;
+    let rightBound: TEdge | null;
 
     while (
-      this._localMinimaStore.hasCurrent &&
+      this._localMinimaStore.current !== null &&
       this._localMinimaStore.current.y === botY
     ) {
       leftBound = this._localMinimaStore.current.left;
       rightBound = this._localMinimaStore.current.right;
       this._localMinimaStore.pop();
 
-      this._intersectStore.insertLocalMinimaIntoAEL(leftBound, rightBound);
+      this._intersectStore.insertLocalMinimaIntoAEL(
+        leftBound as TEdge,
+        rightBound as TEdge
+      );
     }
   }
 
@@ -348,7 +372,9 @@ export default class Clipper {
     }
 
     this._intersectStore.clean();
-    this._scanbeamStore.fromLocalMinima(this._localMinimaStore.source);
+    this._scanbeamStore.fromLocalMinima(
+      this._localMinimaStore.source as LocalMinima
+    );
   }
 
   //distance = proximity in units/pixels below which vertices will be stripped.
@@ -374,7 +400,7 @@ export default class Clipper {
     }
 
     for (i = 0; i < pointCount; ++i) {
-      outPt = outPts.at(i);
+      outPt = outPts[i];
       outPt.set(polygon[i]);
       outPt.source.next = outPts[(i + 1) % pointCount];
       outPt.source.unsafeNext.source.prev = outPt;
@@ -385,7 +411,7 @@ export default class Clipper {
 
     while (outPt.index == 0 && outPt.source.next !== outPt.source.prev) {
       if (Point.pointsAreClose(outPt, outPt.source.unsafePev, squareDistance)) {
-        outPt = outPt.exclude();
+        outPt = outPt.exclude() as OutPt;
         --pointCount;
       } else if (
         Point.pointsAreClose(
@@ -395,7 +421,7 @@ export default class Clipper {
         )
       ) {
         outPt.source.unsafeNext.exclude();
-        outPt = outPt.exclude();
+        outPt = outPt.exclude() as OutPt;
         pointCount -= 2;
       } else if (
         outPt.slopesNearCollinear(
@@ -404,11 +430,11 @@ export default class Clipper {
           squareDistance
         )
       ) {
-        outPt = outPt.exclude();
+        outPt = outPt.exclude() as OutPt;
         --pointCount;
       } else {
         outPt.index = 1;
-        outPt = outPt.source.next;
+        outPt = outPt.source.unsafeNext;
       }
     }
 
@@ -420,7 +446,7 @@ export default class Clipper {
 
     for (i = 0; i < pointCount; ++i) {
       result[i] = Point.from(outPt);
-      outPt = outPt.source.next;
+      outPt = outPt.source.unsafeNext;
     }
 
     return result;
