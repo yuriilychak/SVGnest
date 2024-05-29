@@ -1,7 +1,3 @@
-/*!
- * SvgNest
- * Licensed under the MIT license
- */
 
 import ClipperLib from "js-clipper";
 
@@ -166,6 +162,9 @@ function getPlacementWorkerData(
 }
 
 export default class SvgNest {
+
+  #geneticAlgorithm;
+
   constructor() {
     this.svg = null;
 
@@ -193,14 +192,14 @@ export default class SvgNest {
 
     this.working = false;
 
-    this.genethicAlgorithm = null;
+    this.#geneticAlgorithm = null;
     this.best = null;
     this.workerTimer = null;
     this.progress = 0;
     this.svgParser = new SvgParser();
   }
 
-  parsesvg(svgstring) {
+  parseSvg(svgString) {
     // reset if in progress
     this.stop();
 
@@ -209,7 +208,7 @@ export default class SvgNest {
     this.tree = null;
 
     // parse svg
-    this.svg = this.svgParser.load(svgstring);
+    this.svg = this.svgParser.load(svgString);
     this.style = this.svgParser.getStyle();
     this.svg = this.svgParser.clean();
     this.tree = this.getParts(this.svg.childNodes);
@@ -217,7 +216,7 @@ export default class SvgNest {
     return this.svg;
   }
 
-  setbin(element) {
+  setBin(element) {
     if (!this.svg) {
       return;
     }
@@ -277,7 +276,7 @@ export default class SvgNest {
     this.best = null;
     this.nfpCache = {};
     this.binPolygon = null;
-    this.genethicAlgorithm = null;
+    this.#geneticAlgorithm = null;
 
     return this.configuration;
   }
@@ -414,14 +413,14 @@ export default class SvgNest {
   ) {
     let i, j;
 
-    if (this.genethicAlgorithm === null) {
+    if (this.#geneticAlgorithm === null) {
       // initiate new GA
       const adam = tree.slice(0);
 
       // seed with decreasing area
       adam.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
 
-      this.genethicAlgorithm = new GeneticAlgorithm(
+      this.#geneticAlgorithm = new GeneticAlgorithm(
         adam,
         binPolygon,
         configuration
@@ -431,17 +430,17 @@ export default class SvgNest {
     let individual = null;
 
     // evaluate all members of the population
-    for (i = 0; i < this.genethicAlgorithm.population.length; ++i) {
-      if (!this.genethicAlgorithm.population[i].fitness) {
-        individual = this.genethicAlgorithm.population[i];
+    for (i = 0; i < this.#geneticAlgorithm.population.length; ++i) {
+      if (!this.#geneticAlgorithm.population[i].fitness) {
+        individual = this.#geneticAlgorithm.population[i];
         break;
       }
     }
 
     if (individual === null) {
       // all individuals have been evaluated, start next generation
-      this.genethicAlgorithm.generation();
-      individual = this.genethicAlgorithm.population[1];
+      this.#geneticAlgorithm.generation();
+      individual = this.#geneticAlgorithm.population[1];
     }
 
     const placeList = individual.placement;

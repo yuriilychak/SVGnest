@@ -309,7 +309,7 @@ max-height: 50em;
 box-shadow: 0 2px 1px #d7dae1;
 }
 
-#configbutton{
+#configButton{
 position: relative;
 z-index: 2;
 width: 3em;
@@ -318,18 +318,18 @@ height: 2.5em;
 background-position: 50%;
 }
 
-#zoominbutton, #zoomoutbutton, #exitbutton{
+#zoomInButton, #zoomOutButton, #exitButton{
 width: 3em;
 padding: 0;
 height: 2.5em;
 background-position: 50%;
 }
 
-#configbutton.close:hover{
+#configButton.close:hover{
 box-shadow: none;
 }
 
-#configsave{
+#configSave{
 margin-left: 7%;
 }
 

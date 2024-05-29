@@ -1,0 +1,9 @@
+{
+    "name": "svg-nest",
+    "version": "0.0.0",
+    "main": "dist/svg-nest.js",
+    "scripts": {
+        "build": "webpack",
+        "test": "jest"
+    }
+  }

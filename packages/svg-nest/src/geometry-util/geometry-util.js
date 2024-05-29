@@ -100,12 +100,7 @@ export function almostEqual(a, b, tolerance) {
   return Math.abs(a - b) < tolerance;
 }
 
-// returns true if points are within the given distance
-export function withinDistance(p1, p2, distance) {
-  var dx = p1.x - p2.x;
-  var dy = p1.y - p2.y;
-  return dx * dx + dy * dy < distance * distance;
-}
+
 
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error

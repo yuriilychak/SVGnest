@@ -1,5 +1,5 @@
-import SvgNest from "./svgnest";
-import "./svg-parser/pathsegpolyfill";
+import SvgNest from "./svg-nest";
+import "./svg-parser/path-seg-polyfill";
 
 // UI-specific stuff, button clicks go here
 const svgNest = new SvgNest();
@@ -31,25 +31,26 @@ function saveBlobAs(blob, file_name) {
 ready(function () {
   // FAQ toggle
   var faq = document.getElementById("faq");
-  var faqbutton = document.getElementById("faqbutton");
+  var faqButton = document.getElementById("faqbutton");
 
-  var faqvisible = false;
-  faqbutton.onclick = function (e) {
-    if (!faqvisible) {
+  var faqVisible = false;
+  faqButton.onclick = function (e) {
+    if (!faqVisible) {
       faq.setAttribute("style", "display: block");
     } else {
       faq.removeAttribute("style");
     }
-    faqvisible = !faqvisible;
+    faqVisible = !faqVisible;
   };
 
   function hideSplash() {
     var splash = document.getElementById("splash");
-    var svgnest = document.getElementById("svgnest");
+    var svgNestElement = document.getElementById("svgnest");
+
     if (splash) {
       splash.remove();
     }
-    svgnest.setAttribute("style", "display: block");
+    svgNestElement.setAttribute("style", "display: block");
   }
 
   var demo = document.getElementById("demo");
@@ -58,7 +59,7 @@ ready(function () {
 
   demo.onclick = function () {
     try {
-      var svg = svgNest.parsesvg(display.innerHTML);
+      var svg = svgNest.parseSvg(display.innerHTML);
       display.innerHTML = "";
       display.appendChild(svg);
     } catch (e) {
@@ -107,84 +108,84 @@ ready(function () {
   var upload = document.getElementById("upload");
   var start = document.getElementById("start");
   var download = document.getElementById("download");
-  var startlabel = document.getElementById("startlabel");
-  var fileinput = document.getElementById("fileinput");
+  var startLabel = document.getElementById("startLabel");
+  var fileInput = document.getElementById("fileinput");
 
   var config = document.getElementById("config");
-  var configbutton = document.getElementById("configbutton");
-  var configsave = document.getElementById("configsave");
+  var configButton = document.getElementById("configButton");
+  var configSave = document.getElementById("configSave");
 
-  var zoomin = document.getElementById("zoominbutton");
-  var zoomout = document.getElementById("zoomoutbutton");
-  var exit = document.getElementById("exitbutton");
+  var zoomIn = document.getElementById("zoomInButton");
+  var zoomOut = document.getElementById("zoomOutButton");
+  var exit = document.getElementById("exitButton");
 
-  var isworking = false;
+  var isWorking = false;
 
   start.onclick = function () {
     if (this.className == "button start disabled") {
       return false;
     }
     iterations = 0;
-    if (isworking) {
-      stopnest();
+    if (isWorking) {
+      stopNest();
     } else {
-      startnest();
+      startNest();
     }
 
     display.className = "disabled";
     document.getElementById("info_time").setAttribute("style", "display: none");
   };
 
-  function startnest() {
+  function startNest() {
     // Once started, don't allow this anymore
     document.removeEventListener("dragover", FileDragHover, false);
     document.removeEventListener("dragleave", FileDragHover, false);
     document.removeEventListener("drop", FileDrop, false);
 
     svgNest.start(progress, renderSvg);
-    startlabel.innerHTML = "Stop Nest";
+    startLabel.innerHTML = "Stop Nest";
     start.className = "button spinner";
-    configbutton.className = "button config disabled";
+    configButton.className = "button config disabled";
     config.className = "";
-    zoomin.className = "button zoomin disabled";
-    zoomout.className = "button zoomout disabled";
+    zoomIn.className = "button zoom in disabled";
+    zoomOut.className = "button zoom out disabled";
 
     var svg = document.querySelector("#select svg");
     if (svg) {
       svg.removeAttribute("style");
     }
 
-    isworking = true;
+    isWorking = true;
   }
 
-  function stopnest() {
+  function stopNest() {
     svgNest.stop();
-    startlabel.innerHTML = "Start Nest";
+    startLabel.innerHTML = "Start Nest";
     start.className = "button start";
-    configbutton.className = "button config";
+    configButton.className = "button config";
 
-    isworking = false;
+    isWorking = false;
   }
 
   // config
-  var configvisible = false;
-  configbutton.onclick = function () {
+  var configVisible = false;
+  configButton.onclick = function () {
     if (this.className == "button config disabled") {
       return false;
     }
-    if (!configvisible) {
+    if (!configVisible) {
       config.className = "active";
-      configbutton.className = "button close";
+      configButton.className = "button close";
     } else {
       config.className = "";
-      configbutton.className = "button config";
+      configButton.className = "button config";
     }
-    configvisible = !configvisible;
+    configVisible = !configVisible;
 
     return false;
   };
 
-  configsave.onclick = function () {
+  configSave.onclick = function () {
     var c = {};
     var inputs = document.querySelectorAll("#config input");
     for (var i = 0; i < inputs.length; i++) {
@@ -199,25 +200,27 @@ ready(function () {
     svgNest.config(c);
 
     // new configs will invalidate current nest
-    if (isworking) {
-      stopnest();
+    if (isWorking) {
+      stopNest();
     }
-    configvisible = false;
+    configVisible = false;
     config.className = "";
     return false;
   };
 
   upload.onclick = function () {
-    fileinput.click();
+    fileInput.click();
   };
   document.addEventListener("dragover", FileDragHover, false);
   document.addEventListener("dragleave", FileDragHover, false);
   document.addEventListener("drop", FileDrop, false);
+
   function FileDragHover(e) {
     e.stopPropagation();
     e.preventDefault();
     upload.style.backgroundColor = e.type == "dragover" ? "#d7e9b7" : "";
   }
+  
   function FileDrop(e) {
     e.stopPropagation(); // Make sure not to replace website by file
     e.preventDefault();
@@ -278,54 +281,54 @@ ready(function () {
     saveBlobAs(blob, "SVGnest-output.svg");
   };
 
-  var zoomlevel = 1.0;
+  var zoomLevel = 1.0;
 
-  zoomin.onclick = function () {
-    if (this.className == "button zoomin disabled") {
+  zoomIn.onclick = function () {
+    if (this.className == "button zoom in disabled") {
       return false;
     }
-    zoomlevel *= 1.2;
+    zoomLevel *= 1.2;
     var svg = document.querySelector("#select svg");
     if (svg) {
       svg.setAttribute(
         "style",
         "transform-origin: top left; transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -webkit-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -moz-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -ms-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -o-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           ");"
       );
     }
   };
 
-  zoomout.onclick = function () {
-    if (this.className == "button zoomout disabled") {
+  zoomOut.onclick = function () {
+    if (this.className == "button zoom out disabled") {
       return false;
     }
-    zoomlevel *= 0.8;
-    if (zoomlevel < 0.02) {
-      zoomlevel = 0.02;
+    zoomLevel *= 0.8;
+    if (zoomLevel < 0.02) {
+      zoomLevel = 0.02;
     }
     var svg = document.querySelector("#select svg");
     if (svg) {
       svg.setAttribute(
         "style",
         "transform-origin: top left; transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -webkit-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -moz-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -ms-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           "); -o-transform:scale(" +
-          zoomlevel +
+          zoomLevel +
           ");"
       );
     }
@@ -335,7 +338,7 @@ ready(function () {
     location.reload();
   };
 
-  fileinput.onchange = function (e) {
+  fileInput.onchange = function (e) {
     handleFile(e.target.files[0]);
   };
 
@@ -362,7 +365,7 @@ ready(function () {
 
       if (reader.result) {
         try {
-          var svg = svgNest.parsesvg(reader.result);
+          var svg = svgNest.parseSvg(reader.result);
           {
             var wholeSVG = document.createElementNS(
               "http://www.w3.org/2000/svg",
@@ -411,17 +414,17 @@ ready(function () {
           if (display.className == "disabled") {
             return;
           }
-          var currentbin = document.querySelector("#select .active");
-          if (currentbin) {
-            var className = currentbin
+          var currentBin = document.querySelector("#select .active");
+          if (currentBin) {
+            var className = currentBin
               .getAttribute("class")
               .replace("active", "")
               .trim();
-            if (!className) currentbin.removeAttribute("class");
-            else currentbin.setAttribute("class", className);
+            if (!className) currentBin.removeAttribute("class");
+            else currentBin.setAttribute("class", className);
           }
 
-          svgNest.setbin(this);
+          svgNest.setBin(this);
           this.setAttribute(
             "class",
             (this.getAttribute("class")
@@ -436,11 +439,11 @@ ready(function () {
     }
   }
 
-  var prevpercent = 0;
+  var prevPercent = 0;
   var startTime = null;
 
   function progress(percent) {
-    var transition = percent > prevpercent ? "; transition: width 0.1s" : "";
+    var transition = percent > prevPercent ? "; transition: width 0.1s" : "";
     document
       .getElementById("info_progress")
       .setAttribute(
@@ -449,7 +452,7 @@ ready(function () {
       );
     document.getElementById("info").setAttribute("style", "display: block");
 
-    prevpercent = percent;
+    prevPercent = percent;
 
     var now = new Date().getTime();
     if (startTime && now) {
@@ -478,21 +481,21 @@ ready(function () {
 
   var iterations = 0;
 
-  function renderSvg(svglist, efficiency, placed, total) {
+  function renderSvg(svgList, efficiency, placed, total) {
     iterations++;
     document.getElementById("info_iterations").innerHTML = iterations;
 
-    if (!svglist || svglist.length == 0) {
+    if (!svgList || svgList.length == 0) {
       return;
     }
     var bins = document.getElementById("bins");
     bins.innerHTML = "";
 
-    for (var i = 0; i < svglist.length; i++) {
-      if (svglist.length > 2) {
-        svglist[i].setAttribute("class", "grid");
+    for (var i = 0; i < svgList.length; i++) {
+      if (svgList.length > 2) {
+        svgList[i].setAttribute("class", "grid");
       }
-      bins.appendChild(svglist[i]);
+      bins.appendChild(svgList[i]);
     }
 
     if (efficiency || efficiency === 0) {
