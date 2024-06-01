@@ -1,5 +1,5 @@
-import SvgNest from "./svg-nest";
-import "./svg-parser/path-seg-polyfill";
+import { SvgNest } from "polygon-packer";
+import "./path-seg-polyfill";
 
 // UI-specific stuff, button clicks go here
 const svgNest = new SvgNest();

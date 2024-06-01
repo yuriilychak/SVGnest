@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "description": "ES6 version of https://github.com/Jack000/SVGnest migrated to webpack",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "lerna run build"
+    "test": "echo $PATH",
+    "build": "node -v && lerna run build"
   },
   "repository": {
     "type": "git",
@@ -24,6 +27,7 @@
   "homepage": "https://github.com/yuriilychak/SVGnest#readme",
   "devDependencies": {
     "lerna": "^8.1.3",
+    "turbo": "^1.13.3",
     "webpack": "^5.90.0",
     "webpack-cli": "^5.1.4",
     "worker-loader": "^3.0.8"

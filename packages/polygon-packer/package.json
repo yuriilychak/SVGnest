@@ -1,0 +1,19 @@
+{
+    "name": "polygon-packer",
+    "version": "1.0.0",
+    "main": "dist/polygon-packer.js",
+    "scripts": {
+        "build": "webpack",
+        "test": "jest"
+    },
+    "description": "Polygon packing algorythm",
+    "devDependencies": {},
+    "keywords": [
+        "polygons",
+        "genetic",
+        "algorythm",
+        "nesting"
+    ],
+    "author": "yurii.lychak",
+    "license": "MIT"
+}

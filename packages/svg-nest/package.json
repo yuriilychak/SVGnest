@@ -1,9 +1,20 @@
 {
     "name": "svg-nest",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "main": "dist/svg-nest.js",
     "scripts": {
         "build": "webpack",
         "test": "jest"
-    }
-  }
+    },
+    "dependencies": {
+        "polygon-packer": "^1.0.0"
+    },
+    "description": "user interface package for SVGNest",
+    "keywords": [
+        "react",
+        "UI",
+        "MUI"
+    ],
+    "author": "yurii.lychak",
+    "license": "MIT"
+}
