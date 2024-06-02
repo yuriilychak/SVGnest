@@ -1,0 +1,17 @@
+{
+    "name": "svg-parser",
+    "version": "1.0.0",
+    "main": "dist/svg-parser.js",
+    "scripts": {
+        "build": "webpack",
+        "test": "jest"
+    },
+    "description": "Polygon packing algorythm",
+    "devDependencies": {},
+    "keywords": [
+        "svg",
+        "polygon"
+    ],
+    "author": "yurii.lychak",
+    "license": "MIT"
+}

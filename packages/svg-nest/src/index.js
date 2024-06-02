@@ -1,5 +1,4 @@
 import { SvgNest } from "polygon-packer";
-import "./path-seg-polyfill";
 
 // UI-specific stuff, button clicks go here
 const svgNest = new SvgNest();

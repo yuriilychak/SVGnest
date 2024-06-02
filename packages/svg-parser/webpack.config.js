@@ -4,11 +4,11 @@ module.exports = {
   mode: "production",
   entry: "./src/index.js",
   target: 'web',
-  externals: {
-    'polygon-packer': 'polygonPacker'
-  },
   output: {
-    filename: "svg-nest.js",
+    library: "svgParser",
+    libraryTarget: 'umd',
+    umdNamedDefine: true,
+    filename: "svg-parser.js",
     path: path.resolve(__dirname, "../../dist")
   }
 };

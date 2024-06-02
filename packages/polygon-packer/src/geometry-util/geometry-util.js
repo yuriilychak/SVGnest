@@ -93,10 +93,7 @@ function _onSegment(A, B, p) {
   return true;
 }
 
-export function almostEqual(a, b, tolerance) {
-  if (!tolerance) {
-    tolerance = TOL;
-  }
+export function almostEqual(a, b = 0, tolerance = TOL) {
   return Math.abs(a - b) < tolerance;
 }
 
@@ -704,7 +701,7 @@ export function segmentDistance(A, B, E, F, direction) {
   var EFmin = Math.min(dotE, dotF);
 
   // segments that will merely touch at one point
-  if (almostEqual(ABmax, EFmin, TOL) || almostEqual(ABmin, EFmax, TOL)) {
+  if (almostEqual(ABmax, EFmin) || almostEqual(ABmin, EFmax)) {
     return null;
   }
   // segments miss eachother completely
@@ -750,7 +747,7 @@ export function segmentDistance(A, B, E, F, direction) {
       // normal of AB segment must point in same direction as given direction vector
       var normdot = ABnorm.y * direction.y + ABnorm.x * direction.x;
       // the segments merely slide along eachother
-      if (almostEqual(normdot, 0, TOL)) {
+      if (almostEqual(normdot, 0)) {
         return null;
       }
       if (normdot < 0) {

@@ -9,7 +9,10 @@ module.exports = {
     libraryTarget: 'umd',
     umdNamedDefine: true,
     filename: "polygon-packer.js",
-    path: path.resolve(__dirname, "dist")
+    path: path.resolve(__dirname, "../../dist")
+  },
+  externals: {
+    'svg-parser': 'svgParser'
   },
   module: {
     rules: [

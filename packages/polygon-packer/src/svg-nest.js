@@ -1,8 +1,8 @@
 
 import ClipperLib from "js-clipper";
+import { SvgParser } from "svg-parser";
 
 import { GeneticAlgorithm } from "./genetic-algorithm";
-import { SvgParser } from "./svg-parser";
 import { Parallel } from "./parallel";
 import {
   polygonArea,

@@ -1,8 +1,6 @@
 // matrix utility from SvgPath
 // https://github.com/fontello/svgpath
 
-"use strict";
-
 export default class Matrix {
   constructor() {
     this.queue = []; // list of matrixes to apply
@@ -138,7 +136,7 @@ export default class Matrix {
   // If `isRelative` set, `translate` component of matrix will be skipped
   //
   calc(x, y, isRelative) {
-    var m, i, len;
+    var m;
 
     // Don't change point on empty transforms queue
     if (!this.queue.length) {
