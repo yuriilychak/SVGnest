@@ -1,154 +1,206 @@
-import BasicShapeBuilder from "./basic-shape-builder";
-import { Arc, CubicBezier, QuadraticBezier } from "./curve-utils";
+import BasicShapeBuilder from './basic-shape-builder';
+import { ArcSegment, CubicSegment, QuadraticSegment } from './curve-utils';
 
 export default class PathBuilder extends BasicShapeBuilder {
-    addPointsFromCurve(points) {
-        const pointCount = points.length;
-        let i = 0;
-
-        points.shift(); // firstpoint would already be in the poly
-
-        for (i = 0; i < pointCount; ++i) {
-          this.result.push({ x: points[j].x, y: points[j].y });
-        }
-    }
-
     getResult(element) {
         // we'll assume that splitpath has already been run on this path, and it only has one M/m command
         const segments = element.pathSegList;
-        let x = 0;
-        let y = 0;
-        let x0 = 0;
-        let y0 = 0;
-        let x1 = 0;
-        let y1 = 0;
-        let x2 = 0;
-        let y2 = 0;
-        let prevx = 0;
-        let prevy = 0;
-        let prevx1 = 0;
-        let prevy1 = 0;
-        let prevx2 = 0;
-        let prevy2 = 0;
+        const segmentCount = segments.numberOfItems;
+        const point = { x: 0, y: 0 };
+        const point0 = { x: 0, y: 0 };
+        const point1 = { x: 0, y: 0 };
+        const point2 = { x: 0, y: 0 };
+        const prev = { x: 0, y: 0 };
+        const prev1 = { x: 0, y: 0 };
+        const prev2 = { x: 0, y: 0 };
         let i = 0;
-        let segment;
-        let command;
+        let segment = null;
+        let command = '';
+        let updateMultiplier = 0;
+        let config = null;
+        let segmentBuilder = null;
 
-        for (i = 0; i < segments.numberOfItems; ++i) {
-          segment = segments.getItem(i);
-          command = segment.pathSegTypeAsLetter;
+        for (i = 0; i < segmentCount; ++i) {
+            config = null;
+            segment = segments.getItem(i);
+            command = segment.pathSegTypeAsLetter;
 
-          prevx = x;
-          prevy = y;
+            prev.x = point.x;
+            prev.y = point.y;
 
-          prevx1 = x1;
-          prevy1 = y1;
+            prev1.x = point1.x;
+            prev1.y = point1.y;
 
-          prevx2 = x2;
-          prevy2 = y2;
+            prev2.x = point2.x;
+            prev2.y = point2.y;
 
-          if (/[MLHVCSQTA]/.test(command)) {
-            if ("x1" in segment) x1 = segment.x1;
-            if ("x2" in segment) x2 = segment.x2;
-            if ("y1" in segment) y1 = segment.y1;
-            if ("y2" in segment) y2 = segment.y2;
-            if ("x" in segment) x = segment.x;
-            if ("y" in segment) y = segment.y;
-          } else {
-            if ("x1" in segment) x1 = x + segment.x1;
-            if ("x2" in segment) x2 = x + segment.x2;
-            if ("y1" in segment) y1 = y + segment.y1;
-            if ("y2" in segment) y2 = y + segment.y2;
-            if ("x" in segment) x += segment.x;
-            if ("y" in segment) y += segment.y;
-          }
-          switch (command) {
+            updateMultiplier = PathBuilder.UPDATE_COMMANDS.includes(command) ?
+                0 :
+                1;
+
+            if ('x1' in segment) {
+                point1.x = point.x * updateMultiplier + segment.x1;
+            }
+
+            if ('y1' in segment) {
+                point1.y = point.y * updateMultiplier + segment.y1;
+            }
+
+            if ('x2' in segment) {
+                point2.x = point.x * updateMultiplier + segment.x2;
+            }
+
+            if ('y2' in segment) {
+                point2.y = point.y * updateMultiplier + segment.y2;
+            }
+
+            if ('x' in segment) {
+                point.x = point.x * updateMultiplier + segment.x;
+            }
+
+            if ('y' in segment) {
+                point.y = point.y * updateMultiplier + segment.y;
+            }
+
+            switch (command.toUpperCase()) {
             // linear line types
-            case "m":
-            case "M":
-            case "l":
-            case "L":
-            case "h":
-            case "H":
-            case "v":
-            case "V":
-              this.result.push({ x, y });
-              break;
-            // Quadratic Beziers
-            case "t":
-            case "T":
-              // implicit control point
-              if (
-                i > 0 &&
-                /[QqTt]/.test(segments.getItem(i - 1).pathSegTypeAsLetter)
-              ) {
-                x1 = -prevx1;
-                y1 = -prevy1;
-              } else {
-                x1 = prevx;
-                y1 = prevy;
-              }
-            case "q":
-            case "Q":
-                this.addPointsFromCurve(QuadraticBezier(
-                { x: prevx, y: prevy },
-                { x: x, y: y },
-                { x: x1, y: y1 },
-                this.tolerance
-              ))
-              break;
-            case "s":
-            case "S":
-              if (
-                i > 0 &&
-                /[CcSs]/.test(segments.getItem(i - 1).pathSegTypeAsLetter)
-              ) {
-                x1 = prevx + (prevx - prevx2);
-                y1 = prevy + (prevy - prevy2);
-              } else {
-                x1 = prevx;
-                y1 = prevy;
-              }
-            case "c":
-            case "C":
-                this.addPointsFromCurve(CubicBezier(
-                { x: prevx, y: prevy },
-                { x: x, y: y },
-                { x: x1, y: y1 },
-                { x: x2, y: y2 },
-                this.tolerance
-              ));
-              break;
-            case "a":
-            case "A":
-              this.addPointsFromCurve(Arc(
-                { x: prevx, y: prevy },
-                { x: x, y: y },
-                segment.r1,
-                segment.r2,
-                segment.angle,
-                segment.largeArcFlag,
-                segment.sweepFlag,
-                this.tolerance
-              ));
-              break;
-            case "z":
-            case "Z":
-              x = x0;
-              y = y0;
-              break;
-          }
-          // Record the start of a subpath
-          if (PathBuilder.SUBPATH_COMMANDS.includes(command)) {
-            x0 = x; 
-            y0 = y;
-        }
+            case 'M':
+            case 'L':
+            case 'H':
+            case 'V':
+                this.result.push({ ...point });
+                break;
+                // Quadratic Beziers
+            case 'T':
+                // implicit control point
+                if (
+                    PathBuilder.checkPrevSegment(
+                        segments,
+                        i,
+                        PathBuilder.QUADRATIC_COMMANDS
+                    )
+                ) {
+                    point1.x = -prev1.x;
+                    point1.y = -prev1.y;
+                } else {
+                    point1.x = prev.x;
+                    point1.y = prev.y;
+                }
+
+                config = PathBuilder.getQuadraticConfig(prev, point, point1);
+                break;
+            case 'Q':
+                config = PathBuilder.getQuadraticConfig(prev, point, point1);
+                break;
+            case 'S':
+                if (
+                    PathBuilder.checkPrevSegment(
+                        segments,
+                        i,
+                        PathBuilder.CUBIC_COMMANDS
+                    )
+                ) {
+                    point1.x = prev.x + (prev.x - prev2.x);
+                    point1.y = prev.y + (prev.y - prev2.y);
+                } else {
+                    point1.x = prev.x;
+                    point1.y = prev.y;
+                }
+
+                config = PathBuilder.getCubicConfig(
+                    prev,
+                    point,
+                    point1,
+                    point2
+                );
+                break;
+            case 'C':
+                config = PathBuilder.getCubicConfig(
+                    prev,
+                    point,
+                    point1,
+                    point2
+                );
+                break;
+            case 'A':
+                config = PathBuilder.getArcConfig(prev, point, segment);
+                break;
+            case 'Z':
+                point.x = point0.x;
+                point.y = point0.y;
+                break;
+            default:
+            }
+
+            if (config) {
+                segmentBuilder = PathBuilder.SEGMENT_BUILDERS.get(command);
+
+                this.insertPoints(
+                    segmentBuilder.lineraize(config, this.tolerance)
+                );
+            }
+            // Record the start of a subpath
+            if (PathBuilder.SUBPATH_COMMANDS.includes(command)) {
+                point0.x = point.x;
+                point0.y = point.y;
+            }
         }
 
         return super.getResult(element);
     }
 
+    static getQuadraticConfig(point1, point2, control) {
+        return { point1, point2, control };
+    }
+
+    static getCubicConfig(point1, point2, control1, control2) {
+        return { point1, point2, control1, control2 };
+    }
+
+    static getArcConfig(point1, point2, segment) {
+        return {
+            point1,
+            point2,
+            rx: segment.r1,
+            ry: segment.r2,
+            angle: segment.angle,
+            largeArc: segment.largeArcFlag,
+            sweep: segment.sweepFlag
+        };
+    }
+
+    static checkPrevSegment(segments, index, commands) {
+        if (index === 0) {
+            return false;
+        }
+
+        const command = segments
+            .getItem(index - 1)
+            .pathSegTypeAsLetter.toUpperCase();
+
+        return commands.includes(command);
+    }
+
+    static SEGMENT_BUILDERS = new window.Map([
+        ['T', QuadraticSegment],
+        ['t', QuadraticSegment],
+        ['Q', QuadraticSegment],
+        ['q', QuadraticSegment],
+        ['S', CubicSegment],
+        ['s', CubicSegment],
+        ['C', CubicSegment],
+        ['c', CubicSegment],
+        ['A', ArcSegment],
+        ['a', ArcSegment]
+    ]);
+
+    static UPDATE_COMMANDS = ['M', 'L', 'H', 'V', 'C', 'S', 'Q', 'T', 'A'];
+
     static SUBPATH_COMMANDS = ['M', 'm'];
+
+    static QUADRATIC_COMMANDS = ['Q', 'T'];
+
+    static CUBIC_COMMANDS = ['C', 'S'];
 
     static create(tolerance, svgTolerance) {
         return new PathBuilder(tolerance, svgTolerance);

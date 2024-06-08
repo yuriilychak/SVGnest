@@ -1,10 +1,10 @@
-import BasicShapeBuilder from "./basic-shape-builder";
+import BasicShapeBuilder from './basic-shape-builder';
 
 export default class PolygonBuilder extends BasicShapeBuilder {
     getResult(element) {
         const pointCount = element.points.numberOfItems;
-        let point;
-        let i;
+        let point = null;
+        let i = 0;
 
         for (i = 0; i < pointCount; ++i) {
             point = element.points.getItem(i);

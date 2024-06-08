@@ -1,27 +1,29 @@
-import BasicShapeBuilder from "./basic-shape-builder";
+import BasicShapeBuilder from './basic-shape-builder';
 
 export default class EllipseBuilder extends BasicShapeBuilder {
     getResult(element) {
-        // same as circle case. There is probably a way to reduce points but for convenience we will just flatten the equivalent circular polygon
-        const rx = parseFloat(element.getAttribute("rx"));
-        const ry = parseFloat(element.getAttribute("ry"));
-        const cx = parseFloat(element.getAttribute("cx"));
-        const cy = parseFloat(element.getAttribute("cy"));
+        const rx = parseFloat(element.getAttribute('rx'));
+        const ry = parseFloat(element.getAttribute('ry'));
+        const cx = parseFloat(element.getAttribute('cx'));
+        const cy = parseFloat(element.getAttribute('cy'));
         const maxRadius = Math.max(rx, ry);
-        const num = Math.max(Math.ceil(
-          (2 * Math.PI) / Math.acos(1 - this.tolerance / maxRadius)
-        ), 3);
-        const step = (2 * Math.PI) / num;
+        const num = Math.max(
+            Math.ceil(
+                2 * Math.PI / Math.acos(1 - this.tolerance / maxRadius)
+            ),
+            3
+        );
+        const step = 2 * Math.PI / num;
         let i = 0;
         let theta = 0;
 
         for (i = 0; i < num; ++i) {
-          theta = i * step;
+            theta = i * step;
 
-          this.result.push({
-            x: rx * Math.cos(theta) + cx,
-            y: ry * Math.sin(theta) + cy
-          });
+            this.result.push({
+                x: rx * Math.cos(theta) + cx,
+                y: ry * Math.sin(theta) + cy
+            });
         }
 
         return super.getResult(element);

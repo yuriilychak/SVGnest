@@ -19,14 +19,32 @@ export default class BasicShapeBuilder {
         return this.#tolerance;
     }
 
+    insertPoints(points) {
+        const pointCount = points.length;
+        let i = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            this.result.push(points[i]);
+        }
+    }
+
+    // eslint-disable-next-line
     getResult(element) {
         // do not include last point if coincident with starting point
         let pointCount = this.#result.length;
 
         while (
             pointCount > 0 &&
-            BasicShapeBuilder.almostEqual(this.#result[0].x, this.#result[pointCount - 1].x, this.#svgTolerance) &&
-            BasicShapeBuilder.almostEqual(this.#result[0].y, this.#result[pointCount- 1].y, this.#svgTolerance)
+            BasicShapeBuilder.almostEqual(
+                this.#result[0].x,
+                this.#result[pointCount - 1].x,
+                this.#svgTolerance
+            ) &&
+            BasicShapeBuilder.almostEqual(
+                this.#result[0].y,
+                this.#result[pointCount - 1].y,
+                this.#svgTolerance
+            )
         ) {
             this.#result.pop();
             --pointCount;
@@ -34,7 +52,7 @@ export default class BasicShapeBuilder {
 
         return this.#result;
     }
-    
+
     static almostEqual(a, b, tolerance) {
         return Math.abs(a - b) < tolerance;
     }

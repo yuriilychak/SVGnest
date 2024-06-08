@@ -1,2 +1,2 @@
-export { default as SvgParser } from "./svg-parser";
-import "./path-seg-polyfill";
+export { default as SvgParser } from './svg-parser';
+import './path-seg-polyfill';
