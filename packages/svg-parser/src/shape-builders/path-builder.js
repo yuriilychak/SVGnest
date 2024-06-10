@@ -1,5 +1,5 @@
 import BasicShapeBuilder from './basic-shape-builder';
-import { ArcSegment, CubicSegment, QuadraticSegment } from './curve-utils';
+import SEGMENT_BUILDERS from './curve-utils';
 
 export default class PathBuilder extends BasicShapeBuilder {
     getResult(element) {
@@ -63,77 +63,77 @@ export default class PathBuilder extends BasicShapeBuilder {
             }
 
             switch (command.toUpperCase()) {
-            // linear line types
-            case 'M':
-            case 'L':
-            case 'H':
-            case 'V':
-                this.result.push({ ...point });
-                break;
+                // linear line types
+                case 'M':
+                case 'L':
+                case 'H':
+                case 'V':
+                    this.result.push({ ...point });
+                    break;
                 // Quadratic Beziers
-            case 'T':
-                // implicit control point
-                if (
-                    PathBuilder.checkPrevSegment(
-                        segments,
-                        i,
-                        PathBuilder.QUADRATIC_COMMANDS
-                    )
-                ) {
-                    point1.x = -prev1.x;
-                    point1.y = -prev1.y;
-                } else {
-                    point1.x = prev.x;
-                    point1.y = prev.y;
-                }
+                case 'T':
+                    // implicit control point
+                    if (
+                        PathBuilder.checkPrevSegment(
+                            segments,
+                            i,
+                            PathBuilder.QUADRATIC_COMMANDS
+                        )
+                    ) {
+                        point1.x = -prev1.x;
+                        point1.y = -prev1.y;
+                    } else {
+                        point1.x = prev.x;
+                        point1.y = prev.y;
+                    }
 
-                config = PathBuilder.getQuadraticConfig(prev, point, point1);
-                break;
-            case 'Q':
-                config = PathBuilder.getQuadraticConfig(prev, point, point1);
-                break;
-            case 'S':
-                if (
-                    PathBuilder.checkPrevSegment(
-                        segments,
-                        i,
-                        PathBuilder.CUBIC_COMMANDS
-                    )
-                ) {
-                    point1.x = prev.x + (prev.x - prev2.x);
-                    point1.y = prev.y + (prev.y - prev2.y);
-                } else {
-                    point1.x = prev.x;
-                    point1.y = prev.y;
-                }
+                    config = PathBuilder.getQuadraticConfig(prev, point, point1);
+                    break;
+                case 'Q':
+                    config = PathBuilder.getQuadraticConfig(prev, point, point1);
+                    break;
+                case 'S':
+                    if (
+                        PathBuilder.checkPrevSegment(
+                            segments,
+                            i,
+                            PathBuilder.CUBIC_COMMANDS
+                        )
+                    ) {
+                        point1.x = prev.x + (prev.x - prev2.x);
+                        point1.y = prev.y + (prev.y - prev2.y);
+                    } else {
+                        point1.x = prev.x;
+                        point1.y = prev.y;
+                    }
 
-                config = PathBuilder.getCubicConfig(
-                    prev,
-                    point,
-                    point1,
-                    point2
-                );
-                break;
-            case 'C':
-                config = PathBuilder.getCubicConfig(
-                    prev,
-                    point,
-                    point1,
-                    point2
-                );
-                break;
-            case 'A':
-                config = PathBuilder.getArcConfig(prev, point, segment);
-                break;
-            case 'Z':
-                point.x = point0.x;
-                point.y = point0.y;
-                break;
-            default:
+                    config = PathBuilder.getCubicConfig(
+                        prev,
+                        point,
+                        point1,
+                        point2
+                    );
+                    break;
+                case 'C':
+                    config = PathBuilder.getCubicConfig(
+                        prev,
+                        point,
+                        point1,
+                        point2
+                    );
+                    break;
+                case 'A':
+                    config = PathBuilder.getArcConfig(prev, point, segment);
+                    break;
+                case 'Z':
+                    point.x = point0.x;
+                    point.y = point0.y;
+                    break;
+                default:
             }
 
             if (config) {
-                segmentBuilder = PathBuilder.SEGMENT_BUILDERS.get(command);
+                segmentBuilder = SEGMENT_BUILDERS.get(command);
 
                 this.insertPoints(
                     segmentBuilder.lineraize(config, this.tolerance)
@@ -180,19 +180,6 @@ export default class PathBuilder extends BasicShapeBuilder {
 
         return commands.includes(command);
     }
-
-    static SEGMENT_BUILDERS = new window.Map([
-        ['T', QuadraticSegment],
-        ['t', QuadraticSegment],
-        ['Q', QuadraticSegment],
-        ['q', QuadraticSegment],
-        ['S', CubicSegment],
-        ['s', CubicSegment],
-        ['C', CubicSegment],
-        ['c', CubicSegment],
-        ['A', ArcSegment],
-        ['a', ArcSegment]
-    ]);
 
     static UPDATE_COMMANDS = ['M', 'L', 'H', 'V', 'C', 'S', 'Q', 'T', 'A'];
 

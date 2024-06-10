@@ -1,3 +1,18 @@
-export { default as ArcSegment } from './arc-segment';
-export { default as CubicSegment } from './cubic-segment';
-export { default as QuadraticSegment } from './quadratic-segment';
+import ArcSegment from './arc-segment';
+import CubicSegment from './cubic-segment';
+import QuadraticSegment from './quadratic-segment';
+
+const SEGMENT_BUILDERS = new Map([
+    ['T', QuadraticSegment],
+    ['t', QuadraticSegment],
+    ['Q', QuadraticSegment],
+    ['q', QuadraticSegment],
+    ['S', CubicSegment],
+    ['s', CubicSegment],
+    ['C', CubicSegment],
+    ['c', CubicSegment],
+    ['A', ArcSegment],
+    ['a', ArcSegment]
+]);
+
+export default SEGMENT_BUILDERS;
