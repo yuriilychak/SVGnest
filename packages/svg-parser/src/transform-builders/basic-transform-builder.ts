@@ -1,23 +1,25 @@
+import Matrix from '../matrix';
+
 export default class BasicTransformBuilder {
-    #transform;
+    #transform: Matrix;
 
-    #svg;
+    #svg: Document;
 
-    #svgRoot;
+    #svgRoot: SVGSVGElement;
 
-    #scale;
+    #scale: number;
 
-    #rotate;
+    #rotate: number;
 
-    #element;
+    #element: SVGElement;
 
-    #id;
+    #id: string;
 
-    #className;
+    #className: string;
 
-    constructor(element, transform, svg, svgRoot) {
+    protected constructor(element: SVGElement, transform: Matrix, svg: Document, svgRoot: SVGSVGElement) {
         // decompose affine matrix to rotate, scale components (translate is just the 3rd column)
-        const transforms = transform.toArray();
+        const transforms: number[] = transform.toArray();
         this.#transform = transform;
         this.#svg = svg;
         this.#svgRoot = svgRoot;
@@ -28,35 +30,35 @@ export default class BasicTransformBuilder {
         this.#className = element.getAttribute('class');
     }
 
-    get transform() {
+    protected get transform(): Matrix {
         return this.#transform;
     }
 
-    get svg() {
+    protected get svg(): Document {
         return this.#svg;
     }
 
-    get svgRoot() {
+    protected get svgRoot(): SVGSVGElement {
         return this.#svgRoot;
     }
 
-    get scale() {
+    protected get scale(): number {
         return this.#scale;
     }
 
-    get rotate() {
+    protected get rotate(): number {
         return this.#rotate;
     }
 
-    get element() {
+    protected get element(): SVGElement {
         return this.#element;
     }
 
-    set element(value) {
+    protected set element(value: SVGElement) {
         this.#element = value;
     }
 
-    getResult() {
+    public getResult(): SVGElement {
         if (this.#id) {
             this.#element.setAttribute('id', this.#id);
         }
@@ -68,7 +70,7 @@ export default class BasicTransformBuilder {
         return this.#element;
     }
 
-    static create(element, transform, svg, svgRoot) {
+    public static create(element: SVGElement, transform: Matrix, svg: Document, svgRoot: SVGSVGElement): BasicTransformBuilder {
         return new BasicTransformBuilder(element, transform, svg, svgRoot);
     }
 }

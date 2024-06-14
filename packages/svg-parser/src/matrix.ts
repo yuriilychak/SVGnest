@@ -1,11 +1,13 @@
+import { IPoint, MATRIX_OPERATIONS } from './types';
+
 export default class Matrix {
     // combined matrix cache
-    #cache = null;
+    #cache: number[] = null;
 
     // list of matrixes to apply
-    #queue = [];
+    #queue: number[][] = [];
 
-    get isIdentity() {
+    public get isIdentity(): boolean {
         if (this.#cache === null) {
             this.#cache = this.toArray();
         }
@@ -16,10 +18,10 @@ export default class Matrix {
     // Apply list of matrixes to (x,y) point.
     // If `isRelative` set, `translate` component of matrix will be skipped
     //
-    calc(x, y, isRelative = false) {
+    public calc(x: number, y: number, isRelative: boolean = false): IPoint {
         // Don't change point on empty transforms queue
         if (!this.#queue.length) {
-            return [x, y];
+            return { x, y };
         }
 
         // Calculate final matrix, if not exists
@@ -32,23 +34,22 @@ export default class Matrix {
         }
 
         // Apply matrix to point
-        return [
-            x * this.#cache[0] + y * this.#cache[2] + (isRelative ? 0 : this.#cache[4]),
-            x * this.#cache[1] + y * this.#cache[3] + (isRelative ? 0 : this.#cache[5])
-        ];
+        return {
+            x: x * this.#cache[0] + y * this.#cache[2] + (isRelative ? 0 : this.#cache[4]),
+            y: x * this.#cache[1] + y * this.#cache[3] + (isRelative ? 0 : this.#cache[5])
+        };
     }
 
-    matrix(matrix) {
+    private matrix(matrix: number[]): void {
         if (Matrix.getIndent(matrix)) {
-            return this;
+            return;
         }
 
         this.#cache = null;
         this.#queue.push(matrix);
-        return this;
     }
 
-    add(values, indices) {
+    private add(values: number[], indices: number[]): void {
         const transform = Matrix.BASIC_MATRIX.slice();
         const updateCount = values.length;
         let i = 0;
@@ -61,19 +62,19 @@ export default class Matrix {
         this.#queue.push(transform);
     }
 
-    translate(tx, ty = 0) {
+    private translate(tx: number, ty: number = 0): void {
         if (tx !== 0 || ty !== 0) {
             this.add([tx, ty], [4, 5]);
         }
     }
 
-    scale(sx, sy = sx) {
+    private scale(sx: number, sy: number = sx): void {
         if (sx !== 1 || sy !== 1) {
             this.add([sx, sy], [0, 3]);
         }
     }
 
-    rotate(angle, rx = 0, ry = 0) {
+    private rotate(angle: number, rx: number = 0, ry: number = 0): void {
         if (angle !== 0) {
             this.translate(rx, ry);
 
@@ -87,8 +88,20 @@ export default class Matrix {
         }
     }
 
+    private skewX(angle: number): void {
+        if (angle !== 0) {
+            this.add([Math.tan(angle * Math.PI / 180)], [2]);
+        }
+    }
+
+    private skewY(angle: number): void {
+        if (angle !== 0) {
+            this.add([Math.tan(angle * Math.PI / 180)], [1]);
+        }
+    }
+
     // Flatten queue
-    toArray() {
+    public toArray(): number[] {
         if (this.#cache) {
             return this.#cache;
         }
@@ -125,56 +138,55 @@ export default class Matrix {
         return this.#cache;
     }
 
-    execute(command, params) {
+    public execute(command: MATRIX_OPERATIONS, params: number[]): void {
         if (params.length === 0) {
             return;
         }
         // If params count is not correct - ignore command
         switch (command) {
-            case 'matrix':
+            case MATRIX_OPERATIONS.MATRIX:
                 if (params.length === 6) {
                     this.matrix(params);
                 }
                 break;
-            case 'scale':
+            case MATRIX_OPERATIONS.SCALE:
                 if (params.length === 1) {
                     this.scale(params[0]);
                 } else if (params.length === 2) {
                     this.scale(params[0], params[1]);
                 }
                 break;
-            case 'rotate':
+            case MATRIX_OPERATIONS.ROTATE:
                 if (params.length === 1) {
                     this.rotate(params[0]);
                 } else if (params.length === 3) {
                     this.rotate(params[0], params[1], params[2]);
                 }
                 break;
-
-            case 'translate':
+            case MATRIX_OPERATIONS.TRANSLATE:
                 if (params.length === 1) {
                     this.translate(params[0]);
                 } else if (params.length === 2) {
                     this.translate(params[0], params[1]);
                 }
                 break;
-            case 'skewX':
-                if (params[0] !== 0) {
-                    this.add([Math.tan(params[0] * Math.PI / 180)], [2]);
+            case MATRIX_OPERATIONS.SKEW_X:
+                if (params.length === 1) {
+                    this.skewX(params[0]);
                 }
                 break;
-            case 'skewY':
-                if (params[0] !== 0) {
-                    this.add([Math.tan(params[0] * Math.PI / 180)], [1]);
+            case MATRIX_OPERATIONS.SKEW_Y:
+                if (params.length === 1) {
+                    this.skewY(params[0]);
                 }
                 break;
             default:
         }
     }
 
-    static getIndent(matrix) {
-        const count = 6;
-        let i = 0;
+    private static getIndent(matrix: number[]): boolean {
+        const count: number = Matrix.BASIC_MATRIX.length;
+        let i: number = 0;
 
         for (i = 0; i < count; ++i) {
             if (Matrix.BASIC_MATRIX[i] !== matrix[i]) {
@@ -185,7 +197,14 @@ export default class Matrix {
         return true;
     }
 
-    static BASIC_MATRIX = [1, 0, 0, 1, 0, 0];
+    private static BASIC_MATRIX: number[] = [1, 0, 0, 1, 0, 0];
 
-    static AVAILABLE_OPERATIONS = ['matrix', 'scale', 'rotate', 'translate', 'skewX', 'skewY'];
+    public static AVAILABLE_OPERATIONS: MATRIX_OPERATIONS[] = [
+        MATRIX_OPERATIONS.MATRIX,
+        MATRIX_OPERATIONS.SCALE,
+        MATRIX_OPERATIONS.ROTATE,
+        MATRIX_OPERATIONS.TRANSLATE,
+        MATRIX_OPERATIONS.SKEW_X,
+        MATRIX_OPERATIONS.SKEW_Y
+    ];
 }
