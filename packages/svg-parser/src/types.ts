@@ -40,64 +40,7 @@ export interface IPoint {
     y: number
 }
 
-export interface ISvgPath {
-    x: number
-    y: number
-    x1: number
-    y1: number
-    x2: number
-    y2: number
-    r1: number
-    r2: number
-    angle: number
-    largeArcFlag: number
-    sweepFlag: number
-    pathSegTypeAsLetter: string
-}
-
-export interface ISVGPathList {
-    readonly length: number
-    readonly numberOfItems: number
-    appendItem(newItem: ISvgPath): ISvgPath
-    clear(): void
-    getItem(index: number): ISvgPath
-    initialize(newItem: ISvgPath): ISvgPath
-    insertItemBefore(newItem: ISvgPath, index: number): ISvgPath
-    removeItem(index: number): ISvgPath
-    replaceItem(newItem: ISvgPath, index: number): ISvgPath
-    [index: number]: ISvgPath
-}
-
 export type SVGProperty = number | string
-
-export interface ISVGPathElement extends SVGSVGElement {
-    pathSegList: ISVGPathList
-    createSVGPathSegLinetoHorizontalAbs(x: SVGProperty): ISvgPath
-    createSVGPathSegLinetoVerticalAbs(y: SVGProperty): ISvgPath
-    createSVGPathSegLinetoAbs(x: SVGProperty, y: SVGProperty): ISvgPath
-    createSVGPathSegMovetoAbs(x: SVGProperty, y: SVGProperty): ISvgPath
-    createSVGPathSegCurvetoQuadraticSmoothAbs(x: SVGProperty, y: SVGProperty): ISvgPath
-    createSVGPathSegCurvetoCubicAbs(
-        x: SVGProperty,
-        y: SVGProperty,
-        x1: SVGProperty,
-        y1: SVGProperty,
-        x2: SVGProperty,
-        y2: SVGProperty
-    ): ISvgPath
-    createSVGPathSegCurvetoCubicSmoothAbs(x: SVGProperty, y: SVGProperty, x1: SVGProperty, y1: SVGProperty): ISvgPath
-    createSVGPathSegCurvetoQuadraticAbs(x: SVGProperty, y: SVGProperty, x1: SVGProperty, y1: SVGProperty): ISvgPath
-    createSVGPathSegArcAbs(
-        x: SVGProperty,
-        y: SVGProperty,
-        rx: SVGProperty,
-        ry: SVGProperty,
-        angle: SVGProperty,
-        theta: SVGProperty,
-        exteent: SVGProperty
-    ): ISvgPath
-    createSVGPathSegClosePath(): ISvgPath
-}
 
 export enum SEGMENT_KEYS {
     X = 'x',
@@ -116,4 +59,27 @@ export enum MATRIX_OPERATIONS {
     SKEW_X = 'skewX',
     SKEW_Y = 'skewY',
     NONE = ''
+}
+
+export enum PATH_SEGMENT_TYPE {
+    UNKNOWN = 0,
+    CLOSEPATH = 1,
+    MOVETO_ABS = 2,
+    MOVETO_REL = 3,
+    LINETO_ABS = 4,
+    LINETO_REL = 5,
+    CURVETO_CUBIC_ABS = 6,
+    CURVETO_CUBIC_REL = 7,
+    CURVETO_QUADRATIC_ABS = 8,
+    CURVETO_QUADRATIC_REL = 9,
+    ARC_ABS = 10,
+    ARC_REL = 11,
+    LINETO_HORIZONTAL_ABS = 12,
+    LINETO_HORIZONTAL_REL = 13,
+    LINETO_VERTICAL_ABS = 14,
+    LINETO_VERTICAL_REL = 15,
+    CURVETO_CUBIC_SMOOTH_ABS = 16,
+    CURVETO_CUBIC_SMOOTH_REL = 17,
+    CURVETO_QUADRATIC_SMOOTH_ABS = 18,
+    CURVETO_QUADRATIC_SMOOTH_REL = 19
 }

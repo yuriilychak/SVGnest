@@ -1,7 +1,9 @@
 import Matrix from './matrix';
+import { SVGPathSeg } from './svg-path-seg';
 import SHAPE_BUILDERS from './shape-builders';
 import TRANSFORM_BUILDERS from './transform-builders';
-import { IPoint, ISvgPath, ISVGPathElement, MATRIX_OPERATIONS, SVG_TAG, PATH_TAG } from './types';
+import { IPoint, MATRIX_OPERATIONS, SVG_TAG, PATH_TAG } from './types';
+import SVGPathSegElement from './svg-path-seg-element';
 
 export default class SvgParser {
     // the SVG document
@@ -146,13 +148,13 @@ export default class SvgParser {
             return;
         }
 
-        const segmentList: ISvgPath[] = [];
+        const segmentList: SVGPathSeg[] = [];
         let segment = null;
         let lastM = 0;
 
         // make copy of seglist (appending to new path removes it from the original pathseglist)
-        for (i = 0; i < (element as ISVGPathElement).pathSegList.numberOfItems; ++i) {
-            segmentList.push((element as ISVGPathElement).pathSegList.getItem(i));
+        for (i = 0; i < (element as SVGPathSegElement).pathSegList.numberOfItems; ++i) {
+            segmentList.push((element as SVGPathSegElement).pathSegList.getItem(i));
         }
 
         for (i = segmentList.length - 1; i >= 0; --i) {
@@ -173,14 +175,14 @@ export default class SvgParser {
         const currentPoint = { x: 0, y: 0 };
         let command = '';
         let offsetCoef = 0;
-        let path: ISVGPathElement;
+        let path: SVGPathSegElement;
 
         for (i = 0; i < segmentList.length; ++i) {
             segment = segmentList[i];
             command = segment.pathSegTypeAsLetter;
 
             if (command.toUpperCase() === PATH_TAG.M) {
-                path = element.cloneNode() as ISVGPathElement;
+                path = element.cloneNode() as SVGPathSegElement;
                 path.setAttribute('d', '');
                 paths.push(path);
             }
@@ -195,7 +197,7 @@ export default class SvgParser {
             }
 
             if (command === PATH_TAG.m) {
-                segment = (element as ISVGPathElement).createSVGPathSegMovetoAbs(currentPoint.x, currentPoint.y);
+                segment = (element as SVGPathSegElement).createSVGPathSegMovetoAbs(currentPoint.x, currentPoint.y);
             } else if (command.toUpperCase() === PATH_TAG.Z) {
                 currentPoint.x = startPoint.x;
                 currentPoint.y = startPoint.y;
@@ -212,7 +214,7 @@ export default class SvgParser {
 
         for (i = 0; i < paths.length; ++i) {
             // don't add trivial paths from sequential M commands
-            if ((paths[i] as ISVGPathElement).pathSegList.numberOfItems > 1) {
+            if ((paths[i] as SVGPathSegElement).pathSegList.numberOfItems > 1) {
                 element.parentElement.insertBefore(paths[i], element);
             }
         }

@@ -1,13 +1,13 @@
 import { getFloatAtrribute } from '../helpers';
 import Matrix from '../matrix';
-import { ISVGPathElement } from '../types';
 import BasicTransformBuilder from './basic-transform-builder';
+import SVGPathSegElement from '../svg-path-seg-element';
 
 export default class EllipseBuilder extends BasicTransformBuilder {
     public getResult(): SVGElement {
         // the goal is to remove the transform property, but an ellipse without a transform will have no rotation
         // for the sake of simplicity, we will replace the ellipse with a path, and apply the transform to that path
-        const path: ISVGPathElement = this.svg.createElementNS(this.element.namespaceURI, 'path') as ISVGPathElement;
+        const path: SVGPathSegElement = this.svg.createElementNS(this.element.namespaceURI, 'path') as SVGPathSegElement;
         const cx: number = getFloatAtrribute(this.element, 'cx');
         const cy: number = getFloatAtrribute(this.element, 'cy');
         const rx: number = getFloatAtrribute(this.element, 'rx');

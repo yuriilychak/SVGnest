@@ -1,26 +1,42 @@
 import Matrix from '../matrix';
-import { IPoint, ISvgPath, ISVGPathElement, ISVGPathList, SEGMENT_KEYS, SVGProperty, PATH_TAG, SVG_TAG } from '../types';
+import {
+    SVGPathSeg,
+    SVGPathSegArcAbs,
+    SVGPathSegLinetoHorizontalAbs,
+    SVGPathSegLinetoVerticalAbs,
+    SVGPathPointSeg,
+    SVGPathSegCurvetoCubicAbs
+} from '../svg-path-seg';
+import SVGPathSegElement from '../svg-path-seg-element';
+import { SVGPathSegList } from '../svg-path-seg-list';
+import { IPoint, SEGMENT_KEYS, SVGProperty, PATH_TAG, SVG_TAG } from '../types';
 import BasicTransformBuilder from './basic-transform-builder';
 
 export default class PathBuilder extends BasicTransformBuilder {
-    private getNewSegment(command: PATH_TAG, segment: ISvgPath, prev: IPoint): ISvgPath | null {
-        const path: ISVGPathElement = this.element as ISVGPathElement;
+    private getNewSegment(command: PATH_TAG, segment: SVGPathSeg, prev: IPoint): SVGPathSeg | null {
+        const path: SVGPathSegElement = this.element as SVGPathSegElement;
 
         switch (command) {
             case PATH_TAG.H:
-                return path.createSVGPathSegLinetoAbs(segment.x, prev.y);
+                const horizontalSegment = segment as SVGPathSegLinetoHorizontalAbs;
+
+                return path.createSVGPathSegLinetoAbs(horizontalSegment.x, prev.y);
             case PATH_TAG.V:
-                return path.createSVGPathSegLinetoAbs(prev.x, segment.y);
+                const verticalSegment = segment as SVGPathSegLinetoVerticalAbs;
+
+                return path.createSVGPathSegLinetoAbs(prev.x, verticalSegment.y);
             // TODO: currently only works for uniform scale, no skew. fully support arbitrary affine transforms...
             case PATH_TAG.A:
+                const arcSegment = segment as SVGPathSegArcAbs;
+
                 return path.createSVGPathSegArcAbs(
-                    segment.x,
-                    segment.y,
-                    segment.r1 * this.scale,
-                    segment.r2 * this.scale,
-                    segment.angle + this.rotate,
-                    segment.largeArcFlag,
-                    segment.sweepFlag
+                    arcSegment.x,
+                    arcSegment.y,
+                    arcSegment.r1 * this.scale,
+                    arcSegment.r2 * this.scale,
+                    arcSegment.angle + this.rotate,
+                    arcSegment.largeArcFlag,
+                    arcSegment.sweepFlag
                 );
             default:
                 return null;
@@ -28,8 +44,9 @@ export default class PathBuilder extends BasicTransformBuilder {
     }
 
     public getResult(): SVGElement {
-        PathBuilder.pathToAbsolute(this.element as ISVGPathElement);
-        const segmentList: ISVGPathList = (this.element as ISVGPathElement).pathSegList;
+        PathBuilder.pathToAbsolute(this.element as SVGPathSegElement);
+        // @ts-ignore
+        const segmentList: SVGPathSegList = (this.element as SVGPathSegElement).pathSegList;
         const segmentCount: number = segmentList.numberOfItems;
         const prevPoint: IPoint = { x: 0, y: 0 };
         const transPoints: IPoint[] = [
@@ -39,10 +56,10 @@ export default class PathBuilder extends BasicTransformBuilder {
         ];
         const pointCount: number = transPoints.length;
         let transformedPath: string = '';
-        let segment: ISvgPath;
+        let segment: SVGPathSeg;
         let command: PATH_TAG;
         let commandData: SVGProperty[];
-        let newSegment: ISvgPath;
+        let newSegment: SVGPathPointSeg;
         let transformed: IPoint;
         let keys: SEGMENT_KEYS[];
         let i: number = 0;
@@ -51,7 +68,7 @@ export default class PathBuilder extends BasicTransformBuilder {
         for (i = 0; i < segmentCount; ++i) {
             segment = segmentList.getItem(i);
             command = segment.pathSegTypeAsLetter as PATH_TAG;
-            newSegment = this.getNewSegment(command, segment, prevPoint);
+            newSegment = this.getNewSegment(command, segment, prevPoint) as SVGPathPointSeg;
 
             if (newSegment !== null) {
                 segmentList.replaceItem(newSegment, i);
@@ -68,7 +85,7 @@ export default class PathBuilder extends BasicTransformBuilder {
             for (j = 0; j < pointCount; ++i) {
                 keys = PathBuilder.SEGMENT_KEYS[j];
                 transformed =
-                    keys[0] in segment && keys[1] in segment ?
+                    keys[0] in segment && keys[1] in segment ? // @ts-ignore
                         this.transform.calc(segment[keys[0]], segment[keys[1]]) :
                         { x: 0, y: 0 };
                 transPoints[j].x = transformed.x;
@@ -85,7 +102,7 @@ export default class PathBuilder extends BasicTransformBuilder {
         return super.getResult();
     }
 
-    static getCommandData(command: PATH_TAG, transPoints: IPoint[], segment: ISvgPath): SVGProperty[] {
+    static getCommandData(command: PATH_TAG, transPoints: IPoint[], segment: SVGPathSeg): SVGProperty[] {
         // MLHVCSQTA
         // H and V are transformed to "L" commands above so we don't need to handle them. All lowercase (relative) are already handled too (converted to absolute)
         switch (command) {
@@ -108,13 +125,15 @@ export default class PathBuilder extends BasicTransformBuilder {
             case PATH_TAG.Q:
                 return [command, transPoints[1].x, transPoints[1].y, transPoints[0].x, transPoints[0].y];
             case PATH_TAG.A:
+                const arcSegment = segment as SVGPathSegArcAbs;
+
                 return [
                     command,
-                    segment.r1,
-                    segment.r2,
-                    segment.angle,
-                    segment.largeArcFlag ? 1 : 0,
-                    segment.sweepFlag ? 1 : 0,
+                    arcSegment.r1,
+                    arcSegment.r2,
+                    arcSegment.angle,
+                    arcSegment.largeArcFlag ? 1 : 0,
+                    arcSegment.sweepFlag ? 1 : 0,
                     transPoints[0].x,
                     transPoints[0].y
                 ];
@@ -130,7 +149,7 @@ export default class PathBuilder extends BasicTransformBuilder {
         }
     }
 
-    static getNewSegment(path: ISVGPathElement, points: IPoint[], segment: ISvgPath, command: PATH_TAG): ISvgPath | null {
+    static getNewSegment(path: SVGPathSegElement, points: IPoint[], segment: SVGPathSeg, command: PATH_TAG): SVGPathSeg | null {
         switch (command) {
             case PATH_TAG.m:
                 return path.createSVGPathSegMovetoAbs(points[0].x, points[0].y);
@@ -156,14 +175,16 @@ export default class PathBuilder extends BasicTransformBuilder {
             case PATH_TAG.t:
                 return path.createSVGPathSegCurvetoQuadraticSmoothAbs(points[0].x, points[0].y);
             case PATH_TAG.a:
+                const arcSegment = segment as SVGPathSegArcAbs;
+
                 return path.createSVGPathSegArcAbs(
                     points[0].x,
                     points[0].y,
-                    segment.r1,
-                    segment.r2,
-                    segment.angle,
-                    segment.largeArcFlag,
-                    segment.sweepFlag
+                    arcSegment.r1,
+                    arcSegment.r2,
+                    arcSegment.angle,
+                    arcSegment.largeArcFlag,
+                    arcSegment.sweepFlag
                 );
             default:
                 return null;
@@ -172,12 +193,13 @@ export default class PathBuilder extends BasicTransformBuilder {
 
     // set the given path as absolute coords (capital commands)
     // from http://stackoverflow.com/a/9677915/433888
-    private static pathToAbsolute(path?: ISVGPathElement): void {
+    private static pathToAbsolute(path?: SVGPathSegElement): void {
         if (!path || path.tagName !== SVG_TAG.PATH) {
             throw Error('invalid path');
         }
 
-        const segmentList: ISVGPathList = path.pathSegList;
+        // @ts-ignore
+        const segmentList: SVGPathSegList = path.pathSegList;
         const segmentCount: number = segmentList.numberOfItems;
         const currentPoint: IPoint = { x: 0, y: 0 };
         const points: IPoint[] = [
@@ -186,9 +208,9 @@ export default class PathBuilder extends BasicTransformBuilder {
             { x: 0, y: 0 }
         ];
         let i: number = 0;
-        let segment: ISvgPath;
+        let segment: SVGPathSeg;
         let command: PATH_TAG;
-        let newSegment: ISvgPath;
+        let newSegment: SVGPathSeg;
 
         for (i = 0; i < segmentCount; ++i) {
             segment = segmentList.getItem(i);
@@ -203,19 +225,19 @@ export default class PathBuilder extends BasicTransformBuilder {
                 }
             } else {
                 if (SEGMENT_KEYS.X1 in segment) {
-                    points[1].x = points[0].x + segment.x1;
+                    points[1].x = points[0].x + (segment as SVGPathSegCurvetoCubicAbs).x1;
                 }
 
                 if (SEGMENT_KEYS.X2 in segment) {
-                    points[2].x = points[0].x + segment.x2;
+                    points[2].x = points[0].x + (segment as SVGPathSegCurvetoCubicAbs).x2;
                 }
 
                 if (SEGMENT_KEYS.Y1 in segment) {
-                    points[1].y = points[0].y + segment.y1;
+                    points[1].y = points[0].y + (segment as SVGPathSegCurvetoCubicAbs).y1;
                 }
 
                 if (SEGMENT_KEYS.Y2 in segment) {
-                    points[2].y = points[0].y + segment.y2;
+                    points[2].y = points[0].y + (segment as SVGPathSegCurvetoCubicAbs).y2;
                 }
 
                 if (SEGMENT_KEYS.X in segment) {

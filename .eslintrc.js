@@ -23,6 +23,7 @@ module.exports = {
     rules: {
         // Possible Errors (overrides from recommended set)
         'no-extra-parens': ERROR,
+        'padding-line-between-statements': [ERROR, { blankLine: 'always', prev: '*', next: 'return' }],
         'no-unexpected-multiline': ERROR,
         // All JSDoc comments must be valid
         'valid-jsdoc': [
