@@ -4,9 +4,9 @@ import Source from './source';
 export default class SVGPathSegList {
     #pathElement: SVGPathElement;
 
-    #mutationObserverConfig: MutationObserverInit;
+    #observerConfig: MutationObserverInit;
 
-    #pathElementMutationObserver: MutationObserver;
+    #observer: MutationObserver;
 
     #list: SVGPathSeg[];
 
@@ -15,16 +15,16 @@ export default class SVGPathSegList {
         this.#list = this.parsePath(this.#pathElement.getAttribute('d'));
 
         // Use a MutationObserver to catch changes to the path's "d" attribute.
-        this.#mutationObserverConfig = { attributes: true, attributeFilter: ['d'] };
-        this.#pathElementMutationObserver = new MutationObserver(this.updateListFromPathMutations.bind(this));
-        this.#pathElementMutationObserver.observe(this.#pathElement, this.#mutationObserverConfig);
+        this.#observerConfig = { attributes: true, attributeFilter: ['d'] };
+        this.#observer = new MutationObserver(this.updateListFromPathMutations.bind(this));
+        this.#observer.observe(this.#pathElement, this.#observerConfig);
     }
 
     // Process any pending mutations to the path element and update the list as needed.
     // This should be the first call of all public functions and is needed because
     // MutationObservers are not synchronous so we can have pending asynchronous mutations.
     public checkPathSynchronizedToList(): void {
-        this.updateListFromPathMutations(this.#pathElementMutationObserver.takeRecords());
+        this.updateListFromPathMutations(this.#observer.takeRecords());
     }
 
     public updateListFromPathMutations(mutationRecords: MutationRecord[]): void {
@@ -41,9 +41,9 @@ export default class SVGPathSegList {
 
     // Serialize the list and update the path's 'd' attribute.
     public writeListToPath(): void {
-        this.#pathElementMutationObserver.disconnect();
+        this.#observer.disconnect();
         this.#pathElement.setAttribute('d', SVGPathSegList.pathSegArrayAsString(this.#list));
-        this.#pathElementMutationObserver.observe(this.#pathElement, this.#mutationObserverConfig);
+        this.#observer.observe(this.#pathElement, this.#observerConfig);
     }
 
     // When a path segment changes the list needs to be synchronized back to the path element.
@@ -175,6 +175,4 @@ export default class SVGPathSegList {
             ''
         );
     }
-
-    public static classname: string = 'SVGPathSegList';
 }

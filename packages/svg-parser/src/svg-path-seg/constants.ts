@@ -1,28 +1,6 @@
 import { PATH_TAG } from '../types';
 import { PATH_SEGMENT_TYPE } from '../types';
 
-export const SEGMENT_NAMES = new Map<PATH_TAG, string>([
-    [PATH_TAG.z, 'SVGPathSegClosePath'],
-    [PATH_TAG.M, 'SVGPathSegMovetoAbs'],
-    [PATH_TAG.m, 'SVGPathSegMovetoRel'],
-    [PATH_TAG.L, 'SVGPathSegLinetoAbs'],
-    [PATH_TAG.l, 'SVGPathSegLinetoRel'],
-    [PATH_TAG.C, 'SVGPathSegCurvetoCubicAbs'],
-    [PATH_TAG.c, 'SVGPathSegCurvetoCubicRel'],
-    [PATH_TAG.Q, 'SVGPathSegCurvetoQuadraticAbs'],
-    [PATH_TAG.q, 'SVGPathSegCurvetoQuadraticRel'],
-    [PATH_TAG.A, 'SVGPathSegArcAbs'],
-    [PATH_TAG.a, 'SVGPathSegArcRel'],
-    [PATH_TAG.S, 'SVGPathSegCurvetoCubicSmoothAbs'],
-    [PATH_TAG.s, 'SVGPathSegCurvetoCubicSmoothRel'],
-    [PATH_TAG.T, 'SVGPathSegCurvetoQuadraticSmoothAbs'],
-    [PATH_TAG.t, 'SVGPathSegCurvetoQuadraticSmoothRel'],
-    [PATH_TAG.H, 'SVGPathSegLinetoHorizontalAbs'],
-    [PATH_TAG.h, 'SVGPathSegLinetoHorizontalRel'],
-    [PATH_TAG.V, 'SVGPathSegLinetoVerticalAbs'],
-    [PATH_TAG.v, 'SVGPathSegLinetoVerticalRel']
-]);
-
 export const TYPE_TO_TAG = new Map<PATH_SEGMENT_TYPE, PATH_TAG>([
     [PATH_SEGMENT_TYPE.ARC_ABS, PATH_TAG.A],
     [PATH_SEGMENT_TYPE.ARC_REL, PATH_TAG.a],

@@ -1,45 +1,52 @@
 import Matrix from '../matrix';
 import {
     SVGPathSeg,
-    SVGPathSegArcAbs,
-    SVGPathSegLinetoHorizontalAbs,
-    SVGPathSegLinetoVerticalAbs,
     SVGPathPointSeg,
-    SVGPathSegCurvetoCubicAbs
+    SVGPathArcSeg,
+    SVGPathVerticalSeg,
+    SVGPathHorizontalSeg,
+    TYPE_TO_SEGMENT,
+    SVGPathBaseSeg
 } from '../svg-path-seg';
 import SVGPathSegElement from '../svg-path-seg-element';
 import { SVGPathSegList } from '../svg-path-seg-list';
-import { IPoint, SEGMENT_KEYS, SVGProperty, PATH_TAG, SVG_TAG } from '../types';
+import { IPoint, SEGMENT_KEYS, SVGProperty, PATH_TAG, SVG_TAG, PATH_SEGMENT_TYPE } from '../types';
 import BasicTransformBuilder from './basic-transform-builder';
 
-export default class PathBuilder extends BasicTransformBuilder {
-    private getNewSegment(command: PATH_TAG, segment: SVGPathSeg, prev: IPoint): SVGPathSeg | null {
-        const path: SVGPathSegElement = this.element as SVGPathSegElement;
+interface SegmentData {
+    type: PATH_SEGMENT_TYPE
+    data: number[]
+}
 
+export default class PathBuilder extends BasicTransformBuilder {
+    private getNewSegment(command: PATH_TAG, segment: SVGPathSeg, prev: IPoint): SegmentData {
         switch (command) {
             case PATH_TAG.H:
-                const horizontalSegment = segment as SVGPathSegLinetoHorizontalAbs;
+                const horizontalSegment = segment as SVGPathHorizontalSeg;
 
-                return path.createSVGPathSegLinetoAbs(horizontalSegment.x, prev.y);
+                return { type: PATH_SEGMENT_TYPE.LINETO_ABS, data: [horizontalSegment.x, prev.y] };
             case PATH_TAG.V:
-                const verticalSegment = segment as SVGPathSegLinetoVerticalAbs;
+                const verticalSegment = segment as SVGPathVerticalSeg;
 
-                return path.createSVGPathSegLinetoAbs(prev.x, verticalSegment.y);
+                return { type: PATH_SEGMENT_TYPE.LINETO_ABS, data: [prev.x, verticalSegment.y] };
             // TODO: currently only works for uniform scale, no skew. fully support arbitrary affine transforms...
             case PATH_TAG.A:
-                const arcSegment = segment as SVGPathSegArcAbs;
+                const arcSegment = segment as SVGPathArcSeg;
 
-                return path.createSVGPathSegArcAbs(
-                    arcSegment.x,
-                    arcSegment.y,
-                    arcSegment.r1 * this.scale,
-                    arcSegment.r2 * this.scale,
-                    arcSegment.angle + this.rotate,
-                    arcSegment.largeArcFlag,
-                    arcSegment.sweepFlag
-                );
+                return {
+                    type: PATH_SEGMENT_TYPE.ARC_ABS,
+                    data: [
+                        arcSegment.x,
+                        arcSegment.y,
+                        arcSegment.r1 * this.scale,
+                        arcSegment.r2 * this.scale,
+                        arcSegment.angle + this.rotate,
+                        arcSegment.largeArcFlag,
+                        arcSegment.sweepFlag
+                    ]
+                };
             default:
-                return null;
+                return { type: PATH_SEGMENT_TYPE.UNKNOWN, data: [] };
         }
     }
 
@@ -62,15 +69,19 @@ export default class PathBuilder extends BasicTransformBuilder {
         let newSegment: SVGPathPointSeg;
         let transformed: IPoint;
         let keys: SEGMENT_KEYS[];
+        let segmentInstance: typeof SVGPathBaseSeg;
+        let sgementData: SegmentData;
         let i: number = 0;
         let j: number = 0;
 
         for (i = 0; i < segmentCount; ++i) {
             segment = segmentList.getItem(i);
             command = segment.pathSegTypeAsLetter as PATH_TAG;
-            newSegment = this.getNewSegment(command, segment, prevPoint) as SVGPathPointSeg;
+            sgementData = this.getNewSegment(command, segment, prevPoint);
 
-            if (newSegment !== null) {
+            if (sgementData.type !== PATH_SEGMENT_TYPE.UNKNOWN) {
+                segmentInstance = TYPE_TO_SEGMENT.get(sgementData.type);
+                newSegment = segmentInstance.create(sgementData.type, sgementData.data) as SVGPathPointSeg;
                 segmentList.replaceItem(newSegment, i);
                 segment = segmentList.getItem(i);
             }
@@ -125,7 +136,7 @@ export default class PathBuilder extends BasicTransformBuilder {
             case PATH_TAG.Q:
                 return [command, transPoints[1].x, transPoints[1].y, transPoints[0].x, transPoints[0].y];
             case PATH_TAG.A:
-                const arcSegment = segment as SVGPathSegArcAbs;
+                const arcSegment = segment as SVGPathArcSeg;
 
                 return [
                     command,
@@ -145,49 +156,55 @@ export default class PathBuilder extends BasicTransformBuilder {
                 return [command];
             default:
                 console.log('FOUND COMMAND NOT HANDLED BY COMMAND STRING BUILDER', command);
+
                 return [];
         }
     }
 
-    static getNewSegment(path: SVGPathSegElement, points: IPoint[], segment: SVGPathSeg, command: PATH_TAG): SVGPathSeg | null {
+    static getNewSegment(points: IPoint[], segment: SVGPathSeg, command: PATH_TAG): SegmentData {
         switch (command) {
             case PATH_TAG.m:
-                return path.createSVGPathSegMovetoAbs(points[0].x, points[0].y);
+                return { type: PATH_SEGMENT_TYPE.MOVETO_ABS, data: [points[0].x, points[0].y] };
             case PATH_TAG.l:
-                return path.createSVGPathSegLinetoAbs(points[0].x, points[0].y);
+                return { type: PATH_SEGMENT_TYPE.LINETO_ABS, data: [points[0].x, points[0].y] };
             case PATH_TAG.h:
-                return path.createSVGPathSegLinetoHorizontalAbs(points[0].x);
+                return { type: PATH_SEGMENT_TYPE.LINETO_HORIZONTAL_ABS, data: [points[0].x] };
             case PATH_TAG.v:
-                return path.createSVGPathSegLinetoVerticalAbs(points[0].y);
+                return { type: PATH_SEGMENT_TYPE.LINETO_VERTICAL_ABS, data: [points[0].y] };
             case PATH_TAG.c:
-                return path.createSVGPathSegCurvetoCubicAbs(
-                    points[0].x,
-                    points[0].y,
-                    points[1].x,
-                    points[1].y,
-                    points[2].x,
-                    points[2].y
-                );
+                return {
+                    type: PATH_SEGMENT_TYPE.CURVETO_CUBIC_ABS,
+                    data: [points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y]
+                };
             case PATH_TAG.s:
-                return path.createSVGPathSegCurvetoCubicSmoothAbs(points[0].x, points[0].y, points[2].x, points[2].y);
+                return {
+                    type: PATH_SEGMENT_TYPE.CURVETO_CUBIC_SMOOTH_ABS,
+                    data: [points[0].x, points[0].y, points[2].x, points[2].y]
+                };
             case PATH_TAG.q:
-                return path.createSVGPathSegCurvetoQuadraticAbs(points[0].x, points[0].y, points[1].x, points[1].y);
+                return {
+                    type: PATH_SEGMENT_TYPE.CURVETO_QUADRATIC_ABS,
+                    data: [points[0].x, points[0].y, points[1].x, points[1].y]
+                };
             case PATH_TAG.t:
-                return path.createSVGPathSegCurvetoQuadraticSmoothAbs(points[0].x, points[0].y);
+                return { type: PATH_SEGMENT_TYPE.CURVETO_QUADRATIC_SMOOTH_ABS, data: [points[0].x, points[0].y] };
             case PATH_TAG.a:
-                const arcSegment = segment as SVGPathSegArcAbs;
+                const arcSegment = segment as SVGPathArcSeg;
 
-                return path.createSVGPathSegArcAbs(
-                    points[0].x,
-                    points[0].y,
-                    arcSegment.r1,
-                    arcSegment.r2,
-                    arcSegment.angle,
-                    arcSegment.largeArcFlag,
-                    arcSegment.sweepFlag
-                );
+                return {
+                    type: PATH_SEGMENT_TYPE.ARC_ABS,
+                    data: [
+                        points[0].x,
+                        points[0].y,
+                        arcSegment.r1,
+                        arcSegment.r2,
+                        arcSegment.angle,
+                        arcSegment.largeArcFlag,
+                        arcSegment.sweepFlag
+                    ]
+                };
             default:
-                return null;
+                return { type: PATH_SEGMENT_TYPE.UNKNOWN, data: [] };
         }
     }
 
@@ -210,6 +227,7 @@ export default class PathBuilder extends BasicTransformBuilder {
         let i: number = 0;
         let segment: SVGPathSeg;
         let command: PATH_TAG;
+        let sgementData: SegmentData;
         let newSegment: SVGPathSeg;
 
         for (i = 0; i < segmentCount; ++i) {
@@ -217,34 +235,34 @@ export default class PathBuilder extends BasicTransformBuilder {
             command = segment.pathSegTypeAsLetter as PATH_TAG;
 
             if (PathBuilder.POSITION_COMMANDS.includes(command)) {
-                if (SEGMENT_KEYS.X in segment) {
+                if (segment instanceof SVGPoint) {
                     points[0].x = segment.x;
                 }
-                if (SEGMENT_KEYS.Y in segment) {
+                if (segment instanceof SVGPoint || segment instanceof SVGPathVerticalSeg) {
                     points[0].y = segment.y;
                 }
             } else {
                 if (SEGMENT_KEYS.X1 in segment) {
-                    points[1].x = points[0].x + (segment as SVGPathSegCurvetoCubicAbs).x1;
+                    points[1].x = points[0].x + segment.x1;
                 }
 
                 if (SEGMENT_KEYS.X2 in segment) {
-                    points[2].x = points[0].x + (segment as SVGPathSegCurvetoCubicAbs).x2;
+                    points[2].x = points[0].x + segment.x2;
                 }
 
                 if (SEGMENT_KEYS.Y1 in segment) {
-                    points[1].y = points[0].y + (segment as SVGPathSegCurvetoCubicAbs).y1;
+                    points[1].y = points[0].y + segment.y1;
                 }
 
                 if (SEGMENT_KEYS.Y2 in segment) {
-                    points[2].y = points[0].y + (segment as SVGPathSegCurvetoCubicAbs).y2;
+                    points[2].y = points[0].y + segment.y2;
                 }
 
-                if (SEGMENT_KEYS.X in segment) {
+                if (segment instanceof SVGPoint) {
                     points[0].x = points[0].x + segment.x;
                 }
 
-                if (SEGMENT_KEYS.Y in segment) {
+                if (segment instanceof SVGPoint || segment instanceof SVGPathVerticalSeg) {
                     points[0].y = points[0].y + segment.y;
                 }
 
@@ -254,9 +272,10 @@ export default class PathBuilder extends BasicTransformBuilder {
                     continue;
                 }
 
-                newSegment = PathBuilder.getNewSegment(path, points, segment, command);
+                sgementData = PathBuilder.getNewSegment(points, segment, command);
 
-                if (newSegment !== null) {
+                if (sgementData.type !== PATH_SEGMENT_TYPE.UNKNOWN) {
+                    newSegment = TYPE_TO_SEGMENT.get(sgementData.type).create(sgementData.type, sgementData.data);
                     segmentList.replaceItem(newSegment, i);
                 }
             }

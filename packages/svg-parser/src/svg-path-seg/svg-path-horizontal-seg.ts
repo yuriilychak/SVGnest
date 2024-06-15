@@ -1,10 +1,10 @@
-import SVGBasePathSeg from './svg-base-path-seg';
+import SVGPathBaseSeg from './svg-path-base-seg';
 import { PATH_SEGMENT_TYPE } from '../types';
 
-export default class SVGPathHorizontalSeg extends SVGBasePathSeg {
+export default class SVGPathHorizontalSeg extends SVGPathBaseSeg {
     #x: number;
 
-    public constructor(type: PATH_SEGMENT_TYPE, owningPathSegList: unknown, x: number) {
+    public constructor(type: PATH_SEGMENT_TYPE, [x]: number[], owningPathSegList?: unknown) {
         super(type, owningPathSegList);
         this.#x = x;
     }
@@ -20,5 +20,13 @@ export default class SVGPathHorizontalSeg extends SVGBasePathSeg {
     public set x(value: number) {
         this.#x = value;
         this.segmentChanged();
+    }
+
+    public clone(): SVGPathHorizontalSeg {
+        return new SVGPathHorizontalSeg(this.pathSegType, [this.x]);
+    }
+
+    public static create(type: PATH_SEGMENT_TYPE, data: number[], owningPathSegList?: unknown): SVGPathHorizontalSeg {
+        return new SVGPathHorizontalSeg(type, data, owningPathSegList);
     }
 }

@@ -6,8 +6,8 @@ export default class SVGPathQuadraticSeg extends SVGPathPointSeg {
 
     #y1: number;
 
-    public constructor(type: PATH_SEGMENT_TYPE, owningPathSegList: unknown, x: number, y: number, x1: number, y1: number) {
-        super(type, owningPathSegList, x, y);
+    public constructor(type: PATH_SEGMENT_TYPE, [x, y, x1, y1]: number[], owningPathSegList?: unknown) {
+        super(type, [x, y], owningPathSegList);
         this.#x1 = x1;
         this.#y1 = y1;
     }
@@ -32,5 +32,13 @@ export default class SVGPathQuadraticSeg extends SVGPathPointSeg {
     public set y1(value: number) {
         this.#y1 = value;
         this.segmentChanged();
+    }
+
+    public clone(): SVGPathQuadraticSeg {
+        return new SVGPathQuadraticSeg(this.pathSegType, [this.x, this.y, this.x1, this.y1]);
+    }
+
+    public static create(type: PATH_SEGMENT_TYPE, data: number[], owningPathSegList?: unknown): SVGPathQuadraticSeg {
+        return new SVGPathQuadraticSeg(type, data, owningPathSegList);
     }
 }

@@ -2,6 +2,8 @@ import { getFloatAtrribute } from '../helpers';
 import Matrix from '../matrix';
 import BasicTransformBuilder from './basic-transform-builder';
 import SVGPathSegElement from '../svg-path-seg-element';
+import { SVGPathArcSeg, SVGPathBaseSeg, SVGPathPointSeg } from '../svg-path-seg';
+import { PATH_SEGMENT_TYPE } from '../types';
 
 export default class EllipseBuilder extends BasicTransformBuilder {
     public getResult(): SVGElement {
@@ -12,14 +14,14 @@ export default class EllipseBuilder extends BasicTransformBuilder {
         const cy: number = getFloatAtrribute(this.element, 'cy');
         const rx: number = getFloatAtrribute(this.element, 'rx');
         const ry: number = getFloatAtrribute(this.element, 'ry');
-        const move = path.createSVGPathSegMovetoAbs(cx - rx, cy);
-        const arc1 = path.createSVGPathSegArcAbs(cx + rx, cy, rx, ry, 0, 1, 0);
-        const arc2 = path.createSVGPathSegArcAbs(cx - rx, cy, rx, ry, 0, 1, 0);
+        const move = new SVGPathPointSeg(PATH_SEGMENT_TYPE.MOVETO_ABS, [cx - rx, cy]);
+        const arc1 = new SVGPathArcSeg(PATH_SEGMENT_TYPE.ARC_ABS, [cx + rx, cy, rx, ry, 0, 1, 0]);
+        const arc2 = new SVGPathArcSeg(PATH_SEGMENT_TYPE.ARC_ABS, [cx - rx, cy, rx, ry, 0, 1, 0]);
 
         path.pathSegList.appendItem(move);
         path.pathSegList.appendItem(arc1);
         path.pathSegList.appendItem(arc2);
-        path.pathSegList.appendItem(path.createSVGPathSegClosePath());
+        path.pathSegList.appendItem(new SVGPathBaseSeg(PATH_SEGMENT_TYPE.CLOSEPATH));
 
         const transformProperty = this.element.getAttribute('transform');
 

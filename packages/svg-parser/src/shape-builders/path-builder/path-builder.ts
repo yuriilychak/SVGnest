@@ -1,5 +1,13 @@
-import { SVGPathSeg, SVGPathSegArcAbs, SVGPathSegCurvetoCubicAbs } from '../../svg-path-seg';
+import {
+    SVGPathArcSeg,
+    SVGPathCubicSeg,
+    SVGPathCubicSmoothSeg,
+    SVGPathPointSeg,
+    SVGPathSeg,
+    SVGPathVerticalSeg
+} from '../../svg-path-seg';
 import { SVGPathSegList } from '../../svg-path-seg-list';
+import SVGPathQuadraticSeg from '../../svg-path-seg/svg-path-quadratic-seg';
 import { IPoint, PATH_TAG } from '../../types';
 import BasicShapeBuilder from '../basic-shape-builder';
 import SEGMENT_BUILDERS from './segments';
@@ -42,27 +50,28 @@ export default class PathBuilder extends BasicShapeBuilder {
 
             updateMultiplier = PathBuilder.UPDATE_COMMANDS.includes(command) ? 0 : 1;
 
-            if ('x1' in segment) {
-                point1.x = point.x * updateMultiplier + (segment as SVGPathSegCurvetoCubicAbs).x1;
+            if (segment instanceof SVGPathQuadraticSeg) {
+                point1.x = point.x * updateMultiplier + segment.x1;
             }
 
-            if ('y1' in segment) {
-                point1.y = point.y * updateMultiplier + (segment as SVGPathSegCurvetoCubicAbs).y1;
+            if (segment instanceof SVGPathQuadraticSeg) {
+                point1.y = point.y * updateMultiplier + segment.y1;
             }
 
-            if ('x2' in segment) {
-                point2.x = point.x * updateMultiplier + (segment as SVGPathSegCurvetoCubicAbs).x2;
+            if (segment instanceof SVGPathCubicSeg || segment instanceof SVGPathCubicSmoothSeg) {
+                SVGPathCubicSeg;
+                point2.x = point.x * updateMultiplier + segment.x2;
             }
 
-            if ('y2' in segment) {
-                point2.y = point.y * updateMultiplier + (segment as SVGPathSegCurvetoCubicAbs).y2;
+            if (segment instanceof SVGPathCubicSeg || segment instanceof SVGPathCubicSmoothSeg) {
+                point2.y = point.y * updateMultiplier + segment.y2;
             }
 
-            if ('x' in segment) {
+            if (segment instanceof SVGPathPointSeg) {
                 point.x = point.x * updateMultiplier + segment.x;
             }
 
-            if ('y' in segment) {
+            if (segment instanceof SVGPathPointSeg || segment instanceof SVGPathVerticalSeg) {
                 point.y = point.y * updateMultiplier + segment.y;
             }
 
@@ -105,7 +114,7 @@ export default class PathBuilder extends BasicShapeBuilder {
                     config = PathBuilder.getCubicConfig(prev, point, point1, point2);
                     break;
                 case PATH_TAG.A:
-                    config = PathBuilder.getArcConfig(prev, point, segment as SVGPathSegArcAbs);
+                    config = PathBuilder.getArcConfig(prev, point, segment as SVGPathArcSeg);
                     break;
                 case PATH_TAG.Z:
                     point.x = point0.x;
@@ -137,7 +146,7 @@ export default class PathBuilder extends BasicShapeBuilder {
         return { point1, point2, control1, control2 };
     }
 
-    private static getArcConfig(point1: IPoint, point2: IPoint, segment: SVGPathSegArcAbs): IArcSegmentData {
+    private static getArcConfig(point1: IPoint, point2: IPoint, segment: SVGPathArcSeg): IArcSegmentData {
         return {
             point1,
             point2,

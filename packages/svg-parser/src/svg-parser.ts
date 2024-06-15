@@ -1,8 +1,8 @@
 import Matrix from './matrix';
-import { SVGPathSeg } from './svg-path-seg';
+import { SVGPathPointSeg, SVGPathSeg, SVGPathVerticalSeg } from './svg-path-seg';
 import SHAPE_BUILDERS from './shape-builders';
 import TRANSFORM_BUILDERS from './transform-builders';
-import { IPoint, MATRIX_OPERATIONS, SVG_TAG, PATH_TAG } from './types';
+import { IPoint, MATRIX_OPERATIONS, SVG_TAG, PATH_TAG, PATH_SEGMENT_TYPE } from './types';
 import SVGPathSegElement from './svg-path-seg-element';
 
 export default class SvgParser {
@@ -189,15 +189,16 @@ export default class SvgParser {
 
             offsetCoef = SvgParser.POSITION_COMMANDS.includes(command as PATH_TAG) ? 0 : 1;
 
-            if ('x' in segment) {
+            if (segment instanceof SVGPathPointSeg) {
                 currentPoint.x = currentPoint.x * offsetCoef + segment.x;
             }
-            if ('y' in segment) {
+            
+            if (segment instanceof SVGPathPointSeg || segment instanceof SVGPathVerticalSeg) {
                 currentPoint.y = currentPoint.y * offsetCoef + segment.y;
             }
 
             if (command === PATH_TAG.m) {
-                segment = (element as SVGPathSegElement).createSVGPathSegMovetoAbs(currentPoint.x, currentPoint.y);
+                segment = new SVGPathPointSeg(PATH_SEGMENT_TYPE.LINETO_ABS, [currentPoint.x, currentPoint.y]);
             } else if (command.toUpperCase() === PATH_TAG.Z) {
                 currentPoint.x = startPoint.x;
                 currentPoint.y = startPoint.y;

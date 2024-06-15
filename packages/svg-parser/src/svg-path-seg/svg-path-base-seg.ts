@@ -1,9 +1,9 @@
 import { PATH_TAG } from '../types';
 import { PATH_SEGMENT_TYPE } from '../types';
-import { SEGMENT_NAMES, TYPE_TO_TAG } from './constants';
+import { TYPE_TO_TAG } from './constants';
 
 // Spec: http://www.w3.org/TR/SVG11/single-page.html#paths-InterfaceSVGPathSeg
-export default class SVGBasePathSeg {
+export default class SVGPathBaseSeg {
     #owningPathSegList: unknown;
 
     #pathSegTypeAsLetter: PATH_TAG;
@@ -16,17 +16,12 @@ export default class SVGBasePathSeg {
         this.#owningPathSegList = owningPathSegList;
     }
 
-    public clone(): SVGBasePathSeg {
-        return new SVGBasePathSeg(this.#pathSegType);
-    }
-
-    public toString(): string {
-        const segmentName = SEGMENT_NAMES.has(this.pathSegTypeAsLetter) ? SEGMENT_NAMES.has(this.pathSegTypeAsLetter) : 'unkown';
-        return `[object ${segmentName}]`;
+    public clone(): SVGPathBaseSeg {
+        return new SVGPathBaseSeg(this.#pathSegType);
     }
 
     public asPathString(): string {
-        return '';
+        return this.#pathSegTypeAsLetter;
     }
 
     // Notify owning PathSegList on any changes so they can be synchronized back to the path element.
@@ -53,5 +48,7 @@ export default class SVGBasePathSeg {
         return this.#pathSegTypeAsLetter;
     }
 
-    public static classname: string = 'SVGPathSeg';
+    public static create(type: PATH_SEGMENT_TYPE, data: number[], owningPathSegList?: unknown): SVGPathBaseSeg {
+        return new SVGPathBaseSeg(type, owningPathSegList);
+    }
 }

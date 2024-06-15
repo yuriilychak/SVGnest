@@ -6,8 +6,8 @@ export default class SVGPathCubicSmoothSeg extends SVGPathPointSeg {
 
     #y2: number;
 
-    public constructor(type: PATH_SEGMENT_TYPE, owningPathSegList: unknown, x: number, y: number, x1: number, y1: number) {
-        super(type, owningPathSegList, x, y);
+    public constructor(type: PATH_SEGMENT_TYPE, [x, y, x1, y1]: number[], owningPathSegList?: unknown) {
+        super(type, [x, y], owningPathSegList);
         this.#x2 = x1;
         this.#y2 = y1;
     }
@@ -32,5 +32,13 @@ export default class SVGPathCubicSmoothSeg extends SVGPathPointSeg {
     public set y2(value: number) {
         this.#y2 = value;
         this.segmentChanged();
+    }
+
+    public clone(): SVGPathCubicSmoothSeg {
+        return new SVGPathCubicSmoothSeg(this.pathSegType, [this.x, this.y, this.x2, this.y2]);
+    }
+
+    public static create(type: PATH_SEGMENT_TYPE, data: number[], owningPathSegList?: unknown): SVGPathCubicSmoothSeg {
+        return new SVGPathCubicSmoothSeg(type, data, owningPathSegList);
     }
 }
