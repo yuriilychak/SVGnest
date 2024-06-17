@@ -1,58 +1,63 @@
 {
-  "name": "svgnest.es6",
-  "version": "1.0.0",
-  "description": "ES6 version of https://github.com/Jack000/SVGnest migrated to webpack",
-  "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "test": "echo $PATH",
-    "build": "lerna run build --concurrency 4"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yuriilychak/SVGnest.git"
-  },
-  "keywords": [
-    "polygon pack",
-    "es6",
-    "algorithm"
-  ],
-  "author": "yurii.lychak",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/yuriilychak/SVGnest/issues"
-  },
-  "homepage": "https://github.com/yuriilychak/SVGnest#readme",
-  "devDependencies": {
-    "@babel/core": "^7.24.7",
-    "@babel/preset-env": "^7.24.7",
-    "@babel/preset-react": "^7.24.7",
-    "@types/node": "^20.14.2",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/parser": "^7.12.0",
-    "babel-loader": "^9.1.3",
-    "eslint": "^8.57.0",
-    "lerna": "^8.1.3",
-    "prettier": "^3.3.0",
-    "prettier-eslint": "^16.3.0",
-    "ts-loader": "^9.5.1",
-    "turbo": "^1.13.3",
-    "typescript": "^5.4.5",
-    "webpack": "^5.90.0",
-    "webpack-cli": "^5.1.4",
-    "worker-loader": "^3.0.8"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.11.4",
-    "@emotion/styled": "^11.11.5",
-    "@fontsource/roboto": "^5.0.13",
-    "@mui/icons-material": "^5.15.20",
-    "@mui/material": "^5.15.20",
-    "js-clipper": "^1.0.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  }
+    "name": "svgnest.ts",
+    "version": "1.0.0",
+    "description": "Typescript version of https://github.com/Jack000/SVGnest migrated to webpack and splitted to packages.",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "test": "echo $PATH",
+        "build": "lerna run build --concurrency 4"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/yuriilychak/SVGnest.git"
+    },
+    "keywords": [
+        "polygon pack",
+        "svg",
+        "algorithm",
+        "typescript",
+        "lerna"
+    ],
+    "author": "yurii.lychak",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/yuriilychak/SVGnest/issues"
+    },
+    "homepage": "https://github.com/yuriilychak/SVGnest#readme",
+    "devDependencies": {
+        "@babel/core": "^7.24.7",
+        "@babel/preset-env": "^7.24.7",
+        "@babel/preset-react": "^7.24.7",
+        "@types/node": "^20.14.2",
+        "@types/react": "^18.3.3",
+        "@types/react-dom": "^18.3.0",
+        "@typescript-eslint/parser": "^7.12.0",
+        "babel-loader": "^9.1.3",
+        "babel-plugin-direct-import": "^1.0.0",
+        "eslint": "^8.57.0",
+        "eslint-plugin-react": "^7.34.2",
+        "lerna": "^8.1.3",
+        "prettier": "^3.3.0",
+        "prettier-eslint": "^16.3.0",
+        "terser-webpack-plugin": "^5.3.10",
+        "ts-loader": "^9.5.1",
+        "turbo": "^1.13.3",
+        "typescript": "^5.4.5",
+        "webpack": "^5.90.0",
+        "webpack-cli": "^5.1.4",
+        "worker-loader": "^3.0.8"
+    },
+    "dependencies": {
+        "@emotion/react": "^11.11.4",
+        "@emotion/styled": "^11.11.5",
+        "@fontsource/roboto": "^5.0.13",
+        "@mui/icons-material": "^5.15.20",
+        "@mui/material": "^5.15.20",
+        "js-clipper": "^1.0.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
+    }
 }

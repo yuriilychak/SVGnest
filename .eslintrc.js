@@ -1,8 +1,14 @@
+const react = require('eslint-plugin-react')
+
 const OFF = 0,
     WARN = 1,
-    ERROR = 2;
+    ERROR = 2
 
 module.exports = {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+        react
+    },
     env: {
         es6: true,
         browser: true,
@@ -17,10 +23,13 @@ module.exports = {
         // env=es6 doesn't include modules, which we are using
         modules: true
     },
-
-    extends: 'eslint:recommended',
-
     rules: {
+        'no-restricted-imports': [
+            'error',
+            {
+                patterns: ['@mui/*/*/*']
+            }
+        ],
         // Possible Errors (overrides from recommended set)
         'no-extra-parens': ERROR,
         'padding-line-between-statements': [ERROR, { blankLine: 'always', prev: '*', next: 'return' }],
@@ -50,12 +59,12 @@ module.exports = {
         ],
         'block-scoped-var': WARN,
         'consistent-return': ERROR,
-        'curly': ERROR,
+        curly: ERROR,
         'default-case': WARN,
         // the dot goes with the property when doing multiline
         'dot-location': [WARN, 'property'],
         'dot-notation': WARN,
-        'eqeqeq': [ERROR, 'smart'],
+        eqeqeq: [ERROR, 'smart'],
         'guard-for-in': WARN,
         'no-alert': ERROR,
         'no-caller': ERROR,
@@ -111,14 +120,14 @@ module.exports = {
             }
         ],
         'no-with': WARN,
-        'radix': WARN,
+        radix: WARN,
         'vars-on-top': ERROR,
         // Enforces the style of wrapped functions
         'wrap-iife': [ERROR, 'outside'],
-        'yoda': ERROR,
+        yoda: ERROR,
 
         // Strict Mode - for ES6, never use strict.
-        'strict': [ERROR, 'never'],
+        strict: [ERROR, 'never'],
 
         // Variables
         'init-declarations': [ERROR, 'always'],
@@ -177,7 +186,7 @@ module.exports = {
         'array-bracket-spacing': [WARN, 'never'],
         'block-spacing': [WARN, 'always'],
         'brace-style': [WARN, '1tbs', { allowSingleLine: false }],
-        'camelcase': WARN,
+        camelcase: WARN,
         'comma-spacing': [WARN, { before: false, after: true }],
         'comma-style': [WARN, 'last'],
         'computed-property-spacing': [WARN, 'never'],
@@ -186,7 +195,7 @@ module.exports = {
         'func-names': WARN,
         'func-style': [WARN, 'declaration'],
         'id-length': [WARN, { min: 1, max: 32 }],
-        'indent': [WARN, 4, { SwitchCase: 1 }],
+        indent: [WARN, 4, { SwitchCase: 1 }],
         'jsx-quotes': [WARN, 'prefer-double'],
         'linebreak-style': [WARN, 'unix'],
         'lines-around-comment': [WARN, { beforeBlockComment: true }],
@@ -218,7 +227,7 @@ module.exports = {
         'operator-linebreak': [WARN, 'after'],
         'padded-blocks': [WARN, 'never'],
         'quote-props': [WARN, 'consistent-as-needed'],
-        'quotes': [WARN, 'single'],
+        quotes: [WARN, 'single'],
         'require-jsdoc': [
             OFF,
             {
@@ -230,7 +239,7 @@ module.exports = {
             }
         ],
         'semi-spacing': [WARN, { before: false, after: true }],
-        'semi': [ERROR, 'always'],
+        semi: [ERROR, 'always'],
         'sort-vars': OFF,
         'space-before-blocks': [WARN, 'always'],
         'space-before-function-paren': [WARN, 'never'],
@@ -241,4 +250,4 @@ module.exports = {
         'spaced-comment': [WARN, 'always'],
         'wrap-regex': WARN
     }
-};
+}

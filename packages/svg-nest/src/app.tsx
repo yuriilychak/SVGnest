@@ -27,10 +27,7 @@ const App = () => {
         <ThemeProvider theme={THEME}>
             <GlobalStyles
                 styles={{
-                    body: {
-                        scrollbarColor: '#3bb34a #ffffff',
-                        scrollbarWidth: 'thin'
-                    }
+                    body: { margin: 0, scrollbarColor: '#3bb34a #ffffff', scrollbarWidth: 'thin' }
                 }}
             />
             <Box>
