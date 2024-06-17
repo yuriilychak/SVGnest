@@ -1,13 +1,28 @@
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { FC } from 'react'
 
-const HelpItem = ({ title, children }: { title: string; children: string | JSX.Element | JSX.Element[] }) =>
-    <Stack gap={0.5} width="100%">
+import Stack from '@mui/material/Stack'
+import Typography from '@mui/material/Typography'
+import Link from '@mui/material/Link'
+
+interface HelpItemProps {
+    title: string
+    content: string
+    url: string
+    mask: string
+}
+
+const HelpItem: FC<HelpItemProps> = ({ title, content, url, mask }) => (
+    <Stack gap={0.5} width='100%'>
         <Typography sx={{ typography: { md: 'body1', xs: 'body2' } }}>{title}</Typography>
-        <Typography sx={{ typography: { md: 'body2', xs: 'caption' } }} color="text.secondary">
-            {children}
+        <Typography sx={{ typography: { md: 'body2', xs: 'caption' } }} color='text.secondary'>
+            {content}
+            {url && (
+                <Link href={url} sx={{ paddingLeft: 1 }} target='_blank'>
+                    {mask}
+                </Link>
+            )}
         </Typography>
-    </Stack>;
+    </Stack>
+)
 
-
-export default HelpItem;
+export default HelpItem
