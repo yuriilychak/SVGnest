@@ -1,0 +1,20 @@
+{
+    "name": "web-interface",
+    "version": "1.0.0",
+    "main": "src/index.ts",
+    "scripts": {
+        "build": "webpack",
+        "test": "jest"
+    },
+    "dependencies": {
+        "polygon-packer": "^1.0.0"
+    },
+    "description": "user interface package for SVGNest",
+    "keywords": [
+        "react",
+        "UI",
+        "MUI"
+    ],
+    "author": "yurii.lychak",
+    "license": "MIT"
+}
