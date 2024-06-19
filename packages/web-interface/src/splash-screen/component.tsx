@@ -1,4 +1,4 @@
-import { useCallback, useState, useLayoutEffect, useMemo, memo } from 'react'
+import { useCallback, useState, useMemo, memo } from 'react'
 
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
@@ -39,7 +39,7 @@ const SplashScreen = ({ onOpenApp }: { onOpenApp: (isLoadFile: boolean) => void 
             <Typography sx={STYLES.title}>SVGnest</Typography>
             <Typography sx={STYLES.subtitle}>Open Source nesting</Typography>
             <ButtonGroup buttonsConfig={BUTTON_CONFIG} onClick={handleAction} />
-            <SharedDrawer isOpen={isDrawerOpen} onClose={handleAction} closeAction={BUTTON_ACTIONS.CLOSE_FAQ}>
+            <SharedDrawer isOpen={isDrawerOpen} onClose={handleAction} closeAction={BUTTON_ACTIONS.CLOSE_FAQ} title='FAQ'>
                 {helpContent}
             </SharedDrawer>
         </Stack>

@@ -1,4 +1,8 @@
 export const GLOBAL_STYLES = {
+    '#app': {
+        width: '100vw',
+        height: '100vh'
+    },
     '@font-face': {
         fontFamily: 'LatoLatinWeb',
         src: "url('fonts/LatoLatin-Regular.woff2') format('woff2')",

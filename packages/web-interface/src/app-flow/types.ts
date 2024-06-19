@@ -20,8 +20,7 @@ export enum SETTING_ID {
 }
 
 export enum INPUT_TYPE {
-    INT,
-    FLOAT,
+    NUMBER,
     BOOLEAN
 }
 
@@ -45,4 +44,7 @@ export interface SettingConfig {
     label: string
     type: INPUT_TYPE
     description: string
+    min: number
+    max: number
+    step: number
 }

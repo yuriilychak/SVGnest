@@ -45,43 +45,69 @@ export const DEFAULT_SETTING: SettingsData = {
     [SETTING_ID.EXPLORE_CONCAVE]: false
 }
 
-const getSettingConfig = (id: SETTING_ID, type: INPUT_TYPE, label: string, description: string): SettingConfig => ({
+const getSettingConfig = (
+    id: SETTING_ID,
+    type: INPUT_TYPE,
+    label: string,
+    description: string,
+    min: number = 0,
+    max: number = 0,
+    step: number = 0
+): SettingConfig => ({
     id,
     type,
     label,
-    description
+    description,
+    min,
+    max,
+    step
 })
 
 export const SETTINGS_CONFIG: SettingConfig[] = [
     getSettingConfig(
         SETTING_ID.SPACING,
-        INPUT_TYPE.INT,
+        INPUT_TYPE.NUMBER,
         'Space between parts',
-        'The space between parts in SVG units (conversion depends on exporting software but usually 1 SVG unit = 1px = 1/72 inches = 0.3527777~ mm)'
+        'The space between parts in SVG units (conversion depends on exporting software but usually 1 SVG unit = 1px = 1/72 inches = 0.3527777~ mm)',
+        0,
+        16,
+        1
     ),
     getSettingConfig(
         SETTING_ID.CURVE_TOLERANCE,
-        INPUT_TYPE.FLOAT,
+        INPUT_TYPE.NUMBER,
         'Curve tolerance',
-        'The maximum error allowed when converting Beziers and arcs to line segments. In SVG units. Smaller tolerances will take longer to compute'
+        'The maximum error allowed when converting Beziers and arcs to line segments. In SVG units. Smaller tolerances will take longer to compute',
+        0.1,
+        1,
+        0.01
     ),
     getSettingConfig(
         SETTING_ID.ROTATIONS,
-        INPUT_TYPE.INT,
+        INPUT_TYPE.NUMBER,
         'Part rotations',
-        'Number of rotations to consider when inserting a part. Larger rotations will take longer to compute, and may also take longer to converge to a good solution'
+        'Number of rotations to consider when inserting a part. Larger rotations will take longer to compute, and may also take longer to converge to a good solution',
+        1,
+        16,
+        1
     ),
     getSettingConfig(
         SETTING_ID.POPULATION_SIZE,
-        INPUT_TYPE.INT,
+        INPUT_TYPE.NUMBER,
         'GA population',
-        'The number of solutions in the Genetic Algorithm population. Larger populations will converge slower but may result in better solutions in the long run'
+        'The number of solutions in the Genetic Algorithm population. Larger populations will converge slower but may result in better solutions in the long run',
+        2,
+        64,
+        1
     ),
     getSettingConfig(
         SETTING_ID.MUTATION_RATE,
-        INPUT_TYPE.INT,
+        INPUT_TYPE.NUMBER,
         'GA mutation rate',
-        'Mutation rate (in percent) at each generation of the Genetic Algorithm. A 100% mutation rate is equivalent to random sampling'
+        'Mutation rate (in percent) at each generation of the Genetic Algorithm. A 100% mutation rate is equivalent to random sampling',
+        2,
+        64,
+        1
     ),
     getSettingConfig(
         SETTING_ID.USE_HOLES,

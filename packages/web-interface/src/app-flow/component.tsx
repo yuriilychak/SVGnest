@@ -40,10 +40,16 @@ const AppFlow: FC<AppFlowProps> = ({ onClose }) => {
         <Stack sx={STYLES.root}>
             <Box sx={STYLES.content}>Content</Box>
             <ButtonGroup buttonsConfig={DESKTOP_BUTTON_CONFIG} onClick={handleClick} />
-            <SharedDrawer onClose={handleClick} isOpen={isDrawerOpen} closeAction={BUTTON_ACTION.CLOSE_SETTINGS} gap={0}>
+            <SharedDrawer
+                onClose={handleClick}
+                isOpen={isDrawerOpen}
+                closeAction={BUTTON_ACTION.CLOSE_SETTINGS}
+                title='Nesting settings'
+            >
                 {SETTINGS_CONFIG.map(config => (
                     <SettingInput {...config} value={settings[config.id]} key={config.id} onChange={handleChangeSettings} />
                 ))}
+                <Box minHeight={16} />
             </SharedDrawer>
         </Stack>
     )

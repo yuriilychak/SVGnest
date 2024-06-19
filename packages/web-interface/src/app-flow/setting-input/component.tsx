@@ -1,52 +1,50 @@
-import { FC, memo, useCallback, ChangeEvent } from 'react'
+import { FC, memo, useCallback, ChangeEvent, useMemo, ChangeEventHandler } from 'react'
 
-import TextField from '@mui/material/TextField'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
 import FormHelperText from '@mui/material/FormHelperText'
 import FormGroup from '@mui/material/FormGroup'
+import Slider from '@mui/material/Slider'
 
-import { INPUT_TYPE, SETTING_ID } from '../types'
+import { INPUT_TYPE } from '../types'
+import { SettingInputProps } from './types'
+import { TYPE_CONFIG } from './constants'
 
-interface SettingInputProps {
-    label: string
-    id: SETTING_ID
-    type: INPUT_TYPE
-    description: string
-    value: number | boolean
-    onChange(value: number | boolean, id: SETTING_ID): void
-}
+const SettingInput: FC<SettingInputProps> = ({ label, id, type, description, value, onChange, min, max, step }) => {
+    const marks = useMemo(() => [min, max].map(item => ({ value: item, label: item.toString() })), [min, max])
+    const { labelPlacement, styles } = useMemo(() => TYPE_CONFIG.get(type), [type])
 
-const SettingInput: FC<SettingInputProps> = ({ label, id, type, description, value, onChange }) => {
     const handleChange = useCallback(
-        (event: ChangeEvent) => {
+        (event: ChangeEvent<Element> | Event, sliderValue: number) => {
             const element: HTMLInputElement = event.target as HTMLInputElement
-            const nextValue = type === INPUT_TYPE.BOOLEAN ? element.checked : parseFloat(element.value)
+            const nextValue = type === INPUT_TYPE.BOOLEAN ? element.checked : sliderValue
             onChange(nextValue, id)
         },
         [onChange, id, type]
     )
 
-    return type === INPUT_TYPE.BOOLEAN ? (
-        <FormGroup>
-            <FormControlLabel
-                control={<Checkbox checked={value as boolean} id={id} size='small' onChange={handleChange} />}
-                label={label}
+    const control =
+        type === INPUT_TYPE.BOOLEAN ? (
+            <Checkbox checked={value as boolean} id={id} size='small' onChange={handleChange as ChangeEventHandler} />
+        ) : (
+            <Slider
+                id={id}
+                min={min}
+                max={max}
+                marks={marks}
+                step={step}
+                value={value as number}
+                onChange={handleChange}
+                sx={styles.input}
+                valueLabelDisplay='auto'
             />
-            <FormHelperText sx={{ marginX: 0, lineHeight: 1, textAlign: 'justify' }}>{description}</FormHelperText>
+        )
+
+    return (
+        <FormGroup>
+            <FormControlLabel sx={styles.root} labelPlacement={labelPlacement} control={control} label={label} />
+            <FormHelperText sx={styles.helpText}>{description}</FormHelperText>
         </FormGroup>
-    ) : (
-        <TextField
-            onChange={handleChange}
-            sx={{ marginTop: 2 }}
-            value={value as number}
-            helperText={description}
-            id={id}
-            label={label}
-            size='small'
-            type='number'
-            FormHelperTextProps={{ sx: { marginX: 0, lineHeight: 1, textAlign: 'justify' } }}
-        />
     )
 }
 

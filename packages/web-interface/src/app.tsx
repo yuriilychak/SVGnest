@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 
 import ThemeProvider from '@mui/material/styles/ThemeProvider'
 import GlobalStyles from '@mui/material/GlobalStyles'
@@ -20,6 +20,10 @@ const App = () => {
     }, [])
 
     const handleOpenApp = useCallback((nextDemoMode: boolean) => handleUpdateScreen(nextDemoMode, true), [])
+
+    useEffect(() => {
+        document.title = 'SVGnest - Free and Open Source nesting for CNC machines, lasers and plasma cutters'
+    }, [])
 
     return (
         <ThemeProvider theme={THEME}>
