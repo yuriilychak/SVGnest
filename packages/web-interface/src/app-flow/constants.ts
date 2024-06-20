@@ -7,7 +7,7 @@ import ZoomOutIcon from '@mui/icons-material/ZoomOut'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 
 import { ButtonConfig, getButtonConfig } from '../shared'
-import { BUTTON_ACTION, INPUT_TYPE, SETTING_ID, SettingConfig, SettingsData } from './types'
+import { BUTTON_ACTION, INPUT_TYPE, ReducerState, SETTING_ID, SettingConfig, SettingsData } from './types'
 
 export const DESKTOP_BUTTON_CONFIG: ButtonConfig[] = [
     getButtonConfig(BUTTON_ACTION.START, PlayArrowIcon, 'Start Nest'),
@@ -31,7 +31,17 @@ export const STYLES: { [key: string]: object } = {
     content: {
         flex: 1,
         boxSizing: 'border-box',
-        width: '100%'
+        width: '100%',
+        position: 'relative'
+    },
+    fileLoader: { position: 'absolute', opacity: 0 },
+    svgWrapper: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        overflow: 'auto'
     }
 }
 
@@ -122,3 +132,15 @@ export const SETTINGS_CONFIG: SettingConfig[] = [
         'Try to solve for enclosed concave areas (eg. a jigsaw puzzle piece) This will take much longer to compute'
     )
 ]
+
+export const INITIAL_STATE: ReducerState = {
+    svgSrc: '',
+    isWorking: false,
+    settings: DEFAULT_SETTING,
+    isDrawerOpen: false,
+    svgNest: null,
+    fileReader: null,
+    scale: 1
+}
+
+export const FILE_SAVER_ID: string = 'fileSaver'

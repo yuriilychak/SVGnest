@@ -1,3 +1,6 @@
+//@ts-ignore
+import { SvgNest } from 'polygon-packer'
+
 export enum BUTTON_ACTION {
     START = 'start',
     UPLOAD = 'upload',
@@ -47,4 +50,31 @@ export interface SettingConfig {
     min: number
     max: number
     step: number
+}
+
+export interface ReducerState {
+    svgSrc: string
+    isWorking: boolean
+    settings: SettingsData
+    isDrawerOpen: boolean
+    svgNest: SvgNest
+    fileReader: FileReader
+    scale: number
+}
+
+export enum REDUCER_ACTION {
+    INIT,
+    TOGGLE_DRAWER,
+    CHANGE_SETTINGS,
+    UPDATE_SVG,
+    DOWNLOAD_SVG,
+    ZOOM_IN,
+    ZOOM_OUT
+}
+
+export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState
+
+export type ReducerAction = {
+    type: REDUCER_ACTION
+    payload: unknown
 }

@@ -21,7 +21,7 @@ const SplashScreen = ({ onOpenApp }: { onOpenApp: (isLoadFile: boolean) => void 
             switch (action) {
                 case BUTTON_ACTIONS.DEMO:
                 case BUTTON_ACTIONS.START:
-                    onOpenApp(action === BUTTON_ACTIONS.START)
+                    onOpenApp(action === BUTTON_ACTIONS.DEMO)
                     break
                 case BUTTON_ACTIONS.GITHUB:
                     window.open('https://github.com/Jack000/SVGnest', '_blank')
