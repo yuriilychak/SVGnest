@@ -1,3 +1,6 @@
+//@ts-ignore
+import { SvgNest } from 'polygon-packer'
+
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -7,7 +10,17 @@ import ZoomOutIcon from '@mui/icons-material/ZoomOut'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 
 import { ButtonConfig, getButtonConfig } from '../shared'
-import { BUTTON_ACTION, INPUT_TYPE, ReducerState, SETTING_ID, SettingConfig, SettingsData } from './types'
+import {
+    BUTTON_ACTION,
+    INPUT_TYPE,
+    NestingStatistics,
+    PREDEFINED_ID,
+    ReducerState,
+    SETTING_ID,
+    SettingConfig,
+    SettingsData,
+    ViewBoxAttribute
+} from './types'
 
 export const DESKTOP_BUTTON_CONFIG: ButtonConfig[] = [
     getButtonConfig(BUTTON_ACTION.START, PlayArrowIcon, 'Start Nest'),
@@ -21,6 +34,7 @@ export const DESKTOP_BUTTON_CONFIG: ButtonConfig[] = [
 
 export const STYLES: { [key: string]: object } = {
     root: {
+        position: 'relative',
         width: '100vw',
         height: '100vh',
         padding: 2,
@@ -42,6 +56,41 @@ export const STYLES: { [key: string]: object } = {
         top: 0,
         bottom: 0,
         overflow: 'auto'
+    },
+    svgContent: {
+        boxSizing: 'border-box',
+        position: 'relative',
+        '& svg': {
+            width: '100%',
+            height: 'auto',
+            position: 'absolute',
+            '& *': {
+                fill: '#fff !important',
+                fillOpacity: '0 !important',
+                stroke: '#3bb34a !important',
+                strokeWidth: '2px !important',
+                vectorEffect: 'non-scaling-stroke !important',
+                strokeLinejoin: 'round !important',
+                pointerEvents: 'fill'
+            },
+            '& *:hover': {
+                stroke: '#0d6818 !important',
+                cursor: 'pointer !important'
+            }
+        },
+        [`& #${PREDEFINED_ID.BACKGROUND_RECT}`]: {
+            fill: '#eee !important',
+            fillOpacity: '1 !important',
+            stroke: '#eee !important',
+            strokeWidth: '2px !important',
+            vectorEffect: 'non-scaling-stroke !important',
+            strokeLinejoin: 'round !important'
+        },
+
+        [`& #${PREDEFINED_ID.SELECTED_ELEMENT}`]: {
+            stroke: '#06380c !important',
+            strokeWidth: '3px !important'
+        }
     }
 }
 
@@ -133,14 +182,25 @@ export const SETTINGS_CONFIG: SettingConfig[] = [
     )
 ]
 
+export const INITIAL_NESTING_STATISTICS: NestingStatistics = {
+    efficiency: 0,
+    total: 0,
+    placed: 0
+}
+
 export const INITIAL_STATE: ReducerState = {
     svgSrc: '',
     isWorking: false,
     settings: DEFAULT_SETTING,
     isDrawerOpen: false,
-    svgNest: null,
-    fileReader: null,
-    scale: 1
+    svgNest: new SvgNest(),
+    fileReader: new FileReader(),
+    scale: 1,
+    progress: 0,
+    startTime: 0,
+    estimate: 0,
+    iterations: 0,
+    nestingStatistics: INITIAL_NESTING_STATISTICS
 }
 
-export const FILE_SAVER_ID: string = 'fileSaver'
+export const VIEW_BOX_ATTRIBUTES: ViewBoxAttribute[] = ['x', 'y', 'width', 'height']

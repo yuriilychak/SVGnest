@@ -52,6 +52,12 @@ export interface SettingConfig {
     step: number
 }
 
+export type NestingStatistics = {
+    efficiency: number
+    placed: number
+    total: number
+}
+
 export interface ReducerState {
     svgSrc: string
     isWorking: boolean
@@ -60,16 +66,23 @@ export interface ReducerState {
     svgNest: SvgNest
     fileReader: FileReader
     scale: number
+    progress: number
+    startTime: number
+    estimate: number
+    iterations: number
+    nestingStatistics: NestingStatistics
 }
 
 export enum REDUCER_ACTION {
-    INIT,
     TOGGLE_DRAWER,
     CHANGE_SETTINGS,
     UPDATE_SVG,
     DOWNLOAD_SVG,
     ZOOM_IN,
-    ZOOM_OUT
+    ZOOM_OUT,
+    PROGRESS,
+    START_NESTING,
+    UPDATE_STATISTICS
 }
 
 export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState
@@ -78,3 +91,11 @@ export type ReducerAction = {
     type: REDUCER_ACTION
     payload: unknown
 }
+
+export enum PREDEFINED_ID {
+    FILE_SAVER = 'fileSaver',
+    SELECTED_ELEMENT = 'selectedElement',
+    BACKGROUND_RECT = 'backgroundRect'
+}
+
+export type ViewBoxAttribute = 'x' | 'y' | 'width' | 'height'
