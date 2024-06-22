@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useRef, ChangeEvent, useReducer, useMemo } from 'react'
+import { FC } from 'react'
 
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
@@ -7,7 +7,6 @@ import { ButtonGroup, SharedDrawer } from '../shared'
 import { DESKTOP_BUTTON_CONFIG, SETTINGS_CONFIG, STYLES } from './constants'
 import { AppFlowProps, BUTTON_ACTION, PREDEFINED_ID } from './types'
 import { SettingInput } from './setting-input'
-
 import { Statistics } from './statistics'
 import useAppFlow from './hooks'
 
@@ -25,7 +24,9 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
         estimate,
         progress,
         nestingStatistics,
-        iterations
+        iterations,
+        disabledButtons,
+        hiddenButtons
     } = useAppFlow(onClose, isDemoMode)
 
     return (
@@ -41,7 +42,7 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
             />
             <Box sx={STYLES.content}>
                 <Box sx={STYLES.svgWrapper}>
-                    <Box ref={svgWrapper} sx={zoomStyles} />
+                    <Box ref={svgWrapper} sx={zoomStyles} id={PREDEFINED_ID.SVG_WRAPPER} />
                 </Box>
             </Box>
             <Stack
@@ -57,7 +58,12 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
                     estimate={estimate}
                     iterations={iterations}
                 />
-                <ButtonGroup buttonsConfig={DESKTOP_BUTTON_CONFIG} onClick={handleClick} />
+                <ButtonGroup
+                    buttonsConfig={DESKTOP_BUTTON_CONFIG}
+                    onClick={handleClick}
+                    disabledButtons={disabledButtons}
+                    hiddenButtons={hiddenButtons}
+                />
             </Stack>
             <SharedDrawer
                 onClose={handleClick}

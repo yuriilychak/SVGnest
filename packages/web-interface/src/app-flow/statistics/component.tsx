@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography'
 import { millisecondsToStr } from './helpers'
 import { MesureItem } from './mesure-item'
 import { STYLES } from './constants'
+import { toPercents } from '../helpers'
 
 interface StatisticsProps {
     progress: number
@@ -26,11 +27,7 @@ const Statistics: FC<StatisticsProps> = ({ progress, estimate, iterations, place
                 <Box sx={STYLES.progressWrapper}>
                     <CircularProgress variant='determinate' value={progress} />
                     <Box sx={STYLES.progressLabel}>
-                        <Typography
-                            variant='caption'
-                            component='div'
-                            color='text.secondary'
-                        >{`${Math.round(progress)}%`}</Typography>
+                        <Typography variant='caption' component='div' color='text.secondary'>{`${progress}%`}</Typography>
                     </Box>
                 </Box>
                 <Stack sx={STYLES.progressContent}>
@@ -46,7 +43,7 @@ const Statistics: FC<StatisticsProps> = ({ progress, estimate, iterations, place
         <Stack direction='row' gap={1}>
             {!!iterations && <MesureItem label='Iterations' value={iterations.toString()} />}
             {!!total && <MesureItem label='Places' value={`${placed}/${total}`} />}
-            {!!efficiency && <MesureItem label='Efficiency' value={`${Math.ceil(efficiency * 100)}%`} />}
+            {!!efficiency && <MesureItem label='Efficiency' value={`${toPercents(efficiency)}%`} />}
         </Stack>
     </Stack>
 )

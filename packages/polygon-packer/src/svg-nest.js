@@ -666,7 +666,7 @@ export default class SvgNest {
             newSvg.setAttribute('height', `${this.binBounds.height}px`)
             binClone = this.bin.cloneNode(false)
 
-            binClone.setAttribute('class', 'bin')
+            binClone.setAttribute('id', 'exportRoot')
             binClone.setAttribute('transform', `translate(${-this.binBounds.x} ${-this.binBounds.y})`)
             newSvg.appendChild(binClone)
 
@@ -678,6 +678,7 @@ export default class SvgNest {
                 partGroup = document.createElementNS(this.svg.namespaceURI, 'g')
                 partGroup.setAttribute('transform', `translate(${p.x} ${p.y}) rotate(${p.rotation})`)
                 partGroup.appendChild(clone[part.source])
+                partGroup.setAttribute('id', 'exportContent')
 
                 if (part.children && part.children.length > 0) {
                     flattened = flattenTree(part.children, true)

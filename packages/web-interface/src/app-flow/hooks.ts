@@ -1,8 +1,9 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 
-import { INITIAL_STATE, STYLES, VIEW_BOX_ATTRIBUTES } from './constants'
+import { INITIAL_STATE, VIEW_BOX_ATTRIBUTES } from './constants'
 import reducer from './reducer'
 import { BUTTON_ACTION, PREDEFINED_ID, REDUCER_ACTION, SETTING_ID } from './types'
+import { getModifiedButtons, getZoomStyles } from './helpers'
 
 export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const [state, dispatch] = useReducer(reducer, INITIAL_STATE)
@@ -21,7 +22,8 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         progress,
         nestingStatistics,
         estimate,
-        iterations
+        iterations,
+        isBinSelected
     } = state
 
     const handleDispatch = useCallback((type: REDUCER_ACTION, payload?: unknown) => dispatch({ type, payload }), [dispatch])
@@ -40,8 +42,9 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
             currentBin.current = event.target as SVGElement
             currentBin.current.setAttribute('id', PREDEFINED_ID.SELECTED_ELEMENT)
             svgNest.setBin(currentBin.current)
+            handleDispatch(REDUCER_ACTION.SELECT_BIN)
         },
-        [svgNest]
+        [svgNest, handleDispatch]
     )
 
     const handleAttachSvgListeners = useCallback(
@@ -65,7 +68,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     }, [svgNest])
 
     useEffect(() => {
-        if (!isWorking && svgSrc) {
+        if (svgSrc) {
             try {
                 const svg = svgNest.parseSvg(svgSrc)
                 const wholeSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement
@@ -91,7 +94,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 throw error
             }
         }
-    }, [svgNest, isWorking, svgSrc, handleAttachSvgListeners])
+    }, [svgNest, svgSrc, handleAttachSvgListeners])
 
     useEffect(() => {
         if (fileReader !== null) {
@@ -137,8 +140,9 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
             switch (action) {
                 case BUTTON_ACTION.START:
                     handleDispatch(REDUCER_ACTION.START_NESTING)
-                    svgNest.start(handleProgress, handleRenderSvg)
-                    break
+                    return svgNest.start(handleProgress, handleRenderSvg)
+                case BUTTON_ACTION.PAUSE:
+                    return handleDispatch(REDUCER_ACTION.PAUSE_NESTING)
                 case BUTTON_ACTION.BACK:
                     return onClose()
                 case BUTTON_ACTION.UPLOAD:
@@ -172,7 +176,11 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         [fileReader]
     )
 
-    const zoomStyles = useMemo(() => ({ ...STYLES.svgContent, width: `${Math.floor(scale * 100)}%` }), [scale])
+    const zoomStyles = useMemo(() => getZoomStyles(scale), [scale])
+    const { disabledButtons, hiddenButtons } = useMemo(
+        () => getModifiedButtons(isWorking, isBinSelected, iterations, svgSrc),
+        [isWorking, iterations, isBinSelected, svgSrc]
+    )
 
     return {
         handleClick,
@@ -187,6 +195,8 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         nestingStatistics,
         estimate,
         iterations,
-        settings
+        settings,
+        disabledButtons,
+        hiddenButtons
     }
 }

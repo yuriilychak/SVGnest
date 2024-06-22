@@ -3,6 +3,7 @@ import { SvgNest } from 'polygon-packer'
 
 export enum BUTTON_ACTION {
     START = 'start',
+    PAUSE = 'pause',
     UPLOAD = 'upload',
     DOWNLOAD = 'download',
     SETTINGS = 'settings',
@@ -71,6 +72,7 @@ export interface ReducerState {
     estimate: number
     iterations: number
     nestingStatistics: NestingStatistics
+    isBinSelected: boolean
 }
 
 export enum REDUCER_ACTION {
@@ -82,7 +84,9 @@ export enum REDUCER_ACTION {
     ZOOM_OUT,
     PROGRESS,
     START_NESTING,
-    UPDATE_STATISTICS
+    PAUSE_NESTING,
+    UPDATE_STATISTICS,
+    SELECT_BIN
 }
 
 export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState
@@ -93,6 +97,7 @@ export type ReducerAction = {
 }
 
 export enum PREDEFINED_ID {
+    SVG_WRAPPER = 'svgWrapper',
     FILE_SAVER = 'fileSaver',
     SELECTED_ELEMENT = 'selectedElement',
     BACKGROUND_RECT = 'backgroundRect'

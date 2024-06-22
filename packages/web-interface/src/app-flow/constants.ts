@@ -2,6 +2,7 @@
 import { SvgNest } from 'polygon-packer'
 
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import PauseIcon from '@mui/icons-material/Pause'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import SettingsIcon from '@mui/icons-material/Settings'
 import FileUpload from '@mui/icons-material/FileUpload'
@@ -24,6 +25,7 @@ import {
 
 export const DESKTOP_BUTTON_CONFIG: ButtonConfig[] = [
     getButtonConfig(BUTTON_ACTION.START, PlayArrowIcon, 'Start Nest'),
+    getButtonConfig(BUTTON_ACTION.PAUSE, PauseIcon, 'Pause Nest'),
     getButtonConfig(BUTTON_ACTION.UPLOAD, FileUpload, 'Upload SVG'),
     getButtonConfig(BUTTON_ACTION.DOWNLOAD, FileDownloadIcon, 'Download SVG'),
     getButtonConfig(BUTTON_ACTION.ZOOM_IN, ZoomInIcon),
@@ -200,7 +202,16 @@ export const INITIAL_STATE: ReducerState = {
     startTime: 0,
     estimate: 0,
     iterations: 0,
-    nestingStatistics: INITIAL_NESTING_STATISTICS
+    nestingStatistics: INITIAL_NESTING_STATISTICS,
+    isBinSelected: false
 }
 
 export const VIEW_BOX_ATTRIBUTES: ViewBoxAttribute[] = ['x', 'y', 'width', 'height']
+
+export const ZOOM_STEP: number = 0.2
+
+export const MIN_ZOOM: number = 0.2
+
+export const MAX_ZOOM: number = 4
+
+export const PROGRESS_TRASHOLD: number = 0.02

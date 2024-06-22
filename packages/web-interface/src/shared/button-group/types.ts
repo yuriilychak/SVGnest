@@ -8,5 +8,7 @@ export interface ButtonConfig {
 
 export interface ButtonGroupProps {
     buttonsConfig: ButtonConfig[]
+    disabledButtons?: string[]
+    hiddenButtons?: string[]
     onClick(id: string): void
 }
