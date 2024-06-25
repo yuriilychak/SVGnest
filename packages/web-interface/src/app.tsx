@@ -1,4 +1,5 @@
 import { useCallback, useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import ThemeProvider from '@mui/material/styles/ThemeProvider'
 import GlobalStyles from '@mui/material/GlobalStyles'
@@ -13,6 +14,7 @@ import { GLOBAL_STYLES } from './constants'
 const App = () => {
     const [isApp, setApp] = useState(false)
     const [isDemoMode, setDemoMode] = useState(false)
+    const { t } = useTranslation()
 
     const handleUpdateScreen = useCallback((nextDemoMode: boolean = false, nextApp: boolean = false) => {
         setDemoMode(nextDemoMode)
@@ -22,8 +24,8 @@ const App = () => {
     const handleOpenApp = useCallback((nextDemoMode: boolean) => handleUpdateScreen(nextDemoMode, true), [])
 
     useEffect(() => {
-        document.title = 'SVGnest - Free and Open Source nesting for CNC machines, lasers and plasma cutters'
-    }, [])
+        document.title = t('root.title')
+    }, [t])
 
     return (
         <ThemeProvider theme={THEME}>

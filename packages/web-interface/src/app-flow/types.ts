@@ -45,9 +45,7 @@ export interface SettingsData {
 
 export interface SettingConfig {
     id: SETTING_ID
-    label: string
     type: INPUT_TYPE
-    description: string
     min: number
     max: number
     step: number

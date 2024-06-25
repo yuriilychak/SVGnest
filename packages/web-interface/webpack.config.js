@@ -1,5 +1,5 @@
-const path = require('path');
-const TerserPlugin = require('terser-webpack-plugin');
+const path = require('path')
+const TerserPlugin = require('terser-webpack-plugin')
 
 module.exports = {
     mode: 'production',
@@ -13,7 +13,7 @@ module.exports = {
         'polygon-packer': 'polygonPacker'
     },
     resolve: {
-        extensions: ['.ts', '.js', '.jsx', '.tsx']
+        extensions: ['.ts', '.js', '.jsx', '.tsx', '.json']
     },
     optimization: {
         minimize: true,
@@ -35,4 +35,4 @@ module.exports = {
             }
         ]
     }
-};
+}

@@ -1,29 +1,23 @@
-function numberEnding(number: number): string {
-    return number > 1 ? 's' : ''
-}
+import { TIME_ITEMS } from './constants'
+import { TimeItem } from './types'
 
-export function millisecondsToStr(milliseconds: number): string {
-    let temp = Math.floor(milliseconds / 1000)
-    const years = Math.floor(temp / 31536000)
-    if (years) {
-        return `${years} year${numberEnding(years)}`
-    }
-    const days = Math.floor((temp = temp % 31536000) / 86400)
-    if (days) {
-        return `${days} day${numberEnding(days)}`
-    }
-    const hours = Math.floor((temp = temp % 86400) / 3600)
-    if (hours) {
-        return `${hours} hour${numberEnding(hours)}`
-    }
-    const minutes = Math.floor((temp = temp % 3600) / 60)
-    if (minutes) {
-        return `${minutes} minute${numberEnding(minutes)}`
-    }
-    const seconds = temp % 60
-    if (seconds) {
-        return `${seconds} second${numberEnding(seconds)}`
+export function millisecondsToStr(milliseconds: number, t: (key: string, data: { [key: string]: number }) => string): string {
+    const seconds = Math.floor(milliseconds / 1000)
+    const itemCount = TIME_ITEMS.length
+    let item: TimeItem
+    let count: number = 0
+    let i: number = 0
+    let timeKey: string = 'milisecond'
+
+    for (i = 0; i < itemCount; ++i) {
+        item = TIME_ITEMS[i]
+        count = Math.floor(seconds / item.seconds)
+
+        if (count !== 0) {
+            timeKey = item.key
+            break
+        }
     }
 
-    return 'less than a second'
+    return t(`appFlow.statistics.progress.counter.${timeKey}`, { count })
 }

@@ -20,7 +20,5 @@ export interface InputProps {
 }
 
 export interface SettingInputProps extends InputProps {
-    label: string
     type: INPUT_TYPE
-    description: string
 }

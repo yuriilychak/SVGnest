@@ -26,10 +26,10 @@ import {
 } from './types'
 
 export const DESKTOP_BUTTON_CONFIG: ButtonConfig[] = [
-    getButtonConfig(BUTTON_ACTION.START, PlayArrowIcon, 'Start Nest'),
-    getButtonConfig(BUTTON_ACTION.PAUSE, PauseIcon, 'Pause Nest'),
-    getButtonConfig(BUTTON_ACTION.UPLOAD, FileUpload, 'Upload SVG'),
-    getButtonConfig(BUTTON_ACTION.DOWNLOAD, FileDownloadIcon, 'Download SVG'),
+    getButtonConfig(BUTTON_ACTION.START, PlayArrowIcon),
+    getButtonConfig(BUTTON_ACTION.PAUSE, PauseIcon),
+    getButtonConfig(BUTTON_ACTION.UPLOAD, FileUpload),
+    getButtonConfig(BUTTON_ACTION.DOWNLOAD, FileDownloadIcon),
     getButtonConfig(BUTTON_ACTION.ZOOM_IN, ZoomInIcon),
     getButtonConfig(BUTTON_ACTION.ZOOM_OUT, ZoomOutIcon),
     getButtonConfig(BUTTON_ACTION.SETTINGS, SettingsIcon),
@@ -115,79 +115,25 @@ export const DEFAULT_SETTING: SettingsData = {
 const getSettingConfig = (
     id: SETTING_ID,
     type: INPUT_TYPE,
-    label: string,
-    description: string,
     min: number = 0,
     max: number = 0,
     step: number = 0
 ): SettingConfig => ({
     id,
     type,
-    label,
-    description,
     min,
     max,
     step
 })
 
 export const SETTINGS_CONFIG: SettingConfig[] = [
-    getSettingConfig(
-        SETTING_ID.SPACING,
-        INPUT_TYPE.NUMBER,
-        'Space between parts',
-        'The space between parts in SVG units (conversion depends on exporting software but usually 1 SVG unit = 1px = 1/72 inches = 0.3527777~ mm)',
-        0,
-        16,
-        1
-    ),
-    getSettingConfig(
-        SETTING_ID.CURVE_TOLERANCE,
-        INPUT_TYPE.NUMBER,
-        'Curve tolerance',
-        'The maximum error allowed when converting Beziers and arcs to line segments. In SVG units. Smaller tolerances will take longer to compute',
-        0.1,
-        1,
-        0.01
-    ),
-    getSettingConfig(
-        SETTING_ID.ROTATIONS,
-        INPUT_TYPE.NUMBER,
-        'Part rotations',
-        'Number of rotations to consider when inserting a part. Larger rotations will take longer to compute, and may also take longer to converge to a good solution',
-        1,
-        16,
-        1
-    ),
-    getSettingConfig(
-        SETTING_ID.POPULATION_SIZE,
-        INPUT_TYPE.NUMBER,
-        'GA population',
-        'The number of solutions in the Genetic Algorithm population. Larger populations will converge slower but may result in better solutions in the long run',
-        2,
-        64,
-        1
-    ),
-    getSettingConfig(
-        SETTING_ID.MUTATION_RATE,
-        INPUT_TYPE.NUMBER,
-        'GA mutation rate',
-        'Mutation rate (in percent) at each generation of the Genetic Algorithm. A 100% mutation rate is equivalent to random sampling',
-        2,
-        64,
-        1
-    ),
-    getSettingConfig(
-        SETTING_ID.USE_HOLES,
-        INPUT_TYPE.BOOLEAN,
-        'Part in Part',
-        'Place parts in the holes of other parts. This will take much longer to compute'
-    ),
-    getSettingConfig(
-        SETTING_ID.EXPLORE_CONCAVE,
-        INPUT_TYPE.BOOLEAN,
-        'Explore concave areas',
-        'Try to solve for enclosed concave areas (eg. a jigsaw puzzle piece) This will take much longer to compute'
-    )
+    getSettingConfig(SETTING_ID.SPACING, INPUT_TYPE.NUMBER, 0, 16, 1),
+    getSettingConfig(SETTING_ID.CURVE_TOLERANCE, INPUT_TYPE.NUMBER, 0.1, 1, 0.01),
+    getSettingConfig(SETTING_ID.ROTATIONS, INPUT_TYPE.NUMBER, 1, 16, 1),
+    getSettingConfig(SETTING_ID.POPULATION_SIZE, INPUT_TYPE.NUMBER, 2, 64, 1),
+    getSettingConfig(SETTING_ID.MUTATION_RATE, INPUT_TYPE.NUMBER, 2, 64, 1),
+    getSettingConfig(SETTING_ID.USE_HOLES, INPUT_TYPE.BOOLEAN),
+    getSettingConfig(SETTING_ID.EXPLORE_CONCAVE, INPUT_TYPE.BOOLEAN)
 ]
 
 export const INITIAL_NESTING_STATISTICS: NestingStatistics = {
@@ -213,18 +159,6 @@ export const INITIAL_STATE: ReducerState = {
     messageId: MESSAGE_ID.UPLOAD,
     message: ''
 }
-
-export const ID_TO_MESSAGE = new Map<MESSAGE_ID, string>([
-    [MESSAGE_ID.UPLOAD, 'For stat nesting, please, click on "Upload SVG" button, and add your SVG file.'],
-    [
-        MESSAGE_ID.START,
-        'By default will be selected document rect. If you want to use some element as root for nesting click on it. Yo can change settings y clicking on "Settings" button. After that click on "Start Nest" button.'
-    ],
-    [
-        MESSAGE_ID.COMPLETED,
-        'Nesting complete. You can click on "Pause Nest" button and download result, or wait few more itterations for better nesting.'
-    ]
-])
 
 export const MESSAGE_ID_TO_ALERT_TYPE = new Map<MESSAGE_ID, ALERT_TYPE>([
     [MESSAGE_ID.UPLOAD, ALERT_TYPE.INFO],

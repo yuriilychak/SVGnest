@@ -1,4 +1,5 @@
 import { FC, useCallback, memo, MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
@@ -8,19 +9,30 @@ import useTheme from '@mui/material/styles/useTheme'
 
 import { ButtonGroupProps } from './types'
 
-const ButtonGroup: FC<ButtonGroupProps> = ({ buttonsConfig, onClick, disabledButtons = [], hiddenButtons = [] }) => {
+const ButtonGroup: FC<ButtonGroupProps> = ({
+    buttonsConfig,
+    onClick,
+    disabledButtons = [],
+    hiddenButtons = [],
+    localePrefix
+}) => {
     const handleClick = useCallback((event: MouseEvent) => onClick((event.target as HTMLButtonElement).id), [])
     const theme = useTheme()
     const isMobile: boolean = !useMediaQuery(theme.breakpoints.up('sm'))
+    const { t, i18n } = useTranslation()
     let disabled: boolean = false
+    let labelKey: string = ''
+    let label: string = ''
 
     return (
         <Stack direction='row' gap={{ xs: 1, sm: 2 }}>
-            {buttonsConfig.map(({ id, label, Icon }) => {
+            {buttonsConfig.map(({ id, Icon }) => {
                 if (hiddenButtons.includes(id)) {
                     return null
                 }
 
+                labelKey = `${localePrefix}.${id}.label`
+                label = i18n.exists(labelKey) ? t(labelKey) : ''
                 disabled = disabledButtons.includes(id)
 
                 return !isMobile && label ? (
