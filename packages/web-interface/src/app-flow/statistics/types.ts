@@ -8,4 +8,13 @@ export interface StatisticsProps {
     isWorking: boolean
 }
 
-export type TimeItem = { key: string; seconds: number }
+export enum TIME_KEY {
+    YEAR = 'year',
+    DAY = 'day',
+    HOUR = 'hour',
+    MINUTE = 'minute',
+    SECOND = 'second',
+    MILISECOND = 'milisecond'
+}
+
+export type TimeItem = { key: TIME_KEY; seconds: number }
