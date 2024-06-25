@@ -59,6 +59,19 @@ export type NestingStatistics = {
     total: number
 }
 
+export enum ALERT_TYPE {
+    INFO = 'info',
+    SUCCESS = 'success',
+    ERROR = 'error'
+}
+
+export enum MESSAGE_ID {
+    START = 'start',
+    UPLOAD = 'upload',
+    COMPLETED = 'completed',
+    ERROR = 'error'
+}
+
 export interface ReducerState {
     svgSrc: string
     isWorking: boolean
@@ -73,6 +86,8 @@ export interface ReducerState {
     iterations: number
     nestingStatistics: NestingStatistics
     isBinSelected: boolean
+    messageId: MESSAGE_ID
+    message: string
 }
 
 export enum REDUCER_ACTION {
@@ -86,7 +101,8 @@ export enum REDUCER_ACTION {
     START_NESTING,
     PAUSE_NESTING,
     UPDATE_STATISTICS,
-    SELECT_BIN
+    SELECT_BIN,
+    THROW_ERROR
 }
 
 export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState

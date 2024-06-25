@@ -5,18 +5,22 @@ export interface TypeConfig {
     styles: {
         root: object
         helpText: object
-        input: object
     }
 }
 
-export interface SettingInputProps {
-    label: string
-    id: SETTING_ID
-    type: INPUT_TYPE
-    description: string
-    value: number | boolean
+type InputValue = number | boolean
+
+export interface InputProps {
+    onChange(nextValue: InputValue, id: SETTING_ID): void
+    value: InputValue
     min: number
     max: number
     step: number
-    onChange(value: number | boolean, id: SETTING_ID): void
+    id: SETTING_ID
+}
+
+export interface SettingInputProps extends InputProps {
+    label: string
+    type: INPUT_TYPE
+    description: string
 }

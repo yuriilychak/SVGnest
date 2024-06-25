@@ -1,48 +1,34 @@
-import { FC, memo, useCallback, ChangeEvent, useMemo, ChangeEventHandler } from 'react'
+import { FC, memo, useMemo } from 'react'
 
 import FormControlLabel from '@mui/material/FormControlLabel'
-import Checkbox from '@mui/material/Checkbox'
 import FormHelperText from '@mui/material/FormHelperText'
 import FormGroup from '@mui/material/FormGroup'
-import Slider from '@mui/material/Slider'
 
 import { INPUT_TYPE } from '../types'
-import { SettingInputProps } from './types'
+import { InputProps, SettingInputProps } from './types'
 import { TYPE_CONFIG } from './constants'
+import { CheckboxInput } from './checkbox-input'
+import { NumberInput } from './number-input'
+
+const TYPE_TO_COMPONENT = new Map<INPUT_TYPE, FC<InputProps>>([
+    [INPUT_TYPE.BOOLEAN, CheckboxInput],
+    [INPUT_TYPE.NUMBER, NumberInput]
+])
 
 const SettingInput: FC<SettingInputProps> = ({ label, id, type, description, value, onChange, min, max, step }) => {
-    const marks = useMemo(() => [min, max].map(item => ({ value: item, label: item.toString() })), [min, max])
-    const { labelPlacement, styles } = useMemo(() => TYPE_CONFIG.get(type), [type])
-
-    const handleChange = useCallback(
-        (event: ChangeEvent<Element> | Event, sliderValue: number) => {
-            const element: HTMLInputElement = event.target as HTMLInputElement
-            const nextValue = type === INPUT_TYPE.BOOLEAN ? element.checked : sliderValue
-            onChange(nextValue, id)
-        },
-        [onChange, id, type]
+    const { labelPlacement, styles, Component } = useMemo(
+        () => ({ ...TYPE_CONFIG.get(type), Component: TYPE_TO_COMPONENT.get(type) }),
+        [type]
     )
-
-    const control =
-        type === INPUT_TYPE.BOOLEAN ? (
-            <Checkbox checked={value as boolean} id={id} size='small' onChange={handleChange as ChangeEventHandler} />
-        ) : (
-            <Slider
-                id={id}
-                min={min}
-                max={max}
-                marks={marks}
-                step={step}
-                value={value as number}
-                onChange={handleChange}
-                sx={styles.input}
-                valueLabelDisplay='auto'
-            />
-        )
 
     return (
         <FormGroup>
-            <FormControlLabel sx={styles.root} labelPlacement={labelPlacement} control={control} label={label} />
+            <FormControlLabel
+                sx={styles.root}
+                labelPlacement={labelPlacement}
+                control={<Component id={id} min={min} max={max} step={step} value={value} onChange={onChange} />}
+                label={label}
+            />
             <FormHelperText sx={styles.helpText}>{description}</FormHelperText>
         </FormGroup>
     )

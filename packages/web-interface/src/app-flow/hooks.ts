@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import { ChangeEvent, useCallback, useEffect, useMemo, useReducer, useRef, MouseEventHandler } from 'react'
 
 import { INITIAL_STATE, VIEW_BOX_ATTRIBUTES } from './constants'
 import reducer from './reducer'
@@ -23,7 +23,9 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         nestingStatistics,
         estimate,
         iterations,
-        isBinSelected
+        isBinSelected,
+        message,
+        messageId
     } = state
 
     const handleDispatch = useCallback((type: REDUCER_ACTION, payload?: unknown) => dispatch({ type, payload }), [dispatch])
@@ -33,35 +35,21 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         [handleDispatch]
     )
 
-    const handleBinClick = useCallback(
-        (event: MouseEvent) => {
+    const handleUpdateBin = useCallback(
+        (element: SVGElement) => {
             if (currentBin.current) {
                 currentBin.current.setAttribute('id', null)
             }
 
-            currentBin.current = event.target as SVGElement
+            currentBin.current = element
             currentBin.current.setAttribute('id', PREDEFINED_ID.SELECTED_ELEMENT)
             svgNest.setBin(currentBin.current)
             handleDispatch(REDUCER_ACTION.SELECT_BIN)
         },
-        [svgNest, handleDispatch]
+        [handleDispatch, svgNest]
     )
 
-    const handleAttachSvgListeners = useCallback(
-        (svg: SVGElement) => {
-            const nodeCount = svg.childNodes.length
-            let node: SVGElement
-            let i: number = 0
-            // attach event listeners
-            for (i = 0; i < nodeCount; ++i) {
-                node = svg.childNodes[i] as SVGElement
-                if (node.nodeType == 1) {
-                    node.onclick = handleBinClick
-                }
-            }
-        },
-        [handleBinClick]
-    )
+    const handleBinClick = useCallback((event: MouseEvent) => handleUpdateBin(event.target as SVGElement), [handleUpdateBin])
 
     useEffect(() => {
         return () => svgNest.stop()
@@ -72,7 +60,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
             try {
                 const svg = svgNest.parseSvg(svgSrc)
                 const wholeSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement
-                const rect = document.createElementNS(wholeSVG.namespaceURI, 'rect')
+                const rect = document.createElementNS(wholeSVG.namespaceURI, 'rect') as SVGElement
                 // Copy relevant scaling info
                 wholeSVG.setAttribute('width', svg.getAttribute('width'))
                 wholeSVG.setAttribute('height', svg.getAttribute('height'))
@@ -85,16 +73,26 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 })
                 rect.setAttribute('id', PREDEFINED_ID.BACKGROUND_RECT)
                 wholeSVG.appendChild(rect)
+                handleUpdateBin(rect)
                 svgWrapper.current.innerHTML = ''
                 svgWrapper.current.appendChild(wholeSVG) // As a default bin in background
                 svgWrapper.current.appendChild(svg)
 
-                handleAttachSvgListeners(svg)
+                const nodeCount = svg.childNodes.length
+                let node: SVGElement
+                let i: number = 0
+                // attach event listeners
+                for (i = 0; i < nodeCount; ++i) {
+                    node = svg.childNodes[i] as SVGElement
+                    if (node.nodeType == 1) {
+                        node.onclick = handleBinClick
+                    }
+                }
             } catch (error) {
-                throw error
+                handleDispatch(REDUCER_ACTION.THROW_ERROR, error)
             }
         }
-    }, [svgNest, svgSrc, handleAttachSvgListeners])
+    }, [svgNest, svgSrc, handleBinClick, handleUpdateBin])
 
     useEffect(() => {
         if (fileReader !== null) {
@@ -197,6 +195,8 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         iterations,
         settings,
         disabledButtons,
-        hiddenButtons
+        hiddenButtons,
+        message,
+        messageId
     }
 }

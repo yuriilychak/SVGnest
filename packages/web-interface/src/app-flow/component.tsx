@@ -2,10 +2,11 @@ import { FC } from 'react'
 
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
+import Alert from '@mui/material/Alert'
 
 import { ButtonGroup, SharedDrawer } from '../shared'
-import { DESKTOP_BUTTON_CONFIG, SETTINGS_CONFIG, STYLES } from './constants'
-import { AppFlowProps, BUTTON_ACTION, PREDEFINED_ID } from './types'
+import { DESKTOP_BUTTON_CONFIG, ID_TO_MESSAGE, MESSAGE_ID_TO_ALERT_TYPE, SETTINGS_CONFIG, STYLES } from './constants'
+import { ALERT_TYPE, AppFlowProps, BUTTON_ACTION, MESSAGE_ID, PREDEFINED_ID } from './types'
 import { SettingInput } from './setting-input'
 import { Statistics } from './statistics'
 import useAppFlow from './hooks'
@@ -26,7 +27,9 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
         nestingStatistics,
         iterations,
         disabledButtons,
-        hiddenButtons
+        hiddenButtons,
+        message,
+        messageId
     } = useAppFlow(onClose, isDemoMode)
 
     return (
@@ -45,6 +48,9 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
                     <Box ref={svgWrapper} sx={zoomStyles} id={PREDEFINED_ID.SVG_WRAPPER} />
                 </Box>
             </Box>
+            <Alert sx={STYLES.alert} severity={MESSAGE_ID_TO_ALERT_TYPE.get(messageId)}>
+                {ID_TO_MESSAGE.has(messageId) ? ID_TO_MESSAGE.get(messageId) : message}
+            </Alert>
             <Stack
                 direction={{ xs: 'column', lg: 'row-reverse' }}
                 gap={1}

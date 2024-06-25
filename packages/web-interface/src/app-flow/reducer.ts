@@ -1,4 +1,6 @@
 import {
+    ALERT_TYPE,
+    MESSAGE_ID,
     NestingStatistics,
     REDUCER_ACTION,
     ReducerAction,
@@ -52,6 +54,8 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
 
             return {
                 ...prevState,
+                alertType: ALERT_TYPE.INFO,
+                messageId: MESSAGE_ID.START,
                 svgSrc,
                 isBinSelected: false,
                 isWorking: false,
@@ -115,6 +119,7 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
         (prevState, nestingStatistics: NestingStatistics) => ({
             ...prevState,
             nestingStatistics,
+            messageId: MESSAGE_ID.COMPLETED,
             iterations: ++prevState.iterations
         })
     ],
@@ -126,6 +131,14 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
 
             return { ...prevState, isWorking: false }
         }
+    ],
+    [
+        REDUCER_ACTION.THROW_ERROR,
+        (prevState, message: string) => ({
+            ...prevState,
+            messageId: MESSAGE_ID.ERROR,
+            message
+        })
     ]
 ])
 

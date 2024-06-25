@@ -12,8 +12,10 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 
 import { ButtonConfig, getButtonConfig } from '../shared'
 import {
+    ALERT_TYPE,
     BUTTON_ACTION,
     INPUT_TYPE,
+    MESSAGE_ID,
     NestingStatistics,
     PREDEFINED_ID,
     ReducerState,
@@ -43,6 +45,10 @@ export const STYLES: { [key: string]: object } = {
         boxSizing: 'border-box',
         gap: 1,
         alignItems: { xs: 'center', sm: 'start' }
+    },
+    alert: {
+        width: '100%',
+        boxSizing: 'border-box'
     },
     content: {
         flex: 1,
@@ -203,8 +209,29 @@ export const INITIAL_STATE: ReducerState = {
     estimate: 0,
     iterations: 0,
     nestingStatistics: INITIAL_NESTING_STATISTICS,
-    isBinSelected: false
+    isBinSelected: false,
+    messageId: MESSAGE_ID.UPLOAD,
+    message: ''
 }
+
+export const ID_TO_MESSAGE = new Map<MESSAGE_ID, string>([
+    [MESSAGE_ID.UPLOAD, 'For stat nesting, please, click on "Upload SVG" button, and add your SVG file.'],
+    [
+        MESSAGE_ID.START,
+        'By default will be selected document rect. If you want to use some element as root for nesting click on it. Yo can change settings y clicking on "Settings" button. After that click on "Start Nest" button.'
+    ],
+    [
+        MESSAGE_ID.COMPLETED,
+        'Nesting complete. You can click on "Pause Nest" button and download result, or wait few more itterations for better nesting.'
+    ]
+])
+
+export const MESSAGE_ID_TO_ALERT_TYPE = new Map<MESSAGE_ID, ALERT_TYPE>([
+    [MESSAGE_ID.UPLOAD, ALERT_TYPE.INFO],
+    [MESSAGE_ID.START, ALERT_TYPE.INFO],
+    [MESSAGE_ID.ERROR, ALERT_TYPE.ERROR],
+    [MESSAGE_ID.COMPLETED, ALERT_TYPE.SUCCESS]
+])
 
 export const VIEW_BOX_ATTRIBUTES: ViewBoxAttribute[] = ['x', 'y', 'width', 'height']
 
