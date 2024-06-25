@@ -241,8 +241,6 @@ export default class SvgNest {
             this.configuration.exploreConcave = Boolean(configuration.exploreConcave);
         }
 
-        this.svgParser.setTolerance(this.configuration.curveTolerance);
-
         this.best = null;
         this.nfpCache = {};
         this.binPolygon = null;
@@ -271,7 +269,7 @@ export default class SvgNest {
 
         offsetTree(this.tree, 0.5 * this.configuration.spacing, this.polygonOffset.bind(this));
 
-        this.binPolygon = this.svgParser.polygonify(this.bin);
+        this.binPolygon = SvgParser.polygonify(this.bin, this.configuration.curveTolerance);
         this.binPolygon = this.cleanPolygon(this.binPolygon);
 
         if (!this.binPolygon || this.binPolygon.length < 3) {
@@ -337,7 +335,7 @@ export default class SvgNest {
             start = node[0];
             end = node[node.length - 1];
 
-            if (start == end || almostEqual(start.x, end.x) && almostEqual(start.y, end.y)) {
+            if (start == end || (almostEqual(start.x, end.x) && almostEqual(start.y, end.y))) {
                 node.pop();
             }
 
@@ -549,7 +547,7 @@ export default class SvgNest {
         let poly;
 
         for (i = 0; i < numChildren; ++i) {
-            poly = this.svgParser.polygonify(paths[i]);
+            poly = SvgParser.polygonify(paths[i], this.configuration.curveTolerance);
             poly = this.cleanPolygon(poly);
 
             // todo: warn user if poly could not be processed and is excluded from the nest
@@ -574,7 +572,10 @@ export default class SvgNest {
 
         const p = this.svgToClipper(polygon);
         const miterLimit = 2;
-        const co = new ClipperLib.ClipperOffset(miterLimit, this.configuration.curveTolerance * this.configuration.clipperScale);
+        const co = new ClipperLib.ClipperOffset(
+            miterLimit,
+            this.configuration.curveTolerance * this.configuration.clipperScale
+        );
         co.AddPath(p, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
 
         const newPaths = new ClipperLib.Paths();

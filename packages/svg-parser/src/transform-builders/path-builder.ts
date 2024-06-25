@@ -78,7 +78,7 @@ export default class PathBuilder extends BasicTransformBuilder {
 
         for (i = 0; i < segmentCount; ++i) {
             segment = segmentList.getItem(i);
-            command = segment.pathSegTypeAsLetter as PATH_TAG;
+            command = segment.pathSegTypeAsLetter;
             sgementData = this.getNewSegment(command, segment, prevPoint);
 
             if (sgementData.type !== PATH_SEGMENT_TYPE.UNKNOWN) {
@@ -98,9 +98,9 @@ export default class PathBuilder extends BasicTransformBuilder {
             for (j = 0; j < pointCount; ++i) {
                 keys = PathBuilder.SEGMENT_KEYS[j];
                 transformed =
-                    keys[0] in segment && keys[1] in segment ?
-                        this.transform.calc((segment as SVGPathCubicSeg)[keys[0]], (segment as SVGPathCubicSeg)[keys[1]]) :
-                        { x: 0, y: 0 };
+                    keys[0] in segment && keys[1] in segment
+                        ? this.transform.calc((segment as SVGPathCubicSeg)[keys[0]], (segment as SVGPathCubicSeg)[keys[1]])
+                        : { x: 0, y: 0 };
                 transPoints[j].x = transformed.x;
                 transPoints[j].y = transformed.y;
             }
@@ -238,7 +238,7 @@ export default class PathBuilder extends BasicTransformBuilder {
 
         for (i = 0; i < segmentCount; ++i) {
             segment = segmentList.getItem(i);
-            command = segment.pathSegTypeAsLetter as PATH_TAG;
+            command = segment.pathSegTypeAsLetter;
 
             if (PathBuilder.POSITION_COMMANDS.includes(command)) {
                 if (segment instanceof SVGPoint) {

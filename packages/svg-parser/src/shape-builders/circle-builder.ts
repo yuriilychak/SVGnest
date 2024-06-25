@@ -8,8 +8,9 @@ export default class CircleBuilder extends BasicShapeBuilder {
         const cx: number = getFloatAtrribute(element, 'cx');
         const cy: number = getFloatAtrribute(element, 'cy');
         // num is the smallest number of segments required to approximate the circle to the given tolerance
-        const num: number = Math.max(Math.ceil(2 * Math.PI / Math.acos(1 - this.tolerance / radius)), 3);
-        const step: number = 2 * Math.PI / num;
+        const diameter: number = 2 * Math.PI;
+        const num: number = Math.max(Math.ceil(diameter / Math.acos(1 - this.tolerance / radius)), 3);
+        const step: number = diameter / num;
         let i: number = 0;
         let theta: number = 0;
 

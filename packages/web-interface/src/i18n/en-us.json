@@ -20,7 +20,7 @@
     "splashScreen.buttons.demo.label": "Demo",
     "splashScreen.buttons.start.label": "Start",
     "splashScreen.buttons.github.label": "Github",
-    "splashScreen.buttons.faq.label": "FAQ",
+    "splashScreen.buttons.openFaq.label": "FAQ",
     "appFlow.buttons.start.label": "Start Nest",
     "appFlow.buttons.pause.label": "Pause Nest",
     "appFlow.buttons.upload.label": "Upload SVG",

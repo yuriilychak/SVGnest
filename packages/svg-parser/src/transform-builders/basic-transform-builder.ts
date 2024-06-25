@@ -24,7 +24,7 @@ export default class BasicTransformBuilder {
         this.#svg = svg;
         this.#svgRoot = svgRoot;
         this.#scale = Math.sqrt(transforms[0] * transforms[0] + transforms[2] * transforms[2]);
-        this.#rotate = Math.atan2(transforms[1], transforms[3]) * 180 / Math.PI;
+        this.#rotate = (Math.atan2(transforms[1], transforms[3]) * 180) / Math.PI;
         this.#element = element;
         this.#id = element.getAttribute('id');
         this.#className = element.getAttribute('class');

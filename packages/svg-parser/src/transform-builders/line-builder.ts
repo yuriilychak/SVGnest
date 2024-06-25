@@ -5,8 +5,14 @@ import BasicTransformBuilder from './basic-transform-builder';
 
 export default class LineBuilder extends BasicTransformBuilder {
     public getResult(): SVGElement {
-        const point1: IPoint = this.transform.calc(getFloatAtrribute(this.element, 'x1'), getFloatAtrribute(this.element, 'y1'));
-        const point2: IPoint = this.transform.calc(getFloatAtrribute(this.element, 'x2'), getFloatAtrribute(this.element, 'y2'));
+        const point1: IPoint = this.transform.calc(
+            getFloatAtrribute(this.element, 'x1'),
+            getFloatAtrribute(this.element, 'y1')
+        );
+        const point2: IPoint = this.transform.calc(
+            getFloatAtrribute(this.element, 'x2'),
+            getFloatAtrribute(this.element, 'y2')
+        );
 
         this.element.setAttribute('x1', point1.x.toString());
         this.element.setAttribute('y1', point1.y.toString());

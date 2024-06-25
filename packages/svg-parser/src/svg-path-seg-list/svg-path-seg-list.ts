@@ -16,7 +16,7 @@ export default class SVGPathSegList {
 
         // Use a MutationObserver to catch changes to the path's "d" attribute.
         this.#observerConfig = { attributes: true, attributeFilter: ['d'] };
-        this.#observer = new MutationObserver(this.updateListFromPathMutations.bind(this));
+        this.#observer = new MutationObserver(this.updateListFromPathMutations.bind(this) as MutationCallback);
         this.#observer.observe(this.#pathElement, this.#observerConfig);
     }
 

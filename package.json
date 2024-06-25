@@ -8,7 +8,7 @@
     ],
     "scripts": {
         "test": "lerna run test",
-        "build": "lerna run build --concurrency 4",
+        "build": "lerna run build",
         "lint": "lerna run lint",
         "lint:fix": "lerna run lint:fix"
     },
@@ -50,7 +50,6 @@
         "prettier-eslint": "^16.3.0",
         "terser-webpack-plugin": "^5.3.10",
         "ts-loader": "^9.5.1",
-        "turbo": "^1.13.3",
         "typescript": "^5.4.5",
         "webpack": "^5.90.0",
         "webpack-cli": "^5.1.4",
@@ -59,7 +58,6 @@
     "dependencies": {
         "@emotion/react": "^11.11.4",
         "@emotion/styled": "^11.11.5",
-        "@fontsource/roboto": "^5.0.13",
         "@mui/icons-material": "^5.15.20",
         "@mui/material": "^5.15.20",
         "i18next": "^23.11.5",

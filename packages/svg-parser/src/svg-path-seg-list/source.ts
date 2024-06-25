@@ -76,7 +76,7 @@ export default class Source {
         // Check for remaining coordinates in the current command.
         const checkCommands: string[] = ['+', '-', '.'];
         if (
-            (checkCommands.includes(lookahead) || lookahead >= '0' && lookahead <= '9') &&
+            (checkCommands.includes(lookahead) || (lookahead >= '0' && lookahead <= '9')) &&
             previousCommand !== PATH_SEGMENT_TYPE.CLOSEPATH
         ) {
             switch (previousCommand) {
@@ -127,7 +127,7 @@ export default class Source {
             sign = -1;
         }
 
-        if (this.#currentIndex === this.#endIndex || !this.isCurrentCraNumeric && this.getCurrentChar() !== '.') {
+        if (this.#currentIndex === this.#endIndex || (!this.isCurrentCraNumeric && this.getCurrentChar() !== '.')) {
             // The first character of a number must be one of [0-9+-.].
             return 0;
         }
@@ -290,9 +290,9 @@ export default class Source {
                 return [x, y, x1, y1];
             case PATH_SEGMENT_TYPE.ARC_ABS:
             case PATH_SEGMENT_TYPE.ARC_REL:
-                [x1, y1, arcAngle] = this.parseNumbers(3)
-                ;[arcLarge, arcSweep] = this.parseArcFlags(2)
-                ;[x, y] = this.parseNumbers(2);
+                [x1, y1, arcAngle] = this.parseNumbers(3);
+                [arcLarge, arcSweep] = this.parseArcFlags(2);
+                [x, y] = this.parseNumbers(2);
 
                 return [x, y, x1, y1, arcAngle, arcLarge, arcSweep];
             default:

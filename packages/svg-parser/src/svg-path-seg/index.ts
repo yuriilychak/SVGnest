@@ -24,7 +24,7 @@ export type SVGPathSeg =
     | SVGPathCubicSmoothSeg
     | SVGPathHorizontalSeg
     | SVGPathVerticalSeg
-    | SVGPathPointSeg
+    | SVGPathPointSeg;
 
 export const TYPE_TO_SEGMENT = new Map<PATH_SEGMENT_TYPE, typeof SVGPathBaseSeg>([
     [PATH_SEGMENT_TYPE.LINETO_ABS, SVGPathPointSeg],

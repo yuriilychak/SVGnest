@@ -12,7 +12,7 @@ export default class SVGPathBaseSeg {
 
     public constructor(type: PATH_SEGMENT_TYPE, owningPathSegList?: unknown) {
         this.#pathSegType = type;
-        this.#pathSegTypeAsLetter = TYPE_TO_TAG.get(type) as PATH_TAG;
+        this.#pathSegTypeAsLetter = TYPE_TO_TAG.get(type);
         this.#owningPathSegList = owningPathSegList;
     }
 

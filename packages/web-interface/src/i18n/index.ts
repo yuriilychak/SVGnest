@@ -7,13 +7,14 @@ import enUsLocales from './en-us.json';
 i18n.use(LanguageDetector)
     .use(initReactI18next)
     .init({
-        debug: true,
+        debug: false,
         fallbackLng: 'en-US',
         resources: {
-            'en-US': {
-                translation: enUsLocales
-            }
+            'en-US': { translation: enUsLocales }
         }
+    })
+    .catch(error => {
+        throw error;
     });
 
 export default i18n;
