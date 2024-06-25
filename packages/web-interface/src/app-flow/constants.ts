@@ -1,16 +1,16 @@
-//@ts-ignore
-import { SvgNest } from 'polygon-packer'
+// @ts-expect-error no ts definition
+import { SvgNest } from 'polygon-packer';
 
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import PauseIcon from '@mui/icons-material/Pause'
-import FileDownloadIcon from '@mui/icons-material/FileDownload'
-import SettingsIcon from '@mui/icons-material/Settings'
-import FileUpload from '@mui/icons-material/FileUpload'
-import ZoomInIcon from '@mui/icons-material/ZoomIn'
-import ZoomOutIcon from '@mui/icons-material/ZoomOut'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SettingsIcon from '@mui/icons-material/Settings';
+import FileUpload from '@mui/icons-material/FileUpload';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
+import ZoomOutIcon from '@mui/icons-material/ZoomOut';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-import { ButtonConfig, getButtonConfig } from '../shared'
+import { ButtonConfig, getButtonConfig } from '../shared';
 import {
     ALERT_TYPE,
     BUTTON_ACTION,
@@ -23,7 +23,7 @@ import {
     SettingConfig,
     SettingsData,
     ViewBoxAttribute
-} from './types'
+} from './types';
 
 export const DESKTOP_BUTTON_CONFIG: ButtonConfig[] = [
     getButtonConfig(BUTTON_ACTION.START, PlayArrowIcon),
@@ -34,7 +34,7 @@ export const DESKTOP_BUTTON_CONFIG: ButtonConfig[] = [
     getButtonConfig(BUTTON_ACTION.ZOOM_OUT, ZoomOutIcon),
     getButtonConfig(BUTTON_ACTION.SETTINGS, SettingsIcon),
     getButtonConfig(BUTTON_ACTION.BACK, ArrowBackIcon)
-]
+];
 
 export const STYLES: { [key: string]: object } = {
     root: {
@@ -66,12 +66,12 @@ export const STYLES: { [key: string]: object } = {
         overflow: 'auto'
     },
     svgContent: {
-        boxSizing: 'border-box',
-        position: 'relative',
+        'boxSizing': 'border-box',
+        'position': 'relative',
         '& svg': {
-            width: '100%',
-            height: 'auto',
-            position: 'absolute',
+            'width': '100%',
+            'height': 'auto',
+            'position': 'absolute',
             '& *': {
                 fill: '#fff !important',
                 fillOpacity: '0 !important',
@@ -100,7 +100,7 @@ export const STYLES: { [key: string]: object } = {
             strokeWidth: '3px !important'
         }
     }
-}
+};
 
 export const DEFAULT_SETTING: SettingsData = {
     [SETTING_ID.CURVE_TOLERANCE]: 0.3,
@@ -110,7 +110,7 @@ export const DEFAULT_SETTING: SettingsData = {
     [SETTING_ID.MUTATION_RATE]: 10,
     [SETTING_ID.USE_HOLES]: false,
     [SETTING_ID.EXPLORE_CONCAVE]: false
-}
+};
 
 const getSettingConfig = (
     id: SETTING_ID,
@@ -124,7 +124,7 @@ const getSettingConfig = (
     min,
     max,
     step
-})
+});
 
 export const SETTINGS_CONFIG: SettingConfig[] = [
     getSettingConfig(SETTING_ID.SPACING, INPUT_TYPE.NUMBER, 0, 16, 1),
@@ -134,13 +134,13 @@ export const SETTINGS_CONFIG: SettingConfig[] = [
     getSettingConfig(SETTING_ID.MUTATION_RATE, INPUT_TYPE.NUMBER, 2, 64, 1),
     getSettingConfig(SETTING_ID.USE_HOLES, INPUT_TYPE.BOOLEAN),
     getSettingConfig(SETTING_ID.EXPLORE_CONCAVE, INPUT_TYPE.BOOLEAN)
-]
+];
 
 export const INITIAL_NESTING_STATISTICS: NestingStatistics = {
     efficiency: 0,
     total: 0,
     placed: 0
-}
+};
 
 export const INITIAL_STATE: ReducerState = {
     svgSrc: '',
@@ -158,21 +158,21 @@ export const INITIAL_STATE: ReducerState = {
     isBinSelected: false,
     messageId: MESSAGE_ID.UPLOAD,
     message: ''
-}
+};
 
 export const MESSAGE_ID_TO_ALERT_TYPE = new Map<MESSAGE_ID, ALERT_TYPE>([
     [MESSAGE_ID.UPLOAD, ALERT_TYPE.INFO],
     [MESSAGE_ID.START, ALERT_TYPE.INFO],
     [MESSAGE_ID.ERROR, ALERT_TYPE.ERROR],
     [MESSAGE_ID.COMPLETED, ALERT_TYPE.SUCCESS]
-])
+]);
 
-export const VIEW_BOX_ATTRIBUTES: ViewBoxAttribute[] = ['x', 'y', 'width', 'height']
+export const VIEW_BOX_ATTRIBUTES: ViewBoxAttribute[] = ['x', 'y', 'width', 'height'];
 
-export const ZOOM_STEP: number = 0.2
+export const ZOOM_STEP: number = 0.2;
 
-export const MIN_ZOOM: number = 0.2
+export const MIN_ZOOM: number = 0.2;
 
-export const MAX_ZOOM: number = 4
+export const MAX_ZOOM: number = 4;
 
-export const PROGRESS_TRASHOLD: number = 0.02
+export const PROGRESS_TRASHOLD: number = 0.02;

@@ -4,7 +4,9 @@
     "main": "src/index.ts",
     "scripts": {
         "build": "webpack",
-        "test": "jest"
+        "test": "jest",
+        "lint": "eslint src/**/*.ts src/**/*.tsx",
+        "lint:fix": "eslint src/**/*.ts src/**/*.tsx --fix"
     },
     "dependencies": {
         "polygon-packer": "^1.0.0"

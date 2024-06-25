@@ -1,5 +1,5 @@
-//@ts-ignore
-import { SvgNest } from 'polygon-packer'
+// @ts-expect-error no ts definition
+import { SvgNest } from 'polygon-packer';
 
 export enum BUTTON_ACTION {
     START = 'start',
@@ -29,32 +29,32 @@ export enum INPUT_TYPE {
 }
 
 export interface AppFlowProps {
-    isDemoMode: boolean
-    onClose(): void
+    isDemoMode: boolean;
+    onClose(): void;
 }
 
 export interface SettingsData {
-    [SETTING_ID.CURVE_TOLERANCE]: number
-    [SETTING_ID.SPACING]: number
-    [SETTING_ID.ROTATIONS]: number
-    [SETTING_ID.POPULATION_SIZE]: number
-    [SETTING_ID.MUTATION_RATE]: number
-    [SETTING_ID.USE_HOLES]: boolean
-    [SETTING_ID.EXPLORE_CONCAVE]: boolean
+    [SETTING_ID.CURVE_TOLERANCE]: number;
+    [SETTING_ID.SPACING]: number;
+    [SETTING_ID.ROTATIONS]: number;
+    [SETTING_ID.POPULATION_SIZE]: number;
+    [SETTING_ID.MUTATION_RATE]: number;
+    [SETTING_ID.USE_HOLES]: boolean;
+    [SETTING_ID.EXPLORE_CONCAVE]: boolean;
 }
 
 export interface SettingConfig {
-    id: SETTING_ID
-    type: INPUT_TYPE
-    min: number
-    max: number
-    step: number
+    id: SETTING_ID;
+    type: INPUT_TYPE;
+    min: number;
+    max: number;
+    step: number;
 }
 
 export type NestingStatistics = {
-    efficiency: number
-    placed: number
-    total: number
+    efficiency: number;
+    placed: number;
+    total: number;
 }
 
 export enum ALERT_TYPE {
@@ -71,21 +71,21 @@ export enum MESSAGE_ID {
 }
 
 export interface ReducerState {
-    svgSrc: string
-    isWorking: boolean
-    settings: SettingsData
-    isDrawerOpen: boolean
-    svgNest: SvgNest
-    fileReader: FileReader
-    scale: number
-    progress: number
-    startTime: number
-    estimate: number
-    iterations: number
-    nestingStatistics: NestingStatistics
-    isBinSelected: boolean
-    messageId: MESSAGE_ID
-    message: string
+    svgSrc: string;
+    isWorking: boolean;
+    settings: SettingsData;
+    isDrawerOpen: boolean;
+    svgNest: SvgNest;
+    fileReader: FileReader;
+    scale: number;
+    progress: number;
+    startTime: number;
+    estimate: number;
+    iterations: number;
+    nestingStatistics: NestingStatistics;
+    isBinSelected: boolean;
+    messageId: MESSAGE_ID;
+    message: string;
 }
 
 export enum REDUCER_ACTION {
@@ -106,8 +106,8 @@ export enum REDUCER_ACTION {
 export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState
 
 export type ReducerAction = {
-    type: REDUCER_ACTION
-    payload: unknown
+    type: REDUCER_ACTION;
+    payload: unknown;
 }
 
 export enum PREDEFINED_ID {

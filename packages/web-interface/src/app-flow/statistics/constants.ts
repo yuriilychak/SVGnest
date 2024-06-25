@@ -1,4 +1,4 @@
-import { TIME_KEY, TimeItem } from './types'
+import { TIME_KEY, TimeItem } from './types';
 
 export const STYLES = {
     progressItem: { minWidth: { xs: 158, sm: 200 }, maxWidth: { xs: 158, sm: 200 }, overflow: 'hidden', gap: 1 },
@@ -14,7 +14,7 @@ export const STYLES = {
         justifyContent: 'center'
     },
     progressContent: { overflow: 'hidden' }
-}
+};
 
 export const TIME_ITEMS: TimeItem[] = [
     { key: TIME_KEY.YEAR, seconds: 31536000 },
@@ -22,4 +22,4 @@ export const TIME_ITEMS: TimeItem[] = [
     { key: TIME_KEY.HOUR, seconds: 3600 },
     { key: TIME_KEY.MINUTE, seconds: 60 },
     { key: TIME_KEY.SECOND, seconds: 1 }
-]
+];

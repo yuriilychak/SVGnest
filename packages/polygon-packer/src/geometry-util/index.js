@@ -1,1 +1,1 @@
-export * from "./geometry-util";
+export * from './geometry-util';

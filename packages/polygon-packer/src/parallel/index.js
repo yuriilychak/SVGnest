@@ -1,1 +1,1 @@
-export { default as Parallel } from "./parallel";
+export { default as Parallel } from './parallel';

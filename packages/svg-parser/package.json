@@ -4,7 +4,9 @@
     "main": "dist/svg-parser.js",
     "scripts": {
         "build": "webpack",
-        "test": "jest"
+        "test": "jest",
+        "lint": "eslint src/**/*.ts",
+        "lint:fix": "eslint src/**/*.ts --fix"
     },
     "description": "Polygon packing algorythm",
     "devDependencies": {},

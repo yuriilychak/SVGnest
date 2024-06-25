@@ -1,3 +1,3 @@
-import { SvgIconComponent } from '@mui/icons-material'
+import { SvgIconComponent } from '@mui/icons-material';
 
-export const getButtonConfig = (id: string, Icon: SvgIconComponent) => ({ id, Icon })
+export const getButtonConfig = (id: string, Icon: SvgIconComponent) => ({ id, Icon });

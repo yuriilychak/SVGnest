@@ -7,8 +7,10 @@
         "packages/*"
     ],
     "scripts": {
-        "test": "echo $PATH",
-        "build": "lerna run build --concurrency 4"
+        "test": "lerna run test",
+        "build": "lerna run build --concurrency 4",
+        "lint": "lerna run lint",
+        "lint:fix": "lerna run lint:fix"
     },
     "repository": {
         "type": "git",
@@ -34,13 +36,17 @@
         "@types/node": "^20.14.2",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
-        "@typescript-eslint/parser": "^7.12.0",
+        "@types/react-i18next": "^8.1.0",
+        "@typescript-eslint/eslint-plugin": "^7.14.1",
+        "@typescript-eslint/parser": "^7.14.1",
         "babel-loader": "^9.1.3",
         "babel-plugin-direct-import": "^1.0.0",
         "eslint": "^8.57.0",
-        "eslint-plugin-react": "^7.34.2",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-prettier": "^5.1.3",
+        "eslint-plugin-react": "^7.34.3",
         "lerna": "^8.1.3",
-        "prettier": "^3.3.0",
+        "prettier": "^3.3.2",
         "prettier-eslint": "^16.3.0",
         "terser-webpack-plugin": "^5.3.10",
         "ts-loader": "^9.5.1",

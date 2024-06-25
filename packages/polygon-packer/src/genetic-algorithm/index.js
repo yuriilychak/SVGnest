@@ -1,1 +1,1 @@
-export { default as GeneticAlgorithm } from "./genetic-algorithm";
+export { default as GeneticAlgorithm } from './genetic-algorithm';

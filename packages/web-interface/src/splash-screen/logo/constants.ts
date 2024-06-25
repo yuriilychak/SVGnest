@@ -1,7 +1,7 @@
-const PRIMARY_COLOR = '#D7E9B7'
-const SECONDARY_COLOR = '#3BB34A'
+const PRIMARY_COLOR = '#D7E9B7';
+const SECONDARY_COLOR = '#3BB34A';
 
-const getPathConfig = (fill: string, d: string) => ({ fill, d })
+const getPathConfig = (fill: string, d: string) => ({ fill, d });
 
 export const PATH_CONFIG: { fill: string; d: string }[] = [
     getPathConfig(
@@ -203,4 +203,4 @@ export const PATH_CONFIG: { fill: string; d: string }[] = [
     getPathConfig(SECONDARY_COLOR, 'm68 142.8 38-37.8 27 27-38 37.8zm3 0 24 24 35-34.8-24-24z'),
     getPathConfig(SECONDARY_COLOR, 'm68 69 38-38 27 27-38 38zm3 0 24 24 35-35-24-24z'),
     getPathConfig(SECONDARY_COLOR, 'm106 133-38-38 27-27 38 38zm-35-38 35 35 24-24-35-35z')
-]
+];

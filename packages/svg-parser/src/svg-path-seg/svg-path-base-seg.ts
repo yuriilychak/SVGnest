@@ -27,7 +27,7 @@ export default class SVGPathBaseSeg {
     // Notify owning PathSegList on any changes so they can be synchronized back to the path element.
     public segmentChanged(): void {
         if (this.#owningPathSegList) {
-            // @ts-ignore
+            // @ts-expect-error path polyfill
             this.#owningPathSegList.segmentChanged(this);
         }
     }

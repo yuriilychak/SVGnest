@@ -103,8 +103,10 @@ export default class Source {
         return command === PATH_SEGMENT_TYPE.MOVETO_ABS || command === PATH_SEGMENT_TYPE.MOVETO_REL;
     }
 
-    // Parse a number from an SVG path. This very closely follows genericParseNumber(...) from Source/core/svg/SVGParserUtilities.cpp.
-    // Spec: http://www.w3.org/TR/SVG11/single-page.html#paths-PathDataBNF
+    /* Parse a number from an SVG path.
+       This very closely follows genericParseNumber(...) from Source/core/svg/SVGParserUtilities.cpp.
+       Spec: http://www.w3.org/TR/SVG11/single-page.html#paths-PathDataBNF
+    */
     private parseNumber(): number {
         let exponent: number = 0;
         let integer: number = 0;
@@ -125,7 +127,7 @@ export default class Source {
             sign = -1;
         }
 
-        if (this.#currentIndex == this.#endIndex || !this.isCurrentCraNumeric && this.getCurrentChar() !== '.') {
+        if (this.#currentIndex === this.#endIndex || !this.isCurrentCraNumeric && this.getCurrentChar() !== '.') {
             // The first character of a number must be one of [0-9+-.].
             return 0;
         }
@@ -146,7 +148,7 @@ export default class Source {
         }
 
         // Read the decimals.
-        if (this.hasMoreData && this.getCurrentChar() == '.') {
+        if (this.hasMoreData && this.getCurrentChar() === '.') {
             ++this.#currentIndex;
 
             // There must be a least one digit following the .
@@ -247,15 +249,15 @@ export default class Source {
     }
 
     private getSegmentArgs(command: PATH_SEGMENT_TYPE): number[] {
-        let x: number;
-        let y: number;
-        let x1: number;
-        let y1: number;
-        let x2: number;
-        let y2: number;
-        let arcAngle: number;
-        let arcLarge: number;
-        let arcSweep: number;
+        let x: number = 0;
+        let y: number = 0;
+        let x1: number = 0;
+        let y1: number = 0;
+        let x2: number = 0;
+        let y2: number = 0;
+        let arcAngle: number = 0;
+        let arcLarge: number = 0;
+        let arcSweep: number = 0;
 
         switch (command) {
             case PATH_SEGMENT_TYPE.LINETO_ABS:

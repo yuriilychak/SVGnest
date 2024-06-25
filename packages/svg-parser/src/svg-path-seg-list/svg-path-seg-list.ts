@@ -130,7 +130,7 @@ export default class SVGPathSegList {
         const result: SVGPathSeg = segment.owningPathSegList ? segment.clone() : segment;
         this.#list.push(result);
         result.owningPathSegList = this;
-        // TODO: Optimize this to just append to the existing attribute.
+
         this.writeListToPath();
 
         return result;
@@ -149,7 +149,7 @@ export default class SVGPathSegList {
             return [];
         }
 
-        let segment: SVGPathSeg;
+        let segment: SVGPathSeg = null;
 
         while (source.hasMoreData) {
             segment = source.parseSegment(this);
@@ -170,9 +170,6 @@ export default class SVGPathSegList {
     }
 
     private static pathSegArrayAsString(segments: SVGPathSeg[]): string {
-        return segments.reduce(
-            (result, segment, index) => (!index ? segment.asPathString() : `${result} ${segment.asPathString()}`),
-            ''
-        );
+        return segments.map(segment => segment.asPathString()).join(' ');
     }
 }

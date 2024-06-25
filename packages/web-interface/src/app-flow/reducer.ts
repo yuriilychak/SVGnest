@@ -8,23 +8,23 @@ import {
     ReducerState,
     SETTING_ID,
     SettingsData
-} from './types'
-import { PREDEFINED_ID } from './types'
-import { INITIAL_NESTING_STATISTICS, MAX_ZOOM, MIN_ZOOM, PROGRESS_TRASHOLD, ZOOM_STEP } from './constants'
-import { toPercents } from './helpers'
+} from './types';
+import { PREDEFINED_ID } from './types';
+import { INITIAL_NESTING_STATISTICS, MAX_ZOOM, MIN_ZOOM, PROGRESS_TRASHOLD, ZOOM_STEP } from './constants';
+import { toPercents } from './helpers';
 
 const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.CHANGE_SETTINGS,
         (prevState, { id, value }: { id: SETTING_ID; value: string | boolean }) => {
-            const { svgNest, isWorking } = prevState
-            const settings: SettingsData = { ...prevState.settings, [id]: value }
+            const { svgNest, isWorking } = prevState;
+            const settings: SettingsData = { ...prevState.settings, [id]: value };
 
             if (isWorking) {
-                svgNest.stop()
+                svgNest.stop();
             }
 
-            svgNest.config(settings)
+            svgNest.config(settings);
 
             return {
                 ...prevState,
@@ -33,7 +33,7 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
                 startTime: 0,
                 progress: 0,
                 estimate: 0
-            }
+            };
         }
     ],
     [
@@ -46,10 +46,10 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.UPDATE_SVG,
         (prevState, svgSrc: string) => {
-            const { svgNest, isWorking } = prevState
+            const { svgNest, isWorking } = prevState;
 
             if (isWorking) {
-                svgNest.stop()
+                svgNest.stop();
             }
 
             return {
@@ -63,23 +63,21 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
                 startTime: 0,
                 progress: 0,
                 estimate: 0
-            }
+            };
         }
     ],
     [
         REDUCER_ACTION.DOWNLOAD_SVG,
         prevState => {
-            const resultWrapper = document.getElementById(PREDEFINED_ID.SVG_WRAPPER)
-            const saver: HTMLLinkElement = document.getElementById(PREDEFINED_ID.FILE_SAVER) as HTMLLinkElement
-            const blob = new Blob([resultWrapper.innerHTML], { type: 'image/svg+xml;charset=utf-8' })
-            const blobURL = (saver.href = URL.createObjectURL(blob))
+            const resultWrapper = document.getElementById(PREDEFINED_ID.SVG_WRAPPER);
+            const saver: HTMLLinkElement = document.getElementById(PREDEFINED_ID.FILE_SAVER) as HTMLLinkElement;
+            const blob = new Blob([resultWrapper.innerHTML], { type: 'image/svg+xml;charset=utf-8' });
+            const blobURL = saver.href = URL.createObjectURL(blob);
 
-            // @ts-ignore
-            saver.download = 'SVGNestOutput.svg'
-            saver.click()
-            URL.revokeObjectURL(blobURL)
+            saver.setAttribute('download', 'SVGNestOutput.svg');
+            URL.revokeObjectURL(blobURL);
 
-            return prevState
+            return prevState;
         }
     ],
     [
@@ -107,11 +105,11 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.PROGRESS,
         (prevState, percent: number) => {
-            const progress: number = toPercents(percent)
+            const progress: number = toPercents(percent);
 
-            return percent > PROGRESS_TRASHOLD
-                ? { ...prevState, progress, estimate: ((new Date().getTime() - prevState.startTime) / percent) * (1 - percent) }
-                : { ...prevState, progress, estimate: 0, startTime: new Date().getTime() }
+            return percent > PROGRESS_TRASHOLD ?
+                { ...prevState, progress, estimate: (new Date().getTime() - prevState.startTime) / percent * (1 - percent) } :
+                { ...prevState, progress, estimate: 0, startTime: new Date().getTime() };
         }
     ],
     [
@@ -127,9 +125,9 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.PAUSE_NESTING,
         prevState => {
-            prevState.svgNest.stop()
+            prevState.svgNest.stop();
 
-            return { ...prevState, isWorking: false }
+            return { ...prevState, isWorking: false };
         }
     ],
     [
@@ -140,8 +138,8 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
             message
         })
     ]
-])
+]);
 
-export default function (prevState: ReducerState, { type, payload }: ReducerAction) {
-    return REDUCER.has(type) ? REDUCER.get(type)(prevState, payload) : prevState
+export default function reducer(prevState: ReducerState, { type, payload }: ReducerAction): ReducerState {
+    return REDUCER.has(type) ? REDUCER.get(type)(prevState, payload) : prevState;
 }

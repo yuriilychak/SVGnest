@@ -5,7 +5,7 @@ export default class PolygonBuilder extends BasicShapeBuilder {
     public getResult(element: SVGElement): IPoint[] {
         const points: SVGPointList = (element as SVGPolygonElement).points;
         const pointCount = points.numberOfItems;
-        let point: IPoint;
+        let point: IPoint = null;
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {

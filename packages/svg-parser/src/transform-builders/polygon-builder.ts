@@ -8,8 +8,8 @@ export default class PolygonBuilder extends BasicTransformBuilder {
         const pointCount = points.numberOfItems;
         let transformedPoly: string = '';
         let i: number = 0;
-        let point: DOMPoint;
-        let transformed: IPoint;
+        let point: DOMPoint = null;
+        let transformed: IPoint = null;
 
         for (i = 0; i < pointCount; ++i) {
             point = points.getItem(i);

@@ -1,7 +1,7 @@
-import { STYLES } from './constants'
-import { BUTTON_ACTION } from './types'
+import { STYLES } from './constants';
+import { BUTTON_ACTION } from './types';
 
-export const getZoomStyles = (scale: number): object => ({ ...STYLES.svgContent, width: `${Math.floor(scale * 100)}%` })
+export const getZoomStyles = (scale: number): object => ({ ...STYLES.svgContent, width: `${Math.floor(scale * 100)}%` });
 
 export const getModifiedButtons = (
     isWorking: boolean,
@@ -9,26 +9,26 @@ export const getModifiedButtons = (
     iterations: number,
     svgSrc: string
 ): { disabledButtons: BUTTON_ACTION[]; hiddenButtons: BUTTON_ACTION[] } => {
-    const disabledButtons: BUTTON_ACTION[] = []
-    const hiddenButtons: BUTTON_ACTION[] = []
+    const disabledButtons: BUTTON_ACTION[] = [];
+    const hiddenButtons: BUTTON_ACTION[] = [];
 
     if (isWorking) {
-        hiddenButtons.push(BUTTON_ACTION.START)
-        disabledButtons.push(BUTTON_ACTION.UPLOAD)
-        disabledButtons.push(BUTTON_ACTION.SETTINGS)
+        hiddenButtons.push(BUTTON_ACTION.START);
+        disabledButtons.push(BUTTON_ACTION.UPLOAD);
+        disabledButtons.push(BUTTON_ACTION.SETTINGS);
     } else {
-        hiddenButtons.push(BUTTON_ACTION.PAUSE)
+        hiddenButtons.push(BUTTON_ACTION.PAUSE);
     }
 
     if (!isBinSlected || !svgSrc) {
-        disabledButtons.push(BUTTON_ACTION.START)
+        disabledButtons.push(BUTTON_ACTION.START);
     }
 
     if (iterations === 0 || isWorking) {
-        disabledButtons.push(BUTTON_ACTION.DOWNLOAD)
+        disabledButtons.push(BUTTON_ACTION.DOWNLOAD);
     }
 
-    return { disabledButtons, hiddenButtons }
-}
+    return { disabledButtons, hiddenButtons };
+};
 
-export const toPercents = (value: number): number => Math.min(Math.ceil(value * 100), 100)
+export const toPercents = (value: number): number => Math.min(Math.ceil(value * 100), 100);

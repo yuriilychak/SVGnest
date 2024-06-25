@@ -24,28 +24,14 @@ const THEME = createTheme({
     },
     typography: {
         fontFamily: 'LatoLatinWeb, helveti',
-        h4: {
-            color: '#3bb34a'
-        },
-        h5: {
-            color: '#3bb34a'
-        },
-        body1: {
-            color: '#3bb34a'
-        }
+        h4: { color: '#3bb34a' },
+        h5: { color: '#3bb34a' },
+        body1: { color: '#3bb34a' }
     },
     palette: {
-        primary: {
-            main: '#3bb34a',
-            contrastText: '#ffffff'
-        },
-        secondary: {
-            main: '#f50057'
-        },
-        text: {
-            primary: '#3bb34a',
-            secondary: '#8b8b8b'
-        }
+        primary: { main: '#3bb34a', contrastText: '#ffffff' },
+        secondary: { main: '#f50057' },
+        text: { primary: '#3bb34a', secondary: '#8b8b8b' }
     }
 });
 

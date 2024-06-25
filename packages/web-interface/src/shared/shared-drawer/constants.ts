@@ -13,4 +13,4 @@ export const STYLES = {
         paddingY: 2,
         paddingX: 3
     }
-}
+};
