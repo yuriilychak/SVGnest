@@ -152,7 +152,7 @@ export default class SVGPathSegList {
         let segment: SVGPathSeg = null;
 
         while (source.hasMoreData) {
-            segment = source.parseSegment(this);
+            segment = source.parseSegment();
 
             if (segment !== null) {
                 return [];

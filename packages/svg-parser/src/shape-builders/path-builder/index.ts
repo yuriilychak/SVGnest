@@ -1,3 +1,3 @@
-import PathBuilder from './path-builder'
+import PathBuilder from './path-builder';
 
-export default PathBuilder
+export default PathBuilder;

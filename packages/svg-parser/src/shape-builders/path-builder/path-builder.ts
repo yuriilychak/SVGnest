@@ -1,14 +1,6 @@
-import {
-    SVGPathArcSeg,
-    SVGPathCubicSeg,
-    SVGPathCubicSmoothSeg,
-    SVGPathPointSeg,
-    SVGPathSeg,
-    SVGPathVerticalSeg
-} from '../../svg-path-seg';
-import { SVGPathSegList } from '../../svg-path-seg-list';
-import SVGPathQuadraticSeg from '../../svg-path-seg/svg-path-quadratic-seg';
-import { IPoint, PATH_TAG } from '../../types';
+import { parseSVG, makeAbsolute, CommandMadeAbsolute, Command, EllipticalArcCommandMadeAbsolute } from 'svg-path-parser';
+
+import { IPoint, PATH_COMMAND } from '../../types';
 import BasicShapeBuilder from '../basic-shape-builder';
 import SEGMENT_BUILDERS from './segments';
 import BasicSegment from './segments/basic-segment';
@@ -16,10 +8,10 @@ import { ICubicSegmentData, IQuadraticSegmentData, IBasicSegmentData, IArcSegmen
 
 export default class PathBuilder extends BasicShapeBuilder {
     public getResult(element: SVGElement): IPoint[] {
-        // we'll assume that splitpath has already been run on this path, and it only has one M/m command
-        // @ts-ignore
-        const segments: SVGPathSegList = element.pathSegList as SVGPathSegList;
-        const segmentCount: number = segments.numberOfItems;
+        const definition: string = element.getAttribute('d');
+        const rawSegments: Command[] = parseSVG(definition);
+        const segments: CommandMadeAbsolute[] = makeAbsolute(rawSegments);
+        const segmentCount: number = segments.length;
         const point: IPoint = { x: 0, y: 0 };
         const point0: IPoint = { x: 0, y: 0 };
         const point1: IPoint = { x: 0, y: 0 };
@@ -28,16 +20,15 @@ export default class PathBuilder extends BasicShapeBuilder {
         const prev1: IPoint = { x: 0, y: 0 };
         const prev2: IPoint = { x: 0, y: 0 };
         let i: number = 0;
-        let segment: SVGPathSeg;
-        let command: PATH_TAG;
-        let updateMultiplier: number = 0;
-        let config: IBasicSegmentData;
-        let segmentBuilder: typeof BasicSegment;
+        let segment: CommandMadeAbsolute = null;
+        let command: PATH_COMMAND = null;
+        let config: IBasicSegmentData = null;
+        let segmentBuilder: typeof BasicSegment = null;
 
         for (i = 0; i < segmentCount; ++i) {
             config = null;
-            segment = segments.getItem(i);
-            command = segment.pathSegTypeAsLetter as PATH_TAG;
+            segment = segments[i];
+            command = segment.code as PATH_COMMAND;
 
             prev.x = point.x;
             prev.y = point.y;
@@ -48,43 +39,46 @@ export default class PathBuilder extends BasicShapeBuilder {
             prev2.x = point2.x;
             prev2.y = point2.y;
 
-            updateMultiplier = PathBuilder.UPDATE_COMMANDS.includes(command) ? 0 : 1;
-
-            if (segment instanceof SVGPathQuadraticSeg) {
-                point1.x = point.x * updateMultiplier + segment.x1;
+            if ('x1' in segment) {
+                // @ts-ignore
+                point1.x = segment.x1;
             }
 
-            if (segment instanceof SVGPathQuadraticSeg) {
-                point1.y = point.y * updateMultiplier + segment.y1;
+            if ('y1' in segment) {
+                // @ts-ignore
+                point1.y = segment.y1;
             }
 
-            if (segment instanceof SVGPathCubicSeg || segment instanceof SVGPathCubicSmoothSeg) {
-                SVGPathCubicSeg;
-                point2.x = point.x * updateMultiplier + segment.x2;
+            if ('x2' in segment) {
+                // @ts-ignore
+                point2.x = segment.x2;
             }
 
-            if (segment instanceof SVGPathCubicSeg || segment instanceof SVGPathCubicSmoothSeg) {
-                point2.y = point.y * updateMultiplier + segment.y2;
+            if ('y1' in segment) {
+                // @ts-ignore
+                point2.y = segment.y2;
             }
 
-            if (segment instanceof SVGPathPointSeg) {
-                point.x = point.x * updateMultiplier + segment.x;
+            if ('x' in segment) {
+                // @ts-ignore
+                point.x = segment.x;
             }
 
-            if (segment instanceof SVGPathPointSeg || segment instanceof SVGPathVerticalSeg) {
-                point.y = point.y * updateMultiplier + segment.y;
+            if ('y' in segment) {
+                // @ts-ignore
+                point.y = segment.y;
             }
 
-            switch (command.toUpperCase() as PATH_TAG) {
+            switch (command) {
                 // linear line types
-                case PATH_TAG.M:
-                case PATH_TAG.L:
-                case PATH_TAG.H:
-                case PATH_TAG.V:
+                case PATH_COMMAND.M:
+                case PATH_COMMAND.L:
+                case PATH_COMMAND.H:
+                case PATH_COMMAND.V:
                     this.result.push({ ...point });
                     break;
                 // Quadratic Beziers
-                case PATH_TAG.T:
+                case PATH_COMMAND.T:
                     // implicit control point
                     if (PathBuilder.checkPrevSegment(segments, i, PathBuilder.QUADRATIC_COMMANDS)) {
                         point1.x = -prev1.x;
@@ -96,10 +90,10 @@ export default class PathBuilder extends BasicShapeBuilder {
 
                     config = PathBuilder.getQuadraticConfig(prev, point, point1);
                     break;
-                case PATH_TAG.Q:
+                case PATH_COMMAND.Q:
                     config = PathBuilder.getQuadraticConfig(prev, point, point1);
                     break;
-                case PATH_TAG.S:
+                case PATH_COMMAND.S:
                     if (PathBuilder.checkPrevSegment(segments, i, PathBuilder.CUBIC_COMMANDS)) {
                         point1.x = prev.x + (prev.x - prev2.x);
                         point1.y = prev.y + (prev.y - prev2.y);
@@ -110,13 +104,13 @@ export default class PathBuilder extends BasicShapeBuilder {
 
                     config = PathBuilder.getCubicConfig(prev, point, point1, point2);
                     break;
-                case PATH_TAG.C:
+                case PATH_COMMAND.C:
                     config = PathBuilder.getCubicConfig(prev, point, point1, point2);
                     break;
-                case PATH_TAG.A:
-                    config = PathBuilder.getArcConfig(prev, point, segment as SVGPathArcSeg);
+                case PATH_COMMAND.A:
+                    config = PathBuilder.getArcConfig(prev, point, segment as EllipticalArcCommandMadeAbsolute);
                     break;
-                case PATH_TAG.Z:
+                case PATH_COMMAND.Z:
                     point.x = point0.x;
                     point.y = point0.y;
                     break;
@@ -135,7 +129,9 @@ export default class PathBuilder extends BasicShapeBuilder {
             }
         }
 
-        return super.getResult(element);
+        const result = super.getResult(element);
+
+        return result;
     }
 
     private static getQuadraticConfig(point1: IPoint, point2: IPoint, control: IPoint): IQuadraticSegmentData {
@@ -146,45 +142,33 @@ export default class PathBuilder extends BasicShapeBuilder {
         return { point1, point2, control1, control2 };
     }
 
-    private static getArcConfig(point1: IPoint, point2: IPoint, segment: SVGPathArcSeg): IArcSegmentData {
+    private static getArcConfig(point1: IPoint, point2: IPoint, segment: EllipticalArcCommandMadeAbsolute): IArcSegmentData {
         return {
             point1,
             point2,
-            rx: segment.r1,
-            ry: segment.r2,
-            angle: segment.angle,
-            largeArc: segment.largeArcFlag,
-            sweep: segment.sweepFlag
+            rx: segment.rx,
+            ry: segment.ry,
+            angle: segment.xAxisRotation,
+            largeArc: segment.largeArc ? 1 : 0,
+            sweep: segment.sweep ? 1 : 0
         };
     }
 
-    private static checkPrevSegment(segments: SVGPathSegList, index: number, commands: string[]) {
+    private static checkPrevSegment(segments: CommandMadeAbsolute[], index: number, commands: string[]) {
         if (index === 0) {
             return false;
         }
 
-        const command = segments.getItem(index - 1).pathSegTypeAsLetter.toUpperCase();
+        const command = segments[index - 1].code.toUpperCase();
 
         return commands.includes(command);
     }
 
-    private static UPDATE_COMMANDS: PATH_TAG[] = [
-        PATH_TAG.M,
-        PATH_TAG.L,
-        PATH_TAG.H,
-        PATH_TAG.V,
-        PATH_TAG.C,
-        PATH_TAG.S,
-        PATH_TAG.Q,
-        PATH_TAG.T,
-        PATH_TAG.A
-    ];
+    private static SUBPATH_COMMANDS: PATH_COMMAND[] = [PATH_COMMAND.M, PATH_COMMAND.m];
 
-    private static SUBPATH_COMMANDS: PATH_TAG[] = [PATH_TAG.M, PATH_TAG.m];
+    private static QUADRATIC_COMMANDS: PATH_COMMAND[] = [PATH_COMMAND.Q, PATH_COMMAND.T];
 
-    private static QUADRATIC_COMMANDS: PATH_TAG[] = [PATH_TAG.Q, PATH_TAG.T];
-
-    private static CUBIC_COMMANDS: PATH_TAG[] = [PATH_TAG.C, PATH_TAG.S];
+    private static CUBIC_COMMANDS: PATH_COMMAND[] = [PATH_COMMAND.C, PATH_COMMAND.S];
 
     public static create(tolerance: number, svgTolerance: number): BasicShapeBuilder {
         return new PathBuilder(tolerance, svgTolerance);

@@ -2,19 +2,19 @@ import ArcSegment from './arc-segment';
 import BasicSegment from './basic-segment';
 import CubicSegment from './cubic-segment';
 import QuadraticSegment from './quadratic-segment';
-import { PATH_TAG } from '../../../types';
+import { PATH_COMMAND } from '../../../types';
 
-const SEGMENT_BUILDERS = new Map<PATH_TAG, typeof BasicSegment>([
-    [PATH_TAG.T, QuadraticSegment],
-    [PATH_TAG.t, QuadraticSegment],
-    [PATH_TAG.Q, QuadraticSegment],
-    [PATH_TAG.q, QuadraticSegment],
-    [PATH_TAG.S, CubicSegment],
-    [PATH_TAG.s, CubicSegment],
-    [PATH_TAG.C, CubicSegment],
-    [PATH_TAG.c, CubicSegment],
-    [PATH_TAG.A, ArcSegment],
-    [PATH_TAG.a, ArcSegment]
+const SEGMENT_BUILDERS = new Map<PATH_COMMAND, typeof BasicSegment>([
+    [PATH_COMMAND.T, QuadraticSegment],
+    [PATH_COMMAND.t, QuadraticSegment],
+    [PATH_COMMAND.Q, QuadraticSegment],
+    [PATH_COMMAND.q, QuadraticSegment],
+    [PATH_COMMAND.S, CubicSegment],
+    [PATH_COMMAND.s, CubicSegment],
+    [PATH_COMMAND.C, CubicSegment],
+    [PATH_COMMAND.c, CubicSegment],
+    [PATH_COMMAND.A, ArcSegment],
+    [PATH_COMMAND.a, ArcSegment]
 ]);
 
 export default SEGMENT_BUILDERS;

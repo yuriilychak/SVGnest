@@ -11,7 +11,7 @@ import {
 } from '../svg-path-seg';
 import SVGPathSegElement from '../svg-path-seg-element';
 import { SVGPathSegList } from '../svg-path-seg-list';
-import { IPoint, SEGMENT_KEYS, SVGProperty, PATH_TAG, SVG_TAG, PATH_SEGMENT_TYPE } from '../types';
+import { IPoint, SEGMENT_KEYS, SVGProperty, PATH_COMMAND, SVG_TAG, PATH_SEGMENT_TYPE } from '../types';
 import BasicTransformBuilder from './basic-transform-builder';
 
 interface SegmentData {
@@ -20,19 +20,19 @@ interface SegmentData {
 }
 
 export default class PathBuilder extends BasicTransformBuilder {
-    private getNewSegment(command: PATH_TAG, segment: SVGPathSeg, prev: IPoint): SegmentData {
+    private getNewSegment(command: PATH_COMMAND, segment: SVGPathSeg, prev: IPoint): SegmentData {
         switch (command) {
-            case PATH_TAG.H: {
+            case PATH_COMMAND.H: {
                 const horizontalSegment = segment as SVGPathHorizontalSeg;
 
                 return { type: PATH_SEGMENT_TYPE.LINETO_ABS, data: [horizontalSegment.x, prev.y] };
             }
-            case PATH_TAG.V: {
+            case PATH_COMMAND.V: {
                 const verticalSegment = segment as SVGPathVerticalSeg;
 
                 return { type: PATH_SEGMENT_TYPE.LINETO_ABS, data: [prev.x, verticalSegment.y] };
             }
-            case PATH_TAG.A: {
+            case PATH_COMMAND.A: {
                 const arcSegment = segment as SVGPathArcSeg;
 
                 return {
@@ -66,7 +66,7 @@ export default class PathBuilder extends BasicTransformBuilder {
         const pointCount: number = transPoints.length;
         let transformedPath: string = '';
         let segment: SVGPathSeg = null;
-        let command: PATH_TAG = null;
+        let command: PATH_COMMAND = null;
         let commandData: SVGProperty[] = null;
         let newSegment: SVGPathPointSeg = null;
         let transformed: IPoint = null;
@@ -115,18 +115,18 @@ export default class PathBuilder extends BasicTransformBuilder {
         return super.getResult();
     }
 
-    static getCommandData(command: PATH_TAG, transPoints: IPoint[], segment: SVGPathSeg): SVGProperty[] {
+    static getCommandData(command: PATH_COMMAND, transPoints: IPoint[], segment: SVGPathSeg): SVGProperty[] {
         // MLHVCSQTA
         /* H and V are transformed to "L"
            commands above so we don't need to handle them.
            All lowercase (relative) are already handled too (converted to absolute)
         */
         switch (command) {
-            case PATH_TAG.L:
-            case PATH_TAG.M:
-            case PATH_TAG.T:
+            case PATH_COMMAND.L:
+            case PATH_COMMAND.M:
+            case PATH_COMMAND.T:
                 return [command, transPoints[0].x, transPoints[0].y];
-            case PATH_TAG.C:
+            case PATH_COMMAND.C:
                 return [
                     command,
                     transPoints[1].x,
@@ -136,11 +136,11 @@ export default class PathBuilder extends BasicTransformBuilder {
                     transPoints[0].x,
                     transPoints[0].y
                 ];
-            case PATH_TAG.S:
+            case PATH_COMMAND.S:
                 return [command, transPoints[2].x, transPoints[2].y, transPoints[0].x, transPoints[0].y];
-            case PATH_TAG.Q:
+            case PATH_COMMAND.Q:
                 return [command, transPoints[1].x, transPoints[1].y, transPoints[0].x, transPoints[0].y];
-            case PATH_TAG.A: {
+            case PATH_COMMAND.A: {
                 const arcSegment = segment as SVGPathArcSeg;
 
                 return [
@@ -154,11 +154,11 @@ export default class PathBuilder extends BasicTransformBuilder {
                     transPoints[0].y
                 ];
             }
-            case PATH_TAG.H:
-            case PATH_TAG.V:
-                return [PATH_TAG.L, transPoints[0].x, transPoints[0].y];
-            case PATH_TAG.Z:
-            case PATH_TAG.z:
+            case PATH_COMMAND.H:
+            case PATH_COMMAND.V:
+                return [PATH_COMMAND.L, transPoints[0].x, transPoints[0].y];
+            case PATH_COMMAND.Z:
+            case PATH_COMMAND.z:
                 return [command];
             default:
                 console.log('FOUND COMMAND NOT HANDLED BY COMMAND STRING BUILDER', command);
@@ -167,34 +167,34 @@ export default class PathBuilder extends BasicTransformBuilder {
         }
     }
 
-    static getNewSegment(points: IPoint[], segment: SVGPathSeg, command: PATH_TAG): SegmentData {
+    static getNewSegment(points: IPoint[], segment: SVGPathSeg, command: PATH_COMMAND): SegmentData {
         switch (command) {
-            case PATH_TAG.m:
+            case PATH_COMMAND.m:
                 return { type: PATH_SEGMENT_TYPE.MOVETO_ABS, data: [points[0].x, points[0].y] };
-            case PATH_TAG.l:
+            case PATH_COMMAND.l:
                 return { type: PATH_SEGMENT_TYPE.LINETO_ABS, data: [points[0].x, points[0].y] };
-            case PATH_TAG.h:
+            case PATH_COMMAND.h:
                 return { type: PATH_SEGMENT_TYPE.LINETO_HORIZONTAL_ABS, data: [points[0].x] };
-            case PATH_TAG.v:
+            case PATH_COMMAND.v:
                 return { type: PATH_SEGMENT_TYPE.LINETO_VERTICAL_ABS, data: [points[0].y] };
-            case PATH_TAG.c:
+            case PATH_COMMAND.c:
                 return {
                     type: PATH_SEGMENT_TYPE.CURVETO_CUBIC_ABS,
                     data: [points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y]
                 };
-            case PATH_TAG.s:
+            case PATH_COMMAND.s:
                 return {
                     type: PATH_SEGMENT_TYPE.CURVETO_CUBIC_SMOOTH_ABS,
                     data: [points[0].x, points[0].y, points[2].x, points[2].y]
                 };
-            case PATH_TAG.q:
+            case PATH_COMMAND.q:
                 return {
                     type: PATH_SEGMENT_TYPE.CURVETO_QUADRATIC_ABS,
                     data: [points[0].x, points[0].y, points[1].x, points[1].y]
                 };
-            case PATH_TAG.t:
+            case PATH_COMMAND.t:
                 return { type: PATH_SEGMENT_TYPE.CURVETO_QUADRATIC_SMOOTH_ABS, data: [points[0].x, points[0].y] };
-            case PATH_TAG.a: {
+            case PATH_COMMAND.a: {
                 const arcSegment = segment as SVGPathArcSeg;
 
                 return {
@@ -232,7 +232,7 @@ export default class PathBuilder extends BasicTransformBuilder {
         ];
         let i: number = 0;
         let segment: SVGPathSeg = null;
-        let command: PATH_TAG = null;
+        let command: PATH_COMMAND = null;
         let sgementData: SegmentData = null;
         let newSegment: SVGPathSeg = null;
 
@@ -272,7 +272,7 @@ export default class PathBuilder extends BasicTransformBuilder {
                     points[0].y = points[0].y + segment.y;
                 }
 
-                if (command.toUpperCase() === PATH_TAG.Z) {
+                if (command.toUpperCase() === PATH_COMMAND.Z) {
                     points[0].x = currentPoint.x;
                     points[0].y = currentPoint.y;
                     continue;
@@ -286,7 +286,7 @@ export default class PathBuilder extends BasicTransformBuilder {
                 }
             }
             // Record the start of a subpath
-            if (command.toUpperCase() === PATH_TAG.M) {
+            if (command.toUpperCase() === PATH_COMMAND.M) {
                 currentPoint.x = points[0].x;
                 currentPoint.y = points[0].y;
             }
@@ -297,16 +297,16 @@ export default class PathBuilder extends BasicTransformBuilder {
         return new PathBuilder(element, transform, svg, svgRoot);
     }
 
-    private static POSITION_COMMANDS: PATH_TAG[] = [
-        PATH_TAG.M,
-        PATH_TAG.L,
-        PATH_TAG.H,
-        PATH_TAG.V,
-        PATH_TAG.C,
-        PATH_TAG.S,
-        PATH_TAG.Q,
-        PATH_TAG.T,
-        PATH_TAG.A
+    private static POSITION_COMMANDS: PATH_COMMAND[] = [
+        PATH_COMMAND.M,
+        PATH_COMMAND.L,
+        PATH_COMMAND.H,
+        PATH_COMMAND.V,
+        PATH_COMMAND.C,
+        PATH_COMMAND.S,
+        PATH_COMMAND.Q,
+        PATH_COMMAND.T,
+        PATH_COMMAND.A
     ];
 
     private static SEGMENT_KEYS: SEGMENT_KEYS[][] = [

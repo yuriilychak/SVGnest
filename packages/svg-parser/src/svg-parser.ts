@@ -2,7 +2,7 @@ import Matrix from './matrix';
 import { SVGPathPointSeg, SVGPathSeg, SVGPathVerticalSeg } from './svg-path-seg';
 import SHAPE_BUILDERS from './shape-builders';
 import TRANSFORM_BUILDERS from './transform-builders';
-import { IPoint, MATRIX_OPERATIONS, SVG_TAG, PATH_TAG, PATH_SEGMENT_TYPE } from './types';
+import { IPoint, MATRIX_OPERATIONS, SVG_TAG, PATH_COMMAND, PATH_SEGMENT_TYPE } from './types';
 import SVGPathSegElement from './svg-path-seg-element';
 
 export default class SvgParser {
@@ -154,7 +154,7 @@ export default class SvgParser {
         for (i = segmentList.length - 1; i >= 0; --i) {
             segment = segmentList[i];
 
-            if (i > 0 && segment.pathSegTypeAsLetter.toUpperCase() === PATH_TAG.M) {
+            if (i > 0 && segment.pathSegTypeAsLetter.toUpperCase() === PATH_COMMAND.M) {
                 lastM = i;
                 break;
             }
@@ -175,13 +175,13 @@ export default class SvgParser {
             segment = segmentList[i];
             command = segment.pathSegTypeAsLetter;
 
-            if (command.toUpperCase() === PATH_TAG.M) {
+            if (command.toUpperCase() === PATH_COMMAND.M) {
                 path = element.cloneNode() as SVGPathSegElement;
                 path.setAttribute('d', '');
                 paths.push(path);
             }
 
-            offsetCoef = SvgParser.POSITION_COMMANDS.includes(command as PATH_TAG) ? 0 : 1;
+            offsetCoef = SvgParser.POSITION_COMMANDS.includes(command as PATH_COMMAND) ? 0 : 1;
 
             if (segment instanceof SVGPathPointSeg) {
                 currentPoint.x = currentPoint.x * offsetCoef + segment.x;
@@ -191,9 +191,9 @@ export default class SvgParser {
                 currentPoint.y = currentPoint.y * offsetCoef + segment.y;
             }
 
-            if (command === PATH_TAG.m) {
+            if (command === PATH_COMMAND.m) {
                 segment = new SVGPathPointSeg(PATH_SEGMENT_TYPE.LINETO_ABS, [currentPoint.x, currentPoint.y]);
-            } else if (command.toUpperCase() === PATH_TAG.Z) {
+            } else if (command.toUpperCase() === PATH_COMMAND.Z) {
                 currentPoint.x = startPoint.x;
                 currentPoint.y = startPoint.y;
             }
@@ -201,7 +201,7 @@ export default class SvgParser {
             path.pathSegList.appendItem(segment);
 
             // Record the start of a subpath
-            if (command.toUpperCase() === PATH_TAG.M) {
+            if (command.toUpperCase() === PATH_COMMAND.M) {
                 startPoint.x = currentPoint.x;
                 startPoint.y = currentPoint.y;
             }
@@ -290,15 +290,15 @@ export default class SvgParser {
 
     private static SVG_TOLERANCE: number = 0.005; // fudge factor for browser inaccuracy in SVG unit handling
 
-    private static POSITION_COMMANDS: PATH_TAG[] = [
-        PATH_TAG.M,
-        PATH_TAG.L,
-        PATH_TAG.H,
-        PATH_TAG.V,
-        PATH_TAG.C,
-        PATH_TAG.S,
-        PATH_TAG.Q,
-        PATH_TAG.T,
-        PATH_TAG.A
+    private static POSITION_COMMANDS: PATH_COMMAND[] = [
+        PATH_COMMAND.M,
+        PATH_COMMAND.L,
+        PATH_COMMAND.H,
+        PATH_COMMAND.V,
+        PATH_COMMAND.C,
+        PATH_COMMAND.S,
+        PATH_COMMAND.Q,
+        PATH_COMMAND.T,
+        PATH_COMMAND.A
     ];
 }

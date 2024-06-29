@@ -1,9 +1,5 @@
 {
-    "env": {
-        "browser": true,
-        "es6": true,
-        "node": true
-    },
+    "env": { "browser": true, "es6": true, "node": true },
     "extends": [
         "eslint:recommended",
         "plugin:@typescript-eslint/recommended",
@@ -19,11 +15,9 @@
     },
     "rules": {
         "no-restricted-imports": "off",
-        // Possible "error"s (overrides from recommended set)
         "no-extra-parens": "error",
         "padding-line-between-statements": ["error", { "blankLine": "always", "prev": "*", "next": "return" }],
         "no-unexpected-multiline": "error",
-        // All JSDoc comments must be valid
         "valid-jsdoc": [
             "off",
             {
@@ -35,20 +29,11 @@
                 }
             }
         ],
-        // Best Practices
-        // Allowed a getter without setter, but all setters require getters
-        "accessor-pairs": [
-            "error",
-            {
-                "getWithoutSet": false,
-                "setWithoutGet": true
-            }
-        ],
+        "accessor-pairs": ["error", { "getWithoutSet": false, "setWithoutGet": true }],
         "block-scoped-var": "warn",
         "consistent-return": "error",
         "curly": "error",
         "default-case": "warn",
-        // the dot goes with the property when doing multiline
         "dot-location": ["warn", "property"],
         "dot-notation": "warn",
         "eqeqeq": ["error", "smart"],
@@ -65,14 +50,7 @@
         "no-extend-native": "error",
         "no-extra-bind": "warn",
         "no-floating-decimal": "warn",
-        "no-implicit-coercion": [
-            "warn",
-            {
-                "boolean": true,
-                "number": true,
-                "string": true
-            }
-        ],
+        "no-implicit-coercion": ["warn", { "boolean": true, "number": true, "string": true }],
         "no-implied-eval": "error",
         "no-invalid-this": "error",
         "no-iterator": "error",
@@ -98,54 +76,32 @@
         "no-useless-call": "error",
         "no-useless-concat": "error",
         "no-void": "warn",
-        // Produce "warn"ings when something is commented as TODO or FIXME
-        "no-warning-comments": [
-            "warn",
-            {
-                "terms": ["TODO", "FIXME"],
-                "location": "start"
-            }
-        ],
+        "no-warning-comments": ["warn", { "terms": ["TODO", "FIXME"], "location": "start" }],
         "no-with": "warn",
         "radix": "warn",
         "vars-on-top": "error",
-        // Enforces the style of wrapped functions
         "wrap-iife": ["error", "outside"],
         "yoda": "error",
-        // Strict Mode - for ES6, never use strict.
         "strict": ["error", "never"],
-        // Variables
         "init-declarations": ["error", "always"],
         "no-catch-shadow": "warn",
         "no-delete-var": "error",
         "no-label-var": "error",
         "no-shadow-restricted-names": "error",
-        // We require all vars to be initialized (see init-declarations)
-        // If we NEED a var to be initialized to undefined, it needs to be explicit
         "no-undef-init": "off",
         "no-undef": "error",
         "no-undefined": "off",
-        "prefer-const": [
-            "error",
-            {
-                "destructuring": "any",
-                "ignoreReadBeforeAssign": false
-            }
-        ],
-        // Disallow hoisting - let & const don"t allow hoisting anyhow
+        "prefer-const": ["error", { "destructuring": "any", "ignoreReadBeforeAssign": false }],
         "no-use-before-define": "error",
-        // Node.js and CommonJS
         "callback-return": ["warn", ["callback", "next"]],
         "global-require": "error",
         "handle-callback-err": "warn",
         "no-mixed-requires": "warn",
         "no-new-require": "error",
-        // Use path.concat instead
         "no-path-concat": "error",
         "no-process-exit": "error",
         "no-restricted-modules": "off",
         "no-sync": "warn",
-        // ECMAScript 6 support
         "arrow-body-style": ["error", "as-needed"],
         "arrow-parens": ["error", "as-needed"],
         "arrow-spacing": ["error", { "before": true, "after": true }],
@@ -162,7 +118,6 @@
         "prefer-spread": "warn",
         "prefer-template": "warn",
         "require-yield": "error",
-        // Stylistic - everything here is a "warn"ing because of style.
         "array-bracket-spacing": ["warn", "never"],
         "block-spacing": ["warn", "always"],
         "brace-style": ["warn", "1tbs", { "allowSingleLine": false }],
@@ -239,20 +194,12 @@
         "@typescript-eslint/member-delimiter-style": [
             "error",
             {
-                "multiline": {
-                    "delimiter": "semi",
-                    "requireLast": true
-                },
-                "singleline": {
-                    "delimiter": "semi",
-                    "requireLast": false
-                }
+                "multiline": { "delimiter": "semi", "requireLast": true },
+                "singleline": { "delimiter": "semi", "requireLast": false }
             }
         ]
     },
     "settings": {
-        "react": {
-            "version": "detect"
-        }
+        "react": { "version": "detect" }
     }
 }

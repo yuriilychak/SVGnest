@@ -1,4 +1,4 @@
-import { PATH_TAG, PATH_SEGMENT_TYPE } from '../types';
+import { PATH_COMMAND, PATH_SEGMENT_TYPE } from '../types';
 import { TAGS_TO_TYPES } from './constants';
 import { SVGPathSeg, TYPE_TO_SEGMENT } from '../svg-path-seg';
 
@@ -63,12 +63,12 @@ export default class Source {
     }
 
     private get peekSegmentType(): PATH_SEGMENT_TYPE {
-        const lookahead: PATH_TAG = this.#string[this.#currentIndex] as PATH_TAG;
+        const lookahead: PATH_COMMAND = this.#string[this.#currentIndex] as PATH_COMMAND;
 
         return this.pathSegTypeFromChar(lookahead);
     }
 
-    private pathSegTypeFromChar(lookahead: PATH_TAG): PATH_SEGMENT_TYPE {
+    private pathSegTypeFromChar(lookahead: PATH_COMMAND): PATH_SEGMENT_TYPE {
         return TAGS_TO_TYPES.has(lookahead) ? TAGS_TO_TYPES.get(lookahead) : PATH_SEGMENT_TYPE.UNKNOWN;
     }
 
@@ -300,8 +300,8 @@ export default class Source {
         }
     }
 
-    public parseSegment(pathSegList: unknown): SVGPathSeg | null {
-        const lookahead = this.#string[this.#currentIndex] as PATH_TAG;
+    public parseSegment(list?: unknown): SVGPathSeg | null {
+        const lookahead = this.#string[this.#currentIndex] as PATH_COMMAND;
         let command = this.pathSegTypeFromChar(lookahead);
         if (command === PATH_SEGMENT_TYPE.UNKNOWN) {
             // Possibly an implicit command. Not allowed if this is the first command.
@@ -321,6 +321,31 @@ export default class Source {
         const points: number[] = this.getSegmentArgs(command);
         const segment = TYPE_TO_SEGMENT.get(command);
 
-        return segment.create(command, points, pathSegList);
+        return segment.create(command, points, list);
+    }
+
+    public parse(list?: unknown): SVGPathSeg[] {
+        if (!this.initialCommandIsMoveTo) {
+            return [];
+        }
+
+        const result: SVGPathSeg[] = [];
+        let segment: SVGPathSeg = null;
+
+        while (this.hasMoreData) {
+            segment = this.parseSegment(list);
+
+            if (segment === null) {
+                return [];
+            }
+
+            result.push(segment);
+        }
+
+        return result;
+    }
+
+    public static create(definition: string): Source {
+        return new Source(definition);
     }
 }

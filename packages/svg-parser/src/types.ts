@@ -1,4 +1,4 @@
-export enum PATH_TAG {
+export enum PATH_COMMAND {
     M = 'M',
     L = 'L',
     H = 'H',
@@ -36,11 +36,11 @@ export enum SVG_TAG {
 }
 
 export interface IPoint {
-    x: number
-    y: number
+    x: number;
+    y: number;
 }
 
-export type SVGProperty = number | string
+export type SVGProperty = number | string;
 
 export enum SEGMENT_KEYS {
     X = 'x',

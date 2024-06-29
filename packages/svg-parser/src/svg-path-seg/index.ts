@@ -6,7 +6,7 @@ import { default as SVGPathHorizontalSeg } from './svg-path-horizontal-seg';
 import { default as SVGPathVerticalSeg } from './svg-path-vertical-seg';
 import { default as SVGPathArcSeg } from './svg-path-arc-seg';
 import { default as SVGPathBaseSeg } from './svg-path-base-seg';
-import { PATH_SEGMENT_TYPE } from '../types';
+import { PATH_COMMAND, PATH_SEGMENT_TYPE } from '../types';
 
 export { default as SVGPathCubicSeg } from './svg-path-cubic-seg';
 export { default as SVGPathPointSeg } from './svg-path-point-seg';
@@ -46,4 +46,27 @@ export const TYPE_TO_SEGMENT = new Map<PATH_SEGMENT_TYPE, typeof SVGPathBaseSeg>
     [PATH_SEGMENT_TYPE.CURVETO_QUADRATIC_REL, SVGPathQuadraticSeg],
     [PATH_SEGMENT_TYPE.ARC_ABS, SVGPathArcSeg],
     [PATH_SEGMENT_TYPE.ARC_REL, SVGPathArcSeg]
+]);
+
+export const COMMAND_TO_SEGMENT = new Map<PATH_COMMAND, typeof SVGPathBaseSeg>([
+    [PATH_COMMAND.L, SVGPathPointSeg],
+    [PATH_COMMAND.l, SVGPathPointSeg],
+    [PATH_COMMAND.M, SVGPathPointSeg],
+    [PATH_COMMAND.m, SVGPathPointSeg],
+    [PATH_COMMAND.T, SVGPathPointSeg],
+    [PATH_COMMAND.t, SVGPathPointSeg],
+    [PATH_COMMAND.H, SVGPathHorizontalSeg],
+    [PATH_COMMAND.h, SVGPathHorizontalSeg],
+    [PATH_COMMAND.v, SVGPathVerticalSeg],
+    [PATH_COMMAND.V, SVGPathVerticalSeg],
+    [PATH_COMMAND.z, SVGPathBaseSeg],
+    [PATH_COMMAND.Z, SVGPathBaseSeg],
+    [PATH_COMMAND.c, SVGPathCubicSeg],
+    [PATH_COMMAND.C, SVGPathCubicSeg],
+    [PATH_COMMAND.s, SVGPathCubicSmoothSeg],
+    [PATH_COMMAND.S, SVGPathCubicSmoothSeg],
+    [PATH_COMMAND.Q, SVGPathQuadraticSeg],
+    [PATH_COMMAND.q, SVGPathQuadraticSeg],
+    [PATH_COMMAND.a, SVGPathArcSeg],
+    [PATH_COMMAND.A, SVGPathArcSeg]
 ]);

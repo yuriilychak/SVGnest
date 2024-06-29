@@ -1,4 +1,4 @@
-import { PATH_TAG } from '../types';
+import { PATH_COMMAND } from '../types';
 import { PATH_SEGMENT_TYPE } from '../types';
 import { TYPE_TO_TAG } from './constants';
 
@@ -6,7 +6,7 @@ import { TYPE_TO_TAG } from './constants';
 export default class SVGPathBaseSeg {
     #owningPathSegList: unknown;
 
-    #pathSegTypeAsLetter: PATH_TAG;
+    #pathSegTypeAsLetter: PATH_COMMAND;
 
     #pathSegType: PATH_SEGMENT_TYPE;
 
@@ -44,7 +44,7 @@ export default class SVGPathBaseSeg {
         this.#owningPathSegList = value;
     }
 
-    public get pathSegTypeAsLetter(): PATH_TAG {
+    public get pathSegTypeAsLetter(): PATH_COMMAND {
         return this.#pathSegTypeAsLetter;
     }
 
