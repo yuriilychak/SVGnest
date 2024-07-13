@@ -63,29 +63,6 @@ export enum MATRIX_OPERATIONS {
     NONE = ''
 }
 
-export enum PATH_SEGMENT_TYPE {
-    UNKNOWN = 0,
-    CLOSEPATH = 1,
-    MOVETO_ABS = 2,
-    MOVETO_REL = 3,
-    LINETO_ABS = 4,
-    LINETO_REL = 5,
-    CURVETO_CUBIC_ABS = 6,
-    CURVETO_CUBIC_REL = 7,
-    CURVETO_QUADRATIC_ABS = 8,
-    CURVETO_QUADRATIC_REL = 9,
-    ARC_ABS = 10,
-    ARC_REL = 11,
-    LINETO_HORIZONTAL_ABS = 12,
-    LINETO_HORIZONTAL_REL = 13,
-    LINETO_VERTICAL_ABS = 14,
-    LINETO_VERTICAL_REL = 15,
-    CURVETO_CUBIC_SMOOTH_ABS = 16,
-    CURVETO_CUBIC_SMOOTH_REL = 17,
-    CURVETO_QUADRATIC_SMOOTH_ABS = 18,
-    CURVETO_QUADRATIC_SMOOTH_REL = 19
-}
-
 export interface IPolygon extends Array<IPoint> {
     id: number;
     source: number;
