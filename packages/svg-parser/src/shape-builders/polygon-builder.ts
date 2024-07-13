@@ -1,22 +1,22 @@
+import { INode } from 'svgson';
+
 import { IPoint } from '../types';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class PolygonBuilder extends BasicShapeBuilder {
-    public getResult(element: SVGElement): IPoint[] {
-        const points: SVGPointList = (element as SVGPolygonElement).points;
-        const pointCount = points.numberOfItems;
-        let point: IPoint = null;
+    public getResult(): IPoint[] {
+        const points: IPoint[] = this.convertPointsToArray();
+        const pointCount = points.length;
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            point = points.getItem(i);
-            this.result.push({ x: point.x, y: point.y });
+            this.result.push(points[i]);
         }
 
-        return super.getResult(element);
+        return super.getResult();
     }
 
-    public static create(tolerance: number, svgTolerance: number): BasicShapeBuilder {
-        return new PolygonBuilder(tolerance, svgTolerance);
+    public static create(element: INode, tolerance: number, svgTolerance: number): BasicShapeBuilder {
+        return new PolygonBuilder(element, tolerance, svgTolerance);
     }
 }

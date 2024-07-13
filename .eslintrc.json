@@ -15,7 +15,15 @@
     },
     "rules": {
         "no-restricted-imports": "off",
-        "no-extra-parens": "error",
+        "no-extra-parens": [
+            "error",
+            "all",
+            {
+                "ignoreJSX": "all",
+                "enforceForArrowConditionals": false,
+                "nestedBinaryExpressions": false
+            }
+        ],
         "padding-line-between-statements": ["error", { "blankLine": "always", "prev": "*", "next": "return" }],
         "no-unexpected-multiline": "error",
         "valid-jsdoc": [

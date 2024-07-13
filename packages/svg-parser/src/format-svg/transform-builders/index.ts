@@ -5,7 +5,7 @@ import PolygonBuilder from './polygon-builder';
 import RectBuilder from './rect-builder';
 import PathBuilder from './path-builder';
 import BasicTransformBuilder from './basic-transform-builder';
-import { SVG_TAG } from '../types';
+import { SVG_TAG } from '../../types';
 
 const TRANSFORM_BUILDERS = new Map<SVG_TAG, typeof BasicTransformBuilder>([
     [SVG_TAG.ELLIPSE, EllipseBuilder],

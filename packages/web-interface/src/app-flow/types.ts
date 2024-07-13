@@ -55,7 +55,7 @@ export type NestingStatistics = {
     efficiency: number;
     placed: number;
     total: number;
-}
+};
 
 export enum ALERT_TYPE {
     INFO = 'info',
@@ -100,15 +100,16 @@ export enum REDUCER_ACTION {
     PAUSE_NESTING,
     UPDATE_STATISTICS,
     SELECT_BIN,
-    THROW_ERROR
+    THROW_ERROR,
+    NEW_ITERATION
 }
 
-export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState
+export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState;
 
 export type ReducerAction = {
     type: REDUCER_ACTION;
     payload: unknown;
-}
+};
 
 export enum PREDEFINED_ID {
     SVG_WRAPPER = 'svgWrapper',
@@ -117,4 +118,4 @@ export enum PREDEFINED_ID {
     BACKGROUND_RECT = 'backgroundRect'
 }
 
-export type ViewBoxAttribute = 'x' | 'y' | 'width' | 'height'
+export type ViewBoxAttribute = 'x' | 'y' | 'width' | 'height';

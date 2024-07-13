@@ -1,13 +1,14 @@
-const path = require('path')
-const TerserPlugin = require('terser-webpack-plugin')
+import path from 'path';
+import TerserPlugin from 'terser-webpack-plugin';
 
-module.exports = {
+export default {
     mode: 'production',
     entry: './src/index.tsx',
     target: 'web',
+    devtool: 'source-map',
     output: {
         filename: 'web-interface.js',
-        path: path.resolve(__dirname, '../../dist')
+        path: path.resolve('../../dist')
     },
     externals: {
         'polygon-packer': 'polygonPacker'
@@ -35,4 +36,4 @@ module.exports = {
             }
         ]
     }
-}
+};

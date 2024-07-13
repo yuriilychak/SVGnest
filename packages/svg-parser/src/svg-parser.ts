@@ -1,304 +1,174 @@
-import Matrix from './matrix';
-import { SVGPathPointSeg, SVGPathSeg, SVGPathVerticalSeg } from './svg-path-seg';
+import { INode, stringify } from 'svgson';
+
+import formatSVG from './format-svg';
+import { ClearFunc, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
+import { convertElement, flattenTree, nestPolygons, polygonArea } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
-import TRANSFORM_BUILDERS from './transform-builders';
-import { IPoint, MATRIX_OPERATIONS, SVG_TAG, PATH_COMMAND, PATH_SEGMENT_TYPE } from './types';
-import SVGPathSegElement from './svg-path-seg-element';
 
-export default class SvgParser {
-    // the SVG document
-    #svg: Document = null;
+export default class SVGParser {
+    #svgRoot: INode = null;
 
-    // the top level SVG element of the SVG document
-    #svgRoot: SVGSVGElement = null;
+    #bin: INode = null;
 
-    // return style node, if any
-    public getStyle(): SVGElement | null {
-        if (this.#svgRoot) {
-            return null;
-        }
+    #binPolygon: IPolygon = null;
 
-        const nodes: NodeListOf<SVGElement> = this.#svgRoot.childNodes as NodeListOf<SVGElement>;
-        const nodeCount: number = nodes.length;
+    #parts: INode[] = null;
+
+    #scale: number = 0;
+
+    #cleanFunc: ClearFunc;
+
+    constructor(cleanFunc: ClearFunc) {
+        this.#cleanFunc = cleanFunc;
+    }
+
+    public init(svgString: string): void {
+        this.#svgRoot = formatSVG(svgString);
+    }
+
+    public getTree(configuration: NestConfig): IPolygon[] {
+        const { curveTolerance, clipperScale } = configuration;
+        this.#parts = this.#svgRoot.children.filter(node => node.attributes.guid !== this.#bin.attributes.guid);
+        this.#binPolygon = this.clearPolygon(this.#bin, curveTolerance, clipperScale) as IPolygon;
+
+        const nodeCount = this.#parts.length;
+        const trashold = curveTolerance * curveTolerance;
+        const polygons = [];
+        let polygon: IPolygon = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
-            if (nodes[i].tagName === 'style') {
-                return nodes[i];
+            polygon = this.clearPolygon(this.#parts[i], curveTolerance, clipperScale) as IPolygon;
+
+            if (polygon && polygon.length > 2 && Math.abs(polygonArea(polygon)) > trashold) {
+                polygon.source = i;
+                polygon.children = [];
+                polygons.push(polygon);
+            } else {
+                console.warn('Can not parse polygon', this.#parts[i]);
             }
         }
 
-        return null;
+        // turn the list into a tree
+        nestPolygons(polygons);
+
+        return polygons;
     }
 
-    private transformParse(transformString: string = ''): Matrix {
-        if (!transformString) {
-            return new Matrix();
+    public setBin(element: SVGElement): void {
+        this.#bin = convertElement(element);
+    }
+
+    public get svgAttributes(): { [key: string]: string } {
+        return this.#svgRoot.attributes;
+    }
+
+    private clearPolygon(element: INode, tolerance: number, scale: number): IPoint[] {
+        const tagName: SVG_TAG = element.name as SVG_TAG;
+
+        if (!SHAPE_BUILDERS.has(tagName)) {
+            return [];
         }
 
-        const cmdSplit: RegExp = /\s*(matrix|translate|scale|rotate|skewX|skewY)\s*\(\s*(.+?)\s*\)[\s,]*/;
-        const paramsSplit: RegExp = /[\s,]+/;
+        const rawPolygon: IPoint[] = SHAPE_BUILDERS.get(tagName)
+            .create(element, tolerance, SVGParser.SVG_TOLERANCE)
+            .getResult();
 
-        // Split value into ['', 'translate', '10 50', '', 'scale', '2', '', 'rotate',  '-45', '']
-        const { matrix } = transformString.split(cmdSplit).reduce(
-            (result, item) => {
-                // Skip empty elements
-                if (item) {
-                    // remember operation
-                    if (Matrix.AVAILABLE_OPERATIONS.includes(item as MATRIX_OPERATIONS)) {
-                        result.command = item as MATRIX_OPERATIONS;
-                    } else {
-                        // If params count is not correct - ignore command
-                        result.matrix.execute(
-                            result.command,
-                            item.split(paramsSplit).map(i => Number(i) || 0)
-                        );
+        return this.#cleanFunc(rawPolygon, scale, tolerance);
+    }
+
+    // returns an array of SVG elements that represent the placement, for export or rendering
+    public applyPlacement(
+        placement: IPoint[][],
+        tree: IPolygon[],
+        binBounds: { x: number; y: number; width: number; height: number }
+    ): string {
+        const clone: INode[] = [];
+        const partCount: number = this.#parts.length;
+        const placementCount: number = placement.length;
+        const svglist: INode[] = [];
+        let i: number = 0;
+        let j: number = 0;
+        let k: number = 0;
+        let newSvg: INode = null;
+        let binClone: INode = null;
+        let p: IPoint = null;
+        let part: IPolygon = null;
+        let partGroup: INode = null;
+        let flattened: IPolygon[] = null;
+        let c: INode = null;
+
+        for (i = 0; i < partCount; ++i) {
+            clone.push(JSON.parse(JSON.stringify(this.#parts[i])) as INode);
+        }
+
+        for (i = 0; i < placementCount; ++i) {
+            newSvg = {
+                name: 'svg',
+                type: 'element',
+                value: '',
+                attributes: {},
+                children: []
+            };
+
+            newSvg.attributes.viewBox = `0 0 ${binBounds.width} ${binBounds.height}`;
+            newSvg.attributes.width = `${binBounds.width}px`;
+            newSvg.attributes.height = `${binBounds.height}px`;
+
+            binClone = JSON.parse(JSON.stringify(this.#bin)) as INode;
+            binClone.attributes.id = 'exportRoot';
+
+            binClone.attributes.transform = `translate(${-binBounds.x} ${-binBounds.y})`;
+            newSvg.children.push(binClone);
+
+            for (j = 0; j < placement[i].length; ++j) {
+                p = placement[i][j];
+                part = tree[p.id];
+
+                partGroup = {
+                    name: 'g',
+                    type: 'element',
+                    value: '',
+                    attributes: {},
+                    children: []
+                };
+                // the original path could have transforms and stuff on it, so apply our transforms on a group
+                partGroup.attributes.transform = `translate(${p.x} ${p.y}) rotate(${p.rotation})`;
+                partGroup.attributes.id = 'exportContent';
+                partGroup.children.push(clone[part.source]);
+
+                if (part.children && part.children.length > 0) {
+                    flattened = flattenTree(part.children, true);
+
+                    for (k = 0; k < flattened.length; ++k) {
+                        c = clone[flattened[k].source];
+                        // add class to indicate hole
+                        if (flattened[k].hole && (!c.attributes.class || c.attributes.class.indexOf('hole') < 0)) {
+                            c.attributes.class = `${c.attributes.class} hole`;
+                        }
+                        partGroup.children.push(c);
                     }
                 }
 
-                return result;
-            },
-            { matrix: new Matrix(), command: MATRIX_OPERATIONS.NONE }
-        );
+                newSvg.children.push(partGroup);
+            }
 
-        return matrix;
+            svglist.push(newSvg);
+        }
+
+        const resultSvg: INode =
+            svglist.length === 1 ? svglist[0] : { ...(JSON.parse(JSON.stringify(newSvg)) as INode), children: svglist };
+
+        return stringify(resultSvg);
     }
 
-    // recursively apply the transform property to the given element
-    private applyTransform(element: SVGSVGElement = this.#svgRoot, globalTransform: string = ''): void {
-        const transformAttribute: string = element.getAttribute('transform');
-        const transformString: string = transformAttribute ? globalTransform + transformAttribute : globalTransform;
-        const transform: Matrix = this.transformParse(transformString);
-
-        if (SvgParser.TRANSFORM_TAGS.includes(element.tagName as SVG_TAG)) {
-            element.removeAttribute('transform');
-            const children: SVGSVGElement[] = Array.prototype.slice.call(element.childNodes) as SVGSVGElement[];
-            const childCount: number = children.length;
-            let i: number = 0;
-            let child: SVGSVGElement;
-
-            for (i = 0; i < childCount; ++i) {
-                child = children[i];
-
-                if (child.tagName) {
-                    // skip text nodes
-                    this.applyTransform(child, transformString);
-                }
-            }
-        } else if (transform && !transform.isIdentity && TRANSFORM_BUILDERS.has(element.tagName as SVG_TAG)) {
-            // decompose affine matrix to rotate, scale components (translate is just the 3rd column)
-            const builder = TRANSFORM_BUILDERS.get(element.tagName as SVG_TAG);
-
-            builder.create(element, transform, this.#svg, this.#svgRoot).getResult();
-        }
+    public get svgString(): string {
+        return stringify(this.#svgRoot);
     }
 
-    // bring all child elements to the top level
-    private flatten(element: SVGSVGElement = this.#svgRoot): void {
-        const nodeCount: number = element.childNodes.length;
-        let i: number = 0;
-
-        for (i = 0; i < nodeCount; ++i) {
-            this.flatten(element.childNodes[i] as SVGSVGElement);
-        }
-
-        if (element.tagName === SVG_TAG.SVG) {
-            return;
-        }
-
-        while (element.childNodes.length > 0) {
-            element.parentElement.appendChild(element.childNodes[0]);
-        }
+    public get binPolygon(): IPolygon {
+        return this.#binPolygon;
     }
-
-    // remove all elements with tag name not in the whitelist
-    // use this to remove <text>, <g> etc that don't represent shapes
-    private filter(element: SVGSVGElement = this.#svgRoot): void {
-        const nodeCount: number = element.childNodes.length;
-
-        if (nodeCount !== 0) {
-            let i: number = 0;
-
-            for (i = 0; i < nodeCount; ++i) {
-                this.filter(element.childNodes[i] as SVGSVGElement);
-            }
-        } else if (SvgParser.ALLOWED_TAGS.indexOf(element.tagName as SVG_TAG) === -1) {
-            element.parentElement.removeChild(element);
-        }
-    }
-
-    // split a compound path (paths with M, m commands) into an array of paths
-    private splitPath(element: SVGSVGElement = this.#svgRoot): void {
-        // only operate on original DOM tree, ignore any children that are added. Avoid infinite loops
-        const children: ChildNode[] = Array.prototype.slice.call(element.childNodes) as ChildNode[];
-        const childCount: number = children.length;
-        let i = 0;
-
-        for (i = 0; i < childCount; ++i) {
-            this.splitPath(children[i] as SVGSVGElement);
-        }
-
-        if (!element || element.tagName !== SVG_TAG.PATH || !element.parentElement) {
-            return;
-        }
-
-        const segmentList: SVGPathSeg[] = [];
-        let segment = null;
-        let lastM = 0;
-
-        // make copy of seglist (appending to new path removes it from the original pathseglist)
-        for (i = 0; i < (element as SVGPathSegElement).pathSegList.numberOfItems; ++i) {
-            segmentList.push((element as SVGPathSegElement).pathSegList.getItem(i));
-        }
-
-        for (i = segmentList.length - 1; i >= 0; --i) {
-            segment = segmentList[i];
-
-            if (i > 0 && segment.pathSegTypeAsLetter.toUpperCase() === PATH_COMMAND.M) {
-                lastM = i;
-                break;
-            }
-        }
-
-        if (lastM === 0) {
-            return; // only 1 M command, no need to split
-        }
-
-        const paths = [];
-        const startPoint = { x: 0, y: 0 };
-        const currentPoint = { x: 0, y: 0 };
-        let command = '';
-        let offsetCoef = 0;
-        let path: SVGPathSegElement;
-
-        for (i = 0; i < segmentList.length; ++i) {
-            segment = segmentList[i];
-            command = segment.pathSegTypeAsLetter;
-
-            if (command.toUpperCase() === PATH_COMMAND.M) {
-                path = element.cloneNode() as SVGPathSegElement;
-                path.setAttribute('d', '');
-                paths.push(path);
-            }
-
-            offsetCoef = SvgParser.POSITION_COMMANDS.includes(command as PATH_COMMAND) ? 0 : 1;
-
-            if (segment instanceof SVGPathPointSeg) {
-                currentPoint.x = currentPoint.x * offsetCoef + segment.x;
-            }
-
-            if (segment instanceof SVGPathPointSeg || segment instanceof SVGPathVerticalSeg) {
-                currentPoint.y = currentPoint.y * offsetCoef + segment.y;
-            }
-
-            if (command === PATH_COMMAND.m) {
-                segment = new SVGPathPointSeg(PATH_SEGMENT_TYPE.LINETO_ABS, [currentPoint.x, currentPoint.y]);
-            } else if (command.toUpperCase() === PATH_COMMAND.Z) {
-                currentPoint.x = startPoint.x;
-                currentPoint.y = startPoint.y;
-            }
-
-            path.pathSegList.appendItem(segment);
-
-            // Record the start of a subpath
-            if (command.toUpperCase() === PATH_COMMAND.M) {
-                startPoint.x = currentPoint.x;
-                startPoint.y = currentPoint.y;
-            }
-        }
-
-        for (i = 0; i < paths.length; ++i) {
-            // don't add trivial paths from sequential M commands
-            if (paths[i].pathSegList.numberOfItems > 1) {
-                element.parentElement.insertBefore(paths[i], element);
-            }
-        }
-
-        element.remove();
-
-        return;
-    }
-
-    // return a polygon from the given SVG element in the form of an array of points
-    public static polygonify(element: SVGElement, tolerance: number): IPoint[] {
-        return SHAPE_BUILDERS.has(element.tagName as SVG_TAG)
-            ? SHAPE_BUILDERS.get(element.tagName as SVG_TAG)
-                  .create(tolerance, SvgParser.SVG_TOLERANCE)
-                  .getResult(element)
-            : [];
-    }
-
-    public parse(svgString: string): { svg: SVGSVGElement; style: SVGElement } {
-        if (!svgString || typeof svgString !== 'string') {
-            throw Error('Invalid SVG string');
-        }
-
-        const parser: DOMParser = new DOMParser();
-        const svg: Document = parser.parseFromString(svgString, 'image/svg+xml');
-
-        this.#svgRoot = null;
-
-        if (!svg) {
-            throw new Error('Failed to parse SVG string');
-        }
-
-        this.#svg = svg;
-
-        const nodeCount: number = svg.childNodes.length;
-        let i: number = 0;
-        let child: SVGElement;
-
-        for (i = 0; i < nodeCount; ++i) {
-            // svg document may start with comments or text nodes
-            child = svg.childNodes[i] as SVGElement;
-
-            if (child.tagName === SVG_TAG.SVG) {
-                this.#svgRoot = child as SVGSVGElement;
-                break;
-            }
-        }
-
-        if (this.#svgRoot === null) {
-            throw new Error('SVG has no children');
-        }
-
-        const style = this.getStyle();
-        // apply any transformations, so that all path positions etc will be in the same coordinate space
-        this.applyTransform();
-        // remove any g elements and bring all elements to the top level
-        this.flatten();
-        // remove any non-contour elements like text
-        this.filter();
-        // split any compound paths into individual path elements
-        this.splitPath();
-
-        return { svg: this.#svgRoot, style };
-    }
-
-    private static TRANSFORM_TAGS: SVG_TAG[] = [SVG_TAG.G, SVG_TAG.SVG, SVG_TAG.DEFS, SVG_TAG.CLIP_PATH];
-
-    private static ALLOWED_TAGS: SVG_TAG[] = [
-        SVG_TAG.SVG,
-        SVG_TAG.CIRCLE,
-        SVG_TAG.ELLIPSE,
-        SVG_TAG.PATH,
-        SVG_TAG.POLYGON,
-        SVG_TAG.POLYLINE,
-        SVG_TAG.RECT,
-        SVG_TAG.LINE
-    ];
 
     private static SVG_TOLERANCE: number = 0.005; // fudge factor for browser inaccuracy in SVG unit handling
-
-    private static POSITION_COMMANDS: PATH_COMMAND[] = [
-        PATH_COMMAND.M,
-        PATH_COMMAND.L,
-        PATH_COMMAND.H,
-        PATH_COMMAND.V,
-        PATH_COMMAND.C,
-        PATH_COMMAND.S,
-        PATH_COMMAND.Q,
-        PATH_COMMAND.T,
-        PATH_COMMAND.A
-    ];
 }

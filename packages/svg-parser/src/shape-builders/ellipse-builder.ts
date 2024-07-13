@@ -1,13 +1,14 @@
+import { INode } from 'svgson';
+
 import BasicShapeBuilder from './basic-shape-builder';
 import { IPoint } from '../types';
-import { getFloatAtrribute } from '../helpers';
 
 export default class EllipseBuilder extends BasicShapeBuilder {
-    public getResult(element: SVGElement): IPoint[] {
-        const rx: number = getFloatAtrribute(element, 'rx');
-        const ry: number = getFloatAtrribute(element, 'ry');
-        const cx: number = getFloatAtrribute(element, 'cx');
-        const cy: number = getFloatAtrribute(element, 'cy');
+    public getResult(): IPoint[] {
+        const rx: number = this.getFloatAtrribute('rx');
+        const ry: number = this.getFloatAtrribute('ry');
+        const cx: number = this.getFloatAtrribute('cx');
+        const cy: number = this.getFloatAtrribute('cy');
         const maxRadius: number = Math.max(rx, ry);
         const diameter = 2 * Math.PI;
         const num: number = Math.max(Math.ceil(diameter / Math.acos(1 - this.tolerance / maxRadius)), 3);
@@ -24,10 +25,10 @@ export default class EllipseBuilder extends BasicShapeBuilder {
             });
         }
 
-        return super.getResult(element);
+        return super.getResult();
     }
 
-    public static create(tolerance: number, svgTolerance: number): BasicShapeBuilder {
-        return new EllipseBuilder(tolerance, svgTolerance);
+    public static create(element: INode, tolerance: number, svgTolerance: number): BasicShapeBuilder {
+        return new EllipseBuilder(element, tolerance, svgTolerance);
     }
 }

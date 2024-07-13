@@ -83,9 +83,9 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
                 closeAction={BUTTON_ACTION.CLOSE_SETTINGS}
                 title={t('appFlow.settingsDrawer.title')}
             >
-                {SETTINGS_CONFIG.map(config =>
+                {SETTINGS_CONFIG.map(config => (
                     <SettingInput {...config} value={settings[config.id]} key={config.id} onChange={handleChangeSettings} />
-                )}
+                ))}
                 <Box minHeight={16} />
             </SharedDrawer>
         </Stack>

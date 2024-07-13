@@ -1,19 +1,19 @@
-import { FC } from 'react'
-import { useTranslation } from 'react-i18next'
+import { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import Box from '@mui/material/Box'
-import Stack from '@mui/material/Stack'
-import CircularProgress from '@mui/material/CircularProgress'
-import Typography from '@mui/material/Typography'
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 
-import { millisecondsToStr } from './helpers'
-import { MesureItem } from './mesure-item'
-import { STYLES } from './constants'
-import { toPercents } from '../helpers'
-import { StatisticsProps } from './types'
+import { millisecondsToStr } from './helpers';
+import { MesureItem } from './mesure-item';
+import { STYLES } from './constants';
+import { toPercents } from '../helpers';
+import { StatisticsProps } from './types';
 
 const Statistics: FC<StatisticsProps> = ({ progress, estimate, iterations, placed, total, efficiency, isWorking }) => {
-    const { t } = useTranslation()
+    const { t } = useTranslation();
 
     return (
         <Stack direction='row' gap={1} alignItems='center'>
@@ -45,7 +45,7 @@ const Statistics: FC<StatisticsProps> = ({ progress, estimate, iterations, place
                 )}
             </Stack>
         </Stack>
-    )
-}
+    );
+};
 
-export default Statistics
+export default Statistics;

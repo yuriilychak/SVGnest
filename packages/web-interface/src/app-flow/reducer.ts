@@ -72,7 +72,7 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
             const resultWrapper = document.getElementById(PREDEFINED_ID.SVG_WRAPPER);
             const saver: HTMLLinkElement = document.getElementById(PREDEFINED_ID.FILE_SAVER) as HTMLLinkElement;
             const blob = new Blob([resultWrapper.innerHTML], { type: 'image/svg+xml;charset=utf-8' });
-            const blobURL = saver.href = URL.createObjectURL(blob);
+            const blobURL = (saver.href = URL.createObjectURL(blob));
 
             saver.setAttribute('download', 'SVGNestOutput.svg');
             URL.revokeObjectURL(blobURL);
@@ -107,9 +107,9 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
         (prevState, percent: number) => {
             const progress: number = toPercents(percent);
 
-            return percent > PROGRESS_TRASHOLD ?
-                { ...prevState, progress, estimate: (new Date().getTime() - prevState.startTime) / percent * (1 - percent) } :
-                { ...prevState, progress, estimate: 0, startTime: new Date().getTime() };
+            return percent > PROGRESS_TRASHOLD
+                ? { ...prevState, progress, estimate: ((new Date().getTime() - prevState.startTime) / percent) * (1 - percent) }
+                : { ...prevState, progress, estimate: 0, startTime: new Date().getTime() };
         }
     ],
     [
@@ -121,6 +121,7 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
             iterations: ++prevState.iterations
         })
     ],
+    [REDUCER_ACTION.NEW_ITERATION, prevState => ({ ...prevState, iterations: ++prevState.iterations })],
     [REDUCER_ACTION.SELECT_BIN, prevState => ({ ...prevState, isBinSelected: true })],
     [
         REDUCER_ACTION.PAUSE_NESTING,

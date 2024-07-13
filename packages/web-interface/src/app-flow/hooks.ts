@@ -56,15 +56,23 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     useEffect(() => {
         if (svgSrc) {
             try {
-                const svg = svgNest.parseSvg(svgSrc);
-                const wholeSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
+                const { source, attributes } = svgNest.parseSvg(svgSrc) as {
+                    source: string;
+                    attributes: { [key: string]: string };
+                };
+                const div = document.createElement('div');
+
+                div.innerHTML = source;
+
+                const svg: SVGElement = div.firstChild as SVGElement;
+                const wholeSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                 const rect = document.createElementNS(wholeSVG.namespaceURI, 'rect') as SVGElement;
                 // Copy relevant scaling info
-                wholeSVG.setAttribute('width', svg.getAttribute('width'));
-                wholeSVG.setAttribute('height', svg.getAttribute('height'));
-                wholeSVG.setAttribute('viewBox', svg.getAttribute('viewBox'));
+                wholeSVG.setAttribute('width', attributes.width);
+                wholeSVG.setAttribute('height', attributes.height);
+                wholeSVG.setAttribute('viewBox', attributes.viewBox);
 
-                const viewBox = wholeSVG.viewBox as SVGAnimatedRect;
+                const viewBox = wholeSVG.viewBox;
 
                 VIEW_BOX_ATTRIBUTES.forEach(attribute => {
                     rect.setAttribute(attribute, viewBox.baseVal[attribute].toString());
@@ -109,23 +117,12 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const handleProgress = useCallback((percent: number) => handleDispatch(REDUCER_ACTION.PROGRESS, percent), [handleDispatch]);
 
     const handleRenderSvg = useCallback(
-        (svgList: SVGElement[], efficiency: number, placed: number, total: number) => {
-            if (!svgList || svgList.length === 0) {
-                return;
-            }
-
-            handleDispatch(REDUCER_ACTION.UPDATE_STATISTICS, { efficiency, placed, total });
-            svgWrapper.current.innerHTML = '';
-
-            const svgCount = svgList.length;
-            let i: number = 0;
-
-            for (i = 0; i < svgCount; ++i) {
-                if (svgCount > 2) {
-                    svgList[i].setAttribute('class', 'grid');
-                }
-
-                svgWrapper.current.appendChild(svgList[i]);
+        (svgList: string, efficiency: number, placed: number, total: number) => {
+            if (svgList) {
+                handleDispatch(REDUCER_ACTION.UPDATE_STATISTICS, { efficiency, placed, total });
+                svgWrapper.current.innerHTML = svgList;
+            } else {
+                handleDispatch(REDUCER_ACTION.NEW_ITERATION);
             }
         },
         [handleDispatch]

@@ -66,12 +66,12 @@ export const STYLES: { [key: string]: object } = {
         overflow: 'auto'
     },
     svgContent: {
-        'boxSizing': 'border-box',
-        'position': 'relative',
+        boxSizing: 'border-box',
+        position: 'relative',
         '& svg': {
-            'width': '100%',
-            'height': 'auto',
-            'position': 'absolute',
+            width: '100%',
+            height: 'auto',
+            position: 'absolute',
             '& *': {
                 fill: '#fff !important',
                 fillOpacity: '0 !important',

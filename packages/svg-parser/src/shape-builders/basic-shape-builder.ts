@@ -1,13 +1,17 @@
+import { INode } from 'svgson';
+
+import BasicElementBuilder from '../basic-element-builder';
 import { IPoint } from '../types';
 
-export default class BasicShapeBuilder {
+export default class BasicShapeBuilder extends BasicElementBuilder {
     #tolerance: number;
 
     #svgTolerance: number;
 
     #result: IPoint[];
 
-    protected constructor(tolerance: number, svgTolerance: number) {
+    protected constructor(element: INode, tolerance: number, svgTolerance: number) {
+        super(element);
         this.#tolerance = tolerance;
         this.#svgTolerance = svgTolerance;
         this.#result = [];
@@ -30,8 +34,7 @@ export default class BasicShapeBuilder {
         }
     }
 
-    // eslint-disable-next-line
-    public getResult(element: SVGElement): IPoint[] {
+    public getResult(): IPoint[] {
         let pointCount: number = this.#result.length;
 
         while (
@@ -50,7 +53,7 @@ export default class BasicShapeBuilder {
         return Math.abs(a - b) < tolerance;
     }
 
-    public static create(tolerance: number, svgTolerance: number): BasicShapeBuilder {
-        return new BasicShapeBuilder(tolerance, svgTolerance);
+    public static create(element: INode, tolerance: number, svgTolerance: number): BasicShapeBuilder {
+        return new BasicShapeBuilder(element, tolerance, svgTolerance);
     }
 }

@@ -1,10 +1,10 @@
-import { SVG_TAG } from '../types';
 import BasicShapeBuilder from './basic-shape-builder';
 import CircleBuilder from './circle-builder';
 import EllipseBuilder from './ellipse-builder';
 import PathBuilder from './path-builder';
 import PolygonBuilder from './polygon-builder';
 import RectBuilder from './rect-builder';
+import { SVG_TAG } from '../types';
 
 const SHAPE_BUILDERS = new Map<SVG_TAG, typeof BasicShapeBuilder>([
     [SVG_TAG.CIRCLE, CircleBuilder],

@@ -1,15 +1,16 @@
-const path = require('path');
+import path from 'path';
 
-module.exports = {
+export default {
     mode: 'production',
     entry: './src/index.ts',
     target: 'web',
+    devtool: 'source-map',
     output: {
         library: 'svgParser',
         libraryTarget: 'umd',
         umdNamedDefine: true,
         filename: 'svg-parser.js',
-        path: path.resolve(__dirname, '../../dist')
+        path: path.resolve('../../dist')
     },
     resolve: {
         extensions: ['.ts', '.js']

@@ -76,8 +76,8 @@ export default class ArcSegment extends BasicSegment {
 
         const coef: number = sign * Math.sqrt(sq);
         const c1: IPoint = {
-            x: coef * (radius.x * current.y / radius.y),
-            y: coef * -(radius.y * current.x / radius.x)
+            x: coef * ((radius.x * current.y) / radius.y),
+            y: coef * -((radius.y * current.x) / radius.x)
         };
         const center: IPoint = {
             x: mid.x + (cos * c1.x - sin * c1.y),
@@ -146,7 +146,7 @@ export default class ArcSegment extends BasicSegment {
     }
 
     private static toRadians(degrees: number): number {
-        return degrees % 360 * Math.PI / 180;
+        return ((degrees % 360) * Math.PI) / 180;
     }
 
     private static toDegrees(radians: number): number {

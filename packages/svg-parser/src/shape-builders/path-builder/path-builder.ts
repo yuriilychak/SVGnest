@@ -1,4 +1,12 @@
-import { parseSVG, makeAbsolute, CommandMadeAbsolute, Command, EllipticalArcCommandMadeAbsolute } from 'svg-path-parser';
+import { INode } from 'svgson';
+import {
+    parseSVG,
+    makeAbsolute,
+    CommandMadeAbsolute,
+    Command,
+    EllipticalArcCommandMadeAbsolute,
+    CurveToCommandMadeAbsolute
+} from 'svg-path-parser';
 
 import { IPoint, PATH_COMMAND } from '../../types';
 import BasicShapeBuilder from '../basic-shape-builder';
@@ -7,8 +15,8 @@ import BasicSegment from './segments/basic-segment';
 import { ICubicSegmentData, IQuadraticSegmentData, IBasicSegmentData, IArcSegmentData } from './types';
 
 export default class PathBuilder extends BasicShapeBuilder {
-    public getResult(element: SVGElement): IPoint[] {
-        const definition: string = element.getAttribute('d');
+    public getResult(): IPoint[] {
+        const definition: string = this.element.attributes.d;
         const rawSegments: Command[] = parseSVG(definition);
         const segments: CommandMadeAbsolute[] = makeAbsolute(rawSegments);
         const segmentCount: number = segments.length;
@@ -21,6 +29,7 @@ export default class PathBuilder extends BasicShapeBuilder {
         const prev2: IPoint = { x: 0, y: 0 };
         let i: number = 0;
         let segment: CommandMadeAbsolute = null;
+        let curveSegment: CurveToCommandMadeAbsolute = null;
         let command: PATH_COMMAND = null;
         let config: IBasicSegmentData = null;
         let segmentBuilder: typeof BasicSegment = null;
@@ -38,35 +47,30 @@ export default class PathBuilder extends BasicShapeBuilder {
 
             prev2.x = point2.x;
             prev2.y = point2.y;
+            curveSegment = segment as CurveToCommandMadeAbsolute;
 
             if ('x1' in segment) {
-                // @ts-ignore
-                point1.x = segment.x1;
+                point1.x = curveSegment.x1;
             }
 
             if ('y1' in segment) {
-                // @ts-ignore
-                point1.y = segment.y1;
+                point1.y = curveSegment.y1;
             }
 
             if ('x2' in segment) {
-                // @ts-ignore
-                point2.x = segment.x2;
+                point2.x = curveSegment.x2;
             }
 
             if ('y1' in segment) {
-                // @ts-ignore
-                point2.y = segment.y2;
+                point2.y = curveSegment.y2;
             }
 
             if ('x' in segment) {
-                // @ts-ignore
-                point.x = segment.x;
+                point.x = curveSegment.x;
             }
 
             if ('y' in segment) {
-                // @ts-ignore
-                point.y = segment.y;
+                point.y = curveSegment.y;
             }
 
             switch (command) {
@@ -129,7 +133,7 @@ export default class PathBuilder extends BasicShapeBuilder {
             }
         }
 
-        const result = super.getResult(element);
+        const result = super.getResult();
 
         return result;
     }
@@ -170,7 +174,7 @@ export default class PathBuilder extends BasicShapeBuilder {
 
     private static CUBIC_COMMANDS: PATH_COMMAND[] = [PATH_COMMAND.C, PATH_COMMAND.S];
 
-    public static create(tolerance: number, svgTolerance: number): BasicShapeBuilder {
-        return new PathBuilder(tolerance, svgTolerance);
+    public static create(element: INode, tolerance: number, svgTolerance: number): BasicShapeBuilder {
+        return new PathBuilder(element, tolerance, svgTolerance);
     }
 }

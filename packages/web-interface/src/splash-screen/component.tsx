@@ -37,7 +37,7 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
             <Logo />
             <Typography sx={STYLES.title}>{t('splashScreen.title')}</Typography>
             <Typography sx={STYLES.subtitle}>{t('splashScreen.subtitle')}</Typography>
-            <ButtonGroup buttonsConfig={BUTTON_CONFIG} onClick={handleAction} localePrefix="splashScreen.buttons" />
+            <ButtonGroup buttonsConfig={BUTTON_CONFIG} onClick={handleAction} localePrefix='splashScreen.buttons' />
             <SharedDrawer
                 isOpen={isDrawerOpen}
                 onClose={handleAction}

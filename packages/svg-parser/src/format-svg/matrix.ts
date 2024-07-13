@@ -1,4 +1,5 @@
-import { IPoint, MATRIX_OPERATIONS } from './types';
+import { degreesToRadians } from '../helpers';
+import { IPoint, MATRIX_OPERATIONS } from '../types';
 
 export default class Matrix {
     // combined matrix cache
@@ -78,7 +79,7 @@ export default class Matrix {
         if (angle !== 0) {
             this.translate(rx, ry);
 
-            const rad = angle * Math.PI / 180;
+            const rad = degreesToRadians(angle);
             const cos = Math.cos(rad);
             const sin = Math.sin(rad);
 
@@ -90,13 +91,13 @@ export default class Matrix {
 
     private skewX(angle: number): void {
         if (angle !== 0) {
-            this.add([Math.tan(angle * Math.PI / 180)], [2]);
+            this.add([Math.tan(degreesToRadians(angle))], [2]);
         }
     }
 
     private skewY(angle: number): void {
         if (angle !== 0) {
-            this.add([Math.tan(angle * Math.PI / 180)], [1]);
+            this.add([Math.tan(degreesToRadians(angle))], [1]);
         }
     }
 

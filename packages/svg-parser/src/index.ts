@@ -1,4 +1,1 @@
-export { default as SvgParser } from './svg-parser'
-import initPathSegPolyFill from './polyfill'
-
-initPathSegPolyFill()
+export { default as SVGParser } from './svg-parser';

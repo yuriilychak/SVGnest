@@ -1,138 +1,9 @@
-import ClipperLib from 'js-clipper';
-import { SvgParser } from 'svg-parser';
+import { SVGParser } from 'svg-parser';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
-import { polygonArea, pointInPolygon, almostEqual, getPolygonBounds } from './geometry-util';
-
-function flattenTree(tree, hole, result = []) {
-    const nodeCount = tree.length;
-    let i = 0;
-    let node = null;
-    let children = null;
-
-    for (i = 0; i < nodeCount; ++i) {
-        node = tree[i];
-        node.hole = hole;
-        children = node.children;
-
-        result.push(node);
-
-        if (children && children.length > 0) {
-            flattenTree(children, !hole, result);
-        }
-    }
-
-    return result;
-}
-
-function toTree(list, idstart) {
-    const parents = [];
-    let i, j;
-
-    // assign a unique id to each leaf
-    const id = idstart || 0;
-    let outerNode;
-    let innerNode;
-    let isChild = false;
-
-    for (i = 0; i < list.length; ++i) {
-        outerNode = list[i];
-        isChild = false;
-
-        for (j = 0; j < list.length; ++j) {
-            innerNode = list[j];
-
-            if (j !== i && pointInPolygon(outerNode[0], innerNode)) {
-                if (!innerNode.children) {
-                    innerNode.children = [];
-                }
-
-                innerNode.children.push(outerNode);
-                outerNode.parent = innerNode;
-                isChild = true;
-                break;
-            }
-        }
-
-        if (!isChild) {
-            parents.push(outerNode);
-        }
-    }
-
-    for (i = 0; i < list.length; ++i) {
-        if (parents.indexOf(list[i]) < 0) {
-            list.splice(i, 1);
-            i--;
-        }
-    }
-
-    const parentCount = parents.length;
-    let childId = id + parentCount;
-    let parent;
-
-    for (i = 0; i < parentCount; ++i) {
-        parent = parents[i];
-        parent.id = id + i;
-
-        if (parent.children) {
-            childId = toTree(parent.children, childId);
-        }
-    }
-
-    return childId;
-}
-
-// offset tree recursively
-function offsetTree(tree, offset, offsetFunction) {
-    let i = 0;
-    let node;
-    let offsetPaths;
-    const treeSize = tree.length;
-
-    for (i = 0; i < treeSize; ++i) {
-        node = tree[i];
-        offsetPaths = offsetFunction(node, offset);
-
-        if (offsetPaths.length == 1) {
-            // replace array items in place
-            Array.prototype.splice.apply(node, [0, node.length].concat(offsetPaths[0]));
-        }
-
-        if (node.childNodes && node.childNodes.length > 0) {
-            offsetTree(node.childNodes, -offset, offsetFunction);
-        }
-    }
-}
-
-function toClipperCoordinates(polygon) {
-    const result = [];
-    let i = 0;
-
-    for (i = 0; i < polygon.length; ++i) {
-        result.push({
-            X: polygon[i].x,
-            Y: polygon[i].y
-        });
-    }
-
-    return result;
-}
-
-function toNestCoordinates(polygon, scale) {
-    const count = polygon.length;
-    const result = [];
-    let i = 0;
-
-    for (i = 0; i < count; ++i) {
-        result.push({
-            x: polygon[i].X / scale,
-            y: polygon[i].Y / scale
-        });
-    }
-
-    return result;
-}
+import { polygonArea, almostEqual, getPolygonBounds } from './geometry-util';
+import { cleanPolygon, offsetPolygon } from './helpers';
 
 function getPlacementWorkerData(binPolygon, paths, ids, rotations, config, nfpCache = {}) {
     return {
@@ -149,16 +20,7 @@ export default class SvgNest {
     #geneticAlgorithm;
 
     constructor() {
-        this.svg = null;
-
-        // keep a reference to any style nodes, to maintain color/fill info
-        this.style = null;
-
-        this.parts = null;
-
         this.tree = null;
-
-        this.bin = null;
         this.binPolygon = null;
         this.binBounds = null;
         this.nfpCache = {};
@@ -179,67 +41,30 @@ export default class SvgNest {
         this.best = null;
         this.workerTimer = null;
         this.progress = 0;
-        this.svgParser = new SvgParser();
+        this.svgParser = new SVGParser(cleanPolygon);
     }
 
     parseSvg(svgString) {
         // reset if in progress
         this.stop();
 
-        this.bin = null;
-        this.binPolygon = null;
-        this.tree = null;
+        this.svgParser.init(svgString);
 
-        const { svg, style } = this.svgParser.parse(svgString);
-        // parse svg
-        this.style = style;
-        this.svg = svg;
-        this.tree = this.getParts(this.svg.childNodes);
-
-        return this.svg;
+        return {
+            source: this.svgParser.svgString,
+            attributes: this.svgParser.svgAttributes
+        };
     }
 
     setBin(element) {
-        if (!this.svg) {
-            return;
-        }
-        this.bin = element;
+        this.svgParser.setBin(element);
     }
 
     config(configuration) {
-        // clean up inputs
-
-        if (!configuration) {
-            return this.configuration;
-        }
-
-        if (configuration.curveTolerance && !almostEqual(parseFloat(configuration.curveTolerance), 0)) {
-            this.configuration.curveTolerance = parseFloat(configuration.curveTolerance);
-        }
-
-        if ('spacing' in configuration) {
-            this.configuration.spacing = parseFloat(configuration.spacing);
-        }
-
-        if (configuration.rotations && parseInt(configuration.rotations) > 0) {
-            this.configuration.rotations = parseInt(configuration.rotations);
-        }
-
-        if (configuration.populationSize && parseInt(configuration.populationSize) > 2) {
-            this.configuration.populationSize = parseInt(configuration.populationSize);
-        }
-
-        if (configuration.mutationRate && parseInt(configuration.mutationRate) > 0) {
-            this.configuration.mutationRate = parseInt(configuration.mutationRate);
-        }
-
-        if ('useHoles' in configuration) {
-            this.configuration.useHoles = Boolean(configuration.useHoles);
-        }
-
-        if ('exploreConcave' in configuration) {
-            this.configuration.exploreConcave = Boolean(configuration.exploreConcave);
-        }
+        this.configuration = {
+            ...this.configuration,
+            ...configuration
+        };
 
         this.best = null;
         this.nfpCache = {};
@@ -252,40 +77,24 @@ export default class SvgNest {
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     start(progressCallback, displayCallback) {
-        if (!this.svg || !this.bin) {
-            return false;
-        }
-
-        this.parts = Array.prototype.slice.call(this.svg.childNodes);
-        const binIndex = this.parts.indexOf(this.bin);
-
-        if (binIndex >= 0) {
-            // don't process bin as a part of the tree
-            this.parts.splice(binIndex, 1);
-        }
-
         // build tree without bin
-        this.tree = this.getParts(this.parts.slice(0));
+        this.tree = this.svgParser.getTree(this.configuration);
+        const polygomCount = this.tree.length;
+        let i = 0;
 
-        offsetTree(this.tree, 0.5 * this.configuration.spacing, this.polygonOffset.bind(this));
+        for (i = 0; i < polygomCount; ++i) {
+            offsetPolygon(this.tree[i], this.configuration, 1);
+        }
 
-        this.binPolygon = SvgParser.polygonify(this.bin, this.configuration.curveTolerance);
-        this.binPolygon = this.cleanPolygon(this.binPolygon);
+        this.binPolygon = this.svgParser.binPolygon;
 
-        if (!this.binPolygon || this.binPolygon.length < 3) {
+        if (this.binPolygon.length < 3) {
             return false;
         }
 
         this.binBounds = getPolygonBounds(this.binPolygon);
 
-        if (this.configuration.spacing > 0) {
-            const offsetBin = this.polygonOffset(this.binPolygon, -0.5 * this.configuration.spacing);
-            if (offsetBin.length == 1) {
-                // if the offset contains 0 or more than 1 path, something went wrong.
-                this.binPolygon = offsetBin.pop();
-            }
-        }
-
+        offsetPolygon(this.binPolygon, this.configuration, -1);
         this.binPolygon.id = -1;
 
         let point = this.binPolygon[0];
@@ -294,8 +103,6 @@ export default class SvgNest {
         let xbinmin = point.x;
         let ybinmax = point.y;
         let ybinmin = point.y;
-
-        let i = 0;
         const binSize = this.binPolygon.length;
 
         for (i = 1; i < binSize; ++i) {
@@ -326,16 +133,16 @@ export default class SvgNest {
             this.binPolygon.reverse();
         }
 
-        let start;
-        let end;
-        let node;
+        let start = null;
+        let end = null;
+        let node = null;
         // remove duplicate endpoints, ensure counterclockwise winding direction
         for (i = 0; i < this.tree.length; ++i) {
             node = this.tree[i];
             start = node[0];
             end = node[node.length - 1];
 
-            if (start == end || (almostEqual(start.x, end.x) && almostEqual(start.y, end.y))) {
+            if (start === end || (almostEqual(start.x, end.x) && almostEqual(start.y, end.y))) {
                 node.pop();
             }
 
@@ -515,14 +322,11 @@ export default class SvgNest {
                                 }
                             }
 
-                            displayCallback(
-                                this.applyPlacement(this.best.placements),
-                                placedArea / totalArea,
-                                numPlacedParts,
-                                numParts
-                            );
+                            const placement = this.svgParser.applyPlacement(this.best.placements, this.tree, this.binBounds);
+
+                            displayCallback(placement, placedArea / totalArea, numPlacedParts, numParts);
                         } else {
-                            displayCallback();
+                            displayCallback('', 0, 0, 0);
                         }
                         this.working = false;
                     },
@@ -535,172 +339,6 @@ export default class SvgNest {
                 console.log(err);
             }
         );
-    }
-
-    // assuming no intersections, return a tree where odd leaves are parts and even ones are holes
-    // might be easier to use the DOM, but paths can't have paths as children. So we'll just make our own tree.
-    getParts(paths) {
-        let i;
-        const polygons = [];
-        const numChildren = paths.length;
-        const trashold = this.configuration.curveTolerance * this.configuration.curveTolerance;
-        let poly;
-
-        for (i = 0; i < numChildren; ++i) {
-            poly = SvgParser.polygonify(paths[i], this.configuration.curveTolerance);
-            poly = this.cleanPolygon(poly);
-
-            // todo: warn user if poly could not be processed and is excluded from the nest
-            if (poly && poly.length > 2 && Math.abs(polygonArea(poly)) > trashold) {
-                poly.source = i;
-                polygons.push(poly);
-            }
-        }
-
-        // turn the list into a tree
-        toTree(polygons);
-
-        return polygons;
-    }
-
-    // use the clipper library to return an offset to the given polygon. Positive offset expands the polygon, negative contracts
-    // note that this returns an array of polygons
-    polygonOffset(polygon, offset) {
-        if (!offset || offset == 0 || almostEqual(offset, 0)) {
-            return polygon;
-        }
-
-        const p = this.svgToClipper(polygon);
-        const miterLimit = 2;
-        const co = new ClipperLib.ClipperOffset(
-            miterLimit,
-            this.configuration.curveTolerance * this.configuration.clipperScale
-        );
-        co.AddPath(p, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
-
-        const newPaths = new ClipperLib.Paths();
-        co.Execute(newPaths, offset * this.configuration.clipperScale);
-
-        const result = [];
-        let i = 0;
-
-        for (i = 0; i < newPaths.length; ++i) {
-            result.push(this.clipperToSvg(newPaths[i]));
-        }
-
-        return result;
-    }
-
-    // returns a less complex polygon that satisfies the curve tolerance
-    cleanPolygon(polygon) {
-        const p = this.svgToClipper(polygon);
-        // remove self-intersections and find the biggest polygon that's left
-        const simple = ClipperLib.Clipper.SimplifyPolygon(p, ClipperLib.PolyFillType.pftNonZero);
-
-        if (!simple || simple.length == 0) {
-            return null;
-        }
-
-        let i = 0;
-        let biggest = simple[0];
-        let biggestArea = Math.abs(ClipperLib.Clipper.Area(biggest));
-        let area;
-
-        for (i = 1; i < simple.length; ++i) {
-            area = Math.abs(ClipperLib.Clipper.Area(simple[i]));
-
-            if (area > biggestArea) {
-                biggest = simple[i];
-                biggestArea = area;
-            }
-        }
-
-        // clean up singularities, coincident points and edges
-        const clean = ClipperLib.Clipper.CleanPolygon(
-            biggest,
-            this.configuration.curveTolerance * this.configuration.clipperScale
-        );
-
-        if (!clean || clean.length === 0) {
-            return null;
-        }
-
-        return this.clipperToSvg(clean);
-    }
-
-    // converts a polygon from normal float coordinates to integer coordinates used by clipper, as well as x/y -> X/Y
-    svgToClipper(polygon) {
-        const clip = toClipperCoordinates(polygon);
-
-        ClipperLib.JS.ScaleUpPath(clip, this.configuration.clipperScale);
-
-        return clip;
-    }
-
-    clipperToSvg(polygon) {
-        return toNestCoordinates(polygon, this.configuration.clipperScale);
-    }
-
-    // returns an array of SVG elements that represent the placement, for export or rendering
-    applyPlacement(placement) {
-        const clone = [];
-        const partCount = this.parts.length;
-        const placementCount = placement.length;
-        const svglist = [];
-        let i, j, k;
-        let newSvg;
-        let binClone;
-        let p;
-        let part;
-        let partGroup;
-        let flattened;
-        let c;
-
-        for (i = 0; i < partCount; ++i) {
-            clone.push(this.parts[i].cloneNode(false));
-        }
-
-        for (i = 0; i < placementCount; ++i) {
-            newSvg = this.svg.cloneNode(false);
-            newSvg.setAttribute('viewBox', `0 0 ${this.binBounds.width} ${this.binBounds.height}`);
-            newSvg.setAttribute('width', `${this.binBounds.width}px`);
-            newSvg.setAttribute('height', `${this.binBounds.height}px`);
-            binClone = this.bin.cloneNode(false);
-
-            binClone.setAttribute('id', 'exportRoot');
-            binClone.setAttribute('transform', `translate(${-this.binBounds.x} ${-this.binBounds.y})`);
-            newSvg.appendChild(binClone);
-
-            for (j = 0; j < placement[i].length; ++j) {
-                p = placement[i][j];
-                part = this.tree[p.id];
-
-                // the original path could have transforms and stuff on it, so apply our transforms on a group
-                partGroup = document.createElementNS(this.svg.namespaceURI, 'g');
-                partGroup.setAttribute('transform', `translate(${p.x} ${p.y}) rotate(${p.rotation})`);
-                partGroup.appendChild(clone[part.source]);
-                partGroup.setAttribute('id', 'exportContent');
-
-                if (part.children && part.children.length > 0) {
-                    flattened = flattenTree(part.children, true);
-
-                    for (k = 0; k < flattened.length; ++k) {
-                        c = clone[flattened[k].source];
-                        // add class to indicate hole
-                        if (flattened[k].hole && (!c.getAttribute('class') || c.getAttribute('class').indexOf('hole') < 0)) {
-                            c.setAttribute('class', `${c.getAttribute('class')} hole`);
-                        }
-                        partGroup.appendChild(c);
-                    }
-                }
-
-                newSvg.appendChild(partGroup);
-            }
-
-            svglist.push(newSvg);
-        }
-
-        return svglist;
     }
 
     stop() {

@@ -1,12 +1,13 @@
-import { getFloatAtrribute } from '../helpers';
+import { INode } from 'svgson';
+
 import { IPoint } from '../types';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class CircleBuilder extends BasicShapeBuilder {
-    public getResult(element: SVGElement): IPoint[] {
-        const radius: number = getFloatAtrribute(element, 'r');
-        const cx: number = getFloatAtrribute(element, 'cx');
-        const cy: number = getFloatAtrribute(element, 'cy');
+    public getResult(): IPoint[] {
+        const radius: number = this.getFloatAtrribute('r');
+        const cx: number = this.getFloatAtrribute('cx');
+        const cy: number = this.getFloatAtrribute('cy');
         // num is the smallest number of segments required to approximate the circle to the given tolerance
         const diameter: number = 2 * Math.PI;
         const num: number = Math.max(Math.ceil(diameter / Math.acos(1 - this.tolerance / radius)), 3);
@@ -22,10 +23,10 @@ export default class CircleBuilder extends BasicShapeBuilder {
             });
         }
 
-        return super.getResult(element);
+        return super.getResult();
     }
 
-    public static create(tolerance: number, svgTolerance: number): BasicShapeBuilder {
-        return new CircleBuilder(tolerance, svgTolerance);
+    public static create(element: INode, tolerance: number, svgTolerance: number): BasicShapeBuilder {
+        return new CircleBuilder(element, tolerance, svgTolerance);
     }
 }
