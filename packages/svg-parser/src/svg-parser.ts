@@ -14,8 +14,6 @@ export default class SVGParser {
 
     #parts: INode[] = null;
 
-    #scale: number = 0;
-
     #cleanFunc: ClearFunc;
 
     constructor(cleanFunc: ClearFunc) {

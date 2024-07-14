@@ -13,7 +13,7 @@ export default {
         path: path.resolve('../../dist')
     },
     resolve: {
-        extensions: ['.ts', '.js']
+        extensions: ['.ts']
     },
     module: {
         rules: [

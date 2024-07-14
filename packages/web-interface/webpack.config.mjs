@@ -14,7 +14,7 @@ export default {
         'polygon-packer': 'polygonPacker'
     },
     resolve: {
-        extensions: ['.ts', '.js', '.jsx', '.tsx', '.json']
+        extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
     },
     optimization: {
         minimize: true,

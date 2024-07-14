@@ -28,12 +28,7 @@ function _normalizeVector(v) {
 function _onSegment(A, B, p) {
     // vertical line
     if (almostEqual(A.x, B.x) && almostEqual(p.x, A.x)) {
-        if (
-            !almostEqual(p.y, B.y) &&
-      !almostEqual(p.y, A.y) &&
-      p.y < Math.max(B.y, A.y) &&
-      p.y > Math.min(B.y, A.y)
-        ) {
+        if (!almostEqual(p.y, B.y) && !almostEqual(p.y, A.y) && p.y < Math.max(B.y, A.y) && p.y > Math.min(B.y, A.y)) {
             return true;
         }
 
@@ -42,12 +37,7 @@ function _onSegment(A, B, p) {
 
     // horizontal line
     if (almostEqual(A.y, B.y) && almostEqual(p.y, A.y)) {
-        if (
-            !almostEqual(p.x, B.x) &&
-      !almostEqual(p.x, A.x) &&
-      p.x < Math.max(B.x, A.x) &&
-      p.x > Math.min(B.x, A.x)
-        ) {
+        if (!almostEqual(p.x, B.x) && !almostEqual(p.x, A.x) && p.x < Math.max(B.x, A.x) && p.x > Math.min(B.x, A.x)) {
             return true;
         }
 
@@ -55,20 +45,12 @@ function _onSegment(A, B, p) {
     }
 
     // range check
-    if (
-        p.x < A.x && p.x < B.x ||
-    p.x > A.x && p.x > B.x ||
-    p.y < A.y && p.y < B.y ||
-    p.y > A.y && p.y > B.y
-    ) {
+    if ((p.x < A.x && p.x < B.x) || (p.x > A.x && p.x > B.x) || (p.y < A.y && p.y < B.y) || (p.y > A.y && p.y > B.y)) {
         return false;
     }
 
     // exclude end points
-    if (
-        almostEqual(p.x, A.x) && almostEqual(p.y, A.y) ||
-    almostEqual(p.x, B.x) && almostEqual(p.y, B.y)
-    ) {
+    if ((almostEqual(p.x, A.x) && almostEqual(p.y, A.y)) || (almostEqual(p.x, B.x) && almostEqual(p.y, B.y))) {
         return false;
     }
 
@@ -97,7 +79,6 @@ export function almostEqual(a, b = 0, tolerance = TOL) {
     return Math.abs(a - b) < tolerance;
 }
 
-
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
@@ -113,7 +94,7 @@ export function lineIntersect(A, B, E, F, infinite) {
 
     const denom = a1 * b2 - a2 * b1;
 
-    x = (b1 * c2 - b2 * c1) / denom, y = (a2 * c1 - a1 * c2) / denom;
+    (x = (b1 * c2 - b2 * c1) / denom), (y = (a2 * c1 - a1 * c2) / denom);
 
     if (!isFinite(x) || !isFinite(y)) {
         return null;
@@ -127,30 +108,18 @@ export function lineIntersect(A, B, E, F, infinite) {
 		}*/
 
     if (!infinite) {
-    // coincident points do not count as intersecting
-        if (
-            Math.abs(A.x - B.x) > TOL &&
-      (A.x < B.x ? x < A.x || x > B.x : x > A.x || x < B.x)
-        ) {
+        // coincident points do not count as intersecting
+        if (Math.abs(A.x - B.x) > TOL && (A.x < B.x ? x < A.x || x > B.x : x > A.x || x < B.x)) {
             return null;
         }
-        if (
-            Math.abs(A.y - B.y) > TOL &&
-      (A.y < B.y ? y < A.y || y > B.y : y > A.y || y < B.y)
-        ) {
+        if (Math.abs(A.y - B.y) > TOL && (A.y < B.y ? y < A.y || y > B.y : y > A.y || y < B.y)) {
             return null;
         }
 
-        if (
-            Math.abs(E.x - F.x) > TOL &&
-      (E.x < F.x ? x < E.x || x > F.x : x > E.x || x < F.x)
-        ) {
+        if (Math.abs(E.x - F.x) > TOL && (E.x < F.x ? x < E.x || x > F.x : x > E.x || x < F.x)) {
             return null;
         }
-        if (
-            Math.abs(E.y - F.y) > TOL &&
-      (E.y < F.y ? y < E.y || y > F.y : y > E.y || y < F.y)
-        ) {
+        if (Math.abs(E.y - F.y) > TOL && (E.y < F.y ? y < E.y || y > F.y : y > E.y || y < F.y)) {
             return null;
         }
     }
@@ -220,9 +189,7 @@ export function pointInPolygon(point, polygon) {
             continue;
         }
 
-        const intersect =
-      yi > point.y != yj > point.y &&
-      point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi;
+        const intersect = yi > point.y != yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
         if (intersect) {
             inside = !inside;
         }
@@ -269,35 +236,25 @@ export function intersect(A, B) {
             let nextaindex = i + 1 == A.length - 1 ? 0 : i + 2;
 
             // go even further back if we happen to hit on a loop end point
-            if (
-                B[prevbindex] == B[j] ||
-        almostEqual(B[prevbindex].x, B[j].x) &&
-          almostEqual(B[prevbindex].y, B[j].y)
-            ) {
+            if (B[prevbindex] == B[j] || (almostEqual(B[prevbindex].x, B[j].x) && almostEqual(B[prevbindex].y, B[j].y))) {
                 prevbindex = prevbindex == 0 ? B.length - 1 : prevbindex - 1;
             }
 
-            if (
-                A[prevaindex] == A[i] ||
-        almostEqual(A[prevaindex].x, A[i].x) &&
-          almostEqual(A[prevaindex].y, A[i].y)
-            ) {
+            if (A[prevaindex] == A[i] || (almostEqual(A[prevaindex].x, A[i].x) && almostEqual(A[prevaindex].y, A[i].y))) {
                 prevaindex = prevaindex == 0 ? A.length - 1 : prevaindex - 1;
             }
 
             // go even further forward if we happen to hit on a loop end point
             if (
                 B[nextbindex] == B[j + 1] ||
-        almostEqual(B[nextbindex].x, B[j + 1].x) &&
-          almostEqual(B[nextbindex].y, B[j + 1].y)
+                (almostEqual(B[nextbindex].x, B[j + 1].x) && almostEqual(B[nextbindex].y, B[j + 1].y))
             ) {
                 nextbindex = nextbindex == B.length - 1 ? 0 : nextbindex + 1;
             }
 
             if (
                 A[nextaindex] == A[i + 1] ||
-        almostEqual(A[nextaindex].x, A[i + 1].x) &&
-          almostEqual(A[nextaindex].y, A[i + 1].y)
+                (almostEqual(A[nextaindex].x, A[i + 1].x) && almostEqual(A[nextaindex].y, A[i + 1].y))
             ) {
                 nextaindex = nextaindex == A.length - 1 ? 0 : nextaindex + 1;
             }
@@ -320,68 +277,44 @@ export function intersect(A, B) {
                 y: B[nextbindex].y + Boffsety
             };
 
-            if (
-                _onSegment(a1, a2, b1) ||
-        almostEqual(a1.x, b1.x) && almostEqual(a1.y, b1.y)
-            ) {
+            if (_onSegment(a1, a2, b1) || (almostEqual(a1.x, b1.x) && almostEqual(a1.y, b1.y))) {
                 // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
                 const b0in = pointInPolygon(b0, A);
                 const b2in = pointInPolygon(b2, A);
-                if (
-                    b0in === true && b2in === false ||
-          b0in === false && b2in === true
-                ) {
+                if ((b0in === true && b2in === false) || (b0in === false && b2in === true)) {
                     return true;
                 }
                 continue;
             }
 
-            if (
-                _onSegment(a1, a2, b2) ||
-        almostEqual(a2.x, b2.x) && almostEqual(a2.y, b2.y)
-            ) {
+            if (_onSegment(a1, a2, b2) || (almostEqual(a2.x, b2.x) && almostEqual(a2.y, b2.y))) {
                 // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
                 const b1in = pointInPolygon(b1, A);
                 const b3in = pointInPolygon(b3, A);
 
-                if (
-                    b1in === true && b3in === false ||
-          b1in === false && b3in === true
-                ) {
+                if ((b1in === true && b3in === false) || (b1in === false && b3in === true)) {
                     return true;
                 }
                 continue;
             }
 
-            if (
-                _onSegment(b1, b2, a1) ||
-        almostEqual(a1.x, b2.x) && almostEqual(a1.y, b2.y)
-            ) {
+            if (_onSegment(b1, b2, a1) || (almostEqual(a1.x, b2.x) && almostEqual(a1.y, b2.y))) {
                 // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
                 const a0in = pointInPolygon(a0, B);
                 const a2in = pointInPolygon(a2, B);
 
-                if (
-                    a0in === true && a2in === false ||
-          a0in === false && a2in === true
-                ) {
+                if ((a0in === true && a2in === false) || (a0in === false && a2in === true)) {
                     return true;
                 }
                 continue;
             }
 
-            if (
-                _onSegment(b1, b2, a2) ||
-        almostEqual(a2.x, b1.x) && almostEqual(a2.y, b1.y)
-            ) {
+            if (_onSegment(b1, b2, a2) || (almostEqual(a2.x, b1.x) && almostEqual(a2.y, b1.y))) {
                 // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
                 const a1in = pointInPolygon(a1, B);
                 const a3in = pointInPolygon(a3, B);
 
-                if (
-                    a1in === true && a3in === false ||
-          a1in === false && a3in === true
-                ) {
+                if ((a1in === true && a3in === false) || (a1in === false && a3in === true)) {
                     return true;
                 }
                 continue;
@@ -502,14 +435,10 @@ export function polygonEdge(polygon, normal) {
         } else if (dotleft < dotright) {
             // normalize right vertex so normal projection can be directly compared
             normaldotleft = leftvector.x * normal.x + leftvector.y * normal.y;
-            normaldotright =
-        (rightvector.x * normal.x + rightvector.y * normal.y) *
-        (dotleft / dotright);
+            normaldotright = (rightvector.x * normal.x + rightvector.y * normal.y) * (dotleft / dotright);
         } else {
             // normalize left vertex so normal projection can be directly compared
-            normaldotleft =
-        leftvector.x * normal.x +
-        leftvector.y * normal.y * (dotright / dotleft);
+            normaldotleft = leftvector.x * normal.x + leftvector.y * normal.y * (dotright / dotleft);
             normaldotright = rightvector.x * normal.x + rightvector.y * normal.y;
         }
 
@@ -569,7 +498,7 @@ export function pointLineDistance(p, s1, s2, normal, s1inclusive, s2inclusive) {
 
     // point is exactly along the edge in the normal direction
     if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot)) {
-    // point lies on an endpoint
+        // point lies on an endpoint
         if (almostEqual(pdotnorm, s1dotnorm)) {
             return null;
         }
@@ -608,15 +537,11 @@ export function pointLineDistance(p, s1, s2, normal, s1inclusive, s2inclusive) {
         }
 
         return null;
-    } else if (pdot < s1dot && pdot < s2dot || pdot > s1dot && pdot > s2dot) {
+    } else if ((pdot < s1dot && pdot < s2dot) || (pdot > s1dot && pdot > s2dot)) {
         return null; // point doesn't collide with segment
     }
 
-    return (
-        pdotnorm -
-    s1dotnorm +
-    (s1dotnorm - s2dotnorm) * (s1dot - pdot) / (s1dot - s2dot)
-    );
+    return pdotnorm - s1dotnorm + ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot);
 }
 
 export function pointDistance(p, s1, s2, normal, infinite) {
@@ -637,36 +562,20 @@ export function pointDistance(p, s1, s2, normal, infinite) {
 
     if (!infinite) {
         if (
-            (pdot < s1dot || almostEqual(pdot, s1dot)) &&
-        (pdot < s2dot || almostEqual(pdot, s2dot)) ||
-      (pdot > s1dot || almostEqual(pdot, s1dot)) &&
-        (pdot > s2dot || almostEqual(pdot, s2dot))
+            ((pdot < s1dot || almostEqual(pdot, s1dot)) && (pdot < s2dot || almostEqual(pdot, s2dot))) ||
+            ((pdot > s1dot || almostEqual(pdot, s1dot)) && (pdot > s2dot || almostEqual(pdot, s2dot)))
         ) {
             return null; // dot doesn't collide with segment, or lies directly on the vertex
         }
-        if (
-            almostEqual(pdot, s1dot) &&
-      almostEqual(pdot, s2dot) &&
-      pdotnorm > s1dotnorm &&
-      pdotnorm > s2dotnorm
-        ) {
+        if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && pdotnorm > s1dotnorm && pdotnorm > s2dotnorm) {
             return Math.min(pdotnorm - s1dotnorm, pdotnorm - s2dotnorm);
         }
-        if (
-            almostEqual(pdot, s1dot) &&
-      almostEqual(pdot, s2dot) &&
-      pdotnorm < s1dotnorm &&
-      pdotnorm < s2dotnorm
-        ) {
+        if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && pdotnorm < s1dotnorm && pdotnorm < s2dotnorm) {
             return -Math.min(s1dotnorm - pdotnorm, s2dotnorm - pdotnorm);
         }
     }
 
-    return -(
-        pdotnorm -
-    s1dotnorm +
-    (s1dotnorm - s2dotnorm) * (s1dot - pdot) / (s1dot - s2dot)
-    );
+    return -(pdotnorm - s1dotnorm + ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot));
 }
 
 export function segmentDistance(A, B, E, F, direction) {
@@ -713,7 +622,7 @@ export function segmentDistance(A, B, E, F, direction) {
 
     let overlap;
 
-    if (ABmax > EFmax && ABmin < EFmin || EFmax > ABmax && EFmin < ABmin) {
+    if ((ABmax > EFmax && ABmin < EFmin) || (EFmax > ABmax && EFmin < ABmin)) {
         overlap = 1;
     } else {
         const minMax = Math.min(ABmax, EFmax);
@@ -742,10 +651,7 @@ export function segmentDistance(A, B, E, F, direction) {
         EFnorm.y = EFnorm.y / EFnormlength;
 
         // segment normals must point in opposite directions
-        if (
-            Math.abs(ABnorm.y * EFnorm.x - ABnorm.x * EFnorm.y) < TOL &&
-      ABnorm.y * EFnorm.y + ABnorm.x * EFnorm.x < 0
-        ) {
+        if (Math.abs(ABnorm.y * EFnorm.x - ABnorm.x * EFnorm.y) < TOL && ABnorm.y * EFnorm.y + ABnorm.x * EFnorm.x < 0) {
             // normal of AB segment must point in same direction as given direction vector
             const normdot = ABnorm.y * direction.y + ABnorm.x * direction.x;
             // the segments merely slide along eachother
@@ -882,10 +788,7 @@ export function polygonSlideDistance(A, B, direction, ignoreNegative) {
             B1 = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety };
             B2 = { x: edgeB[i + 1].x + Boffsetx, y: edgeB[i + 1].y + Boffsety };
 
-            if (
-                almostEqual(A1.x, A2.x) && almostEqual(A1.y, A2.y) ||
-        almostEqual(B1.x, B2.x) && almostEqual(B1.y, B2.y)
-            ) {
+            if ((almostEqual(A1.x, A2.x) && almostEqual(A1.y, A2.y)) || (almostEqual(B1.x, B2.x) && almostEqual(B1.y, B2.y))) {
                 continue; // ignore extremely small lines
             }
 
@@ -929,7 +832,7 @@ export function polygonProjectionDistance(A, B, direction) {
     let p, d, s1, s2;
 
     for (let i = 0; i < edgeB.length; i++) {
-    // the shortest/most negative projection of B onto A
+        // the shortest/most negative projection of B onto A
         let minprojection = null;
         let minp = null;
         for (let j = 0; j < edgeA.length - 1; j++) {
@@ -937,10 +840,7 @@ export function polygonProjectionDistance(A, B, direction) {
             s1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety };
             s2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety };
 
-            if (
-                Math.abs((s2.y - s1.y) * direction.x - (s2.x - s1.x) * direction.y) <
-        TOL
-            ) {
+            if (Math.abs((s2.y - s1.y) * direction.x - (s2.x - s1.x) * direction.y) < TOL) {
                 continue;
             }
 
@@ -952,10 +852,7 @@ export function polygonProjectionDistance(A, B, direction) {
                 minp = p;
             }
         }
-        if (
-            minprojection !== null &&
-      (distance === null || minprojection > distance)
-        ) {
+        if (minprojection !== null && (distance === null || minprojection > distance)) {
             distance = minprojection;
         }
     }
@@ -988,10 +885,7 @@ export function searchStartPoint(A, B, inside, NFP) {
 
                 let Binside = null;
                 for (var k = 0; k < B.length; k++) {
-                    var inpoly = pointInPolygon(
-                        { x: B[k].x + B.offsetx, y: B[k].y + B.offsety },
-                        A
-                    );
+                    var inpoly = pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A);
                     if (inpoly !== null) {
                         Binside = inpoly;
                         break;
@@ -1004,11 +898,7 @@ export function searchStartPoint(A, B, inside, NFP) {
                 }
 
                 let startPoint = { x: B.offsetx, y: B.offsety };
-                if (
-                    (Binside && inside || !Binside && !inside) &&
-          !intersect(A, B) &&
-          !inNfp(startPoint, NFP)
-                ) {
+                if (((Binside && inside) || (!Binside && !inside)) && !intersect(A, B) && !inNfp(startPoint, NFP)) {
                     return startPoint;
                 }
 
@@ -1051,21 +941,14 @@ export function searchStartPoint(A, B, inside, NFP) {
                 B.offsety = B.offsety + vy;
 
                 for (k = 0; k < B.length; k++) {
-                    var inpoly = pointInPolygon(
-                        { x: B[k].x + B.offsetx, y: B[k].y + B.offsety },
-                        A
-                    );
+                    var inpoly = pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A);
                     if (inpoly !== null) {
                         Binside = inpoly;
                         break;
                     }
                 }
                 startPoint = { x: B.offsetx, y: B.offsety };
-                if (
-                    (Binside && inside || !Binside && !inside) &&
-          !intersect(A, B) &&
-          !inNfp(startPoint, NFP)
-                ) {
+                if (((Binside && inside) || (!Binside && !inside)) && !intersect(A, B) && !inNfp(startPoint, NFP)) {
                     return startPoint;
                 }
             }
@@ -1097,16 +980,10 @@ export function isRectangle(poly, tolerance) {
     tolerance = tolerance || TOL;
 
     for (let i = 0; i < poly.length; i++) {
-        if (
-            !almostEqual(poly[i].x, bb.x) &&
-      !almostEqual(poly[i].x, bb.x + bb.width)
-        ) {
+        if (!almostEqual(poly[i].x, bb.x) && !almostEqual(poly[i].x, bb.x + bb.width)) {
             return false;
         }
-        if (
-            !almostEqual(poly[i].y, bb.y) &&
-      !almostEqual(poly[i].y, bb.y + bb.height)
-        ) {
+        if (!almostEqual(poly[i].y, bb.y) && !almostEqual(poly[i].y, bb.y + bb.height)) {
             return false;
         }
     }
@@ -1208,13 +1085,13 @@ export function noFitPolygon(A, B, inside, searchEdges) {
     }
 
     if (!inside) {
-    // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
+        // shift B such that the bottom-most point of B is at the top-most point of A. This guarantees an initial placement with no intersections
         var startpoint = {
             x: A[minAindex].x - B[maxBindex].x,
             y: A[minAindex].y - B[maxBindex].y
         };
     } else {
-    // no reliable heuristic for inside
+        // no reliable heuristic for inside
         var startpoint = searchStartPoint(A, B, true);
     }
 
@@ -1249,10 +1126,7 @@ export function noFitPolygon(A, B, inside, searchEdges) {
                 const nexti = i == A.length - 1 ? 0 : i + 1;
                 for (j = 0; j < B.length; j++) {
                     const nextj = j == B.length - 1 ? 0 : j + 1;
-                    if (
-                        almostEqual(A[i].x, B[j].x + B.offsetx) &&
-            almostEqual(A[i].y, B[j].y + B.offsety)
-                    ) {
+                    if (almostEqual(A[i].x, B[j].x + B.offsetx) && almostEqual(A[i].y, B[j].y + B.offsety)) {
                         touching.push({ type: 0, A: i, B: j });
                     } else if (
                         _onSegment(A[i], A[nexti], {
@@ -1378,22 +1252,15 @@ export function noFitPolygon(A, B, inside, searchEdges) {
 
                 // if this vector points us back to where we came from, ignore it.
                 // ie cross product = 0, dot product < 0
-                if (
-                    prevvector &&
-          vectors[i].y * prevvector.y + vectors[i].x * prevvector.x < 0
-                ) {
+                if (prevvector && vectors[i].y * prevvector.y + vectors[i].x * prevvector.x < 0) {
                     // compare magnitude with unit vectors
-                    const vectorlength = Math.sqrt(
-                        vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y
-                    );
+                    const vectorlength = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y);
                     const unitv = {
                         x: vectors[i].x / vectorlength,
                         y: vectors[i].y / vectorlength
                     };
 
-                    const prevlength = Math.sqrt(
-                        prevvector.x * prevvector.x + prevvector.y * prevvector.y
-                    );
+                    const prevlength = Math.sqrt(prevvector.x * prevvector.x + prevvector.y * prevvector.y);
                     const prevunit = {
                         x: prevvector.x / prevlength,
                         y: prevvector.y / prevlength
@@ -1409,9 +1276,7 @@ export function noFitPolygon(A, B, inside, searchEdges) {
                 const vecd2 = vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y;
 
                 if (d === null || d * d > vecd2) {
-                    const vecd = Math.sqrt(
-                        vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y
-                    );
+                    const vecd = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y);
                     d = vecd;
                 }
 
@@ -1435,7 +1300,7 @@ export function noFitPolygon(A, B, inside, searchEdges) {
             // trim
             const vlength2 = translate.x * translate.x + translate.y * translate.y;
             if (maxd * maxd < vlength2 && !almostEqual(maxd * maxd, vlength2)) {
-                const scale = Math.sqrt(maxd * maxd / vlength2);
+                const scale = Math.sqrt((maxd * maxd) / vlength2);
                 translate.x = translate.x * scale;
                 translate.y = translate.y * scale;
             }
@@ -1452,10 +1317,7 @@ export function noFitPolygon(A, B, inside, searchEdges) {
             let looped = false;
             if (NFP.length > 0) {
                 for (i = 0; i < NFP.length - 1; i++) {
-                    if (
-                        almostEqual(referencex, NFP[i].x) &&
-            almostEqual(referencey, NFP[i].y)
-                    ) {
+                    if (almostEqual(referencex, NFP[i].x) && almostEqual(referencey, NFP[i].y)) {
                         looped = true;
                     }
                 }
@@ -1554,7 +1416,7 @@ export function polygonHull(A, B) {
             var nextj = j == B.length - 1 ? 0 : j + 1;
             if (
                 almostEqual(A[current].x + Aoffsetx, B[j].x + Boffsetx) &&
-        almostEqual(A[current].y + Aoffsety, B[j].y + Boffsety)
+                almostEqual(A[current].y + Aoffsety, B[j].y + Boffsety)
             ) {
                 C.push({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
                 intercept1 = j;
@@ -1604,10 +1466,7 @@ export function polygonHull(A, B) {
         var touching = false;
         for (j = 0; j < B.length; j++) {
             var nextj = j == B.length - 1 ? 0 : j + 1;
-            if (
-                almostEqual(A[current].x + Aoffsetx, B[j].x + Boffsetx) &&
-        almostEqual(A[current].y, B[j].y + Boffsety)
-            ) {
+            if (almostEqual(A[current].x + Aoffsetx, B[j].x + Boffsetx) && almostEqual(A[current].y, B[j].y + Boffsety)) {
                 C.unshift({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
                 intercept2 = j;
                 touching = true;
@@ -1648,7 +1507,7 @@ export function polygonHull(A, B) {
     }
 
     if (intercept1 === null || intercept2 === null) {
-    // polygons not touching?
+        // polygons not touching?
         return null;
     }
 
@@ -1679,7 +1538,7 @@ export function polygonHull(A, B) {
 
 export function rotatePolygon(polygon, angle) {
     const rotated = [];
-    angle = angle * Math.PI / 180;
+    angle = (angle * Math.PI) / 180;
     for (let i = 0; i < polygon.length; i++) {
         const x = polygon[i].x;
         const y = polygon[i].y;
