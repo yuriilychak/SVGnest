@@ -24,7 +24,7 @@ export default {
                 test: /\.worker\.ts$/,
                 loader: 'worker-loader',
                 options: {
-                    filename: '[name].worker.js'
+                    filename: '[name].js'
                 }
             },
             {
