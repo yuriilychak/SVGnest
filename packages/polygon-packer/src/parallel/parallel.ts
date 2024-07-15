@@ -1,6 +1,7 @@
 ﻿﻿import { PairWorker, PlaceWorker } from './workers';
 import Operation from './opertaion';
 import { OperationCallback, Options } from './types';
+import { WORKER_TYPE } from '../types';
 
 export default class Parallel {
     #data: object[];
@@ -9,7 +10,7 @@ export default class Parallel {
     #operation: Operation;
     #onSpawn: () => void;
 
-    constructor(id: string, data: object[], env: object, onSpawn: () => void = null) {
+    constructor(id: WORKER_TYPE, data: object[], env: object, onSpawn: () => void = null) {
         this.#data = data;
         this.#maxWorkers = navigator.hardwareConcurrency || 4;
         this.#options = { id, env };
@@ -43,8 +44,9 @@ export default class Parallel {
 
         if (!worker) {
             try {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-                worker = (this.#options.id === 'pair' ? new PairWorker() : new PlaceWorker()) as Worker;
+                const WorkerInstance: typeof Worker = Parallel.ID_TO_WORKER.get(this.#options.id);
+
+                worker = new WorkerInstance('');
                 worker.postMessage(this.#options);
             } catch (e) {
                 console.error(e);
@@ -144,4 +146,9 @@ export default class Parallel {
             }
         };
     }
+
+    private static ID_TO_WORKER = new Map<WORKER_TYPE, typeof Worker>([
+        [WORKER_TYPE.PAIR, PairWorker],
+        [WORKER_TYPE.PLACEMENT, PlaceWorker]
+    ]);
 }

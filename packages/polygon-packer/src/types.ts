@@ -61,3 +61,8 @@ export type NFPPair = {
 };
 
 export type NFPData = { value: NFPPair; key: string };
+
+export enum WORKER_TYPE {
+    PLACEMENT = 'placement',
+    PAIR = 'pair'
+}
