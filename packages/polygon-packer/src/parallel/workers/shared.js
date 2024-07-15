@@ -7,7 +7,7 @@ import {
     noFitPolygonRectangle,
     noFitPolygon,
     pointInPolygon
-} from '../geometry-util';
+} from '../../geometry-util';
 
 // clipperjs uses alerts for warnings
 function alert(message) {
@@ -41,7 +41,7 @@ function toNestCoordinates(polygon, scale) {
 
 function rotatePolygon(polygon, degrees) {
     const rotated = [];
-    const angle = degrees * Math.PI / 180;
+    const angle = (degrees * Math.PI) / 180;
     for (let i = 0; i < polygon.length; i++) {
         const x = polygon[i].x;
         const y = polygon[i].y;
@@ -61,7 +61,7 @@ function rotatePolygon(polygon, degrees) {
     return rotated;
 }
 
-function placePaths(paths, self) {
+export function placePaths(paths, self) {
     if (!self.binPolygon) {
         return null;
     }
@@ -185,15 +185,9 @@ function placePaths(paths, self) {
                     }
 
                     ClipperLib.JS.ScaleUpPath(clone, self.config.clipperScale);
-                    clone = ClipperLib.Clipper.CleanPolygon(
-                        clone,
-                        0.0001 * self.config.clipperScale
-                    );
+                    clone = ClipperLib.Clipper.CleanPolygon(clone, 0.0001 * self.config.clipperScale);
                     var area = Math.abs(ClipperLib.Clipper.Area(clone));
-                    if (
-                        clone.length > 2 &&
-            area > 0.1 * self.config.clipperScale * self.config.clipperScale
-                    ) {
+                    if (clone.length > 2 && area > 0.1 * self.config.clipperScale * self.config.clipperScale) {
                         clipper.AddPath(clone, ClipperLib.PolyType.ptSubject, true);
                     }
                 }
@@ -227,17 +221,11 @@ function placePaths(paths, self) {
                 continue;
             }
 
-            finalNfp = ClipperLib.Clipper.CleanPolygons(
-                finalNfp,
-                0.0001 * self.config.clipperScale
-            );
+            finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, 0.0001 * self.config.clipperScale);
 
             for (j = 0; j < finalNfp.length; j++) {
                 var area = Math.abs(ClipperLib.Clipper.Area(finalNfp[j]));
-                if (
-                    finalNfp[j].length < 3 ||
-          area < 0.1 * self.config.clipperScale * self.config.clipperScale
-                ) {
+                if (finalNfp[j].length < 3 || area < 0.1 * self.config.clipperScale * self.config.clipperScale) {
                     finalNfp.splice(j, 1);
                     j--;
                 }
@@ -301,9 +289,8 @@ function placePaths(paths, self) {
 
                     if (
                         minarea === null ||
-            area < minarea ||
-            almostEqual(minarea, area) &&
-              (minx === null || shiftvector.x < minx)
+                        area < minarea ||
+                        (almostEqual(minarea, area) && (minx === null || shiftvector.x < minx))
                     ) {
                         minarea = area;
                         minwidth = rectbounds.width;
@@ -347,7 +334,7 @@ function placePaths(paths, self) {
     };
 }
 
-function pairData(pair, env) {
+export function pairData(pair, env) {
     function minkowskiDifference(A, B) {
         let i = 0;
         let clipperNfp;
@@ -495,11 +482,3 @@ function pairData(pair, env) {
 
     return { key: pair.key, value: nfp };
 }
-
-self.onmessage = function(code) {
-    const middleware = code.data.id === 'pair' ? pairData : placePaths;
-
-    this.onmessage = function(e) {
-        this.postMessage(middleware(e.data, code.data.env));
-    };
-};

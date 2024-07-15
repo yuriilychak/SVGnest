@@ -21,13 +21,16 @@ export default {
     module: {
         rules: [
             {
+                test: /\.worker\.ts$/,
+                loader: 'worker-loader',
+                options: {
+                    filename: '[name].worker.js'
+                }
+            },
+            {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
                 exclude: /node_modules/
-            },
-            {
-                test: /\.worker\.js$/,
-                use: { loader: 'worker-loader' }
             }
         ]
     }
