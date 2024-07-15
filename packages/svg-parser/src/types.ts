@@ -71,8 +71,6 @@ export interface IPolygon extends Array<IPoint> {
     children: IPolygon[];
 }
 
-export type ClearFunc = (poly: IPoint[], scale: number, tolerance: number) => IPolygon;
-
 export type NestConfig = {
     clipperScale: number;
     curveTolerance: number;
@@ -83,3 +81,7 @@ export type NestConfig = {
     useHoles: boolean;
     exploreConcave: boolean;
 };
+
+export interface IClipperWrapper {
+    cleanPolygon(polygon: IPoint[]): IPolygon;
+}

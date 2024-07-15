@@ -2,12 +2,14 @@ import { SVGParser } from 'svg-parser';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
-import { cleanPolygon, offsetPolygon, getPolygonBounds, polygonArea, normalizePolygon } from './helpers';
+import { getPolygonBounds, polygonArea, normalizePolygon } from './helpers';
+import ClipperWrapper from './clipper-wrapper';
+import NFPStore from './nfp-store';
 
 export default class SvgNest {
     #geneticAlgorithm = new GeneticAlgorithm();
 
-    #svgParser = new SVGParser(cleanPolygon);
+    #svgParser = new SVGParser();
 
     #tree = null;
 
@@ -34,7 +36,7 @@ export default class SvgNest {
 
     #workerTimer = 0;
 
-    #nfpCache = {};
+    #nfpStore = new NFPStore();
 
     parseSvg(svgString) {
         // reset if in progress
@@ -56,9 +58,9 @@ export default class SvgNest {
         this.#configuration = { ...this.#configuration, ...configuration };
 
         this.#best = null;
-        this.#nfpCache = {};
         this.#binPolygon = null;
         this.#geneticAlgorithm.clean();
+        this.#nfpStore.clean();
 
         return this.#configuration;
     }
@@ -66,13 +68,14 @@ export default class SvgNest {
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     start(progressCallback, displayCallback) {
+        const clipperWrapper = new ClipperWrapper(this.#configuration);
         // build tree without bin
-        this.#tree = this.#svgParser.getTree(this.#configuration);
+        this.#tree = this.#svgParser.getTree(this.#configuration, clipperWrapper);
         const polygonCount = this.#tree.length;
         let i = 0;
 
         for (i = 0; i < polygonCount; ++i) {
-            offsetPolygon(this.#tree[i], this.#configuration, 1);
+            clipperWrapper.offsetPolygon(this.#tree[i], 1);
         }
 
         this.#binPolygon = this.#svgParser.binPolygon;
@@ -83,7 +86,7 @@ export default class SvgNest {
 
         this.#binBounds = getPolygonBounds(this.#binPolygon);
 
-        offsetPolygon(this.#binPolygon, this.#configuration, -1);
+        clipperWrapper.offsetPolygon(this.#binPolygon, -1);
         this.#binPolygon.id = -1;
 
         const currentBounds = getPolygonBounds(this.#binPolygon);
@@ -118,94 +121,23 @@ export default class SvgNest {
         }, 100);
     }
 
-    updateCache(polygon1, polygon2, rotation1, rotation2, inside, nfpPairs, newCache) {
-        const key = {
-            A: polygon1.id,
-            B: polygon2.id,
-            inside,
-            Arotation: rotation1,
-            Brotation: rotation2
-        };
-
-        const stringKey = JSON.stringify(key);
-
-        if (!this.#nfpCache[stringKey]) {
-            nfpPairs.push({ A: polygon1, B: polygon2, key });
-        } else {
-            newCache[stringKey] = this.#nfpCache[stringKey];
-        }
-    }
-
-    initNfp(individual) {
-        const placeList = individual.placement;
-        const rotations = individual.rotation;
-        const placeCount = placeList.length;
-        const nfpPairs = [];
-        const ids = [];
-        const newCache = {};
-        let part = null;
-        let i = 0;
-        let j = 0;
-
-        for (i = 0; i < placeCount; ++i) {
-            part = placeList[i];
-            ids.push(part.id);
-            part.rotation = rotations[i];
-
-            this.updateCache(this.#binPolygon, part, 0, rotations[i], true, nfpPairs, newCache);
-
-            for (j = 0; j < i; ++j) {
-                this.updateCache(placeList[j], part, rotations[j], rotations[i], false, nfpPairs, newCache);
-            }
-        }
-
-        // only keep cache for one cycle
-        this.#nfpCache = newCache;
-
-        return { nfpPairs, ids };
-    }
-
-    updateNfp(generatedNfp) {
-        if (generatedNfp) {
-            const nfpCount = generatedNfp.length;
-            let i = 0;
-            let nfp = null;
-            let key = '';
-
-            for (i = 0; i < nfpCount; ++i) {
-                nfp = generatedNfp[i];
-
-                if (nfp) {
-                    // a null nfp means the nfp could not be generated, either because the parts simply don't
-                    // fit or an error in the nfp algo
-                    key = JSON.stringify(nfp.key);
-                    this.#nfpCache[key] = nfp.value;
-                }
-            }
-        }
-
-        return this.#nfpCache;
-    }
-
     launchWorkers(displayCallback) {
         if (this.#isWorking) {
             return;
         }
 
         this.#geneticAlgorithm.init(this.#tree, this.#binPolygon, this.#configuration);
-
-        const individual = this.#geneticAlgorithm.individual;
-        const { nfpPairs, ids } = this.initNfp(individual);
+        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon);
 
         let spawnCount = 0;
 
         const onSpawn = () => {
-            this.#progress = spawnCount++ / nfpPairs.length;
+            this.#progress = spawnCount++ / this.#nfpStore.nfpPairs.length;
         };
 
         const parallel = new Parallel(
             'pair',
-            nfpPairs,
+            this.#nfpStore.nfpPairs,
             {
                 binPolygon: this.#binPolygon,
                 searchEdges: this.#configuration.exploreConcave,
@@ -215,35 +147,26 @@ export default class SvgNest {
         );
 
         parallel.then(
-            generatedNfp => this.onPair(generatedNfp, ids, individual, displayCallback),
+            generatedNfp => this.onPair(generatedNfp, displayCallback),
             error => console.log(error)
         );
 
         this.#isWorking = true;
     }
 
-    onPair(generatedNfp, ids, individual, displayCallback) {
-        const placeList = individual.placement;
-        const rotations = individual.rotation;
-        const placementWorkerData = {
-            binPolygon: this.#binPolygon,
-            paths: placeList.slice(),
-            ids,
-            rotations,
-            config: this.#configuration,
-            nfpCache: this.updateNfp(generatedNfp)
-        };
+    onPair(generatedNfp, displayCallback) {
+        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, this.#configuration, this.#binPolygon);
 
         // can't use .spawn because our data is an array
-        const p2 = new Parallel('placement', [placeList.slice()], placementWorkerData);
+        const p2 = new Parallel('placement', [this.#nfpStore.clonePlacement()], placementWorkerData);
 
         p2.then(
-            placements => this.onPlacement(placements, individual, placeList, displayCallback),
+            placements => this.onPlacement(placements, displayCallback),
             error => console.log(error)
         );
     }
 
-    onPlacement(placements, individual, placeList, displayCallback) {
+    onPlacement(placements, displayCallback) {
         if (!placements || placements.length === 0) {
             return;
         }
@@ -252,7 +175,7 @@ export default class SvgNest {
         let j = 0;
         let bestResult = placements[0];
 
-        individual.fitness = bestResult.fitness;
+        this.#nfpStore.fitness = bestResult.fitness;
 
         for (i = 1; i < placements.length; ++i) {
             if (placements[i].fitness < bestResult.fitness) {
@@ -267,7 +190,7 @@ export default class SvgNest {
             let totalArea = 0;
             let numPlacedParts = 0;
             let bestPlacement = null;
-            const numParts = placeList.length;
+            const numParts = this.#nfpStore.placementCount;
 
             for (i = 0; i < this.#best.placements.length; ++i) {
                 totalArea = totalArea + Math.abs(polygonArea(this.#binPolygon));
@@ -295,7 +218,7 @@ export default class SvgNest {
 
         if (this.#workerTimer) {
             clearInterval(this.#workerTimer);
-            this.#workerTimer = null;
+            this.#workerTimer = 0;
         }
     }
 }

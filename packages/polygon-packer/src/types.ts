@@ -18,6 +18,7 @@ export interface IPolygon extends Array<IPoint> {
     children: IPolygon[];
     x?: number;
     y?: number;
+    rotation?: number;
     width?: number;
     height?: number;
 }
@@ -46,3 +47,17 @@ export type BoundRect = {
     width: number;
     height: number;
 };
+
+export type NFPPair = {
+    A: IPolygon;
+    B: IPolygon;
+    key: {
+        A: number;
+        B: number;
+        inside: boolean;
+        Arotation: number;
+        Brotation: number;
+    };
+};
+
+export type NFPData = { value: NFPPair; key: string };

@@ -1,7 +1,7 @@
 import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
-import { ClearFunc, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
+import { IClipperWrapper, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
 import { convertElement, flattenTree, nestPolygons, polygonArea } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
 
@@ -14,20 +14,14 @@ export default class SVGParser {
 
     #parts: INode[] = null;
 
-    #cleanFunc: ClearFunc;
-
-    constructor(cleanFunc: ClearFunc) {
-        this.#cleanFunc = cleanFunc;
-    }
-
     public init(svgString: string): void {
         this.#svgRoot = formatSVG(svgString);
     }
 
-    public getTree(configuration: NestConfig): IPolygon[] {
-        const { curveTolerance, clipperScale } = configuration;
+    public getTree(configuration: NestConfig, clipperWrapper: IClipperWrapper): IPolygon[] {
+        const { curveTolerance } = configuration;
         this.#parts = this.#svgRoot.children.filter(node => node.attributes.guid !== this.#bin.attributes.guid);
-        this.#binPolygon = this.clearPolygon(this.#bin, curveTolerance, clipperScale) as IPolygon;
+        this.#binPolygon = this.clearPolygon(this.#bin, curveTolerance, clipperWrapper);
 
         const nodeCount = this.#parts.length;
         const trashold = curveTolerance * curveTolerance;
@@ -36,7 +30,7 @@ export default class SVGParser {
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
-            polygon = this.clearPolygon(this.#parts[i], curveTolerance, clipperScale) as IPolygon;
+            polygon = this.clearPolygon(this.#parts[i], curveTolerance, clipperWrapper);
 
             if (polygon && polygon.length > 2 && Math.abs(polygonArea(polygon)) > trashold) {
                 polygon.source = i;
@@ -61,18 +55,18 @@ export default class SVGParser {
         return this.#svgRoot.attributes;
     }
 
-    private clearPolygon(element: INode, tolerance: number, scale: number): IPoint[] {
+    private clearPolygon(element: INode, tolerance: number, clipperWrapper: IClipperWrapper): IPolygon {
         const tagName: SVG_TAG = element.name as SVG_TAG;
 
         if (!SHAPE_BUILDERS.has(tagName)) {
-            return [];
+            return [] as IPolygon;
         }
 
         const rawPolygon: IPoint[] = SHAPE_BUILDERS.get(tagName)
             .create(element, tolerance, SVGParser.SVG_TOLERANCE)
             .getResult();
 
-        return this.#cleanFunc(rawPolygon, scale, tolerance);
+        return clipperWrapper.cleanPolygon(rawPolygon);
     }
 
     // returns an array of SVG elements that represent the placement, for export or rendering
