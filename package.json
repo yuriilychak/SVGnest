@@ -33,7 +33,6 @@
         "@babel/core": "^7.24.7",
         "@babel/preset-env": "^7.24.7",
         "@babel/preset-react": "^7.24.7",
-        "@types/js-clipper": "^0.0.32",
         "@types/node": "^20.14.2",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",

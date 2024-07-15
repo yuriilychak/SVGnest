@@ -7,10 +7,10 @@
         "target": "es6",
         "jsx": "react",
         "allowJs": true,
-        "typeRoots": ["./node_modules/@types"],
+        "typeRoots": ["../../node_modules/@types"],
         "allowSyntheticDefaultImports": true,
         "moduleResolution": "node",
-        "lib": ["dom", "es2015"]
+        "lib": ["dom", "es2016"]
     },
     "types": ["js-clipper"]
 }
