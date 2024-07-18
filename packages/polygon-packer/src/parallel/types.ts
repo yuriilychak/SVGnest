@@ -8,7 +8,7 @@ export enum OPERATION_STATE {
 
 export type OperationCallback = (data: unknown) => void;
 
-export interface Options {
+export interface Options<T = object> {
     id: WORKER_TYPE;
-    env: object;
+    env: T;
 }

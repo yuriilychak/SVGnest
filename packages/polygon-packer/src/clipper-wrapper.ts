@@ -3,6 +3,11 @@ import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoin
 
 import { IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
 
+// clipperjs uses alerts for warnings
+function alert(message: string) {
+    console.log('alert: ', message);
+}
+
 export default class ClipperWrapper {
     #configuration: NestConfig;
 
@@ -18,7 +23,7 @@ export default class ClipperWrapper {
         const { clipperScale, curveTolerance, spacing } = this.#configuration;
         const offset: number = 0.5 * spacing * sign;
         const miterLimit: number = 2;
-        const path: IntPoint[] = ClipperWrapper.toClipperCoordinates(polygon, clipperScale);
+        const path: IntPoint[] = ClipperWrapper.toClipper(polygon, clipperScale);
         const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * clipperScale);
         const resultPath: Paths = new Paths();
 
@@ -30,7 +35,7 @@ export default class ClipperWrapper {
         clipper.Execute(resultPath, offset * clipperScale);
 
         if (resultPath.length === 1) {
-            const offsetPaths: IPoint[] = ClipperWrapper.toNestCoordinates(resultPath[0], clipperScale);
+            const offsetPaths: IPoint[] = ClipperWrapper.toNest(resultPath[0], clipperScale);
             // replace array items in place
             polygon.length = 0;
 
@@ -56,7 +61,7 @@ export default class ClipperWrapper {
 
     public cleanPolygon(polygon: IPolygon): IPoint[] {
         const { clipperScale, curveTolerance } = this.#configuration;
-        const clipperPolygon = ClipperWrapper.toClipperCoordinates(polygon, clipperScale);
+        const clipperPolygon = ClipperWrapper.toClipper(polygon, clipperScale);
         // eslint-disable-next-line new-cap
         const simple: IClipperPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IClipperPoint[][];
 
@@ -83,31 +88,46 @@ export default class ClipperWrapper {
 
         // clean up singularities, coincident points and edges
         // eslint-disable-next-line new-cap
-        const cleanPolygon: IClipperPoint[] = Clipper.CleanPolygon(biggest, curveTolerance * clipperScale) as IClipperPoint[];
+        const cleanPolygon: IntPoint[] = Clipper.CleanPolygon(biggest, curveTolerance * clipperScale);
         pointCount = cleanPolygon && cleanPolygon.length ? cleanPolygon.length : 0;
 
         if (!pointCount) {
             return null;
         }
 
-        return ClipperWrapper.toNestCoordinates(cleanPolygon, clipperScale);
+        return ClipperWrapper.toNest(cleanPolygon, clipperScale);
     }
 
-    private static toClipperCoordinates(polygon: IPoint[], scale: number): IntPoint[] {
+    public static toClipper(
+        polygon: IPoint[],
+        scale: number = 1,
+        offset: IPoint = { x: 0, y: 0 },
+        isRound: boolean = false
+    ): IntPoint[] {
         const pointCount: number = polygon.length;
         const result = [];
         let i: number = 0;
         let point: IPoint = null;
+        let x: number = 0;
+        let y: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
             point = polygon[i];
-            result.push({ X: point.x * scale, Y: point.y * scale });
+            x = (point.x + offset.x) * scale;
+            y = (point.y + offset.y) * scale;
+
+            if (isRound) {
+                x = Math.round(x);
+                y = Math.round(y);
+            }
+
+            result.push({ X: x, Y: y });
         }
 
         return result;
     }
 
-    private static toNestCoordinates(polygon: IntPoint[], scale: number): IPoint[] {
+    public static toNest(polygon: IntPoint[], scale: number = 1): IPoint[] {
         const pointCount: number = polygon.length;
         const result: IPoint[] = [];
         let i: number = 0;

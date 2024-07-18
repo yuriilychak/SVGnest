@@ -48,16 +48,20 @@ export type BoundRect = {
     height: number;
 };
 
+export type NFPContent = {
+    A: number;
+    B: number;
+    inside: boolean;
+    Arotation: number;
+    Brotation: number;
+};
+
 export type NFPPair = {
     A: IPolygon;
     B: IPolygon;
-    key: {
-        A: number;
-        B: number;
-        inside: boolean;
-        Arotation: number;
-        Brotation: number;
-    };
+    length?: number;
+    key: NFPContent;
+    [key: number]: IPolygon;
 };
 
 export type NFPData = { value: NFPPair; key: string };
@@ -66,3 +70,12 @@ export enum WORKER_TYPE {
     PLACEMENT = 'placement',
     PAIR = 'pair'
 }
+
+export type PlacementWorkerData = {
+    binPolygon: IPolygon;
+    paths: IPolygon[];
+    ids: number[];
+    rotations: number;
+    config: NestConfig;
+    nfpCache: { [key: string]: NFPPair };
+};

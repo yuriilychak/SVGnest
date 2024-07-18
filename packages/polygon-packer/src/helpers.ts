@@ -1,7 +1,7 @@
 import { BoundRect, IPoint, IPolygon } from './types';
 
 // returns the rectangular bounding box of the given polygon
-export function getPolygonBounds(polygon: IPolygon): BoundRect {
+export function getPolygonBounds(polygon: IPoint[]): BoundRect {
     if (!polygon || polygon.length < 3) {
         return null;
     }
@@ -54,7 +54,7 @@ export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
 
 // returns the area of the polygon, assuming no self-intersections
 // a negative area indicates counter-clockwise winding direction
-export function polygonArea(polygon: IPolygon): number {
+export function polygonArea(polygon: IPoint[]): number {
     let result: number = 0;
     let i: number = 0;
     let j: number = 0;

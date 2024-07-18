@@ -15,13 +15,13 @@ export default class NFPStore {
         this.#nfpPairs = [];
         this.#ids = [];
 
-        const placeList = this.#individual.placement;
-        const rotations = this.#individual.rotation;
-        const placeCount = placeList.length;
+        const placeList: IPolygon[] = this.#individual.placement;
+        const rotations: number[] = this.#individual.rotation;
+        const placeCount: number = placeList.length;
         const newCache: { [key: string]: NFPPair } = {};
         let part = null;
-        let i = 0;
-        let j = 0;
+        let i: number = 0;
+        let j: number = 0;
 
         for (i = 0; i < placeCount; ++i) {
             part = placeList[i];

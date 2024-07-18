@@ -1,4 +1,4 @@
-﻿﻿import { PairWorker, PlaceWorker } from './workers';
+﻿﻿import WORKERS from './workers';
 import Operation from './opertaion';
 import { OperationCallback, Options } from './types';
 import { WORKER_TYPE } from '../types';
@@ -44,7 +44,7 @@ export default class Parallel {
 
         if (!worker) {
             try {
-                const WorkerInstance: typeof Worker = Parallel.ID_TO_WORKER.get(this.#options.id);
+                const WorkerInstance: typeof Worker = WORKERS.get(this.#options.id);
 
                 worker = new WorkerInstance('');
                 worker.postMessage(this.#options);
@@ -146,9 +146,4 @@ export default class Parallel {
             }
         };
     }
-
-    private static ID_TO_WORKER = new Map<WORKER_TYPE, typeof Worker>([
-        [WORKER_TYPE.PAIR, PairWorker],
-        [WORKER_TYPE.PLACEMENT, PlaceWorker]
-    ]);
 }

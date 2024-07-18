@@ -145,7 +145,7 @@ declare namespace ClipperLib {
         savedIdx: number;
     }
 
-    export class Polygon {
+    export class Polygon extends Array<IntPoint> {
         constructor();
         constructor(poly: ArrayLike<IntPoint>);
     }
@@ -212,9 +212,12 @@ declare namespace ClipperLib {
         DoublePoint: DoublePoint;
         PolyOffsetBuilder: PolyOffsetBuilder;
 
+        AddPath(polygon: IntPoint[], type: PolyType, isClosed: boolean): void;
+        AddPaths(polygon: IntPoint[][], type: PolyType, isClosed: boolean): void;
         DisposeScanbeamList(): void;
         InsertScanbeam(Y: number): void;
-        Execute(solution: Paths, trashold: number): boolean;
+        Execute(solution: Paths, trashold: number, joinType?: PolyFillType, lineType?: PolyFillType): boolean;
+        Execute(type: ClipType, path: Paths, joinType?: PolyFillType, ClineType?: PolyFillType): boolean;
         PolySort(or1: OutRec, or2: OutRec): number;
         FindAppendLinkEnd(outRec: OutRec): OutRec;
         FixHoleLinkage(outRec: OutRec): void;
@@ -299,7 +302,7 @@ declare namespace ClipperLib {
         FixupJoinRecs(j: JoinRec, pt: JoinRec, startIdx: number): void;
         JoinCommonEdges(): void;
         FullRangeNeeded(pts: ArrayLike<IntPoint>): boolean;
-        static Area(poly: Polygon): number;
+        static Area(poly: IntPoint[]): number;
         BuildArc(pt: IntPoint, a1: IntPoint, a2: IntPoint, r: number): Polygon;
         GetUnitNormal(pt1: IntPoint, pt2: IntPoint): DoublePoint;
         OffsetPolygons(
@@ -309,14 +312,16 @@ declare namespace ClipperLib {
             MiterLimit: number,
             AutoFix: boolean
         ): ArrayLike<ArrayLike<IntPoint>>;
-        static CleanPolygon(poly: Polygon, trashold: number): Polygon;
-        static SimplifyPolygon(poly: Polygon, fillType: PolyFillType): Polygon;
+        static CleanPolygons(poly: IntPoint[][], trashold: number): Paths;
+        static CleanPolygon(poly: IntPoint[], trashold: number): IntPoint[];
+        static SimplifyPolygon(poly: Polygon, fillType: PolyFillType): Polygon[];
         SimplifyPolygons(polys: Polygons, fillType: PolyFillType): Polygons;
     }
 
     export class ClipperOffset extends Clipper {
         constructor(mitterLimit: number, trashold: number);
 
+        AddPath(polygon: IntPoint[], type: PolyType, isClosed: boolean): void;
         AddPath(path: ArrayLike<IntPoint>, joinType: JoinType, endType: EndType): void;
     }
 
