@@ -6,7 +6,7 @@ import {
     noFitPolygonRectangle,
     noFitPolygon,
     pointInPolygon
-} from '../../geometry-util';
+} from '../../../geometry-util';
 
 // clipperjs uses alerts for warnings
 function alert(message) {
@@ -144,8 +144,8 @@ export function pairData(pair, env) {
             return null;
         }
 
-        for (var i = 0; i < nfp.length; i++) {
-            if (!searchEdges || i == 0) {
+        for (var i = 0; i < nfp.length; ++i) {
+            if (!searchEdges || i === 0) {
                 // if searchedges is active, only the first NFP is guaranteed to pass sanity check
                 if (Math.abs(polygonArea(nfp[i])) < Math.abs(polygonArea(A))) {
                     log('NFP Area Error: ', Math.abs(polygonArea(nfp[i])), pair.key);

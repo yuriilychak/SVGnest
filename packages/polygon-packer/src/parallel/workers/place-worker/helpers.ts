@@ -55,7 +55,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                 Arotation: 0,
                 Brotation: path.rotation
             });
-            const binNfp = placementData.nfpCache[key];
+            const binNfp = placementData.nfpCache.get(key);
 
             // part unplaceable, skip
             if (!binNfp || binNfp.length === 0) {
@@ -72,7 +72,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                     Arotation: placed[j].rotation,
                     Brotation: path.rotation
                 });
-                nfp = placementData.nfpCache[key];
+                nfp = placementData.nfpCache.get(key);
 
                 if (!nfp) {
                     isError = true;
@@ -125,16 +125,19 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                     Arotation: placed[j].rotation,
                     Brotation: path.rotation
                 });
-                nfp = placementData.nfpCache[key];
+                nfp = placementData.nfpCache.get(key);
 
                 if (!nfp) {
                     continue;
                 }
 
+                let clone: ClipperLib.IntPoint[] = null;
+
                 for (k = 0; k < nfp.length; ++k) {
-                    let clone = ClipperWrapper.toClipper(nfp[k], placementData.config.clipperScale, placements[j]);
+                    clone = ClipperWrapper.toClipper(nfp[k], placementData.config.clipperScale, placements[j]);
                     clone = ClipperLib.Clipper.CleanPolygon(clone, 0.0001 * placementData.config.clipperScale);
                     area = Math.abs(ClipperLib.Clipper.Area(clone));
+
                     if (
                         clone.length > 2 &&
                         area > 0.1 * placementData.config.clipperScale * placementData.config.clipperScale

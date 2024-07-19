@@ -1,8 +1,8 @@
 import { Phenotype } from './genetic-algorithm';
-import { IPolygon, NestConfig, NFPData, NFPPair } from './types';
+import { IPolygon, NestConfig, NFPData, NFPPair, PlacementWorkerData } from './types';
 
 export default class NFPStore {
-    #nfpCache: { [key: string]: NFPPair } = {};
+    #nfpCache: Map<string, NFPPair> = new Map<string, NFPPair>();
 
     #nfpPairs: NFPPair[] = [];
 
@@ -18,7 +18,7 @@ export default class NFPStore {
         const placeList: IPolygon[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = placeList.length;
-        const newCache: { [key: string]: NFPPair } = {};
+        const newCache: Map<string, NFPPair> = new Map<string, NFPPair>();
         let part = null;
         let i: number = 0;
         let j: number = 0;
@@ -39,7 +39,7 @@ export default class NFPStore {
         this.#nfpCache = newCache;
     }
 
-    private update(generatedNfp: NFPData[]): { [key: string]: NFPPair } {
+    private update(generatedNfp: NFPData[]): void {
         if (generatedNfp) {
             const nfpCount: number = generatedNfp.length;
             let i: number = 0;
@@ -53,12 +53,10 @@ export default class NFPStore {
                     // a null nfp means the nfp could not be generated, either because the parts simply don't
                     // fit or an error in the nfp algo
                     key = JSON.stringify(nfp.key);
-                    this.#nfpCache[key] = nfp.value;
+                    this.#nfpCache.set(key, nfp.value);
                 }
             }
         }
-
-        return this.#nfpCache;
     }
 
     private updateCache(
@@ -67,7 +65,7 @@ export default class NFPStore {
         rotation1: number,
         rotation2: number,
         inside: boolean,
-        newCache: { [key: string]: NFPPair }
+        newCache: Map<string, NFPPair>
     ): void {
         const key = {
             A: polygon1.id,
@@ -79,21 +77,21 @@ export default class NFPStore {
 
         const stringKey = JSON.stringify(key);
 
-        if (!this.#nfpCache[stringKey]) {
+        if (!this.#nfpCache.has(stringKey)) {
             this.#nfpPairs.push({ A: polygon1, B: polygon2, key });
         } else {
-            newCache[stringKey] = this.#nfpCache[stringKey];
+            newCache.set(stringKey, this.#nfpCache.get(stringKey));
         }
     }
 
     public clean(): void {
-        this.#nfpCache = {};
+        this.#nfpCache.clear();
         this.#nfpPairs = [];
         this.#ids = [];
         this.#individual = null;
     }
 
-    public getPlacementWorkerData(generatedNfp: NFPData[], config: NestConfig, binPolygon: IPolygon) {
+    public getPlacementWorkerData(generatedNfp: NFPData[], config: NestConfig, binPolygon: IPolygon): PlacementWorkerData {
         this.update(generatedNfp);
 
         return {

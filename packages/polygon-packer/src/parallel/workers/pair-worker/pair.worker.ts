@@ -1,5 +1,5 @@
 import { Options } from '../../types';
-import { pairData } from '../shared';
+import { pairData } from './shared';
 
 const ctx: Worker = self as unknown as Worker;
 

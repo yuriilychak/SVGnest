@@ -29,9 +29,7 @@ export default class ClipperWrapper {
 
         let i: number = 0;
 
-        // eslint-disable-next-line new-cap
         clipper.AddPath(path, JoinType.jtRound, EndType.etClosedPolygon);
-        // eslint-disable-next-line new-cap
         clipper.Execute(resultPath, offset * clipperScale);
 
         if (resultPath.length === 1) {
@@ -62,7 +60,6 @@ export default class ClipperWrapper {
     public cleanPolygon(polygon: IPolygon): IPoint[] {
         const { clipperScale, curveTolerance } = this.#configuration;
         const clipperPolygon = ClipperWrapper.toClipper(polygon, clipperScale);
-        // eslint-disable-next-line new-cap
         const simple: IClipperPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IClipperPoint[][];
 
         if (!simple || simple.length === 0) {
@@ -71,13 +68,11 @@ export default class ClipperWrapper {
 
         let i: number = 0;
         let biggest: IClipperPoint[] = simple[0];
-        // eslint-disable-next-line new-cap
         let biggestArea: number = Math.abs(Clipper.Area(biggest));
         let area: number = 0;
         let pointCount: number = simple.length;
 
         for (i = 1; i < pointCount; ++i) {
-            // eslint-disable-next-line new-cap
             area = Math.abs(Clipper.Area(simple[i]));
 
             if (area > biggestArea) {
@@ -87,7 +82,6 @@ export default class ClipperWrapper {
         }
 
         // clean up singularities, coincident points and edges
-        // eslint-disable-next-line new-cap
         const cleanPolygon: IntPoint[] = Clipper.CleanPolygon(biggest, curveTolerance * clipperScale);
         pointCount = cleanPolygon && cleanPolygon.length ? cleanPolygon.length : 0;
 

@@ -75,7 +75,7 @@ export type PlacementWorkerData = {
     binPolygon: IPolygon;
     paths: IPolygon[];
     ids: number[];
-    rotations: number;
+    rotations: number[];
     config: NestConfig;
-    nfpCache: { [key: string]: NFPPair };
+    nfpCache: Map<string, NFPPair>;
 };
