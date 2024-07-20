@@ -312,6 +312,7 @@ declare namespace ClipperLib {
             MiterLimit: number,
             AutoFix: boolean
         ): ArrayLike<ArrayLike<IntPoint>>;
+        static MinkowskiSum(pattern: IntPoint[], path: IntPoint[], isPathClosed: boolean): IntPoint[][];
         static CleanPolygons(poly: IntPoint[][], trashold: number): Paths;
         static CleanPolygon(poly: IntPoint[], trashold: number): IntPoint[];
         static SimplifyPolygon(poly: Polygon, fillType: PolyFillType): Polygon[];

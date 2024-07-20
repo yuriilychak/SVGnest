@@ -8,6 +8,7 @@ interface ShiftVector extends IPoint {
 }
 
 // clipperjs uses alerts for warnings
+// eslint-disable-next-line
 function alert(message: string) {
     console.log('alert: ', message);
 }

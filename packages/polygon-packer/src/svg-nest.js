@@ -135,15 +135,7 @@ export default class SvgNest {
             this.#progress = spawnCount++ / this.#nfpStore.nfpPairs.length;
         };
 
-        const parallel = new Parallel(
-            'pair',
-            this.#nfpStore.nfpPairs,
-            {
-                binPolygon: this.#binPolygon,
-                configuration: this.#configuration
-            },
-            onSpawn
-        );
+        const parallel = new Parallel('pair', this.#nfpStore.nfpPairs, this.#configuration, onSpawn);
 
         parallel.then(
             generatedNfp => this.onPair(generatedNfp, displayCallback),

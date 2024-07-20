@@ -80,3 +80,8 @@ export type PlacementWorkerData = {
     config: NestConfig;
     nfpCache: Map<number, NFPPair>;
 };
+
+export type PairWorkerResult = {
+    key: number;
+    value: IPoint[][];
+};
