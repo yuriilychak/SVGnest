@@ -1,3 +1,4 @@
+// @ts-expect-error problems with linking
 import { SVGParser } from 'svg-parser';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
@@ -5,15 +6,40 @@ import { Parallel } from './parallel';
 import { getPolygonBounds, polygonArea, normalizePolygon } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import NFPStore from './nfp-store';
+import {
+    BoundRect,
+    DisplayCallback,
+    IPoint,
+    IPolygon,
+    NestConfig,
+    PairWorkerResult,
+    PlacementWorkerResult,
+    WORKER_TYPE
+} from './types';
+
+interface ISVGParser {
+    readonly svgString: string;
+    readonly binPolygon: IPolygon;
+    readonly svgAttributes: { [key: string]: string };
+    applyPlacement(
+        placement: IPoint[][],
+        tree: IPolygon[],
+        binBounds: { x: number; y: number; width: number; height: number }
+    ): string;
+    init(svgString: string): void;
+    getTree(configuration: NestConfig, clipperWrapper: ClipperWrapper): IPolygon[];
+    setBin(element: SVGElement): void;
+}
 
 export default class SvgNest {
     #geneticAlgorithm = new GeneticAlgorithm();
 
-    #svgParser = new SVGParser();
+    // eslint-disable-next-line
+    #svgParser: ISVGParser = new SVGParser() as ISVGParser;
 
-    #tree = null;
+    #tree: IPolygon[] = null;
 
-    #configuration = {
+    #configuration: NestConfig = {
         clipperScale: 10000000,
         curveTolerance: 0.3,
         spacing: 0,
@@ -24,21 +50,21 @@ export default class SvgNest {
         exploreConcave: false
     };
 
-    #binPolygon = null;
+    #binPolygon: IPolygon = null;
 
-    #binBounds = null;
+    #binBounds: BoundRect = null;
 
-    #isWorking = false;
+    #isWorking: boolean = false;
 
-    #best = null;
+    #best: PlacementWorkerResult = null;
 
-    #progress = 0;
+    #progress: number = 0;
 
-    #workerTimer = 0;
+    #workerTimer: number = 0;
 
-    #nfpStore = new NFPStore();
+    #nfpStore: NFPStore = new NFPStore();
 
-    parseSvg(svgString) {
+    public parseSvg(svgString: string): { source: string; attributes: object } {
         // reset if in progress
         this.stop();
 
@@ -50,24 +76,22 @@ export default class SvgNest {
         };
     }
 
-    setBin(element) {
+    public setBin(element: SVGElement): void {
         this.#svgParser.setBin(element);
     }
 
-    config(configuration) {
+    public config(configuration: NestConfig): void {
         this.#configuration = { ...this.#configuration, ...configuration };
 
         this.#best = null;
         this.#binPolygon = null;
         this.#geneticAlgorithm.clean();
         this.#nfpStore.clean();
-
-        return this.#configuration;
     }
 
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
-    start(progressCallback, displayCallback) {
+    public start(progressCallback: (progress: number) => void, displayCallback: DisplayCallback): void {
         const clipperWrapper = new ClipperWrapper(this.#configuration);
         // build tree without bin
         this.#tree = this.#svgParser.getTree(this.#configuration, clipperWrapper);
@@ -81,7 +105,7 @@ export default class SvgNest {
         this.#binPolygon = this.#svgParser.binPolygon;
 
         if (this.#binPolygon.length < 3) {
-            return false;
+            return;
         }
 
         this.#binBounds = getPolygonBounds(this.#binPolygon);
@@ -121,7 +145,7 @@ export default class SvgNest {
         }, 100);
     }
 
-    launchWorkers(displayCallback) {
+    launchWorkers(displayCallback: DisplayCallback) {
         if (this.#isWorking) {
             return;
         }
@@ -135,36 +159,36 @@ export default class SvgNest {
             this.#progress = spawnCount++ / this.#nfpStore.nfpPairs.length;
         };
 
-        const parallel = new Parallel('pair', this.#nfpStore.nfpPairs, this.#configuration, onSpawn);
+        const parallel = new Parallel(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, this.#configuration, onSpawn);
 
         parallel.then(
-            generatedNfp => this.onPair(generatedNfp, displayCallback),
+            (generatedNfp: PairWorkerResult[]) => this.onPair(generatedNfp, displayCallback),
             error => console.log(error)
         );
 
         this.#isWorking = true;
     }
 
-    onPair(generatedNfp, displayCallback) {
+    private onPair(generatedNfp: PairWorkerResult[], displayCallback: DisplayCallback): void {
         const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, this.#configuration, this.#binPolygon);
 
         // can't use .spawn because our data is an array
-        const p2 = new Parallel('placement', [this.#nfpStore.clonePlacement()], placementWorkerData);
+        const parallel: Parallel = new Parallel(WORKER_TYPE.PLACEMENT, [this.#nfpStore.clonePlacement()], placementWorkerData);
 
-        p2.then(
-            placements => this.onPlacement(placements, displayCallback),
+        parallel.then(
+            (placements: PlacementWorkerResult[]) => this.onPlacement(placements, displayCallback),
             error => console.log(error)
         );
     }
 
-    onPlacement(placements, displayCallback) {
+    private onPlacement(placements: PlacementWorkerResult[], displayCallback: DisplayCallback): void {
         if (!placements || placements.length === 0) {
             return;
         }
 
-        let i = 0;
-        let j = 0;
-        let bestResult = placements[0];
+        let i: number = 0;
+        let j: number = 0;
+        let bestResult: PlacementWorkerResult = placements[0];
 
         this.#nfpStore.fitness = bestResult.fitness;
 
@@ -177,13 +201,14 @@ export default class SvgNest {
         if (!this.#best || bestResult.fitness < this.#best.fitness) {
             this.#best = bestResult;
 
-            let placedArea = 0;
-            let totalArea = 0;
-            let numPlacedParts = 0;
+            let placedArea: number = 0;
+            let totalArea: number = 0;
+            let numPlacedParts: number = 0;
             let bestPlacement = null;
-            const numParts = this.#nfpStore.placementCount;
+            const numParts: number = this.#nfpStore.placementCount;
+            const placementCount = this.#best.placements.length;
 
-            for (i = 0; i < this.#best.placements.length; ++i) {
+            for (i = 0; i < placementCount; ++i) {
                 totalArea = totalArea + Math.abs(polygonArea(this.#binPolygon));
                 bestPlacement = this.#best.placements[i];
 
@@ -194,7 +219,7 @@ export default class SvgNest {
                 }
             }
 
-            const placement = this.#svgParser.applyPlacement(this.#best.placements, this.#tree, this.#binBounds);
+            const placement: string = this.#svgParser.applyPlacement(this.#best.placements, this.#tree, this.#binBounds);
 
             displayCallback(placement, placedArea / totalArea, numPlacedParts, numParts);
         } else {
@@ -204,7 +229,7 @@ export default class SvgNest {
         this.#isWorking = false;
     }
 
-    stop() {
+    public stop(): void {
         this.#isWorking = false;
 
         if (this.#workerTimer) {

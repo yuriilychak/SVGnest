@@ -1,3 +1,5 @@
+import { almostEqual } from '../../../helpers';
+
 /* !
  * General purpose geometry functions for polygon/Bezier calculations
  * Copyright 2015 Jack Qiao
@@ -73,10 +75,6 @@ function _onSegment(A, B, p) {
     }
 
     return true;
-}
-
-export function almostEqual(a, b = 0, tolerance = TOL) {
-    return Math.abs(a - b) < tolerance;
 }
 
 // returns the intersection of AB and EF
@@ -196,18 +194,6 @@ export function pointInPolygon(point, polygon) {
     }
 
     return inside;
-}
-
-// returns the area of the polygon, assuming no self-intersections
-// a negative area indicates counter-clockwise winding direction
-export function polygonArea(polygon) {
-    let area = 0;
-    let i, j;
-    for (i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        area = area + (polygon[j].x + polygon[i].x) * (polygon[j].y - polygon[i].y);
-    }
-
-    return 0.5 * area;
 }
 
 // todo: swap this for a more efficient sweep-line implementation
@@ -599,12 +585,6 @@ export function segmentDistance(A, B, E, F, direction) {
     const crossE = E.x * direction.x + E.y * direction.y;
     const crossF = F.x * direction.x + F.y * direction.y;
 
-    const crossABmin = Math.min(crossA, crossB);
-    const crossABmax = Math.max(crossA, crossB);
-
-    const crossEFmax = Math.max(crossE, crossF);
-    const crossEFmin = Math.min(crossE, crossF);
-
     const ABmin = Math.min(dotA, dotB);
     const ABmax = Math.max(dotA, dotB);
 
@@ -766,22 +746,11 @@ export function polygonSlideDistance(A, B, direction, ignoreNegative) {
     const edgeB = B;
 
     let distance = null;
-    let p, s1, s2, d;
+    let d;
 
     const dir = _normalizeVector(direction);
 
-    const normal = {
-        x: dir.y,
-        y: -dir.x
-    };
-
-    const reverse = {
-        x: -dir.x,
-        y: -dir.y
-    };
-
     for (let i = 0; i < edgeB.length - 1; i++) {
-        const mind = null;
         for (let j = 0; j < edgeA.length - 1; j++) {
             A1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety };
             A2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety };
@@ -834,7 +803,6 @@ export function polygonProjectionDistance(A, B, direction) {
     for (let i = 0; i < edgeB.length; i++) {
         // the shortest/most negative projection of B onto A
         let minprojection = null;
-        let minp = null;
         for (let j = 0; j < edgeA.length - 1; j++) {
             p = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety };
             s1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety };
@@ -849,7 +817,6 @@ export function polygonProjectionDistance(A, B, direction) {
 
             if (d !== null && (minprojection === null || d < minprojection)) {
                 minprojection = d;
-                minp = p;
             }
         }
         if (minprojection !== null && (distance === null || minprojection > distance)) {
@@ -1352,207 +1319,4 @@ export function noFitPolygon(A, B, inside, searchEdges) {
     }
 
     return NFPlist;
-}
-
-// given two polygons that touch at at least one point, but do not intersect. Return the outer perimeter of both polygons as a single continuous polygon
-// A and B must have the same winding direction
-export function polygonHull(A, B) {
-    if (!A || A.length < 3 || !B || B.length < 3) {
-        return null;
-    }
-
-    let i, j;
-
-    let Aoffsetx = A.offsetx || 0;
-    let Aoffsety = A.offsety || 0;
-    let Boffsetx = B.offsetx || 0;
-    let Boffsety = B.offsety || 0;
-
-    // start at an extreme point that is guaranteed to be on the final polygon
-    let miny = A[0].y;
-    let startPolygon = A;
-    let startIndex = 0;
-
-    for (i = 0; i < A.length; i++) {
-        if (A[i].y + Aoffsety < miny) {
-            miny = A[i].y + Aoffsety;
-            startPolygon = A;
-            startIndex = i;
-        }
-    }
-
-    for (i = 0; i < B.length; i++) {
-        if (B[i].y + Boffsety < miny) {
-            miny = B[i].y + Boffsety;
-            startPolygon = B;
-            startIndex = i;
-        }
-    }
-
-    // for simplicity we'll define polygon A as the starting polygon
-    if (startPolygon == B) {
-        B = A;
-        A = startPolygon;
-        Aoffsetx = A.offsetx || 0;
-        Aoffsety = A.offsety || 0;
-        Boffsetx = B.offsetx || 0;
-        Boffsety = B.offsety || 0;
-    }
-
-    A = A.slice(0);
-    B = B.slice(0);
-
-    const C = [];
-    let current = startIndex;
-    let intercept1 = null;
-    let intercept2 = null;
-
-    // scan forward from the starting point
-    for (i = 0; i < A.length + 1; i++) {
-        current = current == A.length ? 0 : current;
-        var next = current == A.length - 1 ? 0 : current + 1;
-        var touching = false;
-        for (j = 0; j < B.length; j++) {
-            var nextj = j == B.length - 1 ? 0 : j + 1;
-            if (
-                almostEqual(A[current].x + Aoffsetx, B[j].x + Boffsetx) &&
-                almostEqual(A[current].y + Aoffsety, B[j].y + Boffsety)
-            ) {
-                C.push({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-                intercept1 = j;
-                touching = true;
-                break;
-            } else if (
-                _onSegment(
-                    { x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety },
-                    { x: A[next].x + Aoffsetx, y: A[next].y + Aoffsety },
-                    { x: B[j].x + Boffsetx, y: B[j].y + Boffsety }
-                )
-            ) {
-                C.push({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-                C.push({ x: B[j].x + Boffsetx, y: B[j].y + Boffsety });
-                intercept1 = j;
-                touching = true;
-                break;
-            } else if (
-                _onSegment(
-                    { x: B[j].x + Boffsetx, y: B[j].y + Boffsety },
-                    { x: B[nextj].x + Boffsetx, y: B[nextj].y + Boffsety },
-                    { x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety }
-                )
-            ) {
-                C.push({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-                C.push({ x: B[nextj].x + Boffsetx, y: B[nextj].y + Boffsety });
-                intercept1 = nextj;
-                touching = true;
-                break;
-            }
-        }
-
-        if (touching) {
-            break;
-        }
-
-        C.push({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-
-        current++;
-    }
-
-    // scan backward from the starting point
-    current = startIndex - 1;
-    for (i = 0; i < A.length + 1; i++) {
-        current = current < 0 ? A.length - 1 : current;
-        var next = current == 0 ? A.length - 1 : current - 1;
-        var touching = false;
-        for (j = 0; j < B.length; j++) {
-            var nextj = j == B.length - 1 ? 0 : j + 1;
-            if (almostEqual(A[current].x + Aoffsetx, B[j].x + Boffsetx) && almostEqual(A[current].y, B[j].y + Boffsety)) {
-                C.unshift({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-                intercept2 = j;
-                touching = true;
-                break;
-            } else if (
-                _onSegment(
-                    { x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety },
-                    { x: A[next].x + Aoffsetx, y: A[next].y + Aoffsety },
-                    { x: B[j].x + Boffsetx, y: B[j].y + Boffsety }
-                )
-            ) {
-                C.unshift({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-                C.unshift({ x: B[j].x + Boffsetx, y: B[j].y + Boffsety });
-                intercept2 = j;
-                touching = true;
-                break;
-            } else if (
-                _onSegment(
-                    { x: B[j].x + Boffsetx, y: B[j].y + Boffsety },
-                    { x: B[nextj].x + Boffsetx, y: B[nextj].y + Boffsety },
-                    { x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety }
-                )
-            ) {
-                C.unshift({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-                intercept2 = j;
-                touching = true;
-                break;
-            }
-        }
-
-        if (touching) {
-            break;
-        }
-
-        C.unshift({ x: A[current].x + Aoffsetx, y: A[current].y + Aoffsety });
-
-        current--;
-    }
-
-    if (intercept1 === null || intercept2 === null) {
-        // polygons not touching?
-        return null;
-    }
-
-    // the relevant points on B now lie between intercept1 and intercept2
-    current = intercept1 + 1;
-    for (i = 0; i < B.length; i++) {
-        current = current == B.length ? 0 : current;
-        C.push({ x: B[current].x + Boffsetx, y: B[current].y + Boffsety });
-
-        if (current == intercept2) {
-            break;
-        }
-
-        current++;
-    }
-
-    // dedupe
-    for (i = 0; i < C.length; i++) {
-        var next = i == C.length - 1 ? 0 : i + 1;
-        if (almostEqual(C[i].x, C[next].x) && almostEqual(C[i].y, C[next].y)) {
-            C.splice(i, 1);
-            i--;
-        }
-    }
-
-    return C;
-}
-
-export function rotatePolygon(polygon, angle) {
-    const rotated = [];
-    angle = (angle * Math.PI) / 180;
-    for (let i = 0; i < polygon.length; i++) {
-        const x = polygon[i].x;
-        const y = polygon[i].y;
-        const x1 = x * Math.cos(angle) - y * Math.sin(angle);
-        const y1 = x * Math.sin(angle) + y * Math.cos(angle);
-
-        rotated.push({ x: x1, y: y1 });
-    }
-    // reset bounding box
-    const bounds = getPolygonBounds(rotated);
-    rotated.x = bounds.x;
-    rotated.y = bounds.y;
-    rotated.width = bounds.width;
-    rotated.height = bounds.height;
-
-    return rotated;
 }

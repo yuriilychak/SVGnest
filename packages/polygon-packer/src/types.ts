@@ -78,10 +78,19 @@ export type PlacementWorkerData = {
     ids: number[];
     rotations: number[];
     config: NestConfig;
-    nfpCache: Map<number, NFPPair>;
+    nfpCache: Map<number, IPoint[][]>;
 };
 
 export type PairWorkerResult = {
     key: number;
     value: IPoint[][];
 };
+
+export interface PlacementWorkerResult {
+    placements: IPoint[][];
+    fitness: number;
+    paths: IPoint[][];
+    area: number;
+}
+
+export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;

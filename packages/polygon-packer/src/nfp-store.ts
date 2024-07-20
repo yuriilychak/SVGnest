@@ -1,9 +1,9 @@
 import { Phenotype } from './genetic-algorithm';
 import { generateNFPCacheKey } from './helpers';
-import { IPolygon, NestConfig, NFPData, NFPPair, PlacementWorkerData } from './types';
+import { IPolygon, NestConfig, NFPPair, PlacementWorkerData, PairWorkerResult, IPoint } from './types';
 
 export default class NFPStore {
-    #nfpCache: Map<number, NFPPair> = new Map<number, NFPPair>();
+    #nfpCache: Map<number, IPoint[][]> = new Map<number, IPoint[][]>();
 
     #nfpPairs: NFPPair[] = [];
 
@@ -22,7 +22,7 @@ export default class NFPStore {
         const placeList: IPolygon[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = placeList.length;
-        const newCache: Map<number, NFPPair> = new Map<number, NFPPair>();
+        const newCache: Map<number, IPoint[][]> = new Map<number, IPoint[][]>();
         let part = null;
         let i: number = 0;
         let j: number = 0;
@@ -43,11 +43,11 @@ export default class NFPStore {
         this.#nfpCache = newCache;
     }
 
-    private update(generatedNfp: NFPData[]): void {
+    private update(generatedNfp: PairWorkerResult[]): void {
         if (generatedNfp) {
             const nfpCount: number = generatedNfp.length;
             let i: number = 0;
-            let nfp: NFPData = null;
+            let nfp: PairWorkerResult = null;
 
             for (i = 0; i < nfpCount; ++i) {
                 nfp = generatedNfp[i];
@@ -67,7 +67,7 @@ export default class NFPStore {
         rotation1: number,
         rotation2: number,
         inside: boolean,
-        newCache: Map<number, NFPPair>
+        newCache: Map<number, IPoint[][]>
     ): void {
         const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2, rotation1, rotation2);
 
@@ -85,7 +85,11 @@ export default class NFPStore {
         this.#individual = null;
     }
 
-    public getPlacementWorkerData(generatedNfp: NFPData[], config: NestConfig, binPolygon: IPolygon): PlacementWorkerData {
+    public getPlacementWorkerData(
+        generatedNfp: PairWorkerResult[],
+        config: NestConfig,
+        binPolygon: IPolygon
+    ): PlacementWorkerData {
         this.update(generatedNfp);
 
         return {

@@ -1,5 +1,5 @@
 import ClipperLib from 'js-clipper';
-import { IPoint, IPolygon, NFPPair, PlacementWorkerData } from '../../../types';
+import { IPoint, IPolygon, PlacementWorkerData, PlacementWorkerResult } from '../../../types';
 import { almostEqual, generateNFPCacheKey, getPolygonBounds, polygonArea, rotatePolygon } from '../../../helpers';
 import ClipperWrapper from '../../../clipper-wrapper';
 
@@ -13,7 +13,7 @@ function alert(message: string) {
     console.log('alert: ', message);
 }
 
-export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData) {
+export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData): PlacementWorkerResult | null {
     if (!placementData.binPolygon) {
         return null;
     }
@@ -45,7 +45,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     let fitness = 0;
     const binarea = Math.abs(polygonArea(placementData.binPolygon));
     let key: number = 0;
-    let nfp: NFPPair = null;
+    let nfp: IPoint[][] = null;
     let minWidth: number = 0;
     let area: number = 0;
 

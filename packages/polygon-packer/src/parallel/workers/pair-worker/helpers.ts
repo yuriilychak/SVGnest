@@ -1,5 +1,5 @@
 import ClipperLib from 'js-clipper';
-import { isRectangle, noFitPolygonRectangle, noFitPolygon, pointInPolygon } from '../../../geometry-util';
+import { isRectangle, noFitPolygonRectangle, noFitPolygon, pointInPolygon } from './geometry-util';
 import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea } from '../../../helpers';
 import ClipperWrapper from '../../../clipper-wrapper';
 import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from '../../../types';

@@ -2,10 +2,14 @@ import { NestConfig, NFPPair } from '../../../types';
 import { pairData } from './helpers';
 
 const ctx: Worker = self as unknown as Worker;
+// eslint-disable-next-line
+function alert(message: string) {
+    console.log('alert: ', message);
+}
 
-function onMessage(this: Worker, code: MessageEvent<NestConfig>) {
+function onMessage(this: Worker, code: MessageEvent<{ env: NestConfig }>) {
     function onInnerMessage(this: Worker, e: MessageEvent<NFPPair>) {
-        this.postMessage(pairData(e.data, code.data));
+        this.postMessage(pairData(e.data, code.data.env));
     }
 
     this.onmessage = onInnerMessage;
