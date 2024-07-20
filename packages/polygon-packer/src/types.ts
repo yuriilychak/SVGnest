@@ -60,11 +60,11 @@ export type NFPPair = {
     A: IPolygon;
     B: IPolygon;
     length?: number;
-    key: NFPContent;
+    key: number;
     [key: number]: IPolygon;
 };
 
-export type NFPData = { value: NFPPair; key: string };
+export type NFPData = { value: NFPPair; key: number };
 
 export enum WORKER_TYPE {
     PLACEMENT = 'placement',
@@ -72,10 +72,11 @@ export enum WORKER_TYPE {
 }
 
 export type PlacementWorkerData = {
+    angleSplit: number;
     binPolygon: IPolygon;
     paths: IPolygon[];
     ids: number[];
     rotations: number[];
     config: NestConfig;
-    nfpCache: Map<string, NFPPair>;
+    nfpCache: Map<number, NFPPair>;
 };

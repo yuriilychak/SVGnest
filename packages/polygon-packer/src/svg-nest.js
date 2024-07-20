@@ -127,7 +127,7 @@ export default class SvgNest {
         }
 
         this.#geneticAlgorithm.init(this.#tree, this.#binPolygon, this.#configuration);
-        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon);
+        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, this.#configuration.rotations);
 
         let spawnCount = 0;
 
@@ -140,8 +140,7 @@ export default class SvgNest {
             this.#nfpStore.nfpPairs,
             {
                 binPolygon: this.#binPolygon,
-                searchEdges: this.#configuration.exploreConcave,
-                useHoles: this.#configuration.useHoles
+                configuration: this.#configuration
             },
             onSpawn
         );

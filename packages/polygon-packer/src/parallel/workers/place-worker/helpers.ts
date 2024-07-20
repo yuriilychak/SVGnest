@@ -1,10 +1,15 @@
 import ClipperLib from 'js-clipper';
 import { IPoint, IPolygon, NFPPair, PlacementWorkerData } from '../../../types';
-import { almostEqual, getPolygonBounds, polygonArea, rotatePolygon } from '../../../helpers';
+import { almostEqual, generateNFPCacheKey, getPolygonBounds, polygonArea, rotatePolygon } from '../../../helpers';
 import ClipperWrapper from '../../../clipper-wrapper';
 
 interface ShiftVector extends IPoint {
     nfp: ClipperLib.Paths;
+}
+
+// clipperjs uses alerts for warnings
+function alert(message: string) {
+    console.log('alert: ', message);
 }
 
 export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData) {
@@ -21,6 +26,10 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     let rotatedPath: IPolygon = null;
     // rotate paths by given rotation
     const paths: IPolygon[] = [];
+    const emptyPath: IPolygon = [] as IPolygon;
+
+    emptyPath.id = -1;
+    emptyPath.rotation = 0;
 
     for (i = 0; i < inputPaths.length; ++i) {
         path = inputPaths[i];
@@ -34,7 +43,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     const allplacements = [];
     let fitness = 0;
     const binarea = Math.abs(polygonArea(placementData.binPolygon));
-    let key: string = '';
+    let key: number = 0;
     let nfp: NFPPair = null;
     let minWidth: number = 0;
     let area: number = 0;
@@ -48,13 +57,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
             path = paths[i];
 
             // inner NFP
-            key = JSON.stringify({
-                A: -1,
-                B: path.id,
-                inside: true,
-                Arotation: 0,
-                Brotation: path.rotation
-            });
+            key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, path);
             const binNfp = placementData.nfpCache.get(key);
 
             // part unplaceable, skip
@@ -65,13 +68,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
             // ensure all necessary NFPs exist
             let isError: boolean = false;
             for (j = 0; j < placed.length; ++j) {
-                key = JSON.stringify({
-                    A: placed[j].id,
-                    B: path.id,
-                    inside: false,
-                    Arotation: placed[j].rotation,
-                    Brotation: path.rotation
-                });
+                key = generateNFPCacheKey(placementData.angleSplit, false, placed[j], path);
                 nfp = placementData.nfpCache.get(key);
 
                 if (!nfp) {
@@ -118,13 +115,8 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
             const combinedNfp = new ClipperLib.Paths();
 
             for (j = 0; j < placed.length; ++j) {
-                key = JSON.stringify({
-                    A: placed[j].id,
-                    B: path.id,
-                    inside: false,
-                    Arotation: placed[j].rotation,
-                    Brotation: path.rotation
-                });
+                key = generateNFPCacheKey(placementData.angleSplit, false, placed[j], path);
+
                 nfp = placementData.nfpCache.get(key);
 
                 if (!nfp) {

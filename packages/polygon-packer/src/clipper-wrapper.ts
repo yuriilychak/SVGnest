@@ -3,11 +3,6 @@ import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoin
 
 import { IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
 
-// clipperjs uses alerts for warnings
-function alert(message: string) {
-    console.log('alert: ', message);
-}
-
 export default class ClipperWrapper {
     #configuration: NestConfig;
 

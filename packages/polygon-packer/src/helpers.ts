@@ -1,4 +1,4 @@
-import { BoundRect, IPoint, IPolygon } from './types';
+import { BoundRect, IPoint, IPolygon, NFPContent } from './types';
 
 // returns the rectangular bounding box of the given polygon
 export function getPolygonBounds(polygon: IPoint[]): BoundRect {
@@ -84,4 +84,62 @@ export function normalizePolygon(polygon: IPolygon): void {
     if (polygonArea(polygon) > 0) {
         polygon.reverse();
     }
+}
+
+export function generateNFPCacheKey(
+    rotationSplit: number,
+    inside: boolean,
+    polygon1: IPolygon,
+    polygon2: IPolygon,
+    rotation1: number = polygon1.rotation,
+    rotation2: number = polygon2.rotation
+) {
+    const rotationOffset: number = Math.round(360 / rotationSplit);
+    const rotationIndex1: number = Math.round(rotation1 / rotationOffset);
+    const rotationIndex2: number = Math.round(rotation2 / rotationOffset);
+
+    return (
+        ((polygon1.id + 1) << 0) +
+        ((polygon2.id + 1) << 10) +
+        (rotationIndex1 << 19) +
+        (rotationIndex2 << 23) +
+        ((inside ? 1 : 0) << 27)
+    );
+}
+
+export function keyToNFPData(numKey: number, rotationSplit: number): NFPContent {
+    const rotationOffset: number = Math.round(360 / rotationSplit);
+    const result = new Float32Array(5);
+    let accumulator: number = 0;
+    const inside = numKey >> 27;
+
+    accumulator = accumulator + (inside << 27);
+
+    const rotationIndexB = (numKey - accumulator) >> 23;
+
+    accumulator = accumulator + (rotationIndexB << 23);
+
+    const rotationIndexA = (numKey - accumulator) >> 19;
+
+    accumulator = accumulator + (rotationIndexA << 19);
+
+    const idB = (numKey - accumulator) >> 10;
+
+    accumulator = accumulator + (idB << 10);
+
+    const idA = numKey - accumulator;
+
+    result[4] = inside;
+    result[3] = rotationIndexB * rotationOffset;
+    result[2] = rotationIndexA * rotationOffset;
+    result[1] = idB - 1;
+    result[0] = idA - 1;
+
+    return {
+        A: idA,
+        B: idB,
+        inside: Boolean(inside),
+        Arotation: rotationIndexA * rotationOffset,
+        Brotation: rotationIndexB * rotationOffset
+    };
 }

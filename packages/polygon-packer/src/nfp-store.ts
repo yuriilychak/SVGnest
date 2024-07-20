@@ -1,8 +1,9 @@
 import { Phenotype } from './genetic-algorithm';
+import { generateNFPCacheKey } from './helpers';
 import { IPolygon, NestConfig, NFPData, NFPPair, PlacementWorkerData } from './types';
 
 export default class NFPStore {
-    #nfpCache: Map<string, NFPPair> = new Map<string, NFPPair>();
+    #nfpCache: Map<number, NFPPair> = new Map<number, NFPPair>();
 
     #nfpPairs: NFPPair[] = [];
 
@@ -10,15 +11,18 @@ export default class NFPStore {
 
     #individual: Phenotype = null;
 
-    public init(individual: Phenotype, binPolygon: IPolygon): void {
+    #angleSplit: number = 0;
+
+    public init(individual: Phenotype, binPolygon: IPolygon, angleSplit: number): void {
         this.#individual = individual;
+        this.#angleSplit = angleSplit;
         this.#nfpPairs = [];
         this.#ids = [];
 
         const placeList: IPolygon[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = placeList.length;
-        const newCache: Map<string, NFPPair> = new Map<string, NFPPair>();
+        const newCache: Map<number, NFPPair> = new Map<number, NFPPair>();
         let part = null;
         let i: number = 0;
         let j: number = 0;
@@ -44,7 +48,6 @@ export default class NFPStore {
             const nfpCount: number = generatedNfp.length;
             let i: number = 0;
             let nfp: NFPData = null;
-            let key = '';
 
             for (i = 0; i < nfpCount; ++i) {
                 nfp = generatedNfp[i];
@@ -52,8 +55,7 @@ export default class NFPStore {
                 if (nfp) {
                     // a null nfp means the nfp could not be generated, either because the parts simply don't
                     // fit or an error in the nfp algo
-                    key = JSON.stringify(nfp.key);
-                    this.#nfpCache.set(key, nfp.value);
+                    this.#nfpCache.set(nfp.key, nfp.value);
                 }
             }
         }
@@ -65,22 +67,14 @@ export default class NFPStore {
         rotation1: number,
         rotation2: number,
         inside: boolean,
-        newCache: Map<string, NFPPair>
+        newCache: Map<number, NFPPair>
     ): void {
-        const key = {
-            A: polygon1.id,
-            B: polygon2.id,
-            inside,
-            Arotation: rotation1,
-            Brotation: rotation2
-        };
+        const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2, rotation1, rotation2);
 
-        const stringKey = JSON.stringify(key);
-
-        if (!this.#nfpCache.has(stringKey)) {
+        if (!this.#nfpCache.has(key)) {
             this.#nfpPairs.push({ A: polygon1, B: polygon2, key });
         } else {
-            newCache.set(stringKey, this.#nfpCache.get(stringKey));
+            newCache.set(key, this.#nfpCache.get(key));
         }
     }
 
@@ -95,6 +89,7 @@ export default class NFPStore {
         this.update(generatedNfp);
 
         return {
+            angleSplit: this.#angleSplit,
             binPolygon,
             paths: this.clonePlacement(),
             ids: this.#ids,
