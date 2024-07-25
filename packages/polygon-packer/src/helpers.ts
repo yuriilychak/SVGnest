@@ -66,7 +66,7 @@ export function polygonArea(polygon: IPoint[]): number {
     return 0.5 * result;
 }
 
-const TOL: number = Math.pow(10, -9);
+export const TOL: number = Math.pow(10, -9);
 
 export function almostEqual(a: number, b: number = 0, tolerance: number = TOL): boolean {
     return Math.abs(a - b) < tolerance;

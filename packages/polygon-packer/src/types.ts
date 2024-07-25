@@ -1,6 +1,7 @@
 export interface IPoint {
     id?: number;
     rotation?: number;
+    marked?: boolean;
     x: number;
     y: number;
 }
@@ -18,6 +19,8 @@ export interface IPolygon extends Array<IPoint> {
     children: IPolygon[];
     x?: number;
     y?: number;
+    offsetx?: number;
+    offsety?: number;
     rotation?: number;
     width?: number;
     height?: number;
