@@ -172,7 +172,7 @@
         "operator-assignment": ["warn", "never"],
         "operator-linebreak": ["warn", "after", { "overrides": { "?": "before", ":": "before" } }],
         "padded-blocks": ["warn", "never"],
-        "quote-props": ["warn", "consistent-as-needed"],
+        "quote-props": ["warn", "as-needed"],
         "quotes": ["warn", "single", { "avoidEscape": true, "allowTemplateLiterals": true }],
         "require-jsdoc": [
             "off",

@@ -1,4 +1,3 @@
-// @ts-expect-error problems with linking
 import { SVGParser } from 'svg-parser';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
@@ -9,7 +8,6 @@ import NFPStore from './nfp-store';
 import {
     BoundRect,
     DisplayCallback,
-    IPoint,
     IPolygon,
     NestConfig,
     PairWorkerResult,
@@ -17,25 +15,11 @@ import {
     WORKER_TYPE
 } from './types';
 
-interface ISVGParser {
-    readonly svgString: string;
-    readonly binPolygon: IPolygon;
-    readonly svgAttributes: { [key: string]: string };
-    applyPlacement(
-        placement: IPoint[][],
-        tree: IPolygon[],
-        binBounds: { x: number; y: number; width: number; height: number }
-    ): string;
-    init(svgString: string): void;
-    getTree(configuration: NestConfig, clipperWrapper: ClipperWrapper): IPolygon[];
-    setBin(element: SVGElement): void;
-}
-
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
 
     // eslint-disable-next-line
-    #svgParser: ISVGParser = new SVGParser() as ISVGParser;
+    #svgParser: SVGParser = new SVGParser();
 
     #tree: IPolygon[] = null;
 

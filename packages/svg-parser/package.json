@@ -1,7 +1,7 @@
 {
     "name": "svg-parser",
     "version": "1.0.0",
-    "main": "dist/svg-parser.js",
+    "main": "src/index.ts",
     "scripts": {
         "build": "webpack",
         "test": "jest",
@@ -9,7 +9,9 @@
         "lint:fix": "eslint src/**/*.ts --fix"
     },
     "description": "Polygon packing algorythm",
-    "devDependencies": {},
+    "dependencies": {
+        "svg-parser": "^1.0.0"
+    },
     "keywords": [
         "svg",
         "polygon"

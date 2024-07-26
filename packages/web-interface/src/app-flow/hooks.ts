@@ -145,7 +145,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                     return handleDispatch(REDUCER_ACTION.DOWNLOAD_SVG);
                 case BUTTON_ACTION.SETTINGS:
                 case BUTTON_ACTION.CLOSE_SETTINGS:
-                    return handleDispatch(REDUCER_ACTION.TOGGLE_DRAWER, action === BUTTON_ACTION.SETTINGS);
+                    return handleDispatch(REDUCER_ACTION.TOGGLE_DRAWER, (action as BUTTON_ACTION) === BUTTON_ACTION.SETTINGS);
                 case BUTTON_ACTION.ZOOM_IN:
                     return handleDispatch(REDUCER_ACTION.ZOOM_IN);
                 case BUTTON_ACTION.ZOOM_OUT:

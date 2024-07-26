@@ -1,4 +1,4 @@
-﻿﻿import WORKERS from './workers';
+﻿import WORKERS from './workers';
 import Operation from './opertaion';
 import { OperationCallback, Options } from './types';
 import { WORKER_TYPE } from '../types';

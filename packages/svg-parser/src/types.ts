@@ -83,5 +83,5 @@ export type NestConfig = {
 };
 
 export interface IClipperWrapper {
-    cleanPolygon(polygon: IPoint[]): IPolygon;
+    cleanPolygon(polygon: IPoint[]): IPoint[];
 }

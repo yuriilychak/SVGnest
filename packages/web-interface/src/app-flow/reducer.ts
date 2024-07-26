@@ -72,7 +72,9 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
             const resultWrapper = document.getElementById(PREDEFINED_ID.SVG_WRAPPER);
             const saver: HTMLLinkElement = document.getElementById(PREDEFINED_ID.FILE_SAVER) as HTMLLinkElement;
             const blob = new Blob([resultWrapper.innerHTML], { type: 'image/svg+xml;charset=utf-8' });
-            const blobURL = (saver.href = URL.createObjectURL(blob));
+            const blobURL = URL.createObjectURL(blob);
+
+            saver.href = blobURL;
 
             saver.setAttribute('download', 'SVGNestOutput.svg');
             URL.revokeObjectURL(blobURL);

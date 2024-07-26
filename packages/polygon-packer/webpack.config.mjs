@@ -2,7 +2,7 @@ import path from 'path';
 
 export default {
     mode: 'production',
-    entry: './src/index.js',
+    entry: './src/index.ts',
     target: 'web',
     devtool: 'source-map',
     output: {

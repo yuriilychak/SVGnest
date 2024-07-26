@@ -1,12 +1,12 @@
 {
     "name": "polygon-packer",
     "version": "1.0.0",
-    "main": "dist/polygon-packer.js",
+    "main": "src/index.ts",
     "scripts": {
         "build": "webpack",
         "test": "jest",
-        "lint": "eslint src/**/*.js",
-        "lint:fix": "eslint src/**/*.js --fix"
+        "lint": "eslint src/**/*.ts",
+        "lint:fix": "eslint src/**/*.ts --fix"
     },
     "description": "Polygon packing algorythm",
     "devDependencies": {},

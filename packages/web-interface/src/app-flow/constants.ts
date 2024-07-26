@@ -1,4 +1,3 @@
-// @ts-expect-error no ts definition
 import { PolygonPacker } from 'polygon-packer';
 
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -109,7 +108,8 @@ export const DEFAULT_SETTING: SettingsData = {
     [SETTING_ID.POPULATION_SIZE]: 10,
     [SETTING_ID.MUTATION_RATE]: 10,
     [SETTING_ID.USE_HOLES]: false,
-    [SETTING_ID.EXPLORE_CONCAVE]: false
+    [SETTING_ID.EXPLORE_CONCAVE]: false,
+    [SETTING_ID.CLIPPER_SCALE]: 10000000
 };
 
 const getSettingConfig = (

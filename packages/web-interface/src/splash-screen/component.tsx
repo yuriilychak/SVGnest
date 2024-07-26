@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, memo, FC } from 'react';
+import { useCallback, useState, useMemo, memo, FC, act } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Stack from '@mui/material/Stack';
@@ -17,16 +17,18 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
 
     const handleAction = useCallback(
         (action: string) => {
-            switch (action as BUTTON_ACTION) {
+            const buttonAction: BUTTON_ACTION = action as BUTTON_ACTION;
+
+            switch (buttonAction) {
                 case BUTTON_ACTION.DEMO:
                 case BUTTON_ACTION.START:
-                    onOpenApp(action === BUTTON_ACTION.DEMO);
+                    onOpenApp(buttonAction === BUTTON_ACTION.DEMO);
                     break;
                 case BUTTON_ACTION.GITHUB:
                     window.open('https://github.com/Jack000/SVGnest', '_blank');
                     break;
                 default:
-                    setDrawerOpen(action === BUTTON_ACTION.OPEN_FAQ);
+                    setDrawerOpen(buttonAction === BUTTON_ACTION.OPEN_FAQ);
             }
         },
         [onOpenApp]

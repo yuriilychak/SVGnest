@@ -66,7 +66,7 @@ export default class SVGParser {
             .create(element, tolerance, SVGParser.SVG_TOLERANCE)
             .getResult();
 
-        return clipperWrapper.cleanPolygon(rawPolygon);
+        return clipperWrapper.cleanPolygon(rawPolygon) as IPolygon;
     }
 
     // returns an array of SVG elements that represent the placement, for export or rendering

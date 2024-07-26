@@ -1,4 +1,3 @@
-// @ts-expect-error no ts definition
 import { PolygonPacker } from 'polygon-packer';
 
 export enum BUTTON_ACTION {
@@ -20,7 +19,8 @@ export enum SETTING_ID {
     POPULATION_SIZE = 'populationSize',
     MUTATION_RATE = 'mutationRate',
     USE_HOLES = 'useHoles',
-    EXPLORE_CONCAVE = 'exploreConcave'
+    EXPLORE_CONCAVE = 'exploreConcave',
+    CLIPPER_SCALE = 'clipperScale'
 }
 
 export enum INPUT_TYPE {
@@ -41,6 +41,7 @@ export interface SettingsData {
     [SETTING_ID.MUTATION_RATE]: number;
     [SETTING_ID.USE_HOLES]: boolean;
     [SETTING_ID.EXPLORE_CONCAVE]: boolean;
+    [SETTING_ID.CLIPPER_SCALE]: number;
 }
 
 export interface SettingConfig {
