@@ -17,14 +17,14 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.CHANGE_SETTINGS,
         (prevState, { id, value }: { id: SETTING_ID; value: string | boolean }) => {
-            const { svgNest, isWorking } = prevState;
+            const { polygonPacker, isWorking } = prevState;
             const settings: SettingsData = { ...prevState.settings, [id]: value };
 
             if (isWorking) {
-                svgNest.stop();
+                polygonPacker.stop();
             }
 
-            svgNest.config(settings);
+            polygonPacker.config(settings);
 
             return {
                 ...prevState,
@@ -46,10 +46,10 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.UPDATE_SVG,
         (prevState, svgSrc: string) => {
-            const { svgNest, isWorking } = prevState;
+            const { polygonPacker, isWorking } = prevState;
 
             if (isWorking) {
-                svgNest.stop();
+                polygonPacker.stop();
             }
 
             return {
@@ -126,7 +126,7 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.PAUSE_NESTING,
         prevState => {
-            prevState.svgNest.stop();
+            prevState.polygonPacker.stop();
 
             return { ...prevState, isWorking: false };
         }

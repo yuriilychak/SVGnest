@@ -1,5 +1,5 @@
 // @ts-expect-error no ts definition
-import { SvgNest } from 'polygon-packer';
+import { PolygonPacker } from 'polygon-packer';
 
 export enum BUTTON_ACTION {
     START = 'start',
@@ -75,7 +75,7 @@ export interface ReducerState {
     isWorking: boolean;
     settings: SettingsData;
     isDrawerOpen: boolean;
-    svgNest: SvgNest;
+    polygonPacker: PolygonPacker;
     fileReader: FileReader;
     scale: number;
     progress: number;

@@ -16,26 +16,26 @@ const Statistics: FC<StatisticsProps> = ({ progress, estimate, iterations, place
     const { t } = useTranslation();
 
     return (
-        <Stack direction='row' gap={1} alignItems='center'>
+        <Stack direction="row" gap={1} alignItems="center">
             {(isWorking || !!progress) && (
-                <Stack direction='row' sx={STYLES.progressItem}>
+                <Stack direction="row" sx={STYLES.progressItem}>
                     <Box sx={STYLES.progressWrapper}>
-                        <CircularProgress variant='determinate' value={progress} />
+                        <CircularProgress variant="determinate" value={progress} />
                         <Box sx={STYLES.progressLabel}>
-                            <Typography variant='caption' component='div' color='text.secondary'>{`${progress}%`}</Typography>
+                            <Typography variant="caption" component="div" color="text.secondary">{`${progress}%`}</Typography>
                         </Box>
                     </Box>
                     <Stack sx={STYLES.progressContent}>
-                        <Typography variant='caption' component='div' color='text.secondary'>
+                        <Typography variant="caption" component="div" color="text.secondary">
                             {t('appFlow.statistics.progress.title')}
                         </Typography>
-                        <Typography variant='caption' component='div' color='text.secondary' noWrap>
+                        <Typography variant="caption" component="div" color="text.secondary" noWrap>
                             {t('appFlow.statistics.progress.subtitle', { time: millisecondsToStr(estimate, t) })}
                         </Typography>
                     </Stack>
                 </Stack>
             )}
-            <Stack direction='row' gap={1}>
+            <Stack direction="row" gap={1}>
                 {!!iterations && (
                     <MesureItem label={t('appFlow.statistics.meure.iterations.label')} value={iterations.toString()} />
                 )}

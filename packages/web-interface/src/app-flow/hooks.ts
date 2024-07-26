@@ -18,7 +18,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         svgSrc,
         scale,
         isWorking,
-        svgNest,
+        polygonPacker,
         progress,
         nestingStatistics,
         estimate,
@@ -43,20 +43,20 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
 
             currentBin.current = element;
             currentBin.current.setAttribute('id', PREDEFINED_ID.SELECTED_ELEMENT);
-            svgNest.setBin(currentBin.current);
+            polygonPacker.setBin(currentBin.current);
             handleDispatch(REDUCER_ACTION.SELECT_BIN);
         },
-        [handleDispatch, svgNest]
+        [handleDispatch, polygonPacker]
     );
 
     const handleBinClick = useCallback((event: MouseEvent) => handleUpdateBin(event.target as SVGElement), [handleUpdateBin]);
 
-    useEffect(() => () => svgNest.stop(), [svgNest]);
+    useEffect(() => () => polygonPacker.stop(), [polygonPacker]);
 
     useEffect(() => {
         if (svgSrc) {
             try {
-                const { source, attributes } = svgNest.parseSvg(svgSrc) as {
+                const { source, attributes } = polygonPacker.parseSvg(svgSrc) as {
                     source: string;
                     attributes: { [key: string]: string };
                 };
@@ -98,7 +98,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 handleDispatch(REDUCER_ACTION.THROW_ERROR, error);
             }
         }
-    }, [svgNest, svgSrc, handleBinClick, handleUpdateBin]);
+    }, [polygonPacker, svgSrc, handleBinClick, handleUpdateBin]);
 
     useEffect(() => {
         if (fileReader !== null) {
@@ -130,11 +130,11 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
 
     const handleClick = useCallback(
         (action: string) => {
-            switch (action) {
+            switch (action as BUTTON_ACTION) {
                 case BUTTON_ACTION.START:
                     handleDispatch(REDUCER_ACTION.START_NESTING);
 
-                    return svgNest.start(handleProgress, handleRenderSvg);
+                    return polygonPacker.start(handleProgress, handleRenderSvg);
                 case BUTTON_ACTION.PAUSE:
                     return handleDispatch(REDUCER_ACTION.PAUSE_NESTING);
                 case BUTTON_ACTION.BACK:
@@ -154,7 +154,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                     return null;
             }
         },
-        [onClose, handleDispatch, svgNest, handleProgress, handleRenderSvg]
+        [onClose, handleDispatch, polygonPacker, handleProgress, handleRenderSvg]
     );
 
     const handleChangeSettings = useCallback(

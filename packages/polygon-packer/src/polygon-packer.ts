@@ -31,7 +31,7 @@ interface ISVGParser {
     setBin(element: SVGElement): void;
 }
 
-export default class SvgNest {
+export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
 
     // eslint-disable-next-line
@@ -142,7 +142,7 @@ export default class SvgNest {
             this.launchWorkers(displayCallback);
 
             progressCallback(this.#progress);
-        }, 100);
+        }, 100) as unknown as number;
     }
 
     launchWorkers(displayCallback: DisplayCallback) {

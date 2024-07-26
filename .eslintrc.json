@@ -6,7 +6,7 @@
         "plugin:@typescript-eslint/recommended-requiring-type-checking",
         "plugin:react/recommended"
     ],
-    "plugins": ["react", "@typescript-eslint", "prettier"],
+    "plugins": ["react", "@typescript-eslint", "jsx-a11y", "prettier"],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "project": "./tsconfig.json",
@@ -142,7 +142,7 @@
         "id-length": ["warn", { "min": 1, "max": 32 }],
         "@typescript-eslint/indent": ["error", 4],
         "indent": ["warn", 4, { "SwitchCase": 1 }],
-        "jsx-quotes": ["warn", "prefer-double"],
+        "jsx-quotes": ["error", "prefer-double"],
         "linebreak-style": ["warn", "unix"],
         "lines-around-comment": ["warn", { "beforeBlockComment": true }],
         "max-depth": ["warn", 8],
@@ -173,7 +173,7 @@
         "operator-linebreak": ["warn", "after", { "overrides": { "?": "before", ":": "before" } }],
         "padded-blocks": ["warn", "never"],
         "quote-props": ["warn", "consistent-as-needed"],
-        "quotes": ["warn", "single"],
+        "quotes": ["warn", "single", { "avoidEscape": true, "allowTemplateLiterals": true }],
         "require-jsdoc": [
             "off",
             {
@@ -184,7 +184,14 @@
                 }
             }
         ],
-        "prettier/prettier": ["error", { "semi": true }],
+        "prettier/prettier": [
+            "error",
+            {
+                "semi": true,
+                "singleQuote": true,
+                "jsxSingleQuote": false // Ensure double quotes are used in JSX
+            }
+        ],
         "semi-spacing": ["warn", { "before": false, "after": true }],
         "semi": ["error", "always"],
         "sort-vars": "off",
@@ -210,6 +217,14 @@
             }
         ]
     },
+    "overrides": [
+        {
+            "files": ["*.jsx", "*.tsx"],
+            "rules": {
+                "jsx-quotes": ["error", "prefer-double"]
+            }
+        }
+    ],
     "settings": {
         "react": { "version": "detect" }
     }

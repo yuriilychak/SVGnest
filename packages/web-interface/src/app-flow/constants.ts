@@ -1,5 +1,5 @@
 // @ts-expect-error no ts definition
-import { SvgNest } from 'polygon-packer';
+import { PolygonPacker } from 'polygon-packer';
 
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -118,13 +118,7 @@ const getSettingConfig = (
     min: number = 0,
     max: number = 0,
     step: number = 0
-): SettingConfig => ({
-    id,
-    type,
-    min,
-    max,
-    step
-});
+): SettingConfig => ({ id, type, min, max, step });
 
 export const SETTINGS_CONFIG: SettingConfig[] = [
     getSettingConfig(SETTING_ID.SPACING, INPUT_TYPE.NUMBER, 0, 16, 1),
@@ -147,7 +141,7 @@ export const INITIAL_STATE: ReducerState = {
     isWorking: false,
     settings: DEFAULT_SETTING,
     isDrawerOpen: false,
-    svgNest: new SvgNest(),
+    polygonPacker: new PolygonPacker(),
     fileReader: new FileReader(),
     scale: 1,
     progress: 0,

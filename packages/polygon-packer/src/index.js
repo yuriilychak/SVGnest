@@ -1,1 +1,1 @@
-export { default as SvgNest } from "./svg-nest";
+export { default as PolygonPacker } from './polygon-packer';
