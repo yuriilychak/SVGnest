@@ -17,18 +17,16 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
 
     const handleAction = useCallback(
         (action: string) => {
-            const buttonAction: BUTTON_ACTION = action as BUTTON_ACTION;
-
-            switch (buttonAction) {
+            switch (action as BUTTON_ACTION) {
                 case BUTTON_ACTION.DEMO:
                 case BUTTON_ACTION.START:
-                    onOpenApp(buttonAction === BUTTON_ACTION.DEMO);
+                    onOpenApp((action as BUTTON_ACTION) === BUTTON_ACTION.DEMO);
                     break;
                 case BUTTON_ACTION.GITHUB:
                     window.open('https://github.com/Jack000/SVGnest', '_blank');
                     break;
                 default:
-                    setDrawerOpen(buttonAction === BUTTON_ACTION.OPEN_FAQ);
+                    setDrawerOpen((action as BUTTON_ACTION) === BUTTON_ACTION.OPEN_FAQ);
             }
         },
         [onOpenApp]

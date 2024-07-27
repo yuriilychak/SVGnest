@@ -84,7 +84,7 @@
         "no-unused-expressions": "error",
         "no-useless-call": "error",
         "no-useless-concat": "error",
-        "no-void": "warn",
+        "no-void": "off",
         "no-warning-comments": ["warn", { "terms": ["TODO", "FIXME"], "location": "start" }],
         "no-with": "warn",
         "radix": "warn",

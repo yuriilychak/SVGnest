@@ -49,6 +49,19 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         [handleDispatch, polygonPacker]
     );
 
+    const handleLoadExample = useCallback(async () => {
+        try {
+            const response = await fetch('assets/demo.svg');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const svgText = await response.text();
+            handleDispatch(REDUCER_ACTION.UPDATE_SVG, svgText);
+        } catch (error) {
+            console.error('Failed to fetch SVG:', error);
+        }
+    }, [handleDispatch]);
+
     const handleBinClick = useCallback((event: MouseEvent) => handleUpdateBin(event.target as SVGElement), [handleUpdateBin]);
 
     useEffect(() => () => polygonPacker.stop(), [polygonPacker]);
@@ -108,11 +121,9 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
 
     useEffect(() => {
         if (isDemoMode) {
-            fetch('assets/demo.svg')
-                .then(response => response.text())
-                .then(svgText => handleDispatch(REDUCER_ACTION.UPDATE_SVG, svgText));
+            void handleLoadExample();
         }
-    }, [isDemoMode, handleDispatch]);
+    }, [isDemoMode, handleLoadExample]);
 
     const handleProgress = useCallback((percent: number) => handleDispatch(REDUCER_ACTION.PROGRESS, percent), [handleDispatch]);
 

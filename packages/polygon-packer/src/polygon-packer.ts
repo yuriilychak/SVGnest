@@ -18,7 +18,6 @@ import {
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
 
-    // eslint-disable-next-line
     #svgParser: SVGParser = new SVGParser();
 
     #tree: IPolygon[] = null;

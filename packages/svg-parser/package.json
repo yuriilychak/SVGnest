@@ -10,7 +10,7 @@
     },
     "description": "Polygon packing algorythm",
     "dependencies": {
-        "svg-parser": "^1.0.0"
+        "svg-parser": "^2.0.4"
     },
     "keywords": [
         "svg",
