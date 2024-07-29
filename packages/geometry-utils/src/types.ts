@@ -6,6 +6,11 @@ export interface IPoint {
     y: number;
 }
 
+export interface IClipperPoint {
+    X: number;
+    Y: number;
+}
+
 export interface IPolygon extends Array<IPoint> {
     id: number;
     source: number;
@@ -63,11 +68,6 @@ export type NFPPair = {
 };
 
 export type NFPData = { value: NFPPair; key: number };
-
-export enum WORKER_TYPE {
-    PLACEMENT = 'placement',
-    PAIR = 'pair'
-}
 
 export type PlacementWorkerData = {
     angleSplit: number;

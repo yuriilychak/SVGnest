@@ -1,5 +1,6 @@
+import { generateNFPCacheKey } from 'geometry-utils';
+
 import { Phenotype } from './genetic-algorithm';
-import { generateNFPCacheKey } from './helpers';
 import { IPolygon, NestConfig, NFPPair, PlacementWorkerData, PairWorkerResult, IPoint } from './types';
 
 export default class NFPStore {

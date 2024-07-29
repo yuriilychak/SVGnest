@@ -1,7 +1,7 @@
 import ClipperLib from 'js-clipper';
-import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, almostEqual, TOL } from '../../../helpers';
-import ClipperWrapper from '../../../clipper-wrapper';
-import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from '../../../types';
+import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, almostEqual, TOL } from './helpers';
+import ClipperWrapper from './clipper-wrapper';
+import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 
 // clipperjs uses alerts for warnings
 // eslint-disable-next-line

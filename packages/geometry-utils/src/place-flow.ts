@@ -1,7 +1,7 @@
 import ClipperLib from 'js-clipper';
-import { IPoint, IPolygon, PlacementWorkerData, PlacementWorkerResult } from '../../../types';
-import { almostEqual, generateNFPCacheKey, getPolygonBounds, polygonArea, rotatePolygon } from '../../../helpers';
-import ClipperWrapper from '../../../clipper-wrapper';
+import { IPoint, IPolygon, PlacementWorkerData, PlacementWorkerResult } from './types';
+import { almostEqual, generateNFPCacheKey, getPolygonBounds, polygonArea, rotatePolygon } from './helpers';
+import ClipperWrapper from './clipper-wrapper';
 
 interface ShiftVector extends IPoint {
     nfp: ClipperLib.Paths;

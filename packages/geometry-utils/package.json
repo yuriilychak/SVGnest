@@ -1,5 +1,5 @@
 {
-    "name": "polygon-packer",
+    "name": "geometry-utils",
     "version": "1.0.0",
     "main": "src/index.ts",
     "scripts": {
@@ -8,14 +8,10 @@
         "lint": "eslint src/**/*.ts",
         "lint:fix": "eslint src/**/*.ts --fix"
     },
-    "description": "Polygon packing algorythm",
-    "dependencies": {
-        "geometry-utils": "^1.0.0",
-        "svg-parser": "^1.0.0"
-    },
+    "description": "Geometry utils for polygon packing algorythm",
+    "devDependencies": {},
     "keywords": [
         "polygons",
-        "genetic",
         "algorythm",
         "nesting"
     ],

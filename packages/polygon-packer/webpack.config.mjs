@@ -13,6 +13,7 @@ export default {
         path: path.resolve('../../dist')
     },
     externals: {
+        'geometry-utils': 'geometryUtils',
         'svg-parser': 'svgParser'
     },
     resolve: {
@@ -29,7 +30,14 @@ export default {
             },
             {
                 test: /\.tsx?$/,
-                use: 'ts-loader',
+                use: [
+                    {
+                        loader: 'ts-loader',
+                        options: {
+                            transpileOnly: true // Use options here
+                        }
+                    }
+                ],
                 exclude: /node_modules/
             }
         ]

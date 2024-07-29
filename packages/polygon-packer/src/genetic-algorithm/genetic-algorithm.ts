@@ -1,5 +1,6 @@
+import { rotatePolygon, getPolygonBounds, polygonArea } from 'geometry-utils';
+
 import { BoundRect, IPolygon, NestConfig } from '../types';
-import { rotatePolygon, getPolygonBounds, polygonArea } from '../helpers';
 import Phenotype from './phenotype';
 
 export default class GeneticAlgorithm {

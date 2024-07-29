@@ -1,9 +1,8 @@
 import { SVGParser } from 'svg-parser';
+import { ClipperWrapper, getPolygonBounds, polygonArea, normalizePolygon } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
-import { getPolygonBounds, polygonArea, normalizePolygon } from './helpers';
-import ClipperWrapper from './clipper-wrapper';
 import NFPStore from './nfp-store';
 import {
     BoundRect,

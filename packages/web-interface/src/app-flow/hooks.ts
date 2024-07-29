@@ -58,7 +58,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
             const svgText = await response.text();
             handleDispatch(REDUCER_ACTION.UPDATE_SVG, svgText);
         } catch (error) {
-            console.error('Failed to fetch SVG:', error);
+            handleDispatch(REDUCER_ACTION.THROW_ERROR, error);
         }
     }, [handleDispatch]);
 
