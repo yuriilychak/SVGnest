@@ -1,5 +1,4 @@
 import path from 'path';
-import webpack from 'webpack';
 
 export default {
     mode: 'production',
@@ -25,12 +24,20 @@ export default {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
                 exclude: /node_modules/
+            },
+            {
+                test: /node_modules\/js-clipper\/.*\.js$/,
+                use: [
+                    {
+                        loader: 'string-replace-loader',
+                        options: {
+                            search: 'alert',
+                            replace: 'console.log',
+                            flags: 'g'
+                        }
+                    }
+                ]
             }
         ]
-    },
-    plugins: [
-        new webpack.NormalModuleReplacementPlugin(/js-clipper/, resource => {
-            resource.request = resource.request.replace(/alert\((.*?)\)/g, 'console.log($1)');
-        })
-    ]
+    }
 };
