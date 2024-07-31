@@ -1,11 +1,11 @@
-import { useCallback, useState, useMemo, memo, FC, act } from 'react';
+import { useCallback, useState, useMemo, memo, FC } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 
 import { HelpItem } from './help-item';
-import { Logo } from './logo';
 import { ButtonGroup, SharedDrawer } from '../shared';
 import { BUTTON_CONFIG, HELP_CONTENT_CONFIG, STYLES } from './constants';
 import { BUTTON_ACTION, SplashScreenProps } from './types';
@@ -34,7 +34,11 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
 
     return (
         <Stack sx={STYLES.root}>
-            <Logo />
+            <Box
+                sx={{ minWidth: { xs: '40vw', sm: 'unset' }, maxWidth: { xs: 128, sm: 196, md: 256 } }}
+                component="img"
+                src={`${window.location.origin}/assets/logo.svg`}
+            />
             <Typography sx={STYLES.title}>{t('splashScreen.title')}</Typography>
             <Typography sx={STYLES.subtitle}>{t('splashScreen.subtitle')}</Typography>
             <ButtonGroup buttonsConfig={BUTTON_CONFIG} onClick={handleAction} localePrefix="splashScreen.buttons" />
