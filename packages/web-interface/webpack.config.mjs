@@ -1,5 +1,4 @@
 import path from 'path';
-import TerserPlugin from 'terser-webpack-plugin';
 
 export default {
     mode: 'production',
@@ -15,10 +14,6 @@ export default {
     },
     resolve: {
         extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
-    },
-    optimization: {
-        minimize: true,
-        minimizer: [new TerserPlugin()]
     },
     module: {
         rules: [
