@@ -15,7 +15,6 @@ const App: FC = () => {
     const [isApp, setApp] = useState(false);
     const [isDemoMode, setDemoMode] = useState(false);
     const { t } = useTranslation();
-
     const handleUpdateScreen = useCallback((nextDemoMode: boolean = false, nextApp: boolean = false) => {
         setDemoMode(nextDemoMode);
         setApp(nextApp);

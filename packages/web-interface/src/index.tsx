@@ -1,10 +1,15 @@
 import { createRoot } from 'react-dom/client';
 
 import App from './app';
+import fetchLocales from './i18n';
 
-import './i18n';
+async function init() {
+    await fetchLocales();
 
-// Render your React component instead
-const root = createRoot(document.getElementById('app'));
+    // Render your React component instead
+    const root = createRoot(document.getElementById('app'));
 
-root.render(<App />);
+    root.render(<App />);
+}
+
+init();
