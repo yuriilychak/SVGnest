@@ -1,4 +1,5 @@
-﻿import WORKERS from './workers';
+﻿// @ts-expect-error import worker
+import NestWorker from './nest.worker';
 import Operation from './opertaion';
 import { OperationCallback, Options } from './types';
 import { WORKER_TYPE } from '../types';
@@ -44,10 +45,7 @@ export default class Parallel {
 
         if (!worker) {
             try {
-                const WorkerInstance: typeof Worker = WORKERS.get(this.#options.id);
-
-                worker = new WorkerInstance('');
-                worker.postMessage(this.#options);
+                worker = new NestWorker('');
             } catch (e) {
                 console.error(e);
             }
@@ -68,7 +66,7 @@ export default class Parallel {
 
         worker.onmessage = onMessage;
         worker.onerror = onError;
-        worker.postMessage(data);
+        worker.postMessage({ ...this.#options, data });
     }
 
     private spawnMapWorker(i: number, done: (error: Error | ErrorEvent, worker: Worker) => void, worker?: Worker): void {
