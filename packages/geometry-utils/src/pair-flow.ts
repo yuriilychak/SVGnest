@@ -3,12 +3,6 @@ import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, almostEqual
 import ClipperWrapper from './clipper-wrapper';
 import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 
-// clipperjs uses alerts for warnings
-// eslint-disable-next-line
-function alert(message: string) {
-    console.log('alert: ', message);
-}
-
 function normalizeVector(v: IPoint): IPoint {
     if (almostEqual(v.x * v.x + v.y * v.y, 1)) {
         return v; // given vector was already a unit vector

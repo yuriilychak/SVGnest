@@ -7,12 +7,6 @@ interface ShiftVector extends IPoint {
     nfp: ClipperLib.Paths;
 }
 
-// clipperjs uses alerts for warnings
-// eslint-disable-next-line
-function alert(message: string) {
-    console.log('alert: ', message);
-}
-
 export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData): PlacementWorkerResult | null {
     if (!placementData.binPolygon) {
         return null;
