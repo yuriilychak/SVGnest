@@ -1,5 +1,14 @@
 import ClipperLib from 'js-clipper';
-import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, almostEqual, TOL } from './helpers';
+import {
+    keyToNFPData,
+    rotatePolygon,
+    getPolygonBounds,
+    polygonArea,
+    almostEqual,
+    TOL,
+    onSegment,
+    pointInPolygon
+} from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 
@@ -13,58 +22,6 @@ function normalizeVector(v: IPoint): IPoint {
         x: v.x / len,
         y: v.y / len
     };
-}
-
-// returns true if p lies on the line segment defined by AB, but not at any endpoints
-// may need work!
-function onSegment(A: IPoint, B: IPoint, p: IPoint): boolean {
-    // vertical line
-    if (almostEqual(A.x, B.x) && almostEqual(p.x, A.x)) {
-        if (!almostEqual(p.y, B.y) && !almostEqual(p.y, A.y) && p.y < Math.max(B.y, A.y) && p.y > Math.min(B.y, A.y)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    // horizontal line
-    if (almostEqual(A.y, B.y) && almostEqual(p.y, A.y)) {
-        if (!almostEqual(p.x, B.x) && !almostEqual(p.x, A.x) && p.x < Math.max(B.x, A.x) && p.x > Math.min(B.x, A.x)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    // range check
-    if ((p.x < A.x && p.x < B.x) || (p.x > A.x && p.x > B.x) || (p.y < A.y && p.y < B.y) || (p.y > A.y && p.y > B.y)) {
-        return false;
-    }
-
-    // exclude end points
-    if ((almostEqual(p.x, A.x) && almostEqual(p.y, A.y)) || (almostEqual(p.x, B.x) && almostEqual(p.y, B.y))) {
-        return false;
-    }
-
-    const cross = (p.y - A.y) * (B.x - A.x) - (p.x - A.x) * (B.y - A.y);
-
-    if (Math.abs(cross) > TOL) {
-        return false;
-    }
-
-    const dot = (p.x - A.x) * (B.x - A.x) + (p.y - A.y) * (B.y - A.y);
-
-    if (dot < 0 || almostEqual(dot, 0)) {
-        return false;
-    }
-
-    const len2 = (B.x - A.x) * (B.x - A.x) + (B.y - A.y) * (B.y - A.y);
-
-    if (dot > len2 || almostEqual(dot, len2)) {
-        return false;
-    }
-
-    return true;
 }
 
 // returns the intersection of AB and EF
@@ -138,43 +95,6 @@ function isRectangle(poly: IPoint[]): boolean {
     }
 
     return true;
-}
-
-// return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
-    if (!polygon || polygon.length < 3) {
-        return null;
-    }
-
-    let inside: boolean = false;
-    const offsetx: number = polygon.offsetx || 0;
-    const offsety: number = polygon.offsety || 0;
-
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi: number = polygon[i].x + offsetx;
-        const yi: number = polygon[i].y + offsety;
-        const xj: number = polygon[j].x + offsetx;
-        const yj: number = polygon[j].y + offsety;
-
-        if (almostEqual(xi, point.x) && almostEqual(yi, point.y)) {
-            return null; // no result
-        }
-
-        if (onSegment({ x: xi, y: yi }, { x: xj, y: yj }, point)) {
-            return null; // exactly on the segment
-        }
-
-        if (almostEqual(xi, xj) && almostEqual(yi, yj)) {
-            // ignore very small lines
-            continue;
-        }
-
-        if (yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi) {
-            inside = !inside;
-        }
-    }
-
-    return inside;
 }
 
 // old-todo: swap this for a more efficient sweep-line implementation

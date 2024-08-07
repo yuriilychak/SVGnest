@@ -2,7 +2,7 @@ import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
 import { IClipperWrapper, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
-import { convertElement, flattenTree, nestPolygons, polygonArea } from './helpers';
+import { convertElement, flattenTree, polygonArea } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
 
 export default class SVGParser {
@@ -41,8 +41,7 @@ export default class SVGParser {
             }
         }
 
-        // turn the list into a tree
-        nestPolygons(polygons);
+        clipperWrapper.generateTree(polygons);
 
         return polygons;
     }

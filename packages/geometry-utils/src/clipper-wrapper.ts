@@ -1,13 +1,64 @@
 // Import the library if needed for side effects
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
-import { IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
+import { BoundRect, IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
+import { getPolygonBounds, nestPolygons, normalizePolygon, polygonArea } from './helpers';
 
 export default class ClipperWrapper {
     #configuration: NestConfig;
 
     constructor(configuration: NestConfig) {
         this.#configuration = configuration;
+    }
+
+    public generateBounds(binPolygon: IPolygon): { binPolygon: IPolygon; bounds: BoundRect } {
+        let i: number = 0;
+
+        if (binPolygon.length < 3) {
+            return;
+        }
+
+        const bounds = getPolygonBounds(binPolygon);
+
+        this.offsetPolygon(binPolygon, -1);
+        binPolygon.id = -1;
+
+        const currentBounds = getPolygonBounds(binPolygon);
+        const binSize = binPolygon.length;
+        let point = null;
+
+        for (i = 0; i < binSize; ++i) {
+            point = binPolygon[i];
+            point.x = point.x - currentBounds.x;
+            point.y = point.y - currentBounds.y;
+        }
+
+        binPolygon.width = currentBounds.width;
+        binPolygon.height = currentBounds.height;
+
+        // all paths need to have the same winding direction
+        if (polygonArea(binPolygon) > 0) {
+            binPolygon.reverse();
+        }
+
+        return { binPolygon, bounds };
+    }
+
+    public generateTree(tree: IPolygon[]): void {
+        // turn the list into a tree
+        nestPolygons(tree);
+        // build tree without bin
+        const polygonCount = tree.length;
+        let i = 0;
+
+        for (i = 0; i < polygonCount; ++i) {
+            this.offsetPolygon(tree[i], 1);
+        }
+
+        // remove duplicate endpoints, ensure counterclockwise winding direction
+        for (i = 0; i < polygonCount; ++i) {
+            normalizePolygon(tree[i]);
+        }
     }
 
     public offsetPolygon(polygon: IPolygon, sign: number): boolean {

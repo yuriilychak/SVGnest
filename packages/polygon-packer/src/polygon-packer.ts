@@ -1,4 +1,4 @@
-import { ClipperWrapper, getPolygonBounds, polygonArea, normalizePolygon } from 'geometry-utils';
+import { polygonArea } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
@@ -34,54 +34,13 @@ export default class PolygonPacker {
     // displayCallback is called when a new placement has been made
     public start(
         configuration: NestConfig,
-        clipperWrapper: ClipperWrapper,
         tree: IPolygon[],
-        binPolygon: IPolygon,
+        binData: { binPolygon: IPolygon; bounds: BoundRect },
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {
-        // build tree without bin
-        const polygonCount = tree.length;
-        let i = 0;
-
-        for (i = 0; i < polygonCount; ++i) {
-            clipperWrapper.offsetPolygon(tree[i], 1);
-        }
-
-        this.#binPolygon = binPolygon;
-
-        if (this.#binPolygon.length < 3) {
-            return;
-        }
-
-        this.#binBounds = getPolygonBounds(this.#binPolygon);
-
-        clipperWrapper.offsetPolygon(this.#binPolygon, -1);
-        this.#binPolygon.id = -1;
-
-        const currentBounds = getPolygonBounds(this.#binPolygon);
-        const binSize = this.#binPolygon.length;
-        let point = null;
-
-        for (i = 0; i < binSize; ++i) {
-            point = this.#binPolygon[i];
-            point.x = point.x - currentBounds.x;
-            point.y = point.y - currentBounds.y;
-        }
-
-        this.#binPolygon.width = currentBounds.width;
-        this.#binPolygon.height = currentBounds.height;
-
-        // all paths need to have the same winding direction
-        if (polygonArea(this.#binPolygon) > 0) {
-            this.#binPolygon.reverse();
-        }
-
-        // remove duplicate endpoints, ensure counterclockwise winding direction
-        for (i = 0; i < polygonCount; ++i) {
-            normalizePolygon(tree[i]);
-        }
-
+        this.#binPolygon = binData.binPolygon;
+        this.#binBounds = binData.bounds;
         this.#isWorking = true;
 
         this.launchWorkers(tree, configuration, displayCallback);
@@ -92,10 +51,6 @@ export default class PolygonPacker {
     }
 
     launchWorkers(tree: IPolygon[], configuration: NestConfig, displayCallback: DisplayCallback) {
-        if (!this.#isWorking) {
-            return;
-        }
-
         this.#geneticAlgorithm.init(tree, this.#binPolygon, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
 
@@ -186,9 +141,10 @@ export default class PolygonPacker {
             placePerecntage = placedArea / totalArea;
         }
 
-        displayCallback(result, placePerecntage, numPlacedParts, numParts);
-
-        this.launchWorkers(tree, configuration, displayCallback);
+        if (this.#isWorking) {
+            displayCallback(result, placePerecntage, numPlacedParts, numParts);
+            this.launchWorkers(tree, configuration, displayCallback);
+        }
     }
 
     public stop(isClean: boolean): void {
