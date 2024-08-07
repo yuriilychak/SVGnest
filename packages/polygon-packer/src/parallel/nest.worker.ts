@@ -8,7 +8,7 @@ declare module geometryUtils {
     export function pairData(paths: NFPPair, config: NestConfig): PairWorkerResult | null;
 }
 
-importScripts(self.location.href.replace('nest.worker', 'geometry-utils'));
+importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));
 
 self.onmessage = (event: MessageEvent<{ env: NestConfig; id: string; data: IPolygon[] | NFPPair }>) => {
     const { data, env, id } = event.data;

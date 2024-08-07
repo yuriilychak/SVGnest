@@ -1,6 +1,4 @@
-﻿// @ts-expect-error import worker
-import NestWorker from './nest.worker';
-import Operation from './opertaion';
+﻿import Operation from './opertaion';
 import { OperationCallback, Options } from './types';
 import { WORKER_TYPE } from '../types';
 
@@ -45,7 +43,7 @@ export default class Parallel {
 
         if (!worker) {
             try {
-                worker = new NestWorker('');
+                worker = new Worker(new URL('./nest.worker', import.meta.url), { type: 'module' });
             } catch (e) {
                 console.error(e);
             }

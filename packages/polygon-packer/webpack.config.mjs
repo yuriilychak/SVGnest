@@ -21,13 +21,6 @@ export default {
     module: {
         rules: [
             {
-                test: /\.worker\.ts$/,
-                loader: 'worker-loader',
-                options: {
-                    filename: '[name].js'
-                }
-            },
-            {
                 test: /\.tsx?$/,
                 use: [
                     {
