@@ -1,4 +1,5 @@
 import { PolygonPacker } from 'polygon-packer';
+import { SVGParser } from 'svg-parser';
 
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -143,6 +144,7 @@ export const INITIAL_STATE: ReducerState = {
     isDrawerOpen: false,
     polygonPacker: new PolygonPacker(),
     fileReader: new FileReader(),
+    svgParser: new SVGParser(),
     scale: 1,
     progress: 0,
     startTime: 0,

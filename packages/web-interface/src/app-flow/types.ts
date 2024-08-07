@@ -1,4 +1,5 @@
 import { PolygonPacker } from 'polygon-packer';
+import { SVGParser } from 'svg-parser';
 
 export enum BUTTON_ACTION {
     START = 'start',
@@ -78,6 +79,7 @@ export interface ReducerState {
     isDrawerOpen: boolean;
     polygonPacker: PolygonPacker;
     fileReader: FileReader;
+    svgParser: SVGParser;
     scale: number;
     progress: number;
     startTime: number;

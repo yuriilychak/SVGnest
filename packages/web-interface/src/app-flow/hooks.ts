@@ -1,4 +1,5 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import type { PlacementData } from 'polygon-packer';
 
 import { INITIAL_STATE, VIEW_BOX_ATTRIBUTES } from './constants';
 import reducer from './reducer';
@@ -12,6 +13,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const currentBin = useRef<SVGElement>(null);
 
     const {
+        svgParser,
         fileReader,
         isDrawerOpen,
         settings,
@@ -43,10 +45,9 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
 
             currentBin.current = element;
             currentBin.current.setAttribute('id', PREDEFINED_ID.SELECTED_ELEMENT);
-            polygonPacker.setBin(currentBin.current);
-            handleDispatch(REDUCER_ACTION.SELECT_BIN);
+            handleDispatch(REDUCER_ACTION.SELECT_BIN, currentBin.current);
         },
-        [handleDispatch, polygonPacker]
+        [handleDispatch]
     );
 
     const handleLoadExample = useCallback(async () => {
@@ -64,15 +65,16 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
 
     const handleBinClick = useCallback((event: MouseEvent) => handleUpdateBin(event.target as SVGElement), [handleUpdateBin]);
 
-    useEffect(() => () => polygonPacker.stop(), [polygonPacker]);
+    useEffect(() => () => polygonPacker.stop(true), [polygonPacker]);
 
     useEffect(() => {
         if (svgSrc) {
             try {
-                const { source, attributes } = polygonPacker.parseSvg(svgSrc) as {
-                    source: string;
-                    attributes: { [key: string]: string };
-                };
+                polygonPacker.stop(false);
+                svgParser.init(svgSrc);
+
+                const source = svgParser.svgString;
+                const attributes = svgParser.svgAttributes;
                 const div = document.createElement('div');
 
                 div.innerHTML = source;
@@ -128,24 +130,23 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const handleProgress = useCallback((percent: number) => handleDispatch(REDUCER_ACTION.PROGRESS, percent), [handleDispatch]);
 
     const handleRenderSvg = useCallback(
-        (svgList: string, efficiency: number, placed: number, total: number) => {
-            if (svgList) {
+        (placementData: PlacementData, efficiency: number, placed: number, total: number) => {
+            if (placementData) {
+                const svgList: string = svgParser.applyPlacement(placementData);
                 handleDispatch(REDUCER_ACTION.UPDATE_STATISTICS, { efficiency, placed, total });
                 svgWrapper.current.innerHTML = svgList;
             } else {
                 handleDispatch(REDUCER_ACTION.NEW_ITERATION);
             }
         },
-        [handleDispatch]
+        [handleDispatch, svgParser]
     );
 
     const handleClick = useCallback(
         (action: string) => {
             switch (action as BUTTON_ACTION) {
                 case BUTTON_ACTION.START:
-                    handleDispatch(REDUCER_ACTION.START_NESTING);
-
-                    return polygonPacker.start(handleProgress, handleRenderSvg);
+                    return handleDispatch(REDUCER_ACTION.START_NESTING, { handleProgress, handleRenderSvg });
                 case BUTTON_ACTION.PAUSE:
                     return handleDispatch(REDUCER_ACTION.PAUSE_NESTING);
                 case BUTTON_ACTION.BACK:
@@ -165,7 +166,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                     return null;
             }
         },
-        [onClose, handleDispatch, polygonPacker, handleProgress, handleRenderSvg]
+        [onClose, handleDispatch, polygonPacker, handleProgress, handleRenderSvg, settings]
     );
 
     const handleChangeSettings = useCallback(

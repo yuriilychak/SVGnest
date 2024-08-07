@@ -70,14 +70,18 @@ export default class SVGParser {
     }
 
     // returns an array of SVG elements that represent the placement, for export or rendering
-    public applyPlacement(
-        placement: IPoint[][],
-        tree: IPolygon[],
-        binBounds: { x: number; y: number; width: number; height: number }
-    ): string {
+    public applyPlacement({
+        placements,
+        tree,
+        bounds
+    }: {
+        placements: IPoint[][];
+        tree: IPolygon[];
+        bounds: { x: number; y: number; width: number; height: number };
+    }): string {
         const clone: INode[] = [];
         const partCount: number = this.#parts.length;
-        const placementCount: number = placement.length;
+        const placementCount: number = placements.length;
         const svglist: INode[] = [];
         let i: number = 0;
         let j: number = 0;
@@ -103,18 +107,18 @@ export default class SVGParser {
                 children: []
             };
 
-            newSvg.attributes.viewBox = `0 0 ${binBounds.width} ${binBounds.height}`;
-            newSvg.attributes.width = `${binBounds.width}px`;
-            newSvg.attributes.height = `${binBounds.height}px`;
+            newSvg.attributes.viewBox = `0 0 ${bounds.width} ${bounds.height}`;
+            newSvg.attributes.width = `${bounds.width}px`;
+            newSvg.attributes.height = `${bounds.height}px`;
 
             binClone = JSON.parse(JSON.stringify(this.#bin)) as INode;
             binClone.attributes.id = 'exportRoot';
 
-            binClone.attributes.transform = `translate(${-binBounds.x} ${-binBounds.y})`;
+            binClone.attributes.transform = `translate(${-bounds.x} ${-bounds.y})`;
             newSvg.children.push(binClone);
 
-            for (j = 0; j < placement[i].length; ++j) {
-                p = placement[i][j];
+            for (j = 0; j < placements[i].length; ++j) {
+                p = placements[i][j];
                 part = tree[p.id];
 
                 partGroup = {

@@ -13,8 +13,7 @@ export default {
         path: path.resolve('../../dist')
     },
     externals: {
-        'geometry-utils': 'geometryUtils',
-        'svg-parser': 'svgParser'
+        'geometry-utils': 'geometryUtils'
     },
     resolve: {
         extensions: ['.ts', '.js']

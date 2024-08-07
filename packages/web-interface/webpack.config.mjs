@@ -10,10 +10,12 @@ export default {
         path: path.resolve('../../dist')
     },
     externals: {
-        'polygon-packer': 'polygonPacker'
+        'geometry-utils': 'geometryUtils',
+        'polygon-packer': 'polygonPacker',
+        'svg-parser': 'svgParser'
     },
     resolve: {
-        extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
+        extensions: ['.js', '.jsx', '.ts', '.tsx']
     },
     module: {
         rules: [

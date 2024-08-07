@@ -1,3 +1,4 @@
+import { ClipperWrapper } from 'geometry-utils';
 import {
     ALERT_TYPE,
     MESSAGE_ID,
@@ -17,23 +18,12 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.CHANGE_SETTINGS,
         (prevState, { id, value }: { id: SETTING_ID; value: string | boolean }) => {
-            const { polygonPacker, isWorking } = prevState;
+            const { polygonPacker } = prevState;
             const settings: SettingsData = { ...prevState.settings, [id]: value };
 
-            if (isWorking) {
-                polygonPacker.stop();
-            }
+            polygonPacker.stop(true);
 
-            polygonPacker.config(settings);
-
-            return {
-                ...prevState,
-                settings,
-                isWorking: false,
-                startTime: 0,
-                progress: 0,
-                estimate: 0
-            };
+            return { ...prevState, settings, isWorking: false, startTime: 0, progress: 0, estimate: 0 };
         }
     ],
     [
@@ -46,11 +36,9 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     [
         REDUCER_ACTION.UPDATE_SVG,
         (prevState, svgSrc: string) => {
-            const { polygonPacker, isWorking } = prevState;
+            const { polygonPacker } = prevState;
 
-            if (isWorking) {
-                polygonPacker.stop();
-            }
+            polygonPacker.stop(false);
 
             return {
                 ...prevState,
@@ -98,11 +86,15 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
     ],
     [
         REDUCER_ACTION.START_NESTING,
-        prevState => ({
-            ...prevState,
-            isWorking: true,
-            startTime: 0
-        })
+        (prevState, { handleProgress, handleRenderSvg }) => {
+            const { svgParser, polygonPacker, settings } = prevState;
+            const clipperWrapper = new ClipperWrapper(settings);
+            const tree = svgParser.getTree(settings, clipperWrapper);
+
+            polygonPacker.start(settings, clipperWrapper, tree, svgParser.binPolygon, handleProgress, handleRenderSvg);
+
+            return { ...prevState, isWorking: true, startTime: 0 };
+        }
     ],
     [
         REDUCER_ACTION.PROGRESS,
@@ -124,11 +116,20 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
         })
     ],
     [REDUCER_ACTION.NEW_ITERATION, prevState => ({ ...prevState, iterations: ++prevState.iterations })],
-    [REDUCER_ACTION.SELECT_BIN, prevState => ({ ...prevState, isBinSelected: true })],
+    [
+        REDUCER_ACTION.SELECT_BIN,
+        (prevState, element: SVGElement) => {
+            const { svgParser } = prevState;
+
+            svgParser.setBin(element);
+
+            return { ...prevState, isBinSelected: true };
+        }
+    ],
     [
         REDUCER_ACTION.PAUSE_NESTING,
         prevState => {
-            prevState.polygonPacker.stop();
+            prevState.polygonPacker.stop(false);
 
             return { ...prevState, isWorking: false };
         }

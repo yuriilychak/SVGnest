@@ -91,4 +91,11 @@ export interface PlacementWorkerResult {
     area: number;
 }
 
-export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;
+export type DisplayCallback = (
+    placementData: PlacementData,
+    placePerecntage: number,
+    lacedParts: number,
+    partCount: number
+) => void;
+
+export type PlacementData = { placements: IPoint[][]; tree: IPolygon[]; bounds: BoundRect };

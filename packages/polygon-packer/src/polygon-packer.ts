@@ -1,4 +1,3 @@
-import { SVGParser } from 'svg-parser';
 import { ClipperWrapper, getPolygonBounds, polygonArea, normalizePolygon } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
@@ -17,20 +16,7 @@ import {
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
 
-    #svgParser: SVGParser = new SVGParser();
-
     #tree: IPolygon[] = null;
-
-    #configuration: NestConfig = {
-        clipperScale: 10000000,
-        curveTolerance: 0.3,
-        spacing: 0,
-        rotations: 4,
-        populationSize: 10,
-        mutationRate: 10,
-        useHoles: false,
-        exploreConcave: false
-    };
 
     #binPolygon: IPolygon = null;
 
@@ -46,37 +32,18 @@ export default class PolygonPacker {
 
     #nfpStore: NFPStore = new NFPStore();
 
-    public parseSvg(svgString: string): { source: string; attributes: object } {
-        // reset if in progress
-        this.stop();
-
-        this.#svgParser.init(svgString);
-
-        return {
-            source: this.#svgParser.svgString,
-            attributes: this.#svgParser.svgAttributes
-        };
-    }
-
-    public setBin(element: SVGElement): void {
-        this.#svgParser.setBin(element);
-    }
-
-    public config(configuration: NestConfig): void {
-        this.#configuration = { ...this.#configuration, ...configuration };
-
-        this.#best = null;
-        this.#binPolygon = null;
-        this.#geneticAlgorithm.clean();
-        this.#nfpStore.clean();
-    }
-
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
-    public start(progressCallback: (progress: number) => void, displayCallback: DisplayCallback): void {
-        const clipperWrapper = new ClipperWrapper(this.#configuration);
+    public start(
+        configuration: NestConfig,
+        clipperWrapper: ClipperWrapper,
+        tree: IPolygon[],
+        binPolygon: IPolygon,
+        progressCallback: (progress: number) => void,
+        displayCallback: DisplayCallback
+    ): void {
         // build tree without bin
-        this.#tree = this.#svgParser.getTree(this.#configuration, clipperWrapper);
+        this.#tree = tree;
         const polygonCount = this.#tree.length;
         let i = 0;
 
@@ -84,7 +51,7 @@ export default class PolygonPacker {
             clipperWrapper.offsetPolygon(this.#tree[i], 1);
         }
 
-        this.#binPolygon = this.#svgParser.binPolygon;
+        this.#binPolygon = binPolygon;
 
         if (this.#binPolygon.length < 3) {
             return;
@@ -121,19 +88,19 @@ export default class PolygonPacker {
         this.#isWorking = false;
 
         this.#workerTimer = setInterval(() => {
-            this.launchWorkers(displayCallback);
+            this.launchWorkers(configuration, displayCallback);
 
             progressCallback(this.#progress);
         }, 100) as unknown as number;
     }
 
-    launchWorkers(displayCallback: DisplayCallback) {
+    launchWorkers(configuration: NestConfig, displayCallback: DisplayCallback) {
         if (this.#isWorking) {
             return;
         }
 
-        this.#geneticAlgorithm.init(this.#tree, this.#binPolygon, this.#configuration);
-        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, this.#configuration.rotations);
+        this.#geneticAlgorithm.init(this.#tree, this.#binPolygon, configuration);
+        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
 
         let spawnCount = 0;
 
@@ -141,18 +108,18 @@ export default class PolygonPacker {
             this.#progress = spawnCount++ / this.#nfpStore.nfpPairs.length;
         };
 
-        const parallel = new Parallel(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, this.#configuration, onSpawn);
+        const parallel = new Parallel(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, configuration, onSpawn);
 
         parallel.then(
-            (generatedNfp: PairWorkerResult[]) => this.onPair(generatedNfp, displayCallback),
+            (generatedNfp: PairWorkerResult[]) => this.onPair(configuration, generatedNfp, displayCallback),
             error => console.log(error)
         );
 
         this.#isWorking = true;
     }
 
-    private onPair(generatedNfp: PairWorkerResult[], displayCallback: DisplayCallback): void {
-        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, this.#configuration, this.#binPolygon);
+    private onPair(configuration: NestConfig, generatedNfp: PairWorkerResult[], displayCallback: DisplayCallback): void {
+        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, configuration, this.#binPolygon);
 
         // can't use .spawn because our data is an array
         const parallel: Parallel = new Parallel(WORKER_TYPE.PLACEMENT, [this.#nfpStore.clonePlacement()], placementWorkerData);
@@ -201,22 +168,33 @@ export default class PolygonPacker {
                 }
             }
 
-            const placement: string = this.#svgParser.applyPlacement(this.#best.placements, this.#tree, this.#binBounds);
+            const result = {
+                placements: this.#best.placements,
+                tree: this.#tree,
+                bounds: this.#binBounds
+            };
 
-            displayCallback(placement, placedArea / totalArea, numPlacedParts, numParts);
+            displayCallback(result, placedArea / totalArea, numPlacedParts, numParts);
         } else {
-            displayCallback('', 0, 0, 0);
+            displayCallback(null, 0, 0, 0);
         }
 
         this.#isWorking = false;
     }
 
-    public stop(): void {
+    public stop(isClean: boolean): void {
         this.#isWorking = false;
 
         if (this.#workerTimer) {
             clearInterval(this.#workerTimer);
             this.#workerTimer = 0;
+        }
+
+        if (isClean) {
+            this.#best = null;
+            this.#binPolygon = null;
+            this.#geneticAlgorithm.clean();
+            this.#nfpStore.clean();
         }
     }
 }

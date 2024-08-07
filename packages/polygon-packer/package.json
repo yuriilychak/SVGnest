@@ -10,8 +10,7 @@
     },
     "description": "Polygon packing algorythm",
     "dependencies": {
-        "geometry-utils": "^1.0.0",
-        "svg-parser": "^1.0.0"
+        "geometry-utils": "^1.0.0"
     },
     "keywords": [
         "polygons",
