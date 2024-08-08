@@ -15,21 +15,12 @@ export default {
     externals: {
         'geometry-utils': 'geometryUtils'
     },
-    resolve: {
-        extensions: ['.ts', '.js']
-    },
+    resolve: { extensions: ['.ts'] },
     module: {
         rules: [
             {
-                test: /\.tsx?$/,
-                use: [
-                    {
-                        loader: 'ts-loader',
-                        options: {
-                            transpileOnly: true // Use options here
-                        }
-                    }
-                ],
+                test: /\.ts?$/,
+                use: [{ loader: 'ts-loader', options: { transpileOnly: true } }],
                 exclude: /node_modules/
             }
         ]

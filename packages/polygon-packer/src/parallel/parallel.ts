@@ -1,12 +1,15 @@
 ﻿import Operation from './opertaion';
-import { OperationCallback, Options } from './types';
+import { IWorker, OperationCallback, Options } from './types';
 import { WORKER_TYPE } from '../types';
+import SharedWorkerWrapper from './shared-worker-wrapper';
+import DedicatedWorkerWrapper from './dedicated-worker-wrapper';
 
 export default class Parallel {
     #data: object[];
     #options: Options;
     #maxWorkers: number;
     #operation: Operation;
+    #isSharedWorkersSupported: boolean;
     #onSpawn: () => void;
 
     constructor(id: WORKER_TYPE, data: object[], env: object, onSpawn: () => void = null) {
@@ -15,6 +18,7 @@ export default class Parallel {
         this.#options = { id, env };
         this.#operation = new Operation(this.#data);
         this.#onSpawn = onSpawn;
+        this.#isSharedWorkersSupported = typeof SharedWorker !== 'undefined';
     }
 
     public then<T>(successCallback: (result: T[]) => void, errorCallback: (error: Error[]) => void = () => {}): void {
@@ -38,12 +42,12 @@ export default class Parallel {
         );
     }
 
-    private spawnWorker(inputWorker?: Worker): Worker {
-        let worker: Worker = inputWorker;
+    private spawnWorker(inputWorker?: IWorker): IWorker {
+        let worker: IWorker = inputWorker;
 
         if (!worker) {
             try {
-                worker = new Worker(new URL('./nest.worker', import.meta.url), { type: 'module' });
+                worker = this.#isSharedWorkersSupported ? new SharedWorkerWrapper() : new DedicatedWorkerWrapper();
             } catch (e) {
                 console.error(e);
             }
@@ -53,7 +57,7 @@ export default class Parallel {
     }
 
     private triggerWorker(
-        worker: Worker,
+        worker: IWorker,
         data: object,
         onMessage: (message: MessageEvent) => void,
         onError: (error: ErrorEvent) => void
@@ -62,17 +66,16 @@ export default class Parallel {
             return;
         }
 
-        worker.onmessage = onMessage;
-        worker.onerror = onError;
-        worker.postMessage({ ...this.#options, data });
+        worker.init(onMessage, onError);
+        worker.post({ ...this.#options, data });
     }
 
-    private spawnMapWorker(i: number, done: (error: Error | ErrorEvent, worker: Worker) => void, worker?: Worker): void {
+    private spawnMapWorker(i: number, done: (error: Error | ErrorEvent, worker: IWorker) => void, worker?: IWorker): void {
         if (this.#onSpawn !== null) {
             this.#onSpawn();
         }
 
-        const resultWorker: Worker = this.spawnWorker(worker);
+        const resultWorker: IWorker = this.spawnWorker(worker);
         const onMessage = (message: MessageEvent<object>) => {
             this.#data[i] = message.data;
             done(null, resultWorker);
@@ -121,7 +124,7 @@ export default class Parallel {
         let startedOps: number = 0;
         let doneOps: number = 0;
 
-        const done = (error: Error, worker: Worker): void => {
+        const done = (error: Error, worker: IWorker): void => {
             if (error) {
                 operation.reject(error);
             } else if (++doneOps === this.#data.length) {

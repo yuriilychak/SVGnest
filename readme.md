@@ -7,7 +7,6 @@
 
 ## Current TODO's
 
--   Refactor Web-Workers flow. Currently every worker loading geomtry utils every init.
 -   Refactor geometry-utils. Currently it use old non-refactored flows. Need to create classes to work with points and polygons
     for bettter structuring of code.
 -   Add node package for ability to run nesting tool from terminal on server-side.
