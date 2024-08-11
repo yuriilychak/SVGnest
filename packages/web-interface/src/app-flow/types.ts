@@ -1,18 +1,6 @@
 import { PolygonPacker } from 'polygon-packer';
 import { SVGParser } from 'svg-parser';
 
-export enum BUTTON_ACTION {
-    START = 'start',
-    PAUSE = 'pause',
-    UPLOAD = 'upload',
-    DOWNLOAD = 'download',
-    SETTINGS = 'settings',
-    CLOSE_SETTINGS = 'closeSettings',
-    ZOOM_IN = 'zoomIn',
-    ZOOM_OUT = 'zoomOut',
-    BACK = 'back'
-}
-
 export enum SETTING_ID {
     SPACING = 'spacing',
     CURVE_TOLERANCE = 'curveTolerance',
@@ -89,10 +77,13 @@ export interface ReducerState {
     isBinSelected: boolean;
     messageId: MESSAGE_ID;
     message: string;
+    triggerLoader: number;
+    isClosed: boolean;
 }
 
 export enum REDUCER_ACTION {
-    TOGGLE_DRAWER,
+    OPEN_DRAWER,
+    CLOSE_DRAWER,
     CHANGE_SETTINGS,
     UPDATE_SVG,
     DOWNLOAD_SVG,
@@ -104,7 +95,9 @@ export enum REDUCER_ACTION {
     UPDATE_STATISTICS,
     SELECT_BIN,
     THROW_ERROR,
-    NEW_ITERATION
+    NEW_ITERATION,
+    TRIGGER_UPLOAD,
+    TRGGER_CLOSE
 }
 
 export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState;

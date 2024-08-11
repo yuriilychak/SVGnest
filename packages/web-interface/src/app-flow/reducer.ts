@@ -26,13 +26,8 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
             return { ...prevState, settings, isWorking: false, startTime: 0, progress: 0, estimate: 0 };
         }
     ],
-    [
-        REDUCER_ACTION.TOGGLE_DRAWER,
-        (prevState, isDrawerOpen: boolean) => ({
-            ...prevState,
-            isDrawerOpen
-        })
-    ],
+    [REDUCER_ACTION.OPEN_DRAWER, prevState => ({ ...prevState, isDrawerOpen: true })],
+    [REDUCER_ACTION.CLOSE_DRAWER, prevState => ({ ...prevState, isDrawerOpen: false })],
     [
         REDUCER_ACTION.UPDATE_SVG,
         (prevState, svgSrc: string) => {
@@ -142,7 +137,8 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
             messageId: MESSAGE_ID.ERROR,
             message
         })
-    ]
+    ],
+    [REDUCER_ACTION.TRIGGER_UPLOAD, preveState => ({ ...preveState, triggerLoader: preveState.triggerLoader + 1 })]
 ]);
 
 export default function reducer(prevState: ReducerState, { type, payload }: ReducerAction): ReducerState {

@@ -1,0 +1,59 @@
+.splashScreenRoot {
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 100vw;
+    height: 100vh;
+    color: #3bb34a;
+    font-weight: 500;
+
+    > * {
+        margin: 0;
+    }
+
+    @media (min-width: 0px) {
+        gap: 4px;
+        padding: 0 8px;
+    }
+
+    @media (min-width: 600px) {
+        gap: 8px;
+        padding: 0 16px;
+    }
+}
+
+.splashScreenTitle {
+    font-weight: 600;
+
+    @media (min-width: 0px) {
+        font-size: 32px;
+    }
+
+    @media (min-width: 900px) {
+        font-size: 36px;
+    }
+}
+
+.splashScreenSubtitle {
+    @media (min-width: 0px) {
+        font-size: 20px;
+    }
+
+    @media (min-width: 900px) {
+        font-size: 24px;
+    }
+}
+
+.logo {
+    @media (min-width: 0px) {
+        min-width: 40vw;
+        max-width: 196px;
+    }
+
+    @media (min-width: 600px) {
+        min-width: unset;
+    }
+
+    @media (min-width: 900px) {
+        max-width: 256px;
+    }
+}

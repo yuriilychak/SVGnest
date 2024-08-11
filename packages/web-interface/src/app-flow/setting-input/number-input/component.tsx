@@ -1,28 +1,33 @@
-import { FC, memo, useCallback, useMemo } from 'react'
+import { ChangeEventHandler, FC, memo, useCallback } from 'react';
 
-import Slider from '@mui/material/Slider'
+import { InputProps } from '../types';
+import './styles.scss';
 
-import { InputProps } from '../types'
-import { STYLES } from './constant'
-
-const NumberInput: FC<InputProps> = ({ id, value, onChange, min, max, step }) => {
-    const marks = useMemo(() => [min, max].map(item => ({ value: item, label: item.toString() })), [min, max])
-
-    const handleChange = useCallback((event: Event, sliderValue: number) => onChange(sliderValue, id), [onChange, id])
+const NumberInput: FC<InputProps> = ({ id, value, onChange, min, max, step, label }) => {
+    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(
+        event => onChange(parseFloat(event.target.value), id),
+        [onChange, id]
+    );
 
     return (
-        <Slider
-            id={id}
-            min={min}
-            max={max}
-            marks={marks}
-            step={step}
-            value={value as number}
-            onChange={handleChange}
-            sx={STYLES.root}
-            valueLabelDisplay='auto'
-        />
-    )
-}
+        <div className="sliderRoot">
+            <p className="sliderLabel">{label}</p>
+            <input
+                className="sliderInput"
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={value.toString()}
+                onChange={handleChange}
+            />
+            <div className="sliderFooter">
+                <span>{min}</span>
+                <div className="sliderDivider" />
+                <span>{max}</span>
+            </div>
+        </div>
+    );
+};
 
-export default memo(NumberInput)
+export default memo(NumberInput);

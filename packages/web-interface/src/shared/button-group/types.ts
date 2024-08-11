@@ -1,14 +1,9 @@
-import { SvgIconComponent } from '@mui/icons-material';
-
-export interface ButtonConfig {
-    id: string;
-    Icon: SvgIconComponent;
-}
+import { BUTTON_ACTION } from '../../types';
 
 export interface ButtonGroupProps {
-    buttonsConfig: ButtonConfig[];
+    buttonsConfig: BUTTON_ACTION[];
     disabledButtons?: string[];
     hiddenButtons?: string[];
     localePrefix: string;
-    onClick(id: string): void;
+    onClick(id: BUTTON_ACTION): void;
 }

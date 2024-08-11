@@ -1,41 +1,36 @@
 import { FC } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import CircularProgress from '@mui/material/CircularProgress';
-import Typography from '@mui/material/Typography';
-
 import { millisecondsToStr } from './helpers';
 import { MesureItem } from './mesure-item';
-import { STYLES } from './constants';
 import { toPercents } from '../helpers';
 import { StatisticsProps } from './types';
+import './styles.scss';
 
 const Statistics: FC<StatisticsProps> = ({ progress, estimate, iterations, placed, total, efficiency, isWorking }) => {
     const { t } = useTranslation();
 
     return (
-        <Stack direction="row" gap={1} alignItems="center">
+        <div className="statisticsRoot">
             {(isWorking || !!progress) && (
-                <Stack direction="row" sx={STYLES.progressItem}>
-                    <Box sx={STYLES.progressWrapper}>
-                        <CircularProgress variant="determinate" value={progress} />
-                        <Box sx={STYLES.progressLabel}>
-                            <Typography variant="caption" component="div" color="text.secondary">{`${progress}%`}</Typography>
-                        </Box>
-                    </Box>
-                    <Stack sx={STYLES.progressContent}>
-                        <Typography variant="caption" component="div" color="text.secondary">
-                            {t('appFlow.statistics.progress.title')}
-                        </Typography>
-                        <Typography variant="caption" component="div" color="text.secondary" noWrap>
+                <div className="statisticsProgresItem">
+                    <div
+                        className="statisticsProgressBar"
+                        style={{
+                            background: `radial-gradient(closest-side, white 79%, transparent 80% 100%), conic-gradient(#3bb34a ${progress}%, white 0)`
+                        }}
+                    >
+                        <div className="statisticsProgressDescription">{`${progress}%`}</div>
+                    </div>
+                    <div className="statisticsProgressContent">
+                        <div className="statisticsProgressDescription">{t('appFlow.statistics.progress.title')}</div>
+                        <div className="statisticsProgressDescription">
                             {t('appFlow.statistics.progress.subtitle', { time: millisecondsToStr(estimate, t) })}
-                        </Typography>
-                    </Stack>
-                </Stack>
+                        </div>
+                    </div>
+                </div>
             )}
-            <Stack direction="row" gap={1}>
+            <div className="statisticsMesures">
                 {!!iterations && (
                     <MesureItem label={t('appFlow.statistics.meure.iterations.label')} value={iterations.toString()} />
                 )}
@@ -43,8 +38,8 @@ const Statistics: FC<StatisticsProps> = ({ progress, estimate, iterations, place
                 {!!efficiency && (
                     <MesureItem label={t('appFlow.statistics.meure.efficiency.label')} value={`${toPercents(efficiency)}%`} />
                 )}
-            </Stack>
-        </Stack>
+            </div>
+        </div>
     );
 };
 

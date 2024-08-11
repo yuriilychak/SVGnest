@@ -1,0 +1,69 @@
+// SCSS Variables
+$fade-duration: 300ms;
+$fade-background-color: white;
+
+// Mixin for fade transition
+@mixin fade-transition($duration) {
+    transition: opacity $duration ease-in-out;
+}
+
+// Fade container styles
+.fadeContainer {
+    position: absolute; /* Ensure full coverage of parent container */
+    width: 100%;
+    height: 100%;
+    background-color: $fade-background-color;
+    @include fade-transition($fade-duration);
+
+    // Initial state
+    opacity: 1;
+
+    &.fading {
+        opacity: 0;
+    }
+
+    &.faded {
+        opacity: 1;
+    }
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    scrollbar-color: #3bb34a #ffffff;
+    overflow: hidden;
+    scrollbar-width: thin;
+}
+
+.flexCenter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#app {
+    width: 100vw;
+    height: 100vh;
+
+    #exportRoot {
+        fill: #ffffff !important;
+        fill-opacity: 1 !important;
+        stroke: #8498d1 !important;
+    }
+
+    #exportContent {
+        fill: #8498d1 !important;
+        fill-opacity: 1 !important;
+        stroke: #617bb5 !important;
+        stroke-width: 2px !important;
+        stroke-linejoin: round !important;
+
+        & * {
+            fill: #8498d1 !important;
+            fill-opacity: 1 !important;
+            stroke: #617bb5 !important;
+            stroke-width: 2px !important;
+            stroke-linejoin: round !important;
+        }
+    }
+}

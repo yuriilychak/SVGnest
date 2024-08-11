@@ -1,0 +1,35 @@
+.button {
+    height: 32px;
+    gap: 4px;
+    padding: 4px 8px 4px 4px;
+    box-sizing: border-box;
+    border: 2px solid;
+    border-radius: 16px;
+    color: #3bb34a;
+    border-color: #3bb34a;
+    background-color: white;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+        filter: grayscale(1);
+        pointer-events: none;
+    }
+
+    > * {
+        pointer-events: none;
+    }
+}
+
+.iconButton {
+    padding: 0;
+    width: 32px;
+}
+
+.buttonGroup {
+    gap: 4px;
+
+    @media (min-width: 600px) {
+        gap: 8px;
+    }
+}

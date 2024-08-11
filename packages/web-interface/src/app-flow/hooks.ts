@@ -1,10 +1,11 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { PlacementData } from 'polygon-packer';
 
-import { INITIAL_STATE, VIEW_BOX_ATTRIBUTES } from './constants';
+import { BUTTON_TO_REDUCER_ACTION, INITIAL_STATE, VIEW_BOX_ATTRIBUTES } from './constants';
 import reducer from './reducer';
-import { BUTTON_ACTION, PREDEFINED_ID, REDUCER_ACTION, SETTING_ID } from './types';
-import { getModifiedButtons, getZoomStyles } from './helpers';
+import { PREDEFINED_ID, REDUCER_ACTION, SETTING_ID } from './types';
+import { getModifiedButtons } from './helpers';
+import { BUTTON_ACTION } from '../types';
 
 export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -13,6 +14,8 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const currentBin = useRef<SVGElement>(null);
 
     const {
+        isClosed,
+        triggerLoader,
         svgParser,
         fileReader,
         isDrawerOpen,
@@ -131,43 +134,33 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
 
     const handleRenderSvg = useCallback(
         (placementData: PlacementData, efficiency: number, placed: number, total: number) => {
+            let action = REDUCER_ACTION.NEW_ITERATION;
+            let data = null;
+
             if (placementData) {
                 const svgList: string = svgParser.applyPlacement(placementData);
-                handleDispatch(REDUCER_ACTION.UPDATE_STATISTICS, { efficiency, placed, total });
                 svgWrapper.current.innerHTML = svgList;
-            } else {
-                handleDispatch(REDUCER_ACTION.NEW_ITERATION);
+                action = REDUCER_ACTION.UPDATE_STATISTICS;
+                data = { efficiency, placed, total };
             }
+
+            handleDispatch(action, data);
         },
         [handleDispatch, svgParser]
     );
 
     const handleClick = useCallback(
-        (action: string) => {
-            switch (action as BUTTON_ACTION) {
-                case BUTTON_ACTION.START:
-                    return handleDispatch(REDUCER_ACTION.START_NESTING, { handleProgress, handleRenderSvg });
-                case BUTTON_ACTION.PAUSE:
-                    return handleDispatch(REDUCER_ACTION.PAUSE_NESTING);
-                case BUTTON_ACTION.BACK:
-                    return onClose();
-                case BUTTON_ACTION.UPLOAD:
-                    return fileLoader.current.click();
-                case BUTTON_ACTION.DOWNLOAD:
-                    return handleDispatch(REDUCER_ACTION.DOWNLOAD_SVG);
-                case BUTTON_ACTION.SETTINGS:
-                case BUTTON_ACTION.CLOSE_SETTINGS:
-                    return handleDispatch(REDUCER_ACTION.TOGGLE_DRAWER, (action as BUTTON_ACTION) === BUTTON_ACTION.SETTINGS);
-                case BUTTON_ACTION.ZOOM_IN:
-                    return handleDispatch(REDUCER_ACTION.ZOOM_IN);
-                case BUTTON_ACTION.ZOOM_OUT:
-                    return handleDispatch(REDUCER_ACTION.ZOOM_OUT);
-                default:
-                    return null;
-            }
-        },
-        [onClose, handleDispatch, polygonPacker, handleProgress, handleRenderSvg, settings]
+        (action: BUTTON_ACTION) => handleDispatch(BUTTON_TO_REDUCER_ACTION.get(action), { handleProgress, handleRenderSvg }),
+        [handleDispatch, handleProgress, handleRenderSvg]
     );
+
+    useEffect(() => {
+        triggerLoader && fileLoader.current.click();
+    }, []);
+
+    useEffect(() => {
+        isClosed && onClose();
+    }, []);
 
     const handleChangeSettings = useCallback(
         (value: boolean | number, id: SETTING_ID) => handleDispatch(REDUCER_ACTION.CHANGE_SETTINGS, { value, id }),
@@ -183,7 +176,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         [fileReader]
     );
 
-    const zoomStyles = useMemo(() => getZoomStyles(scale), [scale]);
+    const zoomStyles = useMemo(() => ({ width: `${Math.floor(scale * 100)}%` }), [scale]);
     const { disabledButtons, hiddenButtons } = useMemo(
         () => getModifiedButtons(isWorking, isBinSelected, iterations, svgSrc),
         [isWorking, iterations, isBinSelected, svgSrc]

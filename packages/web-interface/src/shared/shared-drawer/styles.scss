@@ -1,0 +1,65 @@
+@mixin drawer-styles($width, $height, $translate-x, $translate-y) {
+    background-color: white;
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 16px 24px;
+    transition: transform 0.3s ease-in-out;
+    will-change: transform;
+    width: $width;
+    height: $height;
+    transform: translate($translate-x, $translate-y);
+
+    &.drawerOpen {
+        transform: translate(0, 0);
+    }
+
+    &.drawerClose {
+        transform: translateY($translate-x, $translate-y);
+    }
+}
+
+.drawerVertical {
+    bottom: 0;
+    left: 0;
+    @include drawer-styles(100vw, 50vh, 0, 100%);
+}
+
+.drawerHorizontal {
+    right: 0;
+    top: 0;
+    @include drawer-styles(50vw, 100vh, 100%, 0);
+}
+
+.fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: black;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    will-change: opacity;
+
+    &.fadeIn {
+        opacity: 0.5;
+    }
+
+    &.fadeOut {
+        opacity: 0;
+    }
+}
+
+.drawerTitle {
+    color: #3bb34a;
+    margin: 0;
+    font-weight: 600;
+    font-size: 16px;
+
+    @media (min-width: 900px) {
+        font-size: 18px;
+    }
+}

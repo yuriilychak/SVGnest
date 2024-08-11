@@ -1,16 +1,21 @@
-import { FC, memo, useCallback, ChangeEventHandler } from 'react'
+import { FC, memo, useCallback, ChangeEventHandler } from 'react';
 
-import Checkbox from '@mui/material/Checkbox'
+import { InputProps } from '../types';
+import './styles.scss';
 
-import { InputProps } from '../types'
-
-const CheckboxInput: FC<InputProps> = ({ id, value, onChange }) => {
+const CheckboxInput: FC<InputProps> = ({ id, value, onChange, label }) => {
     const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(
         event => onChange(event.target.checked, id),
         [onChange, id]
-    )
+    );
 
-    return <Checkbox checked={value as boolean} id={id} size='small' onChange={handleChange} />
-}
+    return (
+        <label className="control controlCheckbox">
+            <span>{label}</span>
+            <input type="checkbox" value={value.toString()} onChange={handleChange} />
+            <div className="controlIndicator"></div>
+        </label>
+    );
+};
 
-export default memo(CheckboxInput)
+export default memo(CheckboxInput);

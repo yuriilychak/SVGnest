@@ -1,10 +1,8 @@
-import { useCallback, useLayoutEffect, useState, ReactNode, FC, memo } from 'react';
+import { useCallback, useState, useEffect, ReactNode, FC, memo } from 'react';
 
-import Drawer from '@mui/material/Drawer';
-import Stack from '@mui/material/Stack';
-
-import { STYLES } from './constants';
-import Typography from '@mui/material/Typography';
+import { ANIMATION_CLASSES, ANIMATION_CONFIG, INITIAL_STATE } from './constants';
+import { useResize } from '../hooks';
+import './styles.scss';
 
 interface SharedDrawerProps {
     isOpen: boolean;
@@ -15,25 +13,38 @@ interface SharedDrawerProps {
 }
 
 const SharedDrawer: FC<SharedDrawerProps> = ({ isOpen, onClose, closeAction, children, title }) => {
-    const [isDrawerHorizontal, setDrawerHorizontal] = useState(true);
-    const handleCloseDrawer = useCallback(() => onClose(closeAction), [onClose, closeAction]);
-    const handleResize = useCallback(() => setDrawerHorizontal(window.innerWidth > window.innerHeight), []);
+    const { isLendscape } = useResize();
+    const [{ visible, animating }, setState] = useState(INITIAL_STATE);
 
-    useLayoutEffect(() => {
-        window.addEventListener('resize', handleResize);
-        handleResize();
+    const updateAnimation = useCallback((value: boolean, callback: () => void = null) => {
+        const { key1, key2, duration } = ANIMATION_CONFIG.get(value);
 
-        return () => window.removeEventListener('resize', handleResize);
+        setState(prevState => ({ ...prevState, [key1]: value }));
+        setTimeout(() => {
+            setState(prevState => ({ ...prevState, [key2]: value }));
+            callback && callback();
+        }, duration);
     }, []);
 
-    return (
-        <Drawer open={isOpen} onClose={handleCloseDrawer} anchor={isDrawerHorizontal ? 'right' : 'bottom'}>
-            <Stack gap={2} sx={isDrawerHorizontal ? STYLES.drawerHorizontal : STYLES.drawerVertical}>
-                <Typography variant="h6">{title}</Typography>
+    const handleClose = useCallback(() => onClose(closeAction), [onClose, closeAction]);
+
+    const handleCloseDrawer = useCallback(() => updateAnimation(false, handleClose), [handleClose, updateAnimation]);
+
+    useEffect(() => {
+        updateAnimation(isOpen);
+    }, [isOpen, updateAnimation]);
+
+    const { fade, drawer } = ANIMATION_CLASSES.get(animating);
+
+    return visible ? (
+        <>
+            <div className={`fade ${fade}`} onClick={handleCloseDrawer} />
+            <div className={`${isLendscape ? 'drawerHorizontal' : 'drawerVertical'} ${drawer}`}>
+                <p className="drawerTitle">{title}</p>
                 {children}
-            </Stack>
-        </Drawer>
-    );
+            </div>
+        </>
+    ) : null;
 };
 
 export default memo(SharedDrawer);

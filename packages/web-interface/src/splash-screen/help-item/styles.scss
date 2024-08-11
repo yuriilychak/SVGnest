@@ -1,0 +1,48 @@
+.helpItemRoot {
+    width: 100%;
+    flex-direction: column;
+    display: flex;
+    gap: 4px;
+    box-sizing: border-box;
+
+    > * {
+        margin: 0;
+    }
+}
+
+.helpItemTitle {
+    color: #3bb34a;
+
+    @media (min-width: 0px) {
+        font-size: 14px;
+    }
+
+    @media (min-width: 900px) {
+        font-size: 16px;
+    }
+}
+
+.helpItemText {
+    color: #8b8b8b;
+    text-align: justify;
+
+    @media (min-width: 0px) {
+        font-size: 12px;
+    }
+
+    @media (min-width: 900px) {
+        font-size: 14px;
+    }
+}
+
+.helperItemLink {
+    color: #3bb34a;
+
+    @media (min-width: 0px) {
+        margin-left: 4px;
+    }
+
+    @media (min-width: 900px) {
+        margin-left: 8px;
+    }
+}

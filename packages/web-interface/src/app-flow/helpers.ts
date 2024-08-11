@@ -1,7 +1,4 @@
-import { STYLES } from './constants';
-import { BUTTON_ACTION } from './types';
-
-export const getZoomStyles = (scale: number): object => ({ ...STYLES.svgContent, width: `${Math.floor(scale * 100)}%` });
+import { BUTTON_ACTION } from '../types';
 
 export const getModifiedButtons = (
     isWorking: boolean,

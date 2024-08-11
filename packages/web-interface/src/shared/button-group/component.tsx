@@ -1,13 +1,11 @@
 import { FC, useCallback, memo, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import useTheme from '@mui/material/styles/useTheme';
-
 import { ButtonGroupProps } from './types';
+import { BUTTON_ACTION } from '../../types';
+import { BUTTON_CONFIG } from './constants';
+import { useResize } from '../hooks';
+import './styles.scss';
 
 const ButtonGroup: FC<ButtonGroupProps> = ({
     buttonsConfig,
@@ -16,17 +14,22 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
     hiddenButtons = [],
     localePrefix
 }) => {
-    const handleClick = useCallback((event: MouseEvent) => onClick((event.target as HTMLButtonElement).id), []);
-    const theme = useTheme();
-    const isMobile: boolean = !useMediaQuery(theme.breakpoints.up('sm'));
     const { t, i18n } = useTranslation();
+    const { isMobile } = useResize();
+    const handleClick = useCallback(
+        (event: MouseEvent) => onClick((event.target as HTMLButtonElement).id as BUTTON_ACTION),
+        []
+    );
+
     let disabled: boolean = false;
     let labelKey: string = '';
     let label: string = '';
+    let isShowLabel: boolean = false;
+    let className: string = '';
 
     return (
-        <Stack direction="row" gap={{ xs: 1, sm: 2 }}>
-            {buttonsConfig.map(({ id, Icon }) => {
+        <div className="flexCenter buttonGroup">
+            {buttonsConfig.map(id => {
                 if (hiddenButtons.includes(id)) {
                     return null;
                 }
@@ -34,23 +37,22 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
                 labelKey = `${localePrefix}.${id}.label`;
                 label = i18n.exists(labelKey) ? t(labelKey) : '';
                 disabled = disabledButtons.includes(id);
+                isShowLabel = !(isMobile || !label);
+                className = isShowLabel ? 'flexCenter button' : 'flexCenter button iconButton';
 
-                return !isMobile && label ?
-                    <Button
-                        key={id}
-                        id={id}
-                        disabled={disabled}
-                        variant="outlined"
-                        startIcon={<Icon id={id} sx={{ pointerEvents: 'none' }} />}
-                        onClick={handleClick}
-                    >
-                        {label}
-                    </Button> :
-                    <IconButton disabled={disabled} key={id} id={id} onClick={handleClick}>
-                        <Icon id={id} fontSize="small" sx={{ pointerEvents: 'none' }} />
-                    </IconButton>;
+                return (
+                    <button key={id} id={id} className={className} disabled={disabled} onClick={handleClick}>
+                        <img
+                            id={id}
+                            src={`${window.location.origin}/assets/${BUTTON_CONFIG.get(id)}.svg`}
+                            width="20px"
+                            height="20px"
+                        />
+                        {isShowLabel && <span>{label}</span>}
+                    </button>
+                );
             })}
-        </Stack>
+        </div>
     );
 };
 

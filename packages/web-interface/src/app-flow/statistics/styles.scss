@@ -1,0 +1,54 @@
+.statisticsRoot {
+    display: flex;
+    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.statisticsMesures {
+    display: flex;
+    gap: 8px;
+    flex-direction: row;
+}
+
+.statisticsProgressContent {
+    display: flex;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.statisticsProgressDescription {
+    font-size: 12px;
+    color: #8b8b8b;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.statisticsProgresItem {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    align-items: center;
+    gap: 8px;
+
+    @media (min-width: 0px) {
+        min-width: 158px;
+        max-width: 158px;
+    }
+
+    @media (min-width: 600px) {
+        min-width: 200px;
+        max-width: 200px;
+    }
+}
+
+.statisticsProgressBar {
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

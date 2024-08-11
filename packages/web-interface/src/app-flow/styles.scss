@@ -1,0 +1,119 @@
+.appRoot {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    padding: 16px;
+    box-sizing: border-box;
+    gap: 8px;
+
+    @media (min-width: 0px) {
+        align-items: center;
+    }
+
+    @media (min-width: 600px) {
+        align-items: start;
+    }
+}
+
+.appSvgContent {
+    flex: 1;
+    box-sizing: border-box;
+    width: 100%;
+    position: relative;
+}
+
+.appSvgWrapper {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    overflow: auto;
+}
+
+.hidden {
+    position: absolute;
+    opacity: 0;
+}
+
+.appMenu {
+    box-sizing: border-box;
+
+    gap: 8px;
+    display: flex;
+
+    @media (min-width: 0px) {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    @media (min-width: 1200px) {
+        align-items: start;
+        flex-direction: row-reverse;
+    }
+}
+
+.drawerSpace {
+    min-height: 16px;
+}
+
+.alert {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    font-size: 12px;
+    color: #8b8b8b;
+}
+
+.info {
+    border-left: 4px #64a3c7 solid;
+    background-color: #e5f6fd;
+}
+
+.success {
+    border-left: 4px #3bb34a solid;
+    background-color: #edf7ee;
+}
+
+.error {
+    border-left: 4px #a85b61 solid;
+    background-color: #fdeded;
+}
+
+.svgContent {
+    box-sizing: border-box;
+    position: relative;
+    & svg {
+        width: 100%;
+        height: auto;
+        position: absolute;
+
+        & * {
+            fill: #fff !important;
+            fill-opacity: 0 !important;
+            stroke: #3bb34a !important;
+            stroke-width: 2px !important;
+            stroke-linejoin: round !important;
+            pointer-events: fill;
+        }
+
+        & *:hover {
+            stroke: #0d6818 !important;
+            cursor: pointer !important;
+        }
+    }
+    & #backgroundRect {
+        fill: #eee !important;
+        fill-opacity: 1 !important;
+        stroke: #eee !important;
+        stroke-width: 2px !important;
+        stroke-linejoin: round !important;
+    }
+
+    & #selectedElement {
+        stroke: #06380c !important;
+        stroke-width: 3px !important;
+    }
+}
