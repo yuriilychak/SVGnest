@@ -97,7 +97,7 @@ export enum REDUCER_ACTION {
     THROW_ERROR,
     NEW_ITERATION,
     TRIGGER_UPLOAD,
-    TRGGER_CLOSE
+    TRIGGER_CLOSE
 }
 
 export type ReducerMiddleware = (prevState: ReducerState, payload: unknown) => ReducerState;

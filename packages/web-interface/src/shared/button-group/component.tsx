@@ -39,15 +39,13 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
                 disabled = disabledButtons.includes(id);
                 isShowLabel = !(isMobile || !label);
                 className = isShowLabel ? 'flexCenter button' : 'flexCenter button iconButton';
+                const Icon = BUTTON_CONFIG.get(id);
 
                 return (
-                    <button key={id} id={id} className={className} disabled={disabled} onClick={handleClick}>
-                        <img
-                            id={id}
-                            src={`${window.location.origin}/assets/${BUTTON_CONFIG.get(id)}.svg`}
-                            width="20px"
-                            height="20px"
-                        />
+                    <button key={id} id={id} className={className} disabled={disabled} onClick={handleClick} aria-label={id}>
+                        <div className="buttonIcon">
+                            <Icon />
+                        </div>
                         {isShowLabel && <span>{label}</span>}
                     </button>
                 );

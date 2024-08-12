@@ -6,6 +6,7 @@ import { ButtonGroup, SharedDrawer } from '../shared';
 import { BUTTON_CONFIG, HELP_CONTENT_CONFIG } from './constants';
 import { BUTTON_ACTION } from '../types';
 import { SplashScreenProps } from './types';
+import { Logo } from '../assets';
 
 import './styles.scss';
 
@@ -33,7 +34,7 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
 
     return (
         <div className="flexCenter splashScreenRoot">
-            <img className="logo" src={`${window.location.origin}/assets/logo.svg`} />
+            <Logo />
             <p className="splashScreenTitle">{t('splashScreen.title')}</p>
             <p className="splashScreenSubtitle">{t('splashScreen.subtitle')}</p>
             <ButtonGroup buttonsConfig={BUTTON_CONFIG} onClick={handleAction} localePrefix="splashScreen.buttons" />

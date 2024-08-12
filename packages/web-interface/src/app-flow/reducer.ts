@@ -138,7 +138,8 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
             message
         })
     ],
-    [REDUCER_ACTION.TRIGGER_UPLOAD, preveState => ({ ...preveState, triggerLoader: preveState.triggerLoader + 1 })]
+    [REDUCER_ACTION.TRIGGER_UPLOAD, preveState => ({ ...preveState, triggerLoader: preveState.triggerLoader + 1 })],
+    [REDUCER_ACTION.TRIGGER_CLOSE, prevState => ({ ...prevState, isClosed: true })]
 ]);
 
 export default function reducer(prevState: ReducerState, { type, payload }: ReducerAction): ReducerState {

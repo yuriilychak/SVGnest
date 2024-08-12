@@ -33,3 +33,13 @@
         gap: 8px;
     }
 }
+
+.buttonIcon {
+    width: 20px;
+    height: 20px;
+    
+    & > svg {
+        width: 20px;
+        height: 20px;
+    }
+}

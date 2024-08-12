@@ -130,6 +130,16 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         }
     }, [isDemoMode, handleLoadExample]);
 
+    useEffect(() => {
+        triggerLoader && fileLoader.current.click();
+    }, [triggerLoader]);
+
+    useEffect(() => {
+        isClosed && onClose();
+    }, [isClosed]);
+
+    console.log(triggerLoader, isClosed);
+
     const handleProgress = useCallback((percent: number) => handleDispatch(REDUCER_ACTION.PROGRESS, percent), [handleDispatch]);
 
     const handleRenderSvg = useCallback(
@@ -153,14 +163,6 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         (action: BUTTON_ACTION) => handleDispatch(BUTTON_TO_REDUCER_ACTION.get(action), { handleProgress, handleRenderSvg }),
         [handleDispatch, handleProgress, handleRenderSvg]
     );
-
-    useEffect(() => {
-        triggerLoader && fileLoader.current.click();
-    }, []);
-
-    useEffect(() => {
-        isClosed && onClose();
-    }, []);
 
     const handleChangeSettings = useCallback(
         (value: boolean | number, id: SETTING_ID) => handleDispatch(REDUCER_ACTION.CHANGE_SETTINGS, { value, id }),
