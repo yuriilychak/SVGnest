@@ -1,7 +1,1 @@
-<svg width="128" height="128" version="1.1" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
- <g transform="rotate(45 64 64)">
-  <circle id="a" cx="64" cy="64" r="64" fill="#53b95b"/>
-  <circle id="b" cx="64" cy="64" r="59" fill="#fff"/>
-  <path id="c" d="m48 12c-8 0-14 6-14 14v38c0 8 6 14 14 14h18v24c0 8 6 14 14 14 8 0 14-6 14-14v-38c0-8-6-14-14-14h-18v-24c0-8-6-14-14-14zm0 5c5 0 9 4 9 9v24h-18v-24c0-5 4-9 9-9zm-0.01 38h0.01c5 0 9 4 9 9 0 5-4 9-9 9-5 0-9-4-9-9-4e-6 -5 4-9 9-9zm14 0h4v18h-4zm18 0h0.01c5 0 9 4 9 9 0 5-4 9-9 9-5 0-9-4-9-9-4e-6 -5 4-9 9-9zm-9 23h18v24c0 5-4 9-9 9s-9-4-9-9z" fill="#53b95b"/>
- </g>
-</svg>
+<svg width="128" height="128" version="1.1" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(45 64 64)"><circle cx="64" cy="64" r="64" fill="#53b95b"/><circle cx="64" cy="64" r="59" fill="#fff"/><g fill="#53b95b"><circle cx="48" cy="63" r="14"/><circle cx="48" cy="26" r="14"/><rect x="34" y="25" width="28" height="39"/><circle cx="80" cy="102" r="14"/><circle cx="80" cy="65" r="14"/><rect x="66" y="64" width="28" height="39"/><rect x="48" y="51" width="32" height="26"/></g><g fill="#fff"><circle cx="48" cy="26" r="9"/><circle cx="80" cy="64" r="9"/><circle cx="48" cy="64" r="9"/><circle cx="80" cy="103" r="9"/><rect x="62" y="55" width="4" height="18"/><rect x="71" y="77" width="18" height="25"/><rect x="39" y="26" width="18" height="25"/></g></g></svg>
