@@ -20,7 +20,7 @@
 Currently I'm working on my own html game engine, and need tool for polyognal atlas generation. Due to I need polygon packing
 tool I splited it to packages for ability to reuse some modules in that tool.
 
-# ![SVGNest](https://github.com/yuriilychak/SVGnest/blob/main/assets/logo.svg)
+# ![SVGNest](https://camo.githubusercontent.com/7f7a41743f4e90ba20d9179aede82708eabeac431046933362e8975d9a10b109/687474703a2f2f7376676e6573742e636f6d2f6769746875622f6c6f676f322e706e67)
 
 **SVGNest**: A browser-based vector nesting tool.
 
