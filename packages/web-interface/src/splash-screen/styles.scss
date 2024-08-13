@@ -1,59 +1,45 @@
+@import '../@shared-styles.scss';
+
 .splashScreenRoot {
-    flex-direction: column;
-    box-sizing: border-box;
+    @include flex-center(column, $g-sm);
     width: 100vw;
     height: 100vh;
-    color: #3bb34a;
+    color: $c-primary;
     font-weight: 500;
+    padding: $g-none $g-md;
 
-    > * {
-        margin: 0;
-    }
-
-    @media (min-width: 0px) {
-        gap: 4px;
-        padding: 0 8px;
-    }
-
-    @media (min-width: 600px) {
-        gap: 8px;
-        padding: 0 16px;
+    @media (min-width: $bp-sm) {
+        gap: $g-md;
+        padding: $g-none $g-lg;
     }
 }
 
 .splashScreenTitle {
     font-weight: 600;
+    font-size: $fs-xxxl;
 
-    @media (min-width: 0px) {
-        font-size: 32px;
-    }
-
-    @media (min-width: 900px) {
-        font-size: 36px;
+    @media (min-width: $bp-md) {
+        font-size: $fs-xxxxl;
     }
 }
 
 .splashScreenSubtitle {
-    @media (min-width: 0px) {
-        font-size: 20px;
-    }
+    font-size: $fs-xl;
 
-    @media (min-width: 900px) {
-        font-size: 24px;
+    @media (min-width: $bp-md) {
+        font-size: $fs-xxl;
     }
 }
 
 .logo {
-    @media (min-width: 0px) {
-        min-width: 40vw;
-        max-width: 196px;
-    }
+    min-width: 40vw;
+    max-width: 196px;
 
-    @media (min-width: 600px) {
+    @media (min-width: $bp-sm) {
         min-width: unset;
     }
 
-    @media (min-width: 900px) {
+    @media (min-width: $bp-md) {
         max-width: 256px;
     }
 }

@@ -1,12 +1,13 @@
+@import '../../../@shared-styles.scss';
+
 .mesureRoot {
-    color: #3bb34a;
-    flex-direction: column;
+    @include flex-center(column);
 }
 
 .mesureTitle {
-    font-size: 12px;
+    font-size: $fs-sm;
 }
 
 .mesureValue {
-    font-size: 16px;
+    font-size: $fs-lg;
 }

@@ -1,25 +1,32 @@
+@import '../@shared-styles.scss';
+
+.alert {
+    width: 100%;
+    padding: $g-md;
+    font-size: $fs-sm;
+    color: $c-secondary;
+}
+
+@mixin alert-colors($border-color, $background-color) {
+    @extend .alert;
+    border-left: $g-sm $border-color solid;
+    background-color: $background-color;
+}
+
 .appRoot {
-    display: flex;
-    flex-direction: column;
+    @include flex-center(column, $g-md);
     position: relative;
     width: 100vw;
     height: 100vh;
-    padding: 16px;
-    box-sizing: border-box;
-    gap: 8px;
+    padding: $g-lg;
 
-    @media (min-width: 0px) {
-        align-items: center;
-    }
-
-    @media (min-width: 600px) {
+    @media (min-width: $bp-sm) {
         align-items: start;
     }
 }
 
 .appSvgContent {
     flex: 1;
-    box-sizing: border-box;
     width: 100%;
     position: relative;
 }
@@ -39,62 +46,43 @@
 }
 
 .appMenu {
-    box-sizing: border-box;
+    @include flex-center(column, $g-md);
 
-    gap: 8px;
-    display: flex;
-
-    @media (min-width: 0px) {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    @media (min-width: 1200px) {
+    @media (min-width: $bp-lg) {
         align-items: start;
         flex-direction: row-reverse;
     }
 }
 
 .drawerSpace {
-    min-height: 16px;
-}
-
-.alert {
-    width: 100%;
-    padding: 8px;
-    box-sizing: border-box;
-    font-size: 12px;
-    color: #8b8b8b;
+    min-height: $g-lg;
 }
 
 .info {
-    border-left: 4px #64a3c7 solid;
-    background-color: #e5f6fd;
+    @include alert-colors(#64a3c7, #e5f6fd);
 }
 
 .success {
-    border-left: 4px #3bb34a solid;
-    background-color: #edf7ee;
+    @include alert-colors(#3bb34a, #edf7ee);
 }
 
 .error {
-    border-left: 4px #a85b61 solid;
-    background-color: #fdeded;
+    @include alert-colors(#a85b61, #fdeded);
 }
 
 .svgContent {
-    box-sizing: border-box;
     position: relative;
+
     & svg {
         width: 100%;
         height: auto;
         position: absolute;
 
         & * {
-            fill: #fff !important;
+            fill: $c-background !important;
             fill-opacity: 0 !important;
-            stroke: #3bb34a !important;
-            stroke-width: 2px !important;
+            stroke: $c-primary !important;
+            stroke-width: $g-xs !important;
             stroke-linejoin: round !important;
             pointer-events: fill;
         }
@@ -108,12 +96,12 @@
         fill: #eee !important;
         fill-opacity: 1 !important;
         stroke: #eee !important;
-        stroke-width: 2px !important;
+        stroke-width: $g-xs !important;
         stroke-linejoin: round !important;
     }
 
     & #selectedElement {
         stroke: #06380c !important;
-        stroke-width: 3px !important;
+        stroke-width: $g-sm !important;
     }
 }

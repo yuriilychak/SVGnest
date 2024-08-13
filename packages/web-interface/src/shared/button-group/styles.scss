@@ -1,15 +1,23 @@
+@import '../../@shared-styles.scss';
+
+$button-radius: 16px;
+$icon-size: 20px;
+
 .button {
-    height: 32px;
-    gap: 4px;
-    padding: 4px 8px 4px 4px;
-    box-sizing: border-box;
-    border: 2px solid;
-    border-radius: 16px;
-    color: #3bb34a;
-    border-color: #3bb34a;
-    background-color: white;
+    @include flex-center(row, $g-sm);
+    height: $button-radius * 2;
+    padding: $g-sm $g-md $g-sm $g-sm;
+    border: $g-xs solid;
+    border-radius: $button-radius;
+    border-color: $c-primary;
+    background-color: $c-background;
     font-weight: 700;
     cursor: pointer;
+    transition: transform 0.1s ease-in-out;
+
+    &:hover {
+        transform: scale(1.05);
+    }
 
     &:disabled {
         filter: grayscale(1);
@@ -22,24 +30,26 @@
 }
 
 .iconButton {
-    padding: 0;
-    width: 32px;
+    @extend .button;
+
+    padding: $g-none;
+    width: $button-radius * 2;
 }
 
 .buttonGroup {
-    gap: 4px;
+    @include flex-center(row, $g-sm);
 
-    @media (min-width: 600px) {
-        gap: 8px;
+    @media (min-width: $bp-sm) {
+        gap: $g-md;
     }
 }
 
 .buttonIcon {
-    width: 20px;
-    height: 20px;
-    
+    width: $icon-size;
+    height: $icon-size;
+
     & > svg {
-        width: 20px;
-        height: 20px;
+        width: $icon-size;
+        height: $icon-size;
     }
 }

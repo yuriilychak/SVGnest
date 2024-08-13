@@ -33,7 +33,7 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
     );
 
     return (
-        <div className="flexCenter splashScreenRoot">
+        <div className="splashScreenRoot">
             <Logo />
             <p className="splashScreenTitle">{t('splashScreen.title')}</p>
             <p className="splashScreenSubtitle">{t('splashScreen.subtitle')}</p>

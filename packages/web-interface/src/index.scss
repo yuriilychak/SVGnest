@@ -1,22 +1,12 @@
-// SCSS Variables
-$fade-duration: 300ms;
-$fade-background-color: white;
+@import './@shared-styles.scss';
 
-// Mixin for fade transition
-@mixin fade-transition($duration) {
-    transition: opacity $duration ease-in-out;
-}
-
-// Fade container styles
 .fadeContainer {
-    position: absolute; /* Ensure full coverage of parent container */
+    position: absolute;
     width: 100%;
     height: 100%;
-    background-color: $fade-background-color;
-    @include fade-transition($fade-duration);
-
-    // Initial state
+    background-color: $c-background;
     opacity: 1;
+    transition: opacity 300ms ease-in-out;
 
     &.fading {
         opacity: 0;
@@ -27,18 +17,29 @@ $fade-background-color: white;
     }
 }
 
+* {
+    box-sizing: border-box;
+    color: $c-primary;
+}
+
+p {
+    margin: 0;
+}
+
 body {
     font-family: Arial, sans-serif;
-    margin: 0;
-    scrollbar-color: #3bb34a #ffffff;
+    margin: $g-none;
+    scrollbar-color: $c-primary $c-background;
     overflow: hidden;
     scrollbar-width: thin;
 }
 
-.flexCenter {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.export-content {
+    fill: #8498d1 !important;
+    fill-opacity: 1 !important;
+    stroke: #617bb5 !important;
+    stroke-width: $g-xs !important;
+    stroke-linejoin: round !important;
 }
 
 #app {
@@ -46,24 +47,16 @@ body {
     height: 100vh;
 
     #exportRoot {
-        fill: #ffffff !important;
+        fill: $c-background !important;
         fill-opacity: 1 !important;
         stroke: #8498d1 !important;
     }
 
     #exportContent {
-        fill: #8498d1 !important;
-        fill-opacity: 1 !important;
-        stroke: #617bb5 !important;
-        stroke-width: 2px !important;
-        stroke-linejoin: round !important;
+        @extend .export-content;
 
         & * {
-            fill: #8498d1 !important;
-            fill-opacity: 1 !important;
-            stroke: #617bb5 !important;
-            stroke-width: 2px !important;
-            stroke-linejoin: round !important;
+            @extend .export-content;
         }
     }
 }

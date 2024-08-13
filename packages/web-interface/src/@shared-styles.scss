@@ -1,0 +1,34 @@
+$c-primary: #3bb34a;
+$c-secondary: #8b8b8b;
+$c-background: #ffffff;
+
+$g-none: 0;
+$g-xs: 2px;
+$g-sm: 4px;
+$g-md: 8px;
+$g-lg: 16px;
+$g-xl: 24px;
+
+$bp-sm: 600px;
+$bp-md: 900px;
+$bp-lg: 1200px;
+
+$fs-sm: 12px;
+$fs-md: 14px;
+$fs-lg: 16px;
+$fs-xl: 20px;
+$fs-xxl: 24px;
+$fs-xxxl: 32px;
+$fs-xxxxl: 36px;
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin flex-center($direction, $gap: 0) {
+    @extend .flex-center;
+    flex-direction: $direction;
+    gap: $gap;
+}

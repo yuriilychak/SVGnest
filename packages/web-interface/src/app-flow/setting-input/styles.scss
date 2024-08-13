@@ -1,9 +1,11 @@
+@import '../../@shared-styles.scss';
+
 .settingRoot {
     display: flex;
     flex-direction: column;
 }
 
 .settingHelpText {
-    font-size: 12px;
-    color: #8b8b8b;
+    font-size: $fs-sm;
+    color: $c-secondary;
 }

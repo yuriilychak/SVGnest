@@ -8,7 +8,7 @@ interface MesureItemProps {
 }
 
 const MesureItem: FC<MesureItemProps> = ({ label, value }) => (
-    <div className="mesureRoot flexCenter">
+    <div className="mesureRoot">
         <span className="mesureTitle">{label}</span>
         <span className="mesureValue">{value}</span>
     </div>

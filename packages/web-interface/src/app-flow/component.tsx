@@ -45,7 +45,7 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
                         <div ref={svgWrapper} style={zoomStyles} id={PREDEFINED_ID.SVG_WRAPPER} className="svgContent" />
                     </div>
                 </div>
-                <div className={`alert ${MESSAGE_ID_TO_ALERT_TYPE.get(messageId)}`}>
+                <div className={MESSAGE_ID_TO_ALERT_TYPE.get(messageId)}>
                     {i18n.exists(messageKey) ? t(messageKey) : message}
                 </div>
                 <div className="appMenu">

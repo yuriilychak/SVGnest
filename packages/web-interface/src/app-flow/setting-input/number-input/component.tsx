@@ -11,7 +11,7 @@ const NumberInput: FC<InputProps> = ({ id, value, onChange, min, max, step, labe
 
     return (
         <div className="sliderRoot">
-            <p className="sliderLabel">{label}</p>
+            <p className="sliderLabel">{`${label} (${value})`}</p>
             <input
                 className="sliderInput"
                 type="range"

@@ -28,7 +28,7 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
     let className: string = '';
 
     return (
-        <div className="flexCenter buttonGroup">
+        <div className="buttonGroup">
             {buttonsConfig.map(id => {
                 if (hiddenButtons.includes(id)) {
                     return null;
@@ -38,7 +38,7 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
                 label = i18n.exists(labelKey) ? t(labelKey) : '';
                 disabled = disabledButtons.includes(id);
                 isShowLabel = !(isMobile || !label);
-                className = isShowLabel ? 'flexCenter button' : 'flexCenter button iconButton';
+                className = isShowLabel ? 'button' : 'iconButton';
                 const Icon = BUTTON_CONFIG.get(id);
 
                 return (

@@ -1,20 +1,22 @@
-import { FC, memo, useCallback, ChangeEventHandler } from 'react';
+import { FC, memo, useCallback, useRef } from 'react';
 
 import { InputProps } from '../types';
+import { CheckIcon } from '../../../assets';
 import './styles.scss';
 
 const CheckboxInput: FC<InputProps> = ({ id, value, onChange, label }) => {
-    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(
-        event => onChange(event.target.checked, id),
-        [onChange, id]
-    );
+    const valueRef = useRef<boolean>(false);
+    const handleClick = useCallback(() => onChange(!valueRef.current, id), [onChange, id]);
+
+    valueRef.current = value as boolean;
 
     return (
-        <label className="control controlCheckbox">
+        <div className="checboxRoot" onClick={handleClick} title={value.toString()}>
+            <div className={value ? 'checkboxChecked' : 'checkboxUnchecked'}>
+                <CheckIcon />
+            </div>
             <span>{label}</span>
-            <input type="checkbox" value={value.toString()} onChange={handleChange} />
-            <div className="controlIndicator"></div>
-        </label>
+        </div>
     );
 };
 

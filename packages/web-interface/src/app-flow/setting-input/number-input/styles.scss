@@ -1,4 +1,4 @@
-/*********** Baseline, reset styles ***********/
+@import '../../../@shared-styles.scss';
 
 $thumb-radus: 8px;
 $slider-radius: 2px;
@@ -7,7 +7,7 @@ $slider-radius: 2px;
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: 8px;
+    gap: $g-md;
 
     > * {
         margin: 0;
@@ -15,13 +15,12 @@ $slider-radius: 2px;
 }
 
 .sliderLabel {
-    color: #3bb34a;
-    font-size: 14px;
+    font-size: $fs-md;
 }
 
 .sliderFooter {
-    font-size: 12px;
-    color: #8b8b8b;
+    font-size: $fs-sm;
+    color: $c-secondary;
     display: flex;
 }
 
@@ -36,23 +35,12 @@ $slider-radius: 2px;
     cursor: pointer;
     width: 100%;
 
-    /* Removes default focus */
-    :focus {
-        outline: none;
-
-        &::-webkit-slider-thumb,
-        &::-moz-range-thumb {
-            outline: 3px solid #3bb34a;
-            outline-offset: 1px;
-        }
-    }
-
     /* slider thumb */
     &::-webkit-slider-thumb {
         -webkit-appearance: none; /* Override default look */
         appearance: none;
         margin-top: $slider-radius - $thumb-radus; /* Centers thumb on the track */
-        background-color: #3bb34a;
+        background-color: $c-primary;
         border-radius: $thumb-radus;
         height: $thumb-radus * 2;
         width: $thumb-radus * 2;
@@ -60,20 +48,20 @@ $slider-radius: 2px;
 
     /* slider track */
     &::-webkit-slider-runnable-track {
-        background-color: #3bb34a;
+        background-color: $c-primary;
         border-radius: $slider-radius;
         height: $slider-radius * 2;
     }
 
     &::-moz-range-track {
-        background-color: #3bb34a;
+        background-color: $c-primary;
         border-radius: $slider-radius;
         height: $slider-radius * 2;
     }
 
     /* slider thumb */
     &::-moz-range-thumb {
-        background-color: #3bb34a;
+        background-color: $c-primary;
         border: none; /*Removes extra border that FF applies*/
         border-radius: $thumb-radus;
         height: $thumb-radus * 2;

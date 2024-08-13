@@ -10,7 +10,6 @@
 -   Refactor geometry-utils. Currently it use old non-refactored flows. Need to create classes to work with points and polygons
     for bettter structuring of code.
 -   Add node package for ability to run nesting tool from terminal on server-side.
--   Rewrite web-interface from MUI to more lightweight lib.
 -   Rewrite ClipperLib flows with own functions. This library is old isn't maintained, also need for next step.
 -   Port geometry-utils to WASM using assembly-script usage for better performance.
 -   Port svg-parser to WASM using assembly-script usage for better performance.

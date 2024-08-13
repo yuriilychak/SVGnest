@@ -1,23 +1,24 @@
 import { memo } from 'react';
+import { COLORS } from './types';
 
 const Logo = () => (
     <svg className="logo" width="256" height="256" viewBox="0 0 256 256">
         <g transform="rotate(315 128 128)">
-            <circle cx="128" cy="128" r="128" fill="#3bb34a" />
+            <circle cx="128" cy="128" r="128" fill={COLORS.PRIMARY} />
             <circle cx="128" cy="128" r="124" fill="#fff" />
-            <g fill="#3bb34a">
+            <g fill={COLORS.PRIMARY}>
                 <circle cx="58" cy="164" r="25" />
                 <circle cx="128" cy="92" r="25" />
                 <circle cx="128" cy="164" r="25" />
                 <circle cx="198" cy="92" r="25" />
             </g>
-            <g fill="#fff">
+            <g fill={COLORS.BACKGROUND}>
                 <circle cx="58" cy="164" r="22" />
                 <circle cx="128" cy="164" r="22" />
                 <circle cx="128" cy="92" r="22" />
                 <circle cx="198" cy="92" r="22" />
             </g>
-            <g fill="#3bb34a">
+            <g fill={COLORS.PRIMARY}>
                 <rect x="196" y="68" width="4" height="48" />
                 <rect x="103" y="92" width="3" height="72" />
                 <rect x="126" y="140" width="4" height="48" />
@@ -32,7 +33,7 @@ const Logo = () => (
                 <rect x="125" y="67" width="72" height="3" />
             </g>
         </g>
-        <g fill="#d7e9b7">
+        <g fill={COLORS.SECONDARY}>
             <circle cx="53" cy="152" r="44" />
             <circle cx="203" cy="104" r="44" />
             <circle cx="52" cy="75" r="31" />
@@ -78,7 +79,7 @@ const Logo = () => (
             <circle cx="17" cy="92" r="7" />
             <circle cx="29" cy="106" r="7" />
         </g>
-        <g fill="#fff">
+        <g fill={COLORS.BACKGROUND}>
             <circle cx="53" cy="152" r="41" />
             <circle cx="203" cy="104" r="41" />
             <circle cx="52" cy="75" r="28" />

@@ -1,48 +1,33 @@
-.helpItemRoot {
-    width: 100%;
-    flex-direction: column;
-    display: flex;
-    gap: 4px;
-    box-sizing: border-box;
+@import '../../@shared-styles.scss';
 
-    > * {
-        margin: 0;
-    }
+.helpItemRoot {
+    @include flex-center(column, $g-sm);
+    align-items: start;
+    width: 100%;
 }
 
 .helpItemTitle {
-    color: #3bb34a;
+    font-size: $fs-md;
 
-    @media (min-width: 0px) {
-        font-size: 14px;
-    }
-
-    @media (min-width: 900px) {
-        font-size: 16px;
+    @media (min-width: $bp-md) {
+        font-size: $fs-lg;
     }
 }
 
 .helpItemText {
-    color: #8b8b8b;
+    color: $c-secondary;
     text-align: justify;
+    font-size: $fs-sm;
 
-    @media (min-width: 0px) {
-        font-size: 12px;
-    }
-
-    @media (min-width: 900px) {
-        font-size: 14px;
+    @media (min-width: $bp-md) {
+        font-size: $fs-md;
     }
 }
 
 .helperItemLink {
-    color: #3bb34a;
+    margin-left: $g-sm;
 
-    @media (min-width: 0px) {
-        margin-left: 4px;
-    }
-
-    @media (min-width: 900px) {
-        margin-left: 8px;
+    @media (min-width: $bp-md) {
+        margin-left: $g-md;
     }
 }

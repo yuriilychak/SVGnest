@@ -1,8 +1,11 @@
 import { memo } from 'react';
 
+import { COLORS } from './types';
+import { ICON_SHARED_PROPS } from './constants';
+
 const StartIcon = () => (
-    <svg width="48px" height="48px" viewBox="0 0 48 48">
-        <path d="m11 41v-34l32 17z" fill="#3bb34a" />
+    <svg {...ICON_SHARED_PROPS}>
+        <path d="m11 41v-34l32 17z" fill={COLORS.PRIMARY} />
     </svg>
 );
 

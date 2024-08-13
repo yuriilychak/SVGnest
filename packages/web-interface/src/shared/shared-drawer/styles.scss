@@ -1,13 +1,18 @@
-@mixin drawer-styles($width, $height, $translate-x, $translate-y) {
-    background-color: white;
+@import '../../@shared-styles.scss';
+
+.drawer {
+    background-color: $c-background;
     position: absolute;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    box-sizing: border-box;
-    padding: 16px 24px;
+    gap: $g-md;
+    padding: $g-lg $g-xl;
     transition: transform 0.3s ease-in-out;
     will-change: transform;
+}
+
+@mixin drawer-styles($width, $height, $translate-x, $translate-y) {
+    @extend .drawer;
     width: $width;
     height: $height;
     transform: translate($translate-x, $translate-y);
@@ -54,12 +59,11 @@
 }
 
 .drawerTitle {
-    color: #3bb34a;
     margin: 0;
     font-weight: 600;
     font-size: 16px;
 
-    @media (min-width: 900px) {
+    @media (min-width: $bp-md) {
         font-size: 18px;
     }
 }
