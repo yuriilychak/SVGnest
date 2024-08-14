@@ -1,14 +1,12 @@
 import { OPERATION_STATE, OperationCallback } from './types';
 
 export default class Operation {
-    #successCallbacks: Array<OperationCallback>;
-    #errorCallbacks: Array<OperationCallback>;
-    #status: OPERATION_STATE;
-    #result: unknown;
+    #successCallbacks: Array<OperationCallback> = [];
+    #errorCallbacks: Array<OperationCallback> = [];
+    #status: OPERATION_STATE = OPERATION_STATE.NONE;
+    #result: unknown = null;
 
-    constructor(result: unknown = null) {
-        this.#successCallbacks = [];
-        this.#errorCallbacks = [];
+    public update(result: unknown = null): void {
         this.#status = result ? OPERATION_STATE.SUCESS : OPERATION_STATE.NONE;
         this.#result = result;
     }

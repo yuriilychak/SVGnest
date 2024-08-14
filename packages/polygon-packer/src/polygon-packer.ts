@@ -30,7 +30,7 @@ export default class PolygonPacker {
 
     #nfpStore: NFPStore = new NFPStore();
 
-    #paralele: Parallel = null;
+    #paralele: Parallel = new Parallel();
 
     #spawnCount: number = 0;
 
@@ -54,7 +54,7 @@ export default class PolygonPacker {
         }, 100) as unknown as number;
     }
 
-    onSpawn = () => {
+    private onSpawn = (): void => {
         this.#progress = this.#spawnCount++ / this.#nfpStore.nfpPairs.length;
     };
 
@@ -62,7 +62,7 @@ export default class PolygonPacker {
         this.#geneticAlgorithm.init(tree, this.#binPolygon, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
         this.#spawnCount = 0;
-        this.#paralele = new Parallel(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, configuration, this.onSpawn);
+        this.#paralele.update(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, configuration, this.onSpawn);
         this.#paralele.then(
             (generatedNfp: PairWorkerResult[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
             this.onError
@@ -82,8 +82,7 @@ export default class PolygonPacker {
         const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, configuration, this.#binPolygon);
 
         // can't use .spawn because our data is an array
-        this.#paralele = new Parallel(WORKER_TYPE.PLACEMENT, [this.#nfpStore.clonePlacement()], placementWorkerData);
-
+        this.#paralele.update(WORKER_TYPE.PLACEMENT, [this.#nfpStore.clonePlacement()], placementWorkerData);
         this.#paralele.then(
             (placements: PlacementWorkerResult[]) => this.onPlacement(tree, configuration, placements, displayCallback),
             this.onError
@@ -156,10 +155,7 @@ export default class PolygonPacker {
             this.#workerTimer = 0;
         }
 
-        if (this.#paralele !== null) {
-            this.#paralele.terminate();
-            this.#paralele = null;
-        }
+        this.#paralele.terminate();
 
         if (isClean) {
             this.#best = null;

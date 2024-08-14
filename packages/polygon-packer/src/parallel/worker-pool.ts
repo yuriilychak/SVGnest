@@ -8,25 +8,35 @@ export default class WorkerPool {
 
     #workerCount: number;
 
-    #workers: IWorker[];
+    #instance: IWorker;
 
-    #options: Options;
+    #workers: IWorker[] = [];
 
-    constructor(id: WORKER_TYPE, env: object) {
-        const isSharedWorkersSupported = typeof SharedWorker !== 'undefined';
-        const instance: IWorker = isSharedWorkersSupported ? new SharedWorkerWrapper() : new DedicatedWorkerWrapper();
+    #options: Options = { id: WORKER_TYPE.PAIR, env: null };
 
-        this.#options = { id, env };
+    constructor() {
+        this.#instance = typeof SharedWorker !== 'undefined' ? new SharedWorkerWrapper() : new DedicatedWorkerWrapper();
         this.#workerCount = navigator.hardwareConcurrency || 4;
         this.#usedWorkers = new Array(this.#workerCount);
-        this.#workers = [instance];
+        this.#workers = new Array(this.#workerCount);
+
+        this.#usedWorkers.fill(false);
+        this.#workers.fill(null);
+    }
+
+    public update(id: WORKER_TYPE, env: object): void {
+        this.#options.id = id;
+        this.#options.env = env;
+        let i: number = 0;
 
         this.#usedWorkers.fill(false);
 
-        let i: number = 0;
+        for (i = 0; i < this.#workerCount; ++i) {
+            if (this.#workers[i] !== null) {
+                this.#workers[i] = null;
+            }
 
-        for (i = 1; i < this.#workerCount; ++i) {
-            this.#workers.push(instance.clone());
+            this.#workers[i] = this.#instance.clone();
         }
     }
 
@@ -62,13 +72,18 @@ export default class WorkerPool {
         const worker = this.#workers[id];
 
         worker.terminate();
+
+        this.#workers[id] = null;
     }
 
     public terminateAll(): void {
         let i: number = 0;
 
         for (i = 0; i < this.#workerCount; ++i) {
-            this.#workers[i].terminate();
+            if (this.#workers[i] !== null) {
+                this.#workers[i].terminate();
+                this.#workers[i] = null;
+            }
             this.#usedWorkers[i] = false;
         }
     }

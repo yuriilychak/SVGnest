@@ -4,16 +4,16 @@ import { WORKER_TYPE } from '../types';
 import WorkerPool from './worker-pool';
 
 export default class Parallel {
-    #data: object[];
-    #operation: Operation;
-    #onSpawn: () => void;
-    #pool: WorkerPool;
+    #data: object[] = null;
+    #operation: Operation = new Operation();
+    #onSpawn: () => void = null;
+    #pool: WorkerPool = new WorkerPool();
 
-    constructor(id: WORKER_TYPE, data: object[], env: object, onSpawn: () => void = null) {
+    public update(id: WORKER_TYPE, data: object[], env: object, onSpawn: () => void = null): void {
         this.#data = data;
-        this.#operation = new Operation(this.#data);
+        this.#operation.update(data);
+        this.#pool.update(id, env);
         this.#onSpawn = onSpawn;
-        this.#pool = new WorkerPool(id, env);
     }
 
     public then<T>(successCallback: (result: T[]) => void, errorCallback: (error: Error[]) => void = () => {}): void {
@@ -113,10 +113,10 @@ export default class Parallel {
             if (error) {
                 operation.reject(error);
             } else if (++doneOps === this.#data.length) {
-                operation.resolve(this.#data);
                 if (worker !== -1) {
                     this.#pool.terminate(worker);
                 }
+                operation.resolve(this.#data);
             } else if (startedOps < this.#data.length) {
                 this.spawnMapWorker(startedOps++, done, worker);
             } else if (worker !== -1) {

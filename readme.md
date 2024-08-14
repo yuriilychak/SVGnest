@@ -3,12 +3,12 @@
 -   Migrated to modern Web-Project structure.
 -   Restructure project to monorep for reusage of modules.
 -   Rewritten code to Typescript.
--   Migrate interfaces to React
+-   Migrate interfaces to React.
 
 ## Current TODO's
 
 -   Refactor geometry-utils. Currently it use old non-refactored flows. Need to create classes to work with points and polygons
-    for bettter structuring of code.
+    for bettter structuring of code, and codesplitting (currently polygon-packer has dependency to geometry-utils)
 -   Add node package for ability to run nesting tool from terminal on server-side.
 -   Rewrite ClipperLib flows with own functions. This library is old isn't maintained, also need for next step.
 -   Port geometry-utils to WASM using assembly-script usage for better performance.
@@ -154,5 +154,5 @@ Performs similarly to commercial software, after both have run for about 5 minut
 
 -   ~~Recursive placement (putting parts in holes of other parts)~~
 -   Customize fitness function (gravity direction, etc)
--   kill worker threads when stop button is clicked
+-   ~~kill worker threads when stop button is clicked~~
 -   fix certain edge cases in NFP generation
