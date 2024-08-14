@@ -11,6 +11,7 @@ declare module geometryUtils {
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));
 
 self.onmessage = (event: MessageEvent<{ env: NestConfig; id: string; data: IPolygon[] | NFPPair }>) => {
+    console.log('MESSAGE');
     const { data, env, id } = event.data;
     const { pairData, placePaths } = geometryUtils;
     const result = id === 'pair' ? pairData(data as NFPPair, env) : placePaths(data as IPolygon[], env);

@@ -29,7 +29,7 @@ $progress-item-width-md: 200px;
 
 .statisticsProgresItem {
     @include flex-center(row, $g-md);
-
+    justify-content: flex-start;
     overflow: hidden;
     min-width: $progress-item-width-sm;
     max-width: $progress-item-width-sm;

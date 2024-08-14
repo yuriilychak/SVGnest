@@ -30,6 +30,10 @@ export default class PolygonPacker {
 
     #nfpStore: NFPStore = new NFPStore();
 
+    #paralele: Parallel = null;
+
+    #spawnCount: number = 0;
+
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     public start(
@@ -50,19 +54,16 @@ export default class PolygonPacker {
         }, 100) as unknown as number;
     }
 
+    onSpawn = () => {
+        this.#progress = this.#spawnCount++ / this.#nfpStore.nfpPairs.length;
+    };
+
     launchWorkers(tree: IPolygon[], configuration: NestConfig, displayCallback: DisplayCallback) {
         this.#geneticAlgorithm.init(tree, this.#binPolygon, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
-
-        let spawnCount = 0;
-
-        const onSpawn = () => {
-            this.#progress = spawnCount++ / this.#nfpStore.nfpPairs.length;
-        };
-
-        const parallel = new Parallel(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, configuration, onSpawn);
-
-        parallel.then(
+        this.#spawnCount = 0;
+        this.#paralele = new Parallel(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, configuration, this.onSpawn);
+        this.#paralele.then(
             (generatedNfp: PairWorkerResult[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
             this.onError
         );
@@ -81,9 +82,9 @@ export default class PolygonPacker {
         const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, configuration, this.#binPolygon);
 
         // can't use .spawn because our data is an array
-        const parallel: Parallel = new Parallel(WORKER_TYPE.PLACEMENT, [this.#nfpStore.clonePlacement()], placementWorkerData);
+        this.#paralele = new Parallel(WORKER_TYPE.PLACEMENT, [this.#nfpStore.clonePlacement()], placementWorkerData);
 
-        parallel.then(
+        this.#paralele.then(
             (placements: PlacementWorkerResult[]) => this.onPlacement(tree, configuration, placements, displayCallback),
             this.onError
         );
@@ -153,6 +154,11 @@ export default class PolygonPacker {
         if (this.#workerTimer) {
             clearInterval(this.#workerTimer);
             this.#workerTimer = 0;
+        }
+
+        if (this.#paralele !== null) {
+            this.#paralele.terminate();
+            this.#paralele = null;
         }
 
         if (isClean) {

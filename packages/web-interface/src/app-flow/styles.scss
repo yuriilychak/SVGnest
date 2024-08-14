@@ -46,10 +46,10 @@
 }
 
 .appMenu {
+    align-items: start;
     @include flex-center(column, $g-md);
 
     @media (min-width: $bp-lg) {
-        align-items: start;
         flex-direction: row-reverse;
     }
 }

@@ -8,6 +8,7 @@ export default class SharedWorkerWrapper implements IWorker {
     }
 
     public init(onMessage: (message: MessageEvent) => void, onError: (error: ErrorEvent) => void): void {
+        this.#worker.port.start();
         this.#worker.port.onmessage = onMessage;
         this.#worker.onerror = onError;
     }
@@ -18,5 +19,9 @@ export default class SharedWorkerWrapper implements IWorker {
 
     public terminate(): void {
         this.#worker.port.close();
+    }
+
+    public clone(): SharedWorkerWrapper {
+        return new SharedWorkerWrapper();
     }
 }

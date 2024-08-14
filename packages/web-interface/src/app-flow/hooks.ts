@@ -138,8 +138,6 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         isClosed && onClose();
     }, [isClosed]);
 
-    console.log(triggerLoader, isClosed);
-
     const handleProgress = useCallback((percent: number) => handleDispatch(REDUCER_ACTION.PROGRESS, percent), [handleDispatch]);
 
     const handleRenderSvg = useCallback(
