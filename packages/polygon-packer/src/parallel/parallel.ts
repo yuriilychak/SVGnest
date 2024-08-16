@@ -34,7 +34,7 @@ export default class Parallel {
 
     #onSuccess: (result: WorkerOutput[]) => void = null;
 
-    #onSpawn: () => void = null;
+    #onSpawn: (count: number) => void = null;
 
     constructor() {
         this.#instance = this.#isSharedWorkerSupported ? new SharedWorkerWrapper() : new DedicatedWorkerWrapper();
@@ -54,7 +54,7 @@ export default class Parallel {
         env: object,
         onSuccess: (result: WorkerOutput[]) => void,
         onError: (error: ErrorEvent) => void,
-        onSpawn: () => void = null
+        onSpawn: (scount: number) => void = null
     ): boolean {
         if (input.length === 0) {
             this.onError(new ErrorEvent('Empty data'));
@@ -123,7 +123,7 @@ export default class Parallel {
         this.#threadIndices[index] = threadIndex;
 
         if (this.#onSpawn !== null) {
-            this.#onSpawn();
+            this.#onSpawn(this.#startedThreads);
         }
 
         thread.trigger({ ...this.#options, data: this.#input[threadIndex] }, this.onMessage, this.onError);

@@ -32,8 +32,6 @@ export default class PolygonPacker {
 
     #paralele: Parallel = new Parallel();
 
-    #spawnCount: number = 0;
-
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     public start(
@@ -54,14 +52,13 @@ export default class PolygonPacker {
         }, 100) as unknown as number;
     }
 
-    private onSpawn = (): void => {
-        this.#progress = this.#spawnCount++ / this.#nfpStore.nfpPairs.length;
+    private onSpawn = (spawnCount: number): void => {
+        this.#progress = spawnCount / this.#nfpStore.nfpPairs.length;
     };
 
     launchWorkers(tree: IPolygon[], configuration: NestConfig, displayCallback: DisplayCallback) {
         this.#geneticAlgorithm.init(tree, this.#binPolygon, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
-        this.#spawnCount = 0;
         this.#paralele.start(
             WORKER_TYPE.PAIR,
             this.#nfpStore.nfpPairs,
