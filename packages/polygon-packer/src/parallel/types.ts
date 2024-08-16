@@ -13,6 +13,8 @@ export interface Options<T = object> {
     env: T;
 }
 
+export type WorkerTarget = MessagePort | Worker;
+
 export interface IWorker {
     trigger(
         data: Record<string, unknown>,
@@ -20,5 +22,6 @@ export interface IWorker {
         onError: (error: ErrorEvent) => void
     ): void;
     terminate(): void;
+    getInstance(target: WorkerTarget): boolean;
     clone(): IWorker;
 }

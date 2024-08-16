@@ -1,4 +1,4 @@
-import type { IPolygon, NestConfig, NFPPair, PairWorkerResult, PlacementWorkerResult } from '../types';
+import type { IPolygon, NestConfig, NFPPair, PairWorkerResult, PlacementWorkerResult, WorkerData } from '../types';
 
 // Use importScripts to load the external script
 declare function importScripts(...urls: string[]): void;
@@ -10,10 +10,19 @@ declare module geometryUtils {
 
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));
 
-self.onmessage = (event: MessageEvent<{ env: NestConfig; id: string; data: IPolygon[] | NFPPair }>) => {
-    const { data, env, id } = event.data;
-    const { pairData, placePaths } = geometryUtils;
-    const result = id === 'pair' ? pairData(data as NFPPair, env) : placePaths(data as IPolygon[], env);
+function applyWorkerFlow(instance: MessagePort | Worker) {
+    instance.onmessage = (event: MessageEvent<WorkerData>) => {
+        const { data, env, id } = event.data;
+        const { pairData, placePaths } = geometryUtils;
+        const result = id === 'pair' ? pairData(data as NFPPair, env) : placePaths(data as IPolygon[], env);
 
-    self.postMessage(result);
-};
+        instance.postMessage(result);
+    };
+}
+
+//@ts-ignore
+if (typeof self.SharedWorkerGlobalScope !== 'undefined') {
+    self.addEventListener('connect', (event: MessageEvent) => applyWorkerFlow(event.ports[0]));
+} else {
+    applyWorkerFlow(self as unknown as Worker);
+}

@@ -72,7 +72,7 @@ export default class PolygonPacker {
         );
     }
 
-    private onError(error: Error) {
+    private onError(error: ErrorEvent) {
         console.log(error);
     }
 

@@ -1,4 +1,4 @@
-import { IWorker } from './types';
+import { IWorker, WorkerTarget } from './types';
 
 export default class DedicatedWorkerWrapper implements IWorker {
     #worker: Worker;
@@ -15,6 +15,10 @@ export default class DedicatedWorkerWrapper implements IWorker {
         this.#worker.onmessage = onMessage;
         this.#worker.onerror = onError;
         this.#worker.postMessage(data);
+    }
+
+    public getInstance(target: WorkerTarget): boolean {
+        return this.#worker === target;
     }
 
     public terminate(): void {

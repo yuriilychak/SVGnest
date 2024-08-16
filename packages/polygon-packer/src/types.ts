@@ -99,3 +99,15 @@ export type DisplayCallback = (
 ) => void;
 
 export type PlacementData = { placements: IPoint[][]; tree: IPolygon[]; bounds: BoundRect };
+
+export type WorkerData = {
+    workerIndex: number;
+    threadIdex: number;
+    env: NestConfig;
+    id: string;
+    data: IPolygon[] | NFPPair;
+};
+
+export type WorkerOutput = PlacementWorkerResult | PairWorkerResult | null;
+
+export type WorkerInput = IPolygon[] | NFPPair;

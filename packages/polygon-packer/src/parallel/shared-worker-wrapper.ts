@@ -1,10 +1,10 @@
-import { IWorker } from './types';
+import { IWorker, WorkerTarget } from './types';
 
 export default class SharedWorkerWrapper implements IWorker {
     #worker: SharedWorker;
 
     public constructor() {
-        this.#worker = new SharedWorker(new URL('./nest.sharedWorker', import.meta.url), { type: 'module' });
+        this.#worker = new SharedWorker(new URL('./nest.worker', import.meta.url), { type: 'module' });
     }
 
     public trigger(
@@ -15,6 +15,10 @@ export default class SharedWorkerWrapper implements IWorker {
         this.#worker.port.onmessage = onMessage;
         this.#worker.onerror = onError;
         this.#worker.port.postMessage(data);
+    }
+
+    public getInstance(target: WorkerTarget): boolean {
+        return this.#worker.port === target;
     }
 
     public terminate(): void {
