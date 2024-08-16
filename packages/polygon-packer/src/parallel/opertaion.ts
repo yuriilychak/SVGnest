@@ -42,6 +42,25 @@ export default class Operation {
         }
     }
 
+    public processResult(
+        onSucess: (data: unknown[]) => void,
+        onError: (data: Error) => void,
+        data: unknown[],
+        error: Error = null
+    ): void {
+        try {
+            if (error !== null) {
+                onError(error);
+            } else {
+                onSucess(data);
+            }
+
+            this.resolve(data);
+        } catch (innerError) {
+            onError(innerError);
+        }
+    }
+
     private proceed(status: OPERATION_STATE, result: unknown): void {
         this.#status = status;
         this.#result = result;

@@ -3,7 +3,8 @@
 -   Migrated to modern Web-Project structure.
 -   Restructure project to monorep for reusage of modules.
 -   Rewritten code to Typescript.
--   Migrate interfaces to React.
+-   Optimized worker flow. Now workers created only once and reused.
+-   Migrated UI to React.
 
 ## Current TODO's
 

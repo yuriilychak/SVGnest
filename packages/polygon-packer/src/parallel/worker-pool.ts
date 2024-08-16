@@ -14,8 +14,10 @@ export default class WorkerPool {
 
     #options: Options = { id: WORKER_TYPE.PAIR, env: null };
 
+    #isTerminated: boolean = true;
+
     constructor() {
-        this.#instance = typeof SharedWorker !== 'undefined' ? new SharedWorkerWrapper() : new DedicatedWorkerWrapper();
+        this.#instance = typeof SharedWorker !== undefined ? new SharedWorkerWrapper() : new DedicatedWorkerWrapper();
         this.#workerCount = navigator.hardwareConcurrency || 4;
         this.#usedWorkers = new Array(this.#workerCount);
         this.#workers = new Array(this.#workerCount);
@@ -31,16 +33,20 @@ export default class WorkerPool {
 
         this.#usedWorkers.fill(false);
 
-        for (i = 0; i < this.#workerCount; ++i) {
-            if (this.#workers[i] !== null) {
-                this.#workers[i] = null;
+        if (this.#isTerminated) {
+            for (i = 0; i < this.#workerCount; ++i) {
+                this.#workers[i] = this.#instance.clone();
             }
 
-            this.#workers[i] = this.#instance.clone();
+            this.#isTerminated = false;
         }
     }
 
-    public spawn(): number {
+    public spawn(inputId: number = -1): number {
+        if (inputId !== -1) {
+            return inputId;
+        }
+
         const index = this.#usedWorkers.indexOf(false);
 
         if (index !== -1) {
@@ -62,18 +68,13 @@ export default class WorkerPool {
 
         const worker = this.#workers[id];
 
-        worker.init(onMessage, onError);
-        worker.post({ ...this.#options, data });
+        worker.trigger({ ...this.#options, data }, onMessage, onError);
 
         return true;
     }
 
-    public terminate(id: number): void {
-        const worker = this.#workers[id];
-
-        worker.terminate();
-
-        this.#workers[id] = null;
+    public clean(id: number): void {
+        this.#usedWorkers[id] = false;
     }
 
     public terminateAll(): void {
@@ -86,6 +87,8 @@ export default class WorkerPool {
             }
             this.#usedWorkers[i] = false;
         }
+
+        this.#isTerminated = true;
     }
 
     public get isEmpty(): boolean {

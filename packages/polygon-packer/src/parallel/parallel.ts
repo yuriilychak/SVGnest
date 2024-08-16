@@ -1,39 +1,64 @@
 ﻿import Operation from './opertaion';
-import { OperationCallback } from './types';
 import { WORKER_TYPE } from '../types';
 import WorkerPool from './worker-pool';
 
 export default class Parallel {
-    #data: object[] = null;
-    #operation: Operation = new Operation();
-    #onSpawn: () => void = null;
+    #data: unknown[] = null;
     #pool: WorkerPool = new WorkerPool();
 
-    public update(id: WORKER_TYPE, data: object[], env: object, onSpawn: () => void = null): void {
+    public start(
+        id: WORKER_TYPE,
+        data: unknown[],
+        env: object,
+        successCallback: (result: unknown[]) => void,
+        errorCallback: (error: Error) => void,
+        onSpawn: () => void = null
+    ): void {
         this.#data = data;
-        this.#operation.update(data);
         this.#pool.update(id, env);
-        this.#onSpawn = onSpawn;
-    }
-
-    public then<T>(successCallback: (result: T[]) => void, errorCallback: (error: Error[]) => void = () => {}): void {
         const dataOperation: Operation = new Operation();
         const chainOperation: Operation = new Operation();
 
-        this.triggerOperation(dataOperation, this.getDataResolveCallback(dataOperation), (error: Error) =>
-            dataOperation.reject(error)
-        );
+        if (data.length === 0) {
+            const worker = this.#pool.spawn();
+            const onMessage = (message: MessageEvent<object[]>) => {
+                this.#pool.clean(worker);
+                this.#data = message.data;
+                dataOperation.resolve(data);
+            };
+            const onError = (error: ErrorEvent) => {
+                this.#pool.clean(worker);
+                dataOperation.reject(error);
+            };
 
-        this.triggerOperation(
-            chainOperation,
-            () => {
-                try {
-                    this.processResult<T>(successCallback, chainOperation, this.#data as T[]);
-                } catch (error) {
-                    this.processResult<Error>(errorCallback, chainOperation, [error] as Error[]);
+            this.#pool.trigger(worker, onMessage, onError, data);
+        } else {
+            let startedOps: number = 0;
+            let doneOps: number = 0;
+
+            const done = (error: Error, worker: number): void => {
+                if (error) {
+                    dataOperation.reject(error);
+                } else if (++doneOps === data.length) {
+                    if (worker !== -1) {
+                        this.#pool.clean(worker);
+                    }
+                    dataOperation.resolve(data);
+                } else if (startedOps < data.length) {
+                    this.spawnMapWorker(startedOps++, done, worker, onSpawn);
+                } else if (worker !== -1) {
+                    this.#pool.clean(worker);
                 }
-            },
-            (error: Error) => this.processResult<Error>(errorCallback, chainOperation, [error])
+            };
+
+            for (; startedOps - doneOps < this.#pool.workerCount && startedOps < data.length; ++startedOps) {
+                this.spawnMapWorker(startedOps, done, -1, onSpawn);
+            }
+        }
+
+        dataOperation.then(
+            () => chainOperation.processResult(successCallback, errorCallback, this.#data),
+            (error: Error) => chainOperation.processResult(successCallback, errorCallback, this.#data, error)
         );
     }
 
@@ -41,93 +66,27 @@ export default class Parallel {
         this.#pool.terminateAll();
     }
 
-    private spawnWorker(inputId: number = -1): number {
-        let resultId: number = inputId;
-
-        if (resultId === -1) {
-            try {
-                resultId = this.#pool.spawn();
-            } catch (e) {
-                console.error(e);
-            }
+    private spawnMapWorker(
+        i: number,
+        done: (error: Error | ErrorEvent, worker: number) => void,
+        inputWorkerId: number,
+        onSpawn: () => void = null
+    ): void {
+        if (onSpawn !== null) {
+            onSpawn();
         }
 
-        return resultId;
-    }
+        const workerId: number = this.#pool.spawn(inputWorkerId);
 
-    private spawnMapWorker(i: number, done: (error: Error | ErrorEvent, worker: number) => void, worker: number = -1): void {
-        if (this.#onSpawn !== null) {
-            this.#onSpawn();
-        }
-
-        const resultWorker: number = this.spawnWorker(worker);
         const onMessage = (message: MessageEvent<object>) => {
             this.#data[i] = message.data;
-            done(null, resultWorker);
+            done(null, workerId);
         };
         const onError = (error: ErrorEvent) => {
-            this.#pool.terminate(resultWorker);
+            this.#pool.clean(workerId);
             done(error, null);
         };
 
-        this.#pool.trigger(resultWorker, onMessage, onError, this.#data[i]);
-    }
-
-    private triggerOperation(operation: Operation, resolve: OperationCallback, reject: OperationCallback): void {
-        this.#operation.then(resolve, reject);
-        this.#operation = operation;
-    }
-
-    private processResult<T>(onResult: (data: T[]) => void, operation: Operation, data: T[]): void {
-        if (onResult) {
-            onResult(data);
-
-            operation.resolve(this.#data);
-        } else {
-            operation.resolve(data);
-        }
-    }
-
-    private getDataResolveCallback(operation: Operation): OperationCallback {
-        if (!this.#data.length) {
-            return () => {
-                const worker = this.spawnWorker();
-                const onMessage = (message: MessageEvent<object[]>) => {
-                    this.#pool.terminate(worker);
-                    this.#data = message.data;
-                    operation.resolve(this.#data);
-                };
-                const onError = (error: ErrorEvent) => {
-                    this.#pool.terminate(worker);
-                    operation.reject(error);
-                };
-
-                this.#pool.trigger(worker, onMessage, onError, this.#data);
-            };
-        }
-
-        let startedOps: number = 0;
-        let doneOps: number = 0;
-
-        const done = (error: Error, worker: number): void => {
-            if (error) {
-                operation.reject(error);
-            } else if (++doneOps === this.#data.length) {
-                if (worker !== -1) {
-                    this.#pool.terminate(worker);
-                }
-                operation.resolve(this.#data);
-            } else if (startedOps < this.#data.length) {
-                this.spawnMapWorker(startedOps++, done, worker);
-            } else if (worker !== -1) {
-                this.#pool.terminate(worker);
-            }
-        };
-
-        return () => {
-            for (; startedOps - doneOps < this.#pool.workerCount && startedOps < this.#data.length; ++startedOps) {
-                this.spawnMapWorker(startedOps, done);
-            }
-        };
+        this.#pool.trigger(workerId, onMessage, onError, this.#data[i]);
     }
 }

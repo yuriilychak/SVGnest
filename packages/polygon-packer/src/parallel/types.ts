@@ -14,8 +14,11 @@ export interface Options<T = object> {
 }
 
 export interface IWorker {
-    init(onMessage: (message: MessageEvent) => void, onError: (error: ErrorEvent) => void): void;
-    post(data: Record<string, unknown>): void;
+    trigger(
+        data: Record<string, unknown>,
+        onMessage: (message: MessageEvent) => void,
+        onError: (error: ErrorEvent) => void
+    ): void;
     terminate(): void;
     clone(): IWorker;
 }

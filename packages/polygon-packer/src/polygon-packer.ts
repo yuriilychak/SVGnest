@@ -62,14 +62,17 @@ export default class PolygonPacker {
         this.#geneticAlgorithm.init(tree, this.#binPolygon, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
         this.#spawnCount = 0;
-        this.#paralele.update(WORKER_TYPE.PAIR, this.#nfpStore.nfpPairs, configuration, this.onSpawn);
-        this.#paralele.then(
+        this.#paralele.start(
+            WORKER_TYPE.PAIR,
+            this.#nfpStore.nfpPairs,
+            configuration,
             (generatedNfp: PairWorkerResult[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
-            this.onError
+            this.onError,
+            this.onSpawn
         );
     }
 
-    private onError(error: Error[]) {
+    private onError(error: Error) {
         console.log(error);
     }
 
@@ -82,8 +85,10 @@ export default class PolygonPacker {
         const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, configuration, this.#binPolygon);
 
         // can't use .spawn because our data is an array
-        this.#paralele.update(WORKER_TYPE.PLACEMENT, [this.#nfpStore.clonePlacement()], placementWorkerData);
-        this.#paralele.then(
+        this.#paralele.start(
+            WORKER_TYPE.PLACEMENT,
+            [this.#nfpStore.clonePlacement()],
+            placementWorkerData,
             (placements: PlacementWorkerResult[]) => this.onPlacement(tree, configuration, placements, displayCallback),
             this.onError
         );
