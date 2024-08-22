@@ -1,24 +1,24 @@
-﻿import { WORKER_TYPE, WorkerInput, WorkerOutput } from '../types';
+﻿import { THREAD_TYPE, ThreadInput, ThreadOutput } from '../types';
 import DedicatedWorkerWrapper from './dedicated-worker-wrapper';
 import SharedWorkerWrapper from './shared-worker-wrapper';
-import { IWorker, Options, WorkerTarget } from './types';
+import { IThread, Options, ThreadTarget } from './types';
 
 export default class Parallel {
     #threadsUsage: boolean[];
 
     #threadCount: number;
 
-    #instance: IWorker;
+    #instance: IThread;
 
-    #threads: IWorker[];
+    #threads: IThread[];
 
-    #input: WorkerInput[] = null;
+    #input: ThreadInput[] = null;
 
-    #output: WorkerOutput[] = null;
+    #output: ThreadOutput[] = null;
 
     #threadIndices: number[];
 
-    #options: Options = { id: WORKER_TYPE.PAIR, env: null };
+    #options: Options = { id: THREAD_TYPE.PAIR, env: null };
 
     #isTerminated: boolean = true;
 
@@ -32,7 +32,7 @@ export default class Parallel {
 
     #onError: (error: ErrorEvent) => void = null;
 
-    #onSuccess: (result: WorkerOutput[]) => void = null;
+    #onSuccess: (result: ThreadOutput[]) => void = null;
 
     #onSpawn: (count: number) => void = null;
 
@@ -49,10 +49,10 @@ export default class Parallel {
     }
 
     public start(
-        id: WORKER_TYPE,
-        input: WorkerInput[],
+        id: THREAD_TYPE,
+        input: ThreadInput[],
         env: object,
-        onSuccess: (result: WorkerOutput[]) => void,
+        onSuccess: (result: ThreadOutput[]) => void,
         onError: (error: ErrorEvent) => void,
         onSpawn: (scount: number) => void = null
     ): boolean {
@@ -131,7 +131,7 @@ export default class Parallel {
         return true;
     }
 
-    private onMessage = (message: MessageEvent<WorkerOutput>) => {
+    private onMessage = (message: MessageEvent<ThreadOutput>) => {
         const index = this.clean(message.currentTarget as MessagePort | Worker);
         const threadIndex = this.#threadIndices[index];
 
@@ -148,11 +148,11 @@ export default class Parallel {
     };
 
     private onError = (error: ErrorEvent) => {
-        this.clean(error.currentTarget as WorkerTarget);
+        this.clean(error.currentTarget as ThreadTarget);
         this.#onError(error);
     };
 
-    private clean(target: WorkerTarget): number {
+    private clean(target: ThreadTarget): number {
         let i: number = 0;
 
         for (i = 0; i < this.#threadCount; ++i) {

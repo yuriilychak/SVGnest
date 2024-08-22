@@ -10,7 +10,7 @@ import {
     NestConfig,
     PairWorkerResult,
     PlacementWorkerResult,
-    WORKER_TYPE
+    THREAD_TYPE
 } from './types';
 
 export default class PolygonPacker {
@@ -60,7 +60,7 @@ export default class PolygonPacker {
         this.#geneticAlgorithm.init(tree, this.#binPolygon, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
         this.#paralele.start(
-            WORKER_TYPE.PAIR,
+            THREAD_TYPE.PAIR,
             this.#nfpStore.nfpPairs,
             configuration,
             (generatedNfp: PairWorkerResult[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
@@ -83,7 +83,7 @@ export default class PolygonPacker {
 
         // can't use .spawn because our data is an array
         this.#paralele.start(
-            WORKER_TYPE.PLACEMENT,
+            THREAD_TYPE.PLACEMENT,
             [this.#nfpStore.clonePlacement()],
             placementWorkerData,
             (placements: PlacementWorkerResult[]) => this.onPlacement(tree, configuration, placements, displayCallback),

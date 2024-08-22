@@ -64,7 +64,7 @@ export type NFPPair = {
 
 export type NFPData = { value: NFPPair; key: number };
 
-export enum WORKER_TYPE {
+export enum THREAD_TYPE {
     PLACEMENT = 'placement',
     PAIR = 'pair'
 }
@@ -100,14 +100,12 @@ export type DisplayCallback = (
 
 export type PlacementData = { placements: IPoint[][]; tree: IPolygon[]; bounds: BoundRect };
 
-export type WorkerData = {
-    workerIndex: number;
-    threadIdex: number;
+export type ThreadData = {
     env: NestConfig;
     id: string;
     data: IPolygon[] | NFPPair;
 };
 
-export type WorkerOutput = PlacementWorkerResult | PairWorkerResult | null;
+export type ThreadOutput = PlacementWorkerResult | PairWorkerResult | null;
 
-export type WorkerInput = IPolygon[] | NFPPair;
+export type ThreadInput = IPolygon[] | NFPPair;

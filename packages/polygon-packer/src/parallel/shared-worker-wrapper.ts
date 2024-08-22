@@ -1,6 +1,6 @@
-import { IWorker, WorkerTarget } from './types';
+import { IThread, ThreadTarget } from './types';
 
-export default class SharedWorkerWrapper implements IWorker {
+export default class SharedWorkerWrapper implements IThread {
     #worker: SharedWorker;
 
     public constructor() {
@@ -17,7 +17,7 @@ export default class SharedWorkerWrapper implements IWorker {
         this.#worker.port.postMessage(data);
     }
 
-    public getInstance(target: WorkerTarget): boolean {
+    public getInstance(target: ThreadTarget): boolean {
         return this.#worker.port === target;
     }
 
