@@ -7,51 +7,37 @@ import {
     almostEqual,
     TOL,
     onSegment,
-    pointInPolygon
+    pointInPolygon,
+    cycleIndex
 } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
+import Point from './point';
 
-function normalizeVector(v: IPoint): IPoint {
-    if (almostEqual(v.x * v.x + v.y * v.y, 1)) {
-        return v; // given vector was already a unit vector
-    }
-    const len: number = Math.sqrt(v.x * v.x + v.y * v.y);
-
-    return {
-        x: v.x / len,
-        y: v.y / len
-    };
+interface ISegmentCheck {
+    point: Point;
+    polygon: IPolygon;
+    segmentStart: Point;
+    segmentEnd: Point;
+    checkStart: Point;
+    checkEnd: Point;
+    target: Point;
 }
-
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
-function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint, infinite: boolean = false): IPoint {
-    let a1: number = 0;
-    let a2: number = 0;
-    let b1: number = 0;
-    let b2: number = 0;
-    let c1: number = 0;
-    let c2: number = 0;
-    let x: number = 0;
-    let y: number = 0;
-
-    a1 = B.y - A.y;
-    b1 = A.x - B.x;
-    c1 = B.x * A.y - A.x * B.y;
-    a2 = F.y - E.y;
-    b2 = E.x - F.x;
-    c2 = F.x * E.y - E.x * F.y;
-
-    const denom = a1 * b2 - a2 * b1;
-
-    x = (b1 * c2 - b2 * c1) / denom;
-    y = (a2 * c1 - a1 * c2) / denom;
-
-    if (!isFinite(x) || !isFinite(y)) {
-        return null;
-    }
+function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint): boolean {
+    const offsetAB = Point.from(A).sub(B);
+    const offsetEF = Point.from(E).sub(F);
+    const a1 = -offsetAB.y;
+    const b1 = offsetAB.x;
+    const c1 = B.x * A.y - A.x * B.y;
+    const a2 = -offsetEF.y;
+    const b2 = offsetEF.x;
+    const c2 = F.x * E.y - E.x * F.y;
+    const denom = offsetEF.y * offsetAB.x - offsetAB.y * offsetEF.x;
+    const x = (b1 * c2 - b2 * c1) / denom;
+    const y = (a2 * c1 - a1 * c2) / denom;
 
     // lines are colinear
     /* var crossABE = (E.y - A.y) * (B.x - A.x) - (E.x - A.x) * (B.y - A.y);
@@ -60,36 +46,33 @@ function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint, infinite: boo
 			return null;
 		}*/
 
-    if (!infinite) {
+    return !(
+        !(isFinite(x) && isFinite(y)) ||
         // coincident points do not count as intersecting
-        if (Math.abs(A.x - B.x) > TOL && (A.x < B.x ? x < A.x || x > B.x : x > A.x || x < B.x)) {
-            return null;
-        }
-        if (Math.abs(A.y - B.y) > TOL && (A.y < B.y ? y < A.y || y > B.y : y > A.y || y < B.y)) {
-            return null;
-        }
-
-        if (Math.abs(E.x - F.x) > TOL && (E.x < F.x ? x < E.x || x > F.x : x > E.x || x < F.x)) {
-            return null;
-        }
-        if (Math.abs(E.y - F.y) > TOL && (E.y < F.y ? y < E.y || y > F.y : y > E.y || y < F.y)) {
-            return null;
-        }
-    }
-
-    return { x, y };
+        (Math.abs(offsetAB.x) > TOL && Math.abs(2 * x - A.x - B.x) > Math.abs(offsetAB.x)) ||
+        (Math.abs(offsetAB.y) > TOL && Math.abs(2 * y - A.y - B.y) > Math.abs(offsetAB.y)) ||
+        (Math.abs(offsetEF.x) > TOL && Math.abs(2 * x - E.x - F.x) > Math.abs(offsetEF.x)) ||
+        (Math.abs(offsetEF.y) > TOL && Math.abs(2 * y - E.y - F.y) > Math.abs(offsetEF.y))
+    );
 }
 
 function isRectangle(poly: IPoint[]): boolean {
-    const bb: BoundRect = getPolygonBounds(poly);
+    const bounds: BoundRect = getPolygonBounds(poly);
     const pointCount: number = poly.length;
+    const rightX: number = bounds.x + bounds.width;
+    const bottomY: number = bounds.y + bounds.height;
+    let point: IPoint = null;
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-        if (!almostEqual(poly[i].x, bb.x) && !almostEqual(poly[i].x, bb.x + bb.width)) {
-            return false;
-        }
-        if (!almostEqual(poly[i].y, bb.y) && !almostEqual(poly[i].y, bb.y + bb.height)) {
+        point = poly[i];
+
+        if (
+            !(
+                (almostEqual(point.x, bounds.x) || almostEqual(point.x, rightX)) &&
+                (almostEqual(point.y, bounds.y) || almostEqual(point.y, bottomY))
+            )
+        ) {
             return false;
         }
     }
@@ -100,117 +83,107 @@ function isRectangle(poly: IPoint[]): boolean {
 // old-todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
 
+function updateIntersectPoint(point: Point, polygon: IPolygon, index: number, offset: number): void {
+    const pointCount: number = polygon.length;
+    let currentIndex = cycleIndex(index, pointCount, offset);
+
+    point.update(polygon[index]);
+
+    // go even further back if we happen to hit on a loop end point
+    if (point.almostEqual(polygon[index])) {
+        currentIndex = cycleIndex(currentIndex, pointCount, offset);
+        point.update(polygon[currentIndex]);
+    }
+}
+
+function getSegmentCheck(
+    point: Point,
+    polygon: IPolygon,
+    segmentStart: Point,
+    segmentEnd: Point,
+    checkStart: Point,
+    checkEnd: Point,
+    target: Point
+): ISegmentCheck {
+    return { point, polygon, segmentStart, segmentEnd, checkStart, checkEnd, target };
+}
+
 function intersect(initialA: IPolygon, initialB: IPolygon): boolean {
-    const Aoffsetx = initialA.offsetx || 0;
-    const Aoffsety = initialA.offsety || 0;
-
-    const Boffsetx = initialB.offsetx || 0;
-    const Boffsety = initialB.offsety || 0;
-
+    const offsetA: Point = Point.create(initialA.offsetx || 0, initialA.offsety || 0);
+    const offsetB: Point = Point.create(initialB.offsetx || 0, initialB.offsety || 0);
     const A = initialA.slice(0) as IPolygon;
     const B = initialB.slice(0) as IPolygon;
+    const a0: Point = Point.zero();
+    const a1: Point = Point.zero();
+    const a2: Point = Point.zero();
+    const a3: Point = Point.zero();
+    const b0: Point = Point.zero();
+    const b1: Point = Point.zero();
+    const b2: Point = Point.zero();
+    const b3: Point = Point.zero();
+    const pointCountA: number = A.length;
+    const pointCountB: number = B.length;
+    const segmentChecks: ISegmentCheck[] = [
+        getSegmentCheck(b1, A, a1, a2, b0, b2, a1),
+        getSegmentCheck(b2, A, a1, a2, b1, b3, a2),
+        getSegmentCheck(a1, B, b1, b2, a0, a2, b2),
+        getSegmentCheck(a2, B, b1, b2, a1, a3, a1)
+    ];
+    const segmentCheckCount = segmentChecks.length;
+    let segmentCheck: ISegmentCheck = null;
+    let pointIn1: boolean = false;
+    let pointIn2: boolean = false;
+    let i: number = 0;
+    let j: number = 0;
+    let k: number = 0;
+    let segmentStats: boolean = false;
 
-    for (let i = 0; i < A.length - 1; i++) {
-        for (let j = 0; j < B.length - 1; j++) {
-            const a1 = { x: A[i].x + Aoffsetx, y: A[i].y + Aoffsety };
-            const a2 = { x: A[i + 1].x + Aoffsetx, y: A[i + 1].y + Aoffsety };
-            const b1 = { x: B[j].x + Boffsetx, y: B[j].y + Boffsety };
-            const b2 = { x: B[j + 1].x + Boffsetx, y: B[j + 1].y + Boffsety };
+    for (i = 0; i < pointCountA - 1; ++i) {
+        a1.update(A[i]);
+        a2.update(A[i + 1]);
 
-            let prevbindex = j === 0 ? B.length - 1 : j - 1;
-            let prevaindex = i === 0 ? A.length - 1 : i - 1;
-            let nextbindex = j + 1 === B.length - 1 ? 0 : j + 2;
-            let nextaindex = i + 1 === A.length - 1 ? 0 : i + 2;
+        updateIntersectPoint(a0, A, i, -1);
+        updateIntersectPoint(a3, A, i + 1, 1);
 
-            // go even further back if we happen to hit on a loop end point
-            if (B[prevbindex] === B[j] || (almostEqual(B[prevbindex].x, B[j].x) && almostEqual(B[prevbindex].y, B[j].y))) {
-                prevbindex = prevbindex === 0 ? B.length - 1 : prevbindex - 1;
-            }
+        a0.add(offsetA);
+        a1.add(offsetA);
+        a2.add(offsetA);
+        a3.add(offsetA);
 
-            if (A[prevaindex] === A[i] || (almostEqual(A[prevaindex].x, A[i].x) && almostEqual(A[prevaindex].y, A[i].y))) {
-                prevaindex = prevaindex === 0 ? A.length - 1 : prevaindex - 1;
-            }
+        for (j = 0; j < pointCountB - 1; ++j) {
+            b1.update(B[j]);
+            b2.update(B[j + 1]);
 
-            // go even further forward if we happen to hit on a loop end point
-            if (
-                B[nextbindex] === B[j + 1] ||
-                (almostEqual(B[nextbindex].x, B[j + 1].x) && almostEqual(B[nextbindex].y, B[j + 1].y))
-            ) {
-                nextbindex = nextbindex === B.length - 1 ? 0 : nextbindex + 1;
-            }
+            updateIntersectPoint(b0, B, j, -1);
+            updateIntersectPoint(b3, B, j + 1, 1);
 
-            if (
-                A[nextaindex] === A[i + 1] ||
-                (almostEqual(A[nextaindex].x, A[i + 1].x) && almostEqual(A[nextaindex].y, A[i + 1].y))
-            ) {
-                nextaindex = nextaindex === A.length - 1 ? 0 : nextaindex + 1;
-            }
+            b0.add(offsetB);
+            b1.add(offsetB);
+            b3.add(offsetB);
+            b2.add(offsetB);
 
-            const a0 = {
-                x: A[prevaindex].x + Aoffsetx,
-                y: A[prevaindex].y + Aoffsety
-            };
-            const b0 = {
-                x: B[prevbindex].x + Boffsetx,
-                y: B[prevbindex].y + Boffsety
-            };
+            segmentStats = null;
 
-            const a3 = {
-                x: A[nextaindex].x + Aoffsetx,
-                y: A[nextaindex].y + Aoffsety
-            };
-            const b3 = {
-                x: B[nextbindex].x + Boffsetx,
-                y: B[nextbindex].y + Boffsety
-            };
+            for (k = 0; k < segmentCheckCount; ++k) {
+                segmentCheck = segmentChecks[k];
 
-            if (onSegment(a1, a2, b1) || (almostEqual(a1.x, b1.x) && almostEqual(a1.y, b1.y))) {
-                // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-                const b0in = pointInPolygon(b0, A);
-                const b2in = pointInPolygon(b2, A);
-                if ((b0in === true && b2in === false) || (b0in === false && b2in === true)) {
-                    return true;
+                if (
+                    segmentCheck.point.onSegment(segmentCheck.segmentStart, segmentCheck.segmentEnd) ||
+                    segmentCheck.point.almostEqual(segmentCheck.target)
+                ) {
+                    // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
+                    pointIn1 = pointInPolygon(segmentCheck.checkStart, segmentCheck.polygon);
+                    pointIn2 = pointInPolygon(segmentCheck.checkEnd, segmentCheck.polygon);
+
+                    segmentStats = pointIn1 !== null && pointIn2 !== null && pointIn1 !== pointIn2;
+                    break;
                 }
-                continue;
             }
 
-            if (onSegment(a1, a2, b2) || (almostEqual(a2.x, b2.x) && almostEqual(a2.y, b2.y))) {
-                // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-                const b1in = pointInPolygon(b1, A);
-                const b3in = pointInPolygon(b3, A);
-
-                if ((b1in === true && b3in === false) || (b1in === false && b3in === true)) {
-                    return true;
-                }
-                continue;
-            }
-
-            if (onSegment(b1, b2, a1) || (almostEqual(a1.x, b2.x) && almostEqual(a1.y, b2.y))) {
-                // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-                const a0in = pointInPolygon(a0, B);
-                const a2in = pointInPolygon(a2, B);
-
-                if ((a0in === true && a2in === false) || (a0in === false && a2in === true)) {
-                    return true;
-                }
-                continue;
-            }
-
-            if (onSegment(b1, b2, a2) || (almostEqual(a2.x, b1.x) && almostEqual(a2.y, b1.y))) {
-                // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-                const a1in = pointInPolygon(a1, B);
-                const a3in = pointInPolygon(a3, B);
-
-                if ((a1in === true && a3in === false) || (a1in === false && a3in === true)) {
-                    return true;
-                }
-                continue;
-            }
-
-            const p = lineIntersect(b1, b2, a1, a2);
-
-            if (p !== null) {
+            if (segmentStats || (segmentStats === null && lineIntersect(b1, b2, a1, a2))) {
                 return true;
+            } else if (segmentStats === false) {
+                continue;
             }
         }
     }
@@ -249,7 +222,7 @@ function minkowskiDifference(polygonA: IPolygon, polygonB: IPolygon, clipperScal
 }
 
 function pointDistance(p: IPoint, s1: IPoint, s2: IPoint, inputNormal: IPoint, infinite: boolean = false): number {
-    const normal = normalizeVector(inputNormal);
+    const normal = Point.from(inputNormal).normalize();
 
     const dir = {
         x: normal.y,
@@ -439,7 +412,7 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
     return Math.min(...distances);
 }
 
-function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPoint, ignoreNegative: boolean): number {
+function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPoint): number {
     let A1: IPoint = null;
     let A2: IPoint = null;
     let B1: IPoint = null;
@@ -473,7 +446,7 @@ function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPo
     let distance = null;
     let d: number = 0;
 
-    const dir = normalizeVector(direction);
+    const dir = Point.from(direction).normalize();
 
     for (let i = 0; i < edgeB.length - 1; i++) {
         for (let j = 0; j < edgeA.length - 1; j++) {
@@ -489,7 +462,7 @@ function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPo
             d = segmentDistance(A1, A2, B1, B2, dir);
 
             if (d !== null && (distance === null || d < distance)) {
-                if (!ignoreNegative || d > 0 || almostEqual(d, 0)) {
+                if (d > 0 || almostEqual(d, 0)) {
                     distance = d;
                 }
             }
@@ -966,7 +939,7 @@ function noFitPolygon(A: IPolygon, B: IPolygon, inside: boolean, searchEdges: bo
                     }
                 }
 
-                let d = polygonSlideDistance(A, B, vectors[i], true);
+                let d = polygonSlideDistance(A, B, vectors[i]);
                 const vecd2 = vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y;
 
                 if (d === null || d * d > vecd2) {

@@ -21,8 +21,5 @@ function applyWorkerFlow(instance: MessagePort | Worker) {
 }
 
 //@ts-ignore
-if (typeof self.SharedWorkerGlobalScope !== 'undefined') {
-    self.addEventListener('connect', (event: MessageEvent) => applyWorkerFlow(event.ports[0]));
-} else {
-    applyWorkerFlow(self as unknown as Worker);
-}
+applyWorkerFlow(self as unknown as Worker);
+

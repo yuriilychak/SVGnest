@@ -1,55 +1,50 @@
 import { BoundRect, IPoint, IPolygon, NFPContent } from './types';
+import Point from './point';
+
+export const TOL: number = Math.pow(10, -9);
 
 // returns true if p lies on the line segment defined by AB, but not at any endpoints
 // may need work!
 export function onSegment(A: IPoint, B: IPoint, p: IPoint): boolean {
+    const innerP: Point = Point.from(p);
+    const innerA: Point = Point.from(A);
     // vertical line
     if (almostEqual(A.x, B.x) && almostEqual(p.x, A.x)) {
-        if (!almostEqual(p.y, B.y) && !almostEqual(p.y, A.y) && p.y < Math.max(B.y, A.y) && p.y > Math.min(B.y, A.y)) {
-            return true;
-        }
-
-        return false;
+        return !almostEqual(p.y, B.y) && !almostEqual(p.y, A.y) && p.y < Math.max(B.y, A.y) && p.y > Math.min(B.y, A.y);
     }
 
     // horizontal line
     if (almostEqual(A.y, B.y) && almostEqual(p.y, A.y)) {
-        if (!almostEqual(p.x, B.x) && !almostEqual(p.x, A.x) && p.x < Math.max(B.x, A.x) && p.x > Math.min(B.x, A.x)) {
-            return true;
-        }
-
-        return false;
+        return !almostEqual(p.x, B.x) && !almostEqual(p.x, A.x) && p.x < Math.max(B.x, A.x) && p.x > Math.min(B.x, A.x);
     }
 
     // range check
-    if ((p.x < A.x && p.x < B.x) || (p.x > A.x && p.x > B.x) || (p.y < A.y && p.y < B.y) || (p.y > A.y && p.y > B.y)) {
+    if (p.x < Math.min(A.x, B.x) || p.x > Math.max(A.x, B.x) || p.y < Math.min(A.y, B.y) || p.y > Math.max(A.y, B.y)) {
         return false;
     }
 
     // exclude end points
-    if ((almostEqual(p.x, A.x) && almostEqual(p.y, A.y)) || (almostEqual(p.x, B.x) && almostEqual(p.y, B.y))) {
+    if (innerP.almostEqual(A) || innerP.almostEqual(B)) {
         return false;
     }
 
-    const cross = (p.y - A.y) * (B.x - A.x) - (p.x - A.x) * (B.y - A.y);
-
-    if (Math.abs(cross) > TOL) {
+    if (Math.abs(innerP.cross(A, B)) > TOL) {
         return false;
     }
 
-    const dot = (p.x - A.x) * (B.x - A.x) + (p.y - A.y) * (B.y - A.y);
+    const dot = innerP.dot(A, B);
 
-    if (dot < 0 || almostEqual(dot, 0)) {
+    if (!(dot >= 0 && Math.abs(dot) >= TOL)) {
         return false;
     }
 
-    const len2 = (B.x - A.x) * (B.x - A.x) + (B.y - A.y) * (B.y - A.y);
+    const len2 = innerA.len2(B);
 
-    if (dot > len2 || almostEqual(dot, len2)) {
-        return false;
-    }
+    return !(dot > len2 || almostEqual(dot, len2));
+}
 
-    return true;
+export function cycleIndex(index: number, size: number, offset: number): number {
+    return (index + size + offset) % size;
 }
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
 export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
@@ -57,30 +52,32 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
         return null;
     }
 
+    const offset: Point = Point.create(polygon.offsetx || 0, polygon.offsety || 0);
+    const innerPoint: Point = Point.from(point);
+    const currPoint: Point = Point.zero();
+    const prevPoint: Point = Point.zero();
+    const pointCount: number = polygon.length;
     let inside: boolean = false;
-    const offsetx: number = polygon.offsetx || 0;
-    const offsety: number = polygon.offsety || 0;
+    let i: number = 0;
 
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi: number = polygon[i].x + offsetx;
-        const yi: number = polygon[i].y + offsety;
-        const xj: number = polygon[j].x + offsetx;
-        const yj: number = polygon[j].y + offsety;
+    for (i = 0; i < pointCount; ++i) {
+        currPoint.update(polygon[i]).add(offset);
+        prevPoint.update(polygon[cycleIndex(i, pointCount, -1)]).add(offset);
 
-        if (almostEqual(xi, point.x) && almostEqual(yi, point.y)) {
-            return null; // no result
+        //  no result                            exactly on the segment
+        if (currPoint.almostEqual(innerPoint) || innerPoint.onSegment(currPoint, prevPoint)) {
+            return null;
         }
 
-        if (onSegment({ x: xi, y: yi }, { x: xj, y: yj }, point)) {
-            return null; // exactly on the segment
-        }
-
-        if (almostEqual(xi, xj) && almostEqual(yi, yj)) {
+        if (currPoint.almostEqual(prevPoint)) {
             // ignore very small lines
             continue;
         }
 
-        if (yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi) {
+        if (
+            currPoint.y > innerPoint.y !== prevPoint.y > innerPoint.y &&
+            innerPoint.x < innerPoint.interpolateX(prevPoint, currPoint)
+        ) {
             inside = !inside;
         }
     }
@@ -95,39 +92,29 @@ export function getPolygonBounds(polygon: IPoint[]): BoundRect {
     }
 
     const pointCount: number = polygon.length;
-    let minX: number = polygon[0].x;
-    let maxX: number = polygon[0].x;
-    let minY: number = polygon[0].y;
-    let maxY: number = polygon[0].y;
+    const min: Point = Point.from(polygon[0]);
+    const size: Point = Point.from(polygon[0]);
     let i: number = 0;
 
     for (i = 1; i < pointCount; ++i) {
-        maxX = Math.max(maxX, polygon[i].x);
-        minX = Math.min(minX, polygon[i].x);
-        maxY = Math.max(maxY, polygon[i].y);
-        minY = Math.min(minY, polygon[i].y);
+        min.min(polygon[i]);
+        size.max(polygon[i]);
     }
 
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    size.sub(min);
+
+    return { x: min.x, y: min.y, width: size.x, height: size.y };
 }
 
 export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
     const pointCount: number = polygon.length;
     const rotated: IPolygon = [] as IPolygon;
     const radianAngle: number = (angle * Math.PI) / 180;
+    const point: Point = Point.zero();
     let i: number = 0;
-    let x: number = 0;
-    let y: number = 0;
-    let x1: number = 0;
-    let y1: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-        x = polygon[i].x;
-        y = polygon[i].y;
-        x1 = x * Math.cos(radianAngle) - y * Math.sin(radianAngle);
-        y1 = x * Math.sin(radianAngle) + y * Math.cos(radianAngle);
-
-        rotated.push({ x: x1, y: y1 });
+        rotated.push(point.update(polygon[i]).rotate(radianAngle).export());
     }
     // reset bounding box
     const bounds: BoundRect = getPolygonBounds(rotated);
@@ -143,18 +130,20 @@ export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
 // returns the area of the polygon, assuming no self-intersections
 // a negative area indicates counter-clockwise winding direction
 export function polygonArea(polygon: IPoint[]): number {
+    const pointCount = polygon.length;
+    let prevPoint: IPoint = null;
+    let currPoint: IPoint = null;
     let result: number = 0;
     let i: number = 0;
-    let j: number = 0;
 
-    for (i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        result = result + (polygon[j].x + polygon[i].x) * (polygon[j].y - polygon[i].y);
+    for (i = 0; i < pointCount; ++i) {
+        prevPoint = polygon[cycleIndex(i, pointCount, -1)];
+        currPoint = polygon[i];
+        result += (prevPoint.x + currPoint.x) * (prevPoint.y - currPoint.y);
     }
 
     return 0.5 * result;
 }
-
-export const TOL: number = Math.pow(10, -9);
 
 export function almostEqual(a: number, b: number = 0, tolerance: number = TOL): boolean {
     return Math.abs(a - b) < tolerance;
