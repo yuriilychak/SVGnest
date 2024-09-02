@@ -28,7 +28,7 @@ export default class Parallel {
 
     #totalThreads: number = 0;
 
-    #isSharedWorkerSupported: boolean = false;
+    #isSharedWorkerSupported: boolean = typeof SharedWorker !== undefined;
 
     #onError: (error: ErrorEvent) => void = null;
 

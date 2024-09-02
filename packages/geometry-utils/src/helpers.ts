@@ -1,40 +1,46 @@
 import { BoundRect, IPoint, IPolygon, NFPContent } from './types';
 import Point from './point';
-
-export const TOL: number = Math.pow(10, -9);
+import { TOL } from './constants';
+import { almostEqual, cycleIndex, midValue } from './shared-helpers';
 
 // returns true if p lies on the line segment defined by AB, but not at any endpoints
 // may need work!
 export function onSegment(A: IPoint, B: IPoint, p: IPoint): boolean {
     const innerP: Point = Point.from(p);
     const innerA: Point = Point.from(A);
+    const midX: number = midValue(innerP.x, A.x, B.x);
+    const midY: number = midValue(innerP.y, A.y, B.y);
     // vertical line
     if (almostEqual(A.x, B.x) && almostEqual(p.x, A.x)) {
-        return !almostEqual(p.y, B.y) && !almostEqual(p.y, A.y) && p.y < Math.max(B.y, A.y) && p.y > Math.min(B.y, A.y);
+        return !almostEqual(p.y, B.y) && !almostEqual(p.y, A.y) && midY < 0;
     }
 
     // horizontal line
     if (almostEqual(A.y, B.y) && almostEqual(p.y, A.y)) {
-        return !almostEqual(p.x, B.x) && !almostEqual(p.x, A.x) && p.x < Math.max(B.x, A.x) && p.x > Math.min(B.x, A.x);
+        return !almostEqual(p.x, B.x) && !almostEqual(p.x, A.x) && midX < 0;
     }
 
-    // range check
-    if (p.x < Math.min(A.x, B.x) || p.x > Math.max(A.x, B.x) || p.y < Math.min(A.y, B.y) || p.y > Math.max(A.y, B.y)) {
+    if (
+        // range check
+        midX > 0 ||
+        midY > 0 ||
+        // exclude end points
+        innerP.almostEqual(A) ||
+        innerP.almostEqual(B)
+    ) {
         return false;
     }
 
-    // exclude end points
-    if (innerP.almostEqual(A) || innerP.almostEqual(B)) {
+    const subA = Point.from(p).sub(A);
+    const subAB = Point.from(B).sub(A);
+
+    if (Math.abs(subA.cross(subAB)) > TOL) {
         return false;
     }
 
-    if (Math.abs(innerP.cross(A, B)) > TOL) {
-        return false;
-    }
+    const dot = subA.dot(subAB);
 
-    const dot = innerP.dot(A, B);
-
-    if (!(dot >= 0 && Math.abs(dot) >= TOL)) {
+    if (dot < TOL) {
         return false;
     }
 
@@ -43,9 +49,6 @@ export function onSegment(A: IPoint, B: IPoint, p: IPoint): boolean {
     return !(dot > len2 || almostEqual(dot, len2));
 }
 
-export function cycleIndex(index: number, size: number, offset: number): number {
-    return (index + size + offset) % size;
-}
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
 export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
     if (!polygon || polygon.length < 3) {
@@ -102,8 +105,9 @@ export function getPolygonBounds(polygon: IPoint[]): BoundRect {
     }
 
     size.sub(min);
+    const result = { x: min.x, y: min.y, width: size.x, height: size.y };
 
-    return { x: min.x, y: min.y, width: size.x, height: size.y };
+    return result;
 }
 
 export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
@@ -143,10 +147,6 @@ export function polygonArea(polygon: IPoint[]): number {
     }
 
     return 0.5 * result;
-}
-
-export function almostEqual(a: number, b: number = 0, tolerance: number = TOL): boolean {
-    return Math.abs(a - b) < tolerance;
 }
 
 export function normalizePolygon(polygon: IPolygon): void {

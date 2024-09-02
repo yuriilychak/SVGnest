@@ -1,18 +1,10 @@
 import ClipperLib from 'js-clipper';
-import {
-    keyToNFPData,
-    rotatePolygon,
-    getPolygonBounds,
-    polygonArea,
-    almostEqual,
-    TOL,
-    onSegment,
-    pointInPolygon,
-    cycleIndex
-} from './helpers';
+import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, onSegment, pointInPolygon } from './helpers';
+import { almostEqual, cycleIndex, midValue } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 import Point from './point';
+import { TOL } from './constants';
 
 interface ISegmentCheck {
     point: Point;
@@ -27,15 +19,13 @@ interface ISegmentCheck {
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
 function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint): boolean {
-    const offsetAB = Point.from(A).sub(B);
-    const offsetEF = Point.from(E).sub(F);
-    const a1 = -offsetAB.y;
-    const b1 = offsetAB.x;
+    const a1 = B.y - A.y;
+    const b1 = A.x - B.y;
     const c1 = B.x * A.y - A.x * B.y;
-    const a2 = -offsetEF.y;
-    const b2 = offsetEF.x;
+    const a2 = F.y - E.y;
+    const b2 = E.x - F.x;
     const c2 = F.x * E.y - E.x * F.y;
-    const denom = offsetEF.y * offsetAB.x - offsetAB.y * offsetEF.x;
+    const denom = a1 * b2 - a2 * b1;
     const x = (b1 * c2 - b2 * c1) / denom;
     const y = (a2 * c1 - a1 * c2) / denom;
 
@@ -49,10 +39,10 @@ function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint): boolean {
     return !(
         !(isFinite(x) && isFinite(y)) ||
         // coincident points do not count as intersecting
-        (Math.abs(offsetAB.x) > TOL && Math.abs(2 * x - A.x - B.x) > Math.abs(offsetAB.x)) ||
-        (Math.abs(offsetAB.y) > TOL && Math.abs(2 * y - A.y - B.y) > Math.abs(offsetAB.y)) ||
-        (Math.abs(offsetEF.x) > TOL && Math.abs(2 * x - E.x - F.x) > Math.abs(offsetEF.x)) ||
-        (Math.abs(offsetEF.y) > TOL && Math.abs(2 * y - E.y - F.y) > Math.abs(offsetEF.y))
+        (!almostEqual(A.x, B.x) && midValue(x, A.x, B.x) > 0) ||
+        (!almostEqual(A.y, B.y) && midValue(y, A.y, B.y) > 0) ||
+        (!almostEqual(E.x, F.x) && midValue(x, E.x, F.x) > 0) ||
+        (!almostEqual(E.y, F.y) && midValue(y, E.y, F.y) > 0)
     );
 }
 
@@ -223,112 +213,73 @@ function minkowskiDifference(polygonA: IPolygon, polygonB: IPolygon, clipperScal
 
 function pointDistance(p: IPoint, s1: IPoint, s2: IPoint, inputNormal: IPoint, infinite: boolean = false): number {
     const normal = Point.from(inputNormal).normalize();
-
-    const dir = {
-        x: normal.y,
-        y: -normal.x
-    };
-
-    const pdot = p.x * dir.x + p.y * dir.y;
-    const s1dot = s1.x * dir.x + s1.y * dir.y;
-    const s2dot = s2.x * dir.x + s2.y * dir.y;
-
-    const pdotnorm = p.x * normal.x + p.y * normal.y;
-    const s1dotnorm = s1.x * normal.x + s1.y * normal.y;
-    const s2dotnorm = s2.x * normal.x + s2.y * normal.y;
+    const dir = Point.from(normal).normal();
+    const pdot = dir.dot(p);
+    const s1dot = dir.dot(s1);
+    const s2dot = dir.dot(s2);
+    const pdotnorm = normal.dot(p);
+    const s1dotnorm = normal.dot(s1);
+    const s2dotnorm = normal.dot(s2);
 
     if (!infinite) {
-        if (
-            ((pdot < s1dot || almostEqual(pdot, s1dot)) && (pdot < s2dot || almostEqual(pdot, s2dot))) ||
-            ((pdot > s1dot || almostEqual(pdot, s1dot)) && (pdot > s2dot || almostEqual(pdot, s2dot)))
-        ) {
+        if (midValue(pdot, s1dot, s2dot) > TOL) {
             return null; // dot doesn't collide with segment, or lies directly on the vertex
         }
-        if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && pdotnorm > s1dotnorm && pdotnorm > s2dotnorm) {
-            return Math.min(pdotnorm - s1dotnorm, pdotnorm - s2dotnorm);
-        }
-        if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && pdotnorm < s1dotnorm && pdotnorm < s2dotnorm) {
-            return -Math.min(s1dotnorm - pdotnorm, s2dotnorm - pdotnorm);
+
+        if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && midValue(pdotnorm, s1dotnorm, s2dotnorm) > 0) {
+            return pdotnorm - Math.max(s1dotnorm, s2dotnorm);
         }
     }
 
-    return -(pdotnorm - s1dotnorm + ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot));
+    return s1dotnorm - pdotnorm - ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot);
 }
 
 function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: IPoint): number {
-    const normal = {
-        x: direction.y,
-        y: -direction.x
-    };
-
-    const reverse = {
-        x: -direction.x,
-        y: -direction.y
-    };
-
-    const dotA = A.x * normal.x + A.y * normal.y;
-    const dotB = B.x * normal.x + B.y * normal.y;
-    const dotE = E.x * normal.x + E.y * normal.y;
-    const dotF = F.x * normal.x + F.y * normal.y;
-
-    const crossA = A.x * direction.x + A.y * direction.y;
-    const crossB = B.x * direction.x + B.y * direction.y;
-    const crossE = E.x * direction.x + E.y * direction.y;
-    const crossF = F.x * direction.x + F.y * direction.y;
-
-    const ABmin = Math.min(dotA, dotB);
-    const ABmax = Math.max(dotA, dotB);
-
-    const EFmax = Math.max(dotE, dotF);
-    const EFmin = Math.min(dotE, dotF);
+    const normal = Point.from(direction).normal();
+    const reverse = Point.from(direction).reverse();
+    const dir = Point.from(direction);
+    const dotA: number = normal.dot(A);
+    const dotB: number = normal.dot(B);
+    const dotE: number = normal.dot(E);
+    const dotF: number = normal.dot(F);
+    const crossA: number = dir.dot(A);
+    const crossB: number = dir.dot(B);
+    const crossE: number = dir.dot(E);
+    const crossF: number = dir.dot(F);
+    const minAB: number = Math.min(dotA, dotB);
+    const maxAB: number = Math.max(dotA, dotB);
+    const maxEF: number = Math.max(dotE, dotF);
+    const minEF: number = Math.min(dotE, dotF);
 
     // segments that will merely touch at one point
-    if (almostEqual(ABmax, EFmin) || almostEqual(ABmin, EFmax)) {
+    if (maxAB - minEF < TOL || maxEF - minAB < TOL) {
         return null;
     }
     // segments miss eachother completely
-    if (ABmax < EFmin || ABmin > EFmax) {
-        return null;
-    }
-
-    let overlap: number = 0;
-
-    if ((ABmax > EFmax && ABmin < EFmin) || (EFmax > ABmax && EFmin < ABmin)) {
-        overlap = 1;
-    } else {
-        const minMax = Math.min(ABmax, EFmax);
-        const maxMin = Math.max(ABmin, EFmin);
-
-        const maxMax = Math.max(ABmax, EFmax);
-        const minMin = Math.min(ABmin, EFmin);
-
-        overlap = (minMax - maxMin) / (maxMax - minMin);
-    }
-
-    const crossABE = (E.y - A.y) * (B.x - A.x) - (E.x - A.x) * (B.y - A.y);
-    const crossABF = (F.y - A.y) * (B.x - A.x) - (F.x - A.x) * (B.y - A.y);
+    const overlap: number =
+        (maxAB > maxEF && minAB < minEF) || (maxEF > maxAB && minEF < minAB)
+            ? 1
+            : (Math.min(maxAB, maxEF) - Math.max(minAB, minEF)) / (Math.max(maxAB, maxEF) - Math.min(minAB, minEF));
+    const diffAB: Point = Point.from(B).sub(A);
+    const diffAE: Point = Point.from(E).sub(A);
+    const diffAF: Point = Point.from(F).sub(A);
+    const crossABE = diffAE.cross(diffAB);
+    const crossABF = diffAF.cross(diffAB);
 
     // lines are colinear
-    if (almostEqual(crossABE, 0) && almostEqual(crossABF, 0)) {
-        const ABnorm = { x: B.y - A.y, y: A.x - B.x };
-        const EFnorm = { x: F.y - E.y, y: E.x - F.x };
-
-        const ABnormlength = Math.sqrt(ABnorm.x * ABnorm.x + ABnorm.y * ABnorm.y);
-        ABnorm.x = ABnorm.x / ABnormlength;
-        ABnorm.y = ABnorm.y / ABnormlength;
-
-        const EFnormlength = Math.sqrt(EFnorm.x * EFnorm.x + EFnorm.y * EFnorm.y);
-        EFnorm.x = EFnorm.x / EFnormlength;
-        EFnorm.y = EFnorm.y / EFnormlength;
+    if (almostEqual(crossABE) && almostEqual(crossABF)) {
+        const normAB = Point.from(B).sub(A).normal().normalize();
+        const normEF = Point.from(F).sub(E).normal().normalize();
 
         // segment normals must point in opposite directions
-        if (Math.abs(ABnorm.y * EFnorm.x - ABnorm.x * EFnorm.y) < TOL && ABnorm.y * EFnorm.y + ABnorm.x * EFnorm.x < 0) {
+        if (almostEqual(normAB.cross(normEF)) && normAB.dot(normEF) < 0) {
             // normal of AB segment must point in same direction as given direction vector
-            const normdot = ABnorm.y * direction.y + ABnorm.x * direction.x;
+            const normdot = normAB.dot(direction);
             // the segments merely slide along eachother
-            if (almostEqual(normdot, 0)) {
+            if (almostEqual(normdot)) {
                 return null;
             }
+
             if (normdot < 0) {
                 return 0;
             }
@@ -344,12 +295,13 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
         distances.push(crossA - crossE);
     } else if (almostEqual(dotA, dotF)) {
         distances.push(crossA - crossF);
-    } else if (dotA > EFmin && dotA < EFmax) {
+    } else if (dotA > minEF && dotA < maxEF) {
         let d: number = pointDistance(A, E, F, reverse);
+
         if (d !== null && almostEqual(d, 0)) {
             //  A currently touches EF, but AB is moving away from EF
             const dB = pointDistance(B, E, F, reverse, true);
-            if (dB < 0 || almostEqual(dB * overlap, 0)) {
+            if (dB < 0 || almostEqual(dB * overlap)) {
                 d = null;
             }
         }
@@ -362,13 +314,13 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
         distances.push(crossB - crossE);
     } else if (almostEqual(dotB, dotF)) {
         distances.push(crossB - crossF);
-    } else if (dotB > EFmin && dotB < EFmax) {
+    } else if (dotB > minEF && dotB < maxEF) {
         let d: number = pointDistance(B, E, F, reverse);
 
-        if (d !== null && almostEqual(d, 0)) {
+        if (d !== null && almostEqual(d)) {
             // crossA>crossB A currently touches EF, but AB is moving away from EF
             const dA = pointDistance(A, E, F, reverse, true);
-            if (dA < 0 || almostEqual(dA * overlap, 0)) {
+            if (dA < 0 || almostEqual(dA * overlap)) {
                 d = null;
             }
         }
@@ -377,12 +329,12 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
         }
     }
 
-    if (dotE > ABmin && dotE < ABmax) {
+    if (dotE > minAB && dotE < maxAB) {
         let d: number = pointDistance(E, A, B, direction);
-        if (d !== null && almostEqual(d, 0)) {
+        if (d !== null && almostEqual(d)) {
             // crossF<crossE A currently touches EF, but AB is moving away from EF
             const dF = pointDistance(F, A, B, direction, true);
-            if (dF < 0 || almostEqual(dF * overlap, 0)) {
+            if (dF < 0 || almostEqual(dF * overlap)) {
                 d = null;
             }
         }
@@ -391,12 +343,12 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
         }
     }
 
-    if (dotF > ABmin && dotF < ABmax) {
+    if (dotF > minAB && dotF < maxAB) {
         let d: number = pointDistance(F, A, B, direction);
-        if (d !== null && almostEqual(d, 0)) {
+        if (d !== null && almostEqual(d)) {
             // && crossE<crossF A currently touches EF, but AB is moving away from EF
             const dE = pointDistance(E, A, B, direction, true);
-            if (dE < 0 || almostEqual(dE * overlap, 0)) {
+            if (dE < 0 || almostEqual(dE * overlap)) {
                 d = null;
             }
         }
@@ -413,21 +365,12 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
 }
 
 function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPoint): number {
-    let A1: IPoint = null;
-    let A2: IPoint = null;
-    let B1: IPoint = null;
-    let B2: IPoint = null;
-    let Aoffsetx: number = 0;
-    let Aoffsety: number = 0;
-    let Boffsetx: number = 0;
-    let Boffsety: number = 0;
-
-    Aoffsetx = inputA.offsetx || 0;
-    Aoffsety = inputA.offsety || 0;
-
-    Boffsetx = inputB.offsetx || 0;
-    Boffsety = inputB.offsety || 0;
-
+    const A1: Point = Point.zero();
+    const A2: Point = Point.zero();
+    const B1: Point = Point.zero();
+    const B2: Point = Point.zero();
+    const offsetA: Point = Point.create(inputA.offsetx || 0, inputA.offsety || 0);
+    const offsetB: Point = Point.create(inputB.offsetx || 0, inputB.offsety || 0);
     const A = inputA.slice(0);
     const B = inputB.slice(0);
 
@@ -442,27 +385,30 @@ function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPo
 
     const edgeA = A;
     const edgeB = B;
-
+    const sizeA: number = edgeA.length;
+    const sizeB: number = edgeB.length;
+    const dir = Point.from(direction).normalize();
     let distance = null;
     let d: number = 0;
+    let i: number = 0;
+    let j: number = 0;
 
-    const dir = Point.from(direction).normalize();
+    for (i = 0; i < sizeB - 1; ++i) {
+        B1.update(edgeB[i]).add(offsetB);
+        B2.update(edgeB[i + 1]).add(offsetB);
 
-    for (let i = 0; i < edgeB.length - 1; i++) {
-        for (let j = 0; j < edgeA.length - 1; j++) {
-            A1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety };
-            A2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety };
-            B1 = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety };
-            B2 = { x: edgeB[i + 1].x + Boffsetx, y: edgeB[i + 1].y + Boffsety };
+        for (j = 0; j < sizeA - 1; ++j) {
+            A1.update(edgeA[j]).add(offsetA);
+            A2.update(edgeA[j + 1]).add(offsetA);
 
-            if ((almostEqual(A1.x, A2.x) && almostEqual(A1.y, A2.y)) || (almostEqual(B1.x, B2.x) && almostEqual(B1.y, B2.y))) {
+            if (A1.almostEqual(A2) || B1.almostEqual(B2)) {
                 continue; // ignore extremely small lines
             }
 
             d = segmentDistance(A1, A2, B1, B2, dir);
 
             if (d !== null && (distance === null || d < distance)) {
-                if (d > 0 || almostEqual(d, 0)) {
+                if (d > 0 || almostEqual(d)) {
                     distance = d;
                 }
             }
@@ -474,12 +420,8 @@ function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPo
 
 // project each point of B onto A in the given direction, and return the
 function polygonProjectionDistance(inputA: IPolygon, inputB: IPolygon, direction: IPoint): number {
-    const Boffsetx = inputB.offsetx || 0;
-    const Boffsety = inputB.offsety || 0;
-
-    const Aoffsetx = inputA.offsetx || 0;
-    const Aoffsety = inputA.offsety || 0;
-
+    const offsetA: Point = Point.create(inputA.offsetx || 0, inputA.offsety || 0);
+    const offsetB: Point = Point.create(inputB.offsetx || 0, inputB.offsety || 0);
     const A = inputA.slice(0) as IPolygon;
     const B = inputB.slice(0) as IPolygon;
 
@@ -494,34 +436,43 @@ function polygonProjectionDistance(inputA: IPolygon, inputB: IPolygon, direction
 
     const edgeA = A;
     const edgeB = B;
+    const sizeA: number = edgeA.length;
+    const sizeB: number = edgeB.length;
 
     let distance = null;
-    let p: IPoint = null;
+    let p: Point = Point.zero();
     let d: number = 0;
-    let s1: IPoint = null;
-    let s2: IPoint = null;
+    let s1: Point = Point.zero();
+    let s2: Point = Point.zero();
+    let sOffset: Point = Point.zero();
+    let i: number = 0;
+    let j: number = 0;
+    let minProjection: number = null;
 
-    for (let i = 0; i < edgeB.length; i++) {
+    for (i = 0; i < sizeB; ++i) {
         // the shortest/most negative projection of B onto A
-        let minprojection = null;
-        for (let j = 0; j < edgeA.length - 1; j++) {
-            p = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety };
-            s1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety };
-            s2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety };
+        minProjection = null;
+        p.update(edgeB[i]).add(offsetB);
 
-            if (Math.abs((s2.y - s1.y) * direction.x - (s2.x - s1.x) * direction.y) < TOL) {
+        for (j = 0; j < sizeA - 1; ++j) {
+            s1.update(edgeA[j]).add(offsetA);
+            s2.update(edgeA[j + 1]).add(offsetA);
+            sOffset.update(s2).sub(s1);
+
+            if (almostEqual(sOffset.cross(direction))) {
                 continue;
             }
 
             // project point, ignore edge boundaries
             d = pointDistance(p, s1, s2, direction);
 
-            if (d !== null && (minprojection === null || d < minprojection)) {
-                minprojection = d;
+            if (d !== null && (minProjection === null || d < minProjection)) {
+                minProjection = d;
             }
         }
-        if (minprojection !== null && (distance === null || minprojection > distance)) {
-            distance = minprojection;
+
+        if (minProjection !== null && (distance === null || minProjection > distance)) {
+            distance = minProjection;
         }
     }
 
@@ -530,59 +481,38 @@ function polygonProjectionDistance(inputA: IPolygon, inputB: IPolygon, direction
 
 // returns an interior NFP for the special case where A is a rectangle
 function noFitPolygonRectangle(A: IPolygon, B: IPolygon): IPoint[][] {
-    let minAx = A[0].x;
-    let minAy = A[0].y;
-    let maxAx = A[0].x;
-    let maxAy = A[0].y;
+    const minA: Point = Point.from(A[0]);
+    const maxA: Point = Point.from(A[0]);
+    const minB: Point = Point.from(B[0]);
+    const maxB: Point = Point.from(B[0]);
     let i: number = 0;
 
-    for (i = 1; i < A.length; i++) {
-        if (A[i].x < minAx) {
-            minAx = A[i].x;
-        }
-        if (A[i].y < minAy) {
-            minAy = A[i].y;
-        }
-        if (A[i].x > maxAx) {
-            maxAx = A[i].x;
-        }
-        if (A[i].y > maxAy) {
-            maxAy = A[i].y;
-        }
+    for (i = 1; i < A.length; ++i) {
+        minA.min(A[i]);
+        maxA.max(A[i]);
     }
 
-    let minBx = B[0].x;
-    let minBy = B[0].y;
-    let maxBx = B[0].x;
-    let maxBy = B[0].y;
-    for (i = 1; i < B.length; i++) {
-        if (B[i].x < minBx) {
-            minBx = B[i].x;
-        }
-        if (B[i].y < minBy) {
-            minBy = B[i].y;
-        }
-        if (B[i].x > maxBx) {
-            maxBx = B[i].x;
-        }
-        if (B[i].y > maxBy) {
-            maxBy = B[i].y;
-        }
+    for (i = 1; i < B.length; ++i) {
+        minB.min(B[i]);
+        maxB.max(B[i]);
     }
 
-    if (maxBx - minBx > maxAx - minAx) {
+    const minDiff = Point.from(minA).sub(minB);
+    const maxDiff = Point.from(maxA).sub(maxB);
+
+    if (maxDiff.x <= minDiff.x || maxDiff.y <= minDiff.y) {
         return null;
     }
-    if (maxBy - minBy > maxAy - minAy) {
-        return null;
-    }
+
+    minDiff.add(B[0]);
+    maxDiff.add(B[0]);
 
     return [
         [
-            { x: minAx - minBx + B[0].x, y: minAy - minBy + B[0].y },
-            { x: maxAx - maxBx + B[0].x, y: minAy - minBy + B[0].y },
-            { x: maxAx - maxBx + B[0].x, y: maxAy - maxBy + B[0].y },
-            { x: minAx - minBx + B[0].x, y: maxAy - maxBy + B[0].y }
+            { x: minDiff.x, y: minDiff.y },
+            { x: maxDiff.x, y: minDiff.y },
+            { x: maxDiff.x, y: maxDiff.y },
+            { x: minDiff.x, y: maxDiff.y }
         ]
     ];
 }
@@ -593,8 +523,11 @@ function inNfp(p: IPoint, nfp: IPoint[][]): boolean {
         return false;
     }
 
-    for (let i = 0; i < nfp.length; i++) {
-        for (let j = 0; j < nfp[i].length; j++) {
+    let i: number = 0;
+    let j: number = 0;
+
+    for (i = 0; i < nfp.length; ++i) {
+        for (j = 0; j < nfp[i].length; ++j) {
             if (almostEqual(p.x, nfp[i][j].x) && almostEqual(p.y, nfp[i][j].y)) {
                 return true;
             }

@@ -1,18 +1,20 @@
 import { IPoint } from './types';
+import { TOL } from './constants';
+import { almostEqual, midValue } from './shared-helpers';
 
 export default class Point implements IPoint {
-    #x: number;
+    private data: Float64Array;
 
-    #y: number;
+    private offset: number;
 
-    protected constructor(x: number, y: number) {
-        this.#x = x;
-        this.#y = y;
+    private constructor(data: Float64Array, offset: number = 0) {
+        this.data = data;
+        this.offset = offset;
     }
 
     public set(x: number, y: number): Point {
-        this.#x = x;
-        this.#y = y;
+        this.x = x;
+        this.y = y;
 
         return this;
     }
@@ -22,160 +24,164 @@ export default class Point implements IPoint {
     }
 
     public add(point: IPoint): Point {
-        this.#x += point.x;
-        this.#y += point.y;
+        this.x += point.x;
+        this.y += point.y;
 
         return this;
     }
 
     public sub(point: IPoint): Point {
-        this.#x -= point.x;
-        this.#y -= point.y;
+        this.x -= point.x;
+        this.y -= point.y;
 
         return this;
     }
 
     public max(point: IPoint): Point {
-        return this.set(Math.max(this.#x, point.x), Math.max(this.#y, point.y));
+        return this.set(Math.max(this.x, point.x), Math.max(this.y, point.y));
     }
 
     public min(point: IPoint): Point {
-        return this.set(Math.min(this.#x, point.x), Math.min(this.#y, point.y));
+        return this.set(Math.min(this.x, point.x), Math.min(this.y, point.y));
     }
 
     public rotate(radianAngle: number): Point {
         const sin: number = Math.sin(radianAngle);
         const cos: number = Math.cos(radianAngle);
 
-        return this.set(this.#x * cos - this.#y * sin, this.#x * sin + this.#y * cos);
+        return this.set(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
     }
 
-    public cross(point1: IPoint, point2: IPoint): number {
-        return (this.#y - point1.y) * (point2.x - point1.x) - (this.#x - point1.x) * (point2.y - point1.y);
+    public cross(point: IPoint): number {
+        return this.y * point.x - this.x * point.y;
     }
 
-    public dot(point1: IPoint, point2: IPoint): number {
-        return (this.#x - point1.x) * (point2.x - point1.x) + (this.#y - point1.y) * (point2.y - point1.y);
+    public dot(point: IPoint): number {
+        return this.x * point.x + this.y * point.y;
     }
 
     public len2(point: IPoint): number {
-        const offetX: number = this.#x - point.x;
-        const offetY: number = this.#y - point.y;
+        const offetX: number = this.x - point.x;
+        const offetY: number = this.y - point.y;
 
         return offetX * offetX + offetY * offetY;
     }
 
-    public normalize() {
-        const len2: number = this.#x * this.#x + this.#y * this.#y;
+    public len(point: IPoint): number {
+        return Math.sqrt(this.len2(point));
+    }
 
-        if (!Point.almostEqual(len2, 1)) {
-            const len: number = Math.sqrt(len2);
-            this.#x = this.#x / len;
-            this.#y = this.#y / len;
+    public normalize(): Point {
+        const length: number = this.length;
+
+        if (!almostEqual(length, 1)) {
+            this.x = this.x / length;
+            this.y = this.y / length;
         }
 
         return this;
     }
 
+    public normal(): Point {
+        return this.set(this.y, -this.x);
+    }
+
+    public reverse(): Point {
+        return this.set(-this.x, -this.y);
+    }
+
     public onSegment(pointA: Point, pointB: Point): boolean {
+        const midX: number = midValue(this.x, pointA.x, pointB.x);
+        const midY: number = midValue(this.y, pointA.y, pointB.y);
+
         // vertical line
-        if (Point.almostEqual(pointA.x, pointB.x) && Point.almostEqual(this.#x, pointA.x)) {
-            return (
-                !Point.almostEqual(this.#y, pointB.y) &&
-                !Point.almostEqual(this.#y, pointA.y) &&
-                this.#y < Math.max(pointB.y, pointA.y) &&
-                this.#y > Math.min(pointB.y, pointA.y)
-            );
+        if (almostEqual(pointA.x, pointB.x) && almostEqual(this.x, pointA.x)) {
+            return !almostEqual(this.y, pointB.y) && !almostEqual(this.y, pointA.y) && midY < 0;
         }
 
         // horizontal line
-        if (Point.almostEqual(pointA.y, pointB.y) && Point.almostEqual(this.#y, pointA.y)) {
-            return (
-                !Point.almostEqual(this.#x, pointB.x) &&
-                !Point.almostEqual(this.#x, pointA.x) &&
-                this.#x < Math.max(pointB.x, pointA.x) &&
-                this.#x > Math.min(pointB.x, pointA.x)
-            );
+        if (almostEqual(pointA.y, pointB.y) && almostEqual(this.y, pointA.y)) {
+            return !almostEqual(this.x, pointB.x) && !almostEqual(this.x, pointA.x) && midX < 0;
         }
 
-        // range check
         if (
-            this.#x < Math.min(pointA.x, pointB.x) ||
-            this.#x > Math.max(pointA.x, pointB.x) ||
-            this.#y < Math.min(pointA.y, pointB.y) ||
-            this.#y > Math.max(pointA.y, pointB.y)
+            // range check
+            midX > 0 ||
+            midY > 0 ||
+            // exclude end points
+            this.almostEqual(pointA) ||
+            this.almostEqual(pointB)
         ) {
             return false;
         }
 
-        // exclude end points
-        if (this.almostEqual(pointA) || this.almostEqual(pointB)) {
+        const subA = Point.from(this).sub(pointA);
+        const subAB = Point.from(pointB).sub(pointA);
+
+        if (Math.abs(subA.cross(subAB)) > TOL) {
             return false;
         }
 
-        if (Math.abs(this.cross(pointA, pointB)) > Point.TOL) {
-            return false;
-        }
+        const dot = subA.dot(subAB);
 
-        const dot = this.dot(pointA, pointB);
-
-        if (!(dot >= 0 && Math.abs(dot) >= Point.TOL)) {
+        if (dot < TOL) {
             return false;
         }
 
         const len2 = pointA.len2(pointB);
 
-        return !(dot > len2 || Point.almostEqual(dot, len2));
+        return !(dot > len2 || almostEqual(dot, len2));
     }
 
-    public almostEqual(point: IPoint, tolerance: number = Point.TOL): boolean {
-        return Point.almostEqual(this.#x, point.x, tolerance) && Point.almostEqual(this.#y, point.y, tolerance);
+    public almostEqual(point: IPoint, tolerance: number = TOL): boolean {
+        return almostEqual(this.x, point.x, tolerance) && almostEqual(this.y, point.y, tolerance);
     }
 
     public interpolateX(beginPoint: IPoint, endPoint: IPoint): number {
-        return ((beginPoint.x - endPoint.x) * (this.#y - endPoint.y)) / (beginPoint.y - endPoint.y) + endPoint.x;
+        return ((beginPoint.x - endPoint.x) * (this.y - endPoint.y)) / (beginPoint.y - endPoint.y) + endPoint.x;
     }
 
     public interpolateY(beginPoint: IPoint, endPoint: IPoint): number {
-        return ((beginPoint.y - endPoint.y) * (this.#x - endPoint.x)) / (beginPoint.x - endPoint.x) + endPoint.y;
+        return ((beginPoint.y - endPoint.y) * (this.x - endPoint.x)) / (beginPoint.x - endPoint.x) + endPoint.y;
     }
 
     public export(): IPoint {
-        return { x: this.#x, y: this.#y };
+        return { x: this.x, y: this.y };
     }
 
     public get x(): number {
-        return this.#x;
+        return this.data[this.offset];
     }
 
     public set x(value: number) {
-        this.#x = value;
+        this.data[this.offset] = value;
     }
 
     public get y(): number {
-        return this.#y;
+        return this.data[this.offset + 1];
     }
 
     public set y(value: number) {
-        this.#y = value;
+        this.data[this.offset + 1] = value;
+    }
+
+    public get length(): number {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
     }
 
     public static create(x: number, y: number): Point {
-        return new Point(x, y);
-    }
+        const data = new Float64Array(2);
+        data[0] = x;
+        data[1] = y;
 
-    public static from(point: IPoint): Point {
-        return new Point(point.x, point.y);
+        return new Point(data);
     }
 
     public static zero(): Point {
-        return new Point(0, 0);
+        return Point.create(0, 0);
     }
 
-    // TODO remove it when fully refactor geometry utils
-    private static almostEqual(a: number, b: number = 0, tolerance: number = Point.TOL): boolean {
-        return Math.abs(a - b) < tolerance;
+    public static from(point: IPoint): Point {
+        return Point.create(point.x, point.y);
     }
-
-    private static TOL: number = Math.pow(10, -9);
 }
