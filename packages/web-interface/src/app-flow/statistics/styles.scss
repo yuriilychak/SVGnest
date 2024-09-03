@@ -1,8 +1,8 @@
 @import '../../@shared-styles.scss';
 
-$progress-bar-size: 36px;
+$progress-bar-size: 32px;
 $progress-item-width-sm: 158px;
-$progress-item-width-md: 200px;
+$progress-item-width-md: 174px;
 
 .statisticsRoot {
     @include flex-center(row, $g-md);
@@ -19,7 +19,7 @@ $progress-item-width-md: 200px;
 }
 
 .statisticsProgressDescription {
-    font-size: $fs-sm;
+    font-size: $fs-xs;
     color: $c-secondary;
     font-weight: 400;
     overflow: hidden;

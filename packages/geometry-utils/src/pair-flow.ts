@@ -19,13 +19,15 @@ interface ISegmentCheck {
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
 function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint): boolean {
-    const a1 = B.y - A.y;
-    const b1 = A.x - B.y;
+    const offsetAB = Point.from(A).sub(B);
+    const offsetEF = Point.from(E).sub(F);
+    const a1 = -offsetAB.y;
+    const b1 = offsetAB.x;
     const c1 = B.x * A.y - A.x * B.y;
-    const a2 = F.y - E.y;
-    const b2 = E.x - F.x;
+    const a2 = -offsetEF.y;
+    const b2 = offsetEF.x;
     const c2 = F.x * E.y - E.x * F.y;
-    const denom = a1 * b2 - a2 * b1;
+    const denom = offsetEF.y * offsetAB.x - offsetAB.y * offsetEF.x;
     const x = (b1 * c2 - b2 * c1) / denom;
     const y = (a2 * c1 - a1 * c2) / denom;
 
@@ -234,6 +236,41 @@ function pointDistance(p: IPoint, s1: IPoint, s2: IPoint, inputNormal: IPoint, i
     return s1dotnorm - pdotnorm - ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot);
 }
 
+function coincedentDistance(
+    point1: IPoint,
+    point2: IPoint,
+    point3: IPoint,
+    point4: IPoint,
+    direction: IPoint,
+    normal: Point,
+    overlap: number,
+    defaultValue: number
+): number {
+    const dot1: number = normal.dot(point1);
+    const dot3: number = normal.dot(point3);
+    const dot4: number = normal.dot(point4);
+
+    if (midValue(dot1, dot3, dot4) >= 0) {
+        return defaultValue;
+    }
+
+    const result: number = pointDistance(point1, point3, point4, direction);
+
+    if (result === null) {
+        return defaultValue;
+    }
+
+    if (almostEqual(result)) {
+        //  A currently touches EF, but AB is moving away from EF
+        const distance = pointDistance(point2, point3, point4, direction, true);
+        if (distance < 0 || almostEqual(distance * overlap)) {
+            return defaultValue;
+        }
+    }
+
+    return defaultValue !== null ? Math.min(result, defaultValue) : result;
+}
+
 function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: IPoint): number {
     const normal = Point.from(direction).normal();
     const reverse = Point.from(direction).reverse();
@@ -288,80 +325,29 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
         return null;
     }
 
-    const distances = [];
+    let result: number = null;
 
     // coincident points
     if (almostEqual(dotA, dotE)) {
-        distances.push(crossA - crossE);
+        result = crossA - crossE;
     } else if (almostEqual(dotA, dotF)) {
-        distances.push(crossA - crossF);
-    } else if (dotA > minEF && dotA < maxEF) {
-        let d: number = pointDistance(A, E, F, reverse);
-
-        if (d !== null && almostEqual(d, 0)) {
-            //  A currently touches EF, but AB is moving away from EF
-            const dB = pointDistance(B, E, F, reverse, true);
-            if (dB < 0 || almostEqual(dB * overlap)) {
-                d = null;
-            }
-        }
-        if (d !== null) {
-            distances.push(d);
-        }
+        result = crossA - crossF;
+    } else {
+        result = coincedentDistance(A, B, E, F, reverse, normal, overlap, result);
     }
 
     if (almostEqual(dotB, dotE)) {
-        distances.push(crossB - crossE);
+        result = result !== null ? Math.min(crossB - crossE, result) : crossB - crossE;
     } else if (almostEqual(dotB, dotF)) {
-        distances.push(crossB - crossF);
-    } else if (dotB > minEF && dotB < maxEF) {
-        let d: number = pointDistance(B, E, F, reverse);
-
-        if (d !== null && almostEqual(d)) {
-            // crossA>crossB A currently touches EF, but AB is moving away from EF
-            const dA = pointDistance(A, E, F, reverse, true);
-            if (dA < 0 || almostEqual(dA * overlap)) {
-                d = null;
-            }
-        }
-        if (d !== null) {
-            distances.push(d);
-        }
+        result = result !== null ? Math.min(crossB - crossF, result) : crossB - crossF;
+    } else {
+        result = coincedentDistance(B, A, E, F, reverse, normal, overlap, result);
     }
 
-    if (dotE > minAB && dotE < maxAB) {
-        let d: number = pointDistance(E, A, B, direction);
-        if (d !== null && almostEqual(d)) {
-            // crossF<crossE A currently touches EF, but AB is moving away from EF
-            const dF = pointDistance(F, A, B, direction, true);
-            if (dF < 0 || almostEqual(dF * overlap)) {
-                d = null;
-            }
-        }
-        if (d !== null) {
-            distances.push(d);
-        }
-    }
+    result = coincedentDistance(E, F, A, B, direction, normal, overlap, result);
+    result = coincedentDistance(F, E, A, B, direction, normal, overlap, result);
 
-    if (dotF > minAB && dotF < maxAB) {
-        let d: number = pointDistance(F, A, B, direction);
-        if (d !== null && almostEqual(d)) {
-            // && crossE<crossF A currently touches EF, but AB is moving away from EF
-            const dE = pointDistance(E, A, B, direction, true);
-            if (dE < 0 || almostEqual(dE * overlap)) {
-                d = null;
-            }
-        }
-        if (d !== null) {
-            distances.push(d);
-        }
-    }
-
-    if (distances.length === 0) {
-        return null;
-    }
-
-    return Math.min(...distances);
+    return result;
 }
 
 function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPoint): number {
