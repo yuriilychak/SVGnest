@@ -689,7 +689,7 @@ function noFitPolygon(A: IPolygon, B: IPolygon, inside: boolean, searchEdges: bo
     // no reliable heuristic for inside
     let startPoint: Point = inside ? searchStartPoint(A, B, true) : Point.from(A[minIndexA]).sub(B[maxIndexB]);
 
-    const NFPlist = [];
+    const nfpList = [];
     const reference: Point = Point.zero();
     const start: Point = Point.zero();
     const offsetB: Point = Point.zero();
@@ -889,7 +889,7 @@ function noFitPolygon(A: IPolygon, B: IPolygon, inside: boolean, searchEdges: bo
         }
 
         if (nfp && nfp.length > 0) {
-            NFPlist.push(nfp);
+            nfpList.push(nfp);
         }
 
         if (!searchEdges) {
@@ -897,10 +897,10 @@ function noFitPolygon(A: IPolygon, B: IPolygon, inside: boolean, searchEdges: bo
             break;
         }
 
-        startPoint = searchStartPoint(A, B, inside, NFPlist);
+        startPoint = searchStartPoint(A, B, inside, nfpList);
     }
 
-    return NFPlist;
+    return nfpList;
 }
 
 export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerResult | null {
