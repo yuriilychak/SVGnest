@@ -1,8 +1,9 @@
 // Import the library if needed for side effects
-import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
+import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint, Polygon } from 'js-clipper';
 
 import { BoundRect, IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
 import { getPolygonBounds, nestPolygons, normalizePolygon, polygonArea } from './helpers';
+import { default as LocalPolygon } from './polygon';
 
 export default class ClipperWrapper {
     #configuration: NestConfig;
@@ -139,7 +140,7 @@ export default class ClipperWrapper {
     }
 
     public static toClipper(
-        polygon: IPoint[],
+        polygon: IPoint[] | LocalPolygon,
         scale: number = 1,
         offset: IPoint = { x: 0, y: 0 },
         isRound: boolean = false
@@ -152,7 +153,8 @@ export default class ClipperWrapper {
         let y: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            point = polygon[i];
+            //@ts-ignore
+            point = polygon.at(i);
             x = (point.x + offset.x) * scale;
             y = (point.y + offset.y) * scale;
 

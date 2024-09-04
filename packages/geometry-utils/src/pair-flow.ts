@@ -1,14 +1,15 @@
 import ClipperLib from 'js-clipper';
-import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, pointInPolygon } from './helpers';
+import { keyToNFPData, polygonArea, pointInPolygon } from './helpers';
 import { almostEqual, cycleIndex, midValue } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
-import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
+import { IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 import Point from './point';
+import Polygon from './polygon';
 import { TOL } from './constants';
 
 interface ISegmentCheck {
     point: Point;
-    polygon: IPolygon;
+    polygon: Polygon;
     segmentStart: Point;
     segmentEnd: Point;
     checkStart: Point;
@@ -24,7 +25,7 @@ interface IVector {
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
-function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint): boolean {
+function lineIntersect(A: Point, B: Point, E: Point, F: Point): boolean {
     const [a1, b1, c1] = Point.lineEquation(A, B);
     const [a2, b2, c2] = Point.lineEquation(E, F);
     const denom = a1 * b2 - a2 * b1;
@@ -48,49 +49,25 @@ function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint): boolean {
     );
 }
 
-function isRectangle(polygon: IPoint[]): boolean {
-    const bounds: BoundRect = getPolygonBounds(polygon);
-    const pointCount: number = polygon.length;
-    const rightX: number = bounds.x + bounds.width;
-    const bottomY: number = bounds.y + bounds.height;
-    let point: IPoint = null;
-    let i: number = 0;
-
-    for (i = 0; i < pointCount; ++i) {
-        point = polygon[i];
-
-        if (
-            !(
-                (almostEqual(point.x, bounds.x) || almostEqual(point.x, rightX)) &&
-                (almostEqual(point.y, bounds.y) || almostEqual(point.y, bottomY))
-            )
-        ) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 // old-todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
 
-function updateIntersectPoint(point: Point, polygon: IPolygon, index: number, offset: number): void {
+function updateIntersectPoint(point: Point, polygon: Polygon, index: number, offset: number): void {
     const pointCount: number = polygon.length;
     let currentIndex = cycleIndex(index, pointCount, offset);
 
-    point.update(polygon[index]);
+    point.update(polygon.at(index));
 
     // go even further back if we happen to hit on a loop end point
-    if (point.almostEqual(polygon[index])) {
+    if (point.almostEqual(polygon.at(currentIndex))) {
         currentIndex = cycleIndex(currentIndex, pointCount, offset);
-        point.update(polygon[currentIndex]);
+        point.update(polygon.at(currentIndex));
     }
 }
 
 function getSegmentCheck(
     point: Point,
-    polygon: IPolygon,
+    polygon: Polygon,
     segmentStart: Point,
     segmentEnd: Point,
     checkStart: Point,
@@ -100,9 +77,7 @@ function getSegmentCheck(
     return { point, polygon, segmentStart, segmentEnd, checkStart, checkEnd, target };
 }
 
-function intersect(polygonA: IPolygon, polygonB: IPolygon): boolean {
-    const offsetA: Point = Point.create(polygonA.offsetx || 0, polygonA.offsety || 0);
-    const offsetB: Point = Point.create(polygonB.offsetx || 0, polygonB.offsety || 0);
+function intersect(polygonA: Polygon, polygonB: Polygon): boolean {
     const a0: Point = Point.zero();
     const a1: Point = Point.zero();
     const a2: Point = Point.zero();
@@ -129,28 +104,28 @@ function intersect(polygonA: IPolygon, polygonB: IPolygon): boolean {
     let segmentStats: boolean = false;
 
     for (i = 0; i < pointCountA - 1; ++i) {
-        a1.update(polygonA[i]);
-        a2.update(polygonA[i + 1]);
+        a1.update(polygonA.at(i));
+        a2.update(polygonA.at(i + 1));
 
         updateIntersectPoint(a0, polygonA, i, -1);
         updateIntersectPoint(a3, polygonA, i + 1, 1);
 
-        a0.add(offsetA);
-        a1.add(offsetA);
-        a2.add(offsetA);
-        a3.add(offsetA);
+        a0.add(polygonA.offset);
+        a1.add(polygonA.offset);
+        a2.add(polygonA.offset);
+        a3.add(polygonA.offset);
 
         for (j = 0; j < pointCountB - 1; ++j) {
-            b1.update(polygonB[j]);
-            b2.update(polygonB[j + 1]);
+            b1.update(polygonB.at(j));
+            b2.update(polygonB.at(j + 1));
 
             updateIntersectPoint(b0, polygonB, j, -1);
             updateIntersectPoint(b3, polygonB, j + 1, 1);
 
-            b0.add(offsetB);
-            b1.add(offsetB);
-            b3.add(offsetB);
-            b2.add(offsetB);
+            b0.add(polygonB.offset);
+            b1.add(polygonB.offset);
+            b3.add(polygonB.offset);
+            b2.add(polygonB.offset);
 
             segmentStats = null;
 
@@ -162,8 +137,8 @@ function intersect(polygonA: IPolygon, polygonB: IPolygon): boolean {
                     segmentCheck.point.almostEqual(segmentCheck.target)
                 ) {
                     // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-                    pointIn1 = pointInPolygon(segmentCheck.checkStart, segmentCheck.polygon);
-                    pointIn2 = pointInPolygon(segmentCheck.checkEnd, segmentCheck.polygon);
+                    pointIn1 = segmentCheck.polygon.pointIn(segmentCheck.checkStart);
+                    pointIn2 = segmentCheck.polygon.pointIn(segmentCheck.checkEnd);
 
                     segmentStats = pointIn1 !== null && pointIn2 !== null && pointIn1 !== pointIn2;
                     break;
@@ -181,12 +156,12 @@ function intersect(polygonA: IPolygon, polygonB: IPolygon): boolean {
     return false;
 }
 
-function minkowskiDifference(polygonA: IPolygon, polygonB: IPolygon, clipperScale: number): IPoint[][] {
+function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale: number): IPoint[][] {
     const clipperA: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonA, clipperScale);
     const clipperB: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonB, -clipperScale);
     const solutions: ClipperLib.IntPoint[][] = ClipperLib.Clipper.MinkowskiSum(clipperA, clipperB, true);
     const solutionCount: number = solutions.length;
-    const firstPoint: IPoint = polygonB[0];
+    const firstPoint: IPoint = polygonB.at(0);
     let i: number = 0;
     let clipperNfp: IPoint[] = null;
     let largestArea: number = null;
@@ -211,7 +186,7 @@ function minkowskiDifference(polygonA: IPolygon, polygonB: IPolygon, clipperScal
     return [clipperNfp];
 }
 
-function pointDistance(p: IPoint, s1: IPoint, s2: IPoint, inputNormal: IPoint, infinite: boolean = false): number {
+function pointDistance(p: Point, s1: Point, s2: Point, inputNormal: Point, infinite: boolean = false): number {
     const normal = Point.from(inputNormal).normalize();
     const dir = Point.from(normal).normal();
     const pdot = dir.dot(p);
@@ -235,11 +210,11 @@ function pointDistance(p: IPoint, s1: IPoint, s2: IPoint, inputNormal: IPoint, i
 }
 
 function coincedentDistance(
-    point1: IPoint,
-    point2: IPoint,
-    point3: IPoint,
-    point4: IPoint,
-    direction: IPoint,
+    point1: Point,
+    point2: Point,
+    point3: Point,
+    point4: Point,
+    direction: Point,
     normal: Point,
     overlap: number,
     defaultValue: number
@@ -269,7 +244,7 @@ function coincedentDistance(
     return defaultValue !== null ? Math.min(result, defaultValue) : result;
 }
 
-function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: IPoint): number {
+function segmentDistance(A: Point, B: Point, E: Point, F: Point, direction: Point): number {
     const normal = Point.from(direction).normal();
     const reverse = Point.from(direction).reverse();
     const dir = Point.from(direction);
@@ -348,13 +323,11 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
     return result;
 }
 
-function polygonSlideDistance(polygonA: IPolygon, polygonB: IPolygon, direction: IPoint): number {
+function polygonSlideDistance(polygonA: Polygon, polygonB: Polygon, direction: IPoint): number {
     const a1: Point = Point.zero();
     const a2: Point = Point.zero();
     const b1: Point = Point.zero();
     const b2: Point = Point.zero();
-    const offsetA: Point = Point.create(polygonA.offsetx || 0, polygonA.offsety || 0);
-    const offsetB: Point = Point.create(polygonB.offsetx || 0, polygonB.offsety || 0);
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const dir = Point.from(direction).normalize();
@@ -364,12 +337,12 @@ function polygonSlideDistance(polygonA: IPolygon, polygonB: IPolygon, direction:
     let j: number = 0;
 
     for (i = 0; i < sizeB; ++i) {
-        b1.update(polygonB[i]).add(offsetB);
-        b2.update(polygonB[cycleIndex(i, sizeB, 1)]).add(offsetB);
+        b1.update(polygonB.at(i)).add(polygonB.offset);
+        b2.update(polygonB.at(cycleIndex(i, sizeB, 1))).add(polygonB.offset);
 
         for (j = 0; j < sizeA; ++j) {
-            a1.update(polygonA[j]).add(offsetA);
-            a2.update(polygonA[cycleIndex(j, sizeA, 1)]).add(offsetA);
+            a1.update(polygonA.at(j)).add(polygonA.offset);
+            a2.update(polygonA.at(cycleIndex(j, sizeA, 1))).add(polygonA.offset);
 
             if (a1.almostEqual(a2) || b1.almostEqual(b2)) {
                 continue; // ignore extremely small lines
@@ -389,9 +362,7 @@ function polygonSlideDistance(polygonA: IPolygon, polygonB: IPolygon, direction:
 }
 
 // project each point of B onto A in the given direction, and return the
-function polygonProjectionDistance(polygonA: IPolygon, polygonB: IPolygon, direction: IPoint): number {
-    const offsetA: Point = Point.create(polygonA.offsetx || 0, polygonA.offsety || 0);
-    const offsetB: Point = Point.create(polygonB.offsetx || 0, polygonB.offsety || 0);
+function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, direction: Point): number {
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     let distance = null;
@@ -407,11 +378,11 @@ function polygonProjectionDistance(polygonA: IPolygon, polygonB: IPolygon, direc
     for (i = 0; i < sizeB; ++i) {
         // the shortest/most negative projection of B onto A
         minProjection = null;
-        p.update(polygonB[i]).add(offsetB);
+        p.update(polygonB.at(i)).add(polygonB.offset);
 
         for (j = 0; j < sizeA; ++j) {
-            s1.update(polygonA[j]).add(offsetA);
-            s2.update(polygonA[cycleIndex(j, sizeA, 1)]).add(offsetA);
+            s1.update(polygonA.at(j)).add(polygonA.offset);
+            s2.update(polygonA.at(cycleIndex(j, sizeA, 1))).add(polygonA.offset);
             sOffset.update(s2).sub(s1);
 
             if (almostEqual(sOffset.cross(direction))) {
@@ -435,21 +406,21 @@ function polygonProjectionDistance(polygonA: IPolygon, polygonB: IPolygon, direc
 }
 
 // returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle(A: IPolygon, B: IPolygon): IPoint[][] {
-    const minA: Point = Point.from(A[0]);
-    const maxA: Point = Point.from(A[0]);
-    const minB: Point = Point.from(B[0]);
-    const maxB: Point = Point.from(B[0]);
+function noFitPolygonRectangle(A: Polygon, B: Polygon): IPoint[][] {
+    const minA: Point = Point.from(A.at(0));
+    const maxA: Point = Point.from(A.at(0));
+    const minB: Point = Point.from(B.at(0));
+    const maxB: Point = Point.from(B.at(0));
     let i: number = 0;
 
     for (i = 1; i < A.length; ++i) {
-        minA.min(A[i]);
-        maxA.max(A[i]);
+        minA.min(A.at(i));
+        maxA.max(A.at(i));
     }
 
     for (i = 1; i < B.length; ++i) {
-        minB.min(B[i]);
-        maxB.max(B[i]);
+        minB.min(B.at(i));
+        maxB.max(B.at(i));
     }
 
     const minDiff = Point.from(minA).sub(minB);
@@ -459,8 +430,8 @@ function noFitPolygonRectangle(A: IPolygon, B: IPolygon): IPoint[][] {
         return null;
     }
 
-    minDiff.add(B[0]);
-    maxDiff.add(B[0]);
+    minDiff.add(B.at(0));
+    maxDiff.add(B.at(0));
 
     return [
         [
@@ -498,18 +469,17 @@ function inNfp(p: Point, nfp: IPoint[][]): boolean {
     return false;
 }
 
-function getInside(polygonA: IPolygon, polygonB: IPolygon, startPoint: Point, defaultValue: boolean | null): boolean | null {
+function getInside(polygonA: Polygon, polygonB: Polygon, startPoint: Point, defaultValue: boolean | null): boolean | null {
     const point: Point = Point.zero();
     const sizeB: number = polygonB.length;
     let i: number = 0;
     let inPoly: boolean = false;
 
-    polygonB.offsetx = startPoint.x;
-    polygonB.offsety = startPoint.y;
+    polygonB.offset.update(startPoint);
 
     for (i = 0; i < sizeB; ++i) {
-        point.update(polygonB[i]).add(startPoint);
-        inPoly = pointInPolygon(point, polygonA);
+        point.update(polygonB.at(i)).add(startPoint);
+        inPoly = polygonA.pointIn(point);
 
         if (inPoly !== null) {
             return inPoly;
@@ -522,8 +492,8 @@ function getInside(polygonA: IPolygon, polygonB: IPolygon, startPoint: Point, de
 // searches for an arrangement of A and B such that they do not overlap
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
 function searchStartPoint(
-    polygonA: IPolygon,
-    polygonB: IPolygon,
+    polygonA: Polygon,
+    polygonB: Polygon,
     inside: boolean,
     markedIndices: number[],
     NFP: IPoint[][] = []
@@ -543,7 +513,7 @@ function searchStartPoint(
             markedIndices.push(i);
 
             for (j = 0; j < sizeB; ++j) {
-                startPoint.update(polygonA[i]).sub(polygonB[j]);
+                startPoint.update(polygonA.at(i)).sub(polygonB.at(j));
 
                 isInside = getInside(polygonA, polygonB, startPoint, null);
 
@@ -557,7 +527,7 @@ function searchStartPoint(
                 }
 
                 // slide B along vector
-                v.update(polygonA[cycleIndex(i, sizeA, 1)]).sub(polygonA[i]);
+                v.update(polygonA.at(cycleIndex(i, sizeA, 1))).sub(polygonA.at(i));
                 vNeg.update(v).reverse();
 
                 const d1 = polygonProjectionDistance(polygonA, polygonB, v);
@@ -600,7 +570,7 @@ function searchStartPoint(
     return null;
 }
 
-function getVector(start: number, end: number, baseValue: IPoint, subValue: IPoint, offset: Point = null): IVector {
+function getVector(start: number, end: number, baseValue: Point, subValue: Point, offset: Point = null): IVector {
     const value = Point.from(baseValue).sub(subValue);
 
     if (offset !== null) {
@@ -613,34 +583,33 @@ function getVector(start: number, end: number, baseValue: IPoint, subValue: IPoi
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
-function noFitPolygon(polygonA: IPolygon, polygonB: IPolygon, inside: boolean, searchEdges: boolean) {
-    if (!polygonA || polygonA.length < 3 || !polygonB || polygonB.length < 3) {
+function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, searchEdges: boolean) {
+    if (!polygonA || polygonA.isBroken || !polygonB || polygonB.isBroken) {
         return null;
     }
 
-    polygonA.offsetx = 0;
-    polygonA.offsety = 0;
+    polygonA.offset.set(0, 0);
 
     let i: number = 0;
     let j: number = 0;
 
-    let minA = polygonA[0].y;
+    let minA = polygonA.at(0).y;
     let minIndexA = 0;
 
-    let maxB = polygonB[0].y;
+    let maxB = polygonB.at(0).y;
     let maxIndexB = 0;
     const markedIndices: number[] = [];
 
     for (i = 1; i < polygonA.length; ++i) {
-        if (polygonA[i].y < minA) {
-            minA = polygonA[i].y;
+        if (polygonA.at(i).y < minA) {
+            minA = polygonA.at(i).y;
             minIndexA = i;
         }
     }
 
     for (i = 1; i < polygonB.length; ++i) {
-        if (polygonB[i].y > maxB) {
-            maxB = polygonB[i].y;
+        if (polygonB.at(i).y > maxB) {
+            maxB = polygonB.at(i).y;
             maxIndexB = i;
         }
     }
@@ -650,11 +619,10 @@ function noFitPolygon(polygonA: IPolygon, polygonB: IPolygon, inside: boolean, s
     // no reliable heuristic for inside
     let startPoint: Point = inside
         ? searchStartPoint(polygonA, polygonB, true, markedIndices)
-        : Point.from(polygonA[minIndexA]).sub(polygonB[maxIndexB]);
+        : Point.from(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
     const nfpList = [];
     const reference: Point = Point.zero();
     const start: Point = Point.zero();
-    const offsetB: Point = Point.zero();
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const condition: number = 10 * (sizeA + sizeB);
@@ -689,13 +657,11 @@ function noFitPolygon(polygonA: IPolygon, polygonB: IPolygon, inside: boolean, s
     let vLength: number = 0;
 
     while (startPoint !== null) {
-        offsetB.update(startPoint);
-        polygonB.offsetx = offsetB.x;
-        polygonB.offsety = offsetB.y;
+        polygonB.offset.update(startPoint);
 
         touchings = [];
         prevVector = null; // keep track of previous vector
-        reference.update(polygonB[0]).add(startPoint);
+        reference.update(polygonB.at(0)).add(startPoint);
         start.update(reference);
         nfp = [reference.export()];
         counter = 0;
@@ -706,14 +672,14 @@ function noFitPolygon(polygonA: IPolygon, polygonB: IPolygon, inside: boolean, s
             // find touching vertices/edges
             for (i = 0; i < sizeA; ++i) {
                 iNext = cycleIndex(i, sizeA, 1);
-                pointA.update(polygonA[i]);
-                pointANext.update(polygonA[iNext]);
+                pointA.update(polygonA.at(i));
+                pointANext.update(polygonA.at(iNext));
                 for (j = 0; j < sizeB; ++j) {
                     jNext = cycleIndex(j, sizeB, 1);
-                    pointB.update(polygonB[j]).add(offsetB);
-                    pointBNext.update(polygonB[jNext]).add(offsetB);
+                    pointB.update(polygonB.at(j)).add(polygonB.offset);
+                    pointBNext.update(polygonB.at(jNext)).add(polygonB.offset);
 
-                    if (pointB.almostEqual(polygonA[i])) {
+                    if (pointB.almostEqual(polygonA.at(i))) {
                         touchings.push([0, i, j]);
                     } else if (pointB.onSegment(pointA, pointANext)) {
                         touchings.push([1, iNext, j]);
@@ -740,21 +706,21 @@ function noFitPolygon(polygonA: IPolygon, polygonB: IPolygon, inside: boolean, s
 
                 switch (touching[0]) {
                     case 0: {
-                        vectors.push(getVector(currA, prevA, polygonA[prevA], polygonA[currA]));
-                        vectors.push(getVector(currA, nextA, polygonA[nextA], polygonA[currA]));
+                        vectors.push(getVector(currA, prevA, polygonA.at(prevA), polygonA.at(currA)));
+                        vectors.push(getVector(currA, nextA, polygonA.at(nextA), polygonA.at(currA)));
                         // B vectors need to be inverted
-                        vectors.push(getVector(-1, -1, polygonB[currB], polygonB[prevB]));
-                        vectors.push(getVector(-1, -1, polygonB[currB], polygonB[nextB]));
+                        vectors.push(getVector(-1, -1, polygonB.at(currB), polygonB.at(prevB)));
+                        vectors.push(getVector(-1, -1, polygonB.at(currB), polygonB.at(nextB)));
                         break;
                     }
                     case 1: {
-                        vectors.push(getVector(prevA, currA, polygonA[currA], polygonB[currB], offsetB));
-                        vectors.push(getVector(currA, prevA, polygonA[prevA], polygonB[currB], offsetB));
+                        vectors.push(getVector(prevA, currA, polygonA.at(currA), polygonB.at(currB), polygonB.offset));
+                        vectors.push(getVector(currA, prevA, polygonA.at(prevA), polygonB.at(currB), polygonB.offset));
                         break;
                     }
                     default: {
-                        vectors.push(getVector(-1, -1, polygonA[currA], polygonB[currB], offsetB));
-                        vectors.push(getVector(-1, -1, polygonA[currA], polygonB[prevB], offsetB));
+                        vectors.push(getVector(-1, -1, polygonA.at(currA), polygonB.at(currB), polygonB.offset));
+                        vectors.push(getVector(-1, -1, polygonA.at(currA), polygonB.at(prevB), polygonB.offset));
                     }
                 }
             }
@@ -848,9 +814,7 @@ function noFitPolygon(polygonA: IPolygon, polygonB: IPolygon, inside: boolean, s
 
             nfp.push(reference.export());
 
-            offsetB.add(translate.value);
-            polygonB.offsetx = offsetB.x;
-            polygonB.offsety = offsetB.y;
+            polygonB.offset.add(translate.value);
 
             ++counter;
         }
@@ -878,13 +842,16 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
     }
 
     const nfpContent: NFPContent = keyToNFPData(pair.key, rotations);
-    const polygonA: IPolygon = rotatePolygon(pair.A, nfpContent.Arotation);
-    const polygonB: IPolygon = rotatePolygon(pair.B, nfpContent.Brotation);
+    const polygonA: Polygon = Polygon.fromLegacy(pair.A);
+    const polygonB: Polygon = Polygon.fromLegacy(pair.B);
     let nfp: IPoint[][] = null;
     let i: number = 0;
 
+    polygonA.rotate(nfpContent.Arotation);
+    polygonB.rotate(nfpContent.Brotation);
+
     if (nfpContent.inside) {
-        nfp = isRectangle(polygonA)
+        nfp = polygonA.isRectangle
             ? noFitPolygonRectangle(polygonA, polygonB)
             : noFitPolygon(polygonA, polygonB, true, exploreConcave);
 
@@ -916,7 +883,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
         for (i = 0; i < nfp.length; ++i) {
             if (!exploreConcave || i === 0) {
                 // if searchedges is active, only the first NFP is guaranteed to pass sanity check
-                if (Math.abs(polygonArea(nfp[i])) < Math.abs(polygonArea(polygonA))) {
+                if (Math.abs(polygonArea(nfp[i])) < Math.abs(polygonA.area)) {
                     console.log('NFP Area Error: ', Math.abs(polygonArea(nfp[i])), pair.key);
                     console.log('NFP:', JSON.stringify(nfp[i]));
                     console.log('A: ', JSON.stringify(polygonA));
@@ -947,18 +914,17 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
             }
         }
 
-        const childCount: number = polygonA.children ? polygonA.children.length : 0;
-
         // generate nfps for children (holes of parts) if any exist
-        if (useHoles && childCount !== 0) {
-            const boundsB: BoundRect = getPolygonBounds(polygonB);
+        if (useHoles && polygonA.hasChildren) {
+            const childCount: number = polygonA.childrCount;
+            let child: Polygon = null;
 
             for (i = 0; i < childCount; ++i) {
-                const boundsA = getPolygonBounds(polygonA.children[i]);
+                child = polygonA.children[i];
 
                 // no need to find nfp if B's bounding box is too big
-                if (boundsA.width > boundsB.width && boundsA.height > boundsB.height) {
-                    const noFitPolygons: IPoint[][] = noFitPolygon(polygonA.children[i], polygonB, true, exploreConcave);
+                if (child.width > polygonB.width && child.height > polygonB.height) {
+                    const noFitPolygons: IPoint[][] = noFitPolygon(child, polygonB, true, exploreConcave);
                     const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                     // ensure all interior NFPs have the same winding direction
                     if (noFitCount !== 0) {
