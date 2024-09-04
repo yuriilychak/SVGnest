@@ -1,53 +1,6 @@
 import { BoundRect, IPoint, IPolygon, NFPContent } from './types';
 import Point from './point';
-import { TOL } from './constants';
-import { almostEqual, cycleIndex, midValue } from './shared-helpers';
-
-// returns true if p lies on the line segment defined by AB, but not at any endpoints
-// may need work!
-export function onSegment(A: IPoint, B: IPoint, p: IPoint): boolean {
-    const innerP: Point = Point.from(p);
-    const innerA: Point = Point.from(A);
-    const midX: number = midValue(innerP.x, A.x, B.x);
-    const midY: number = midValue(innerP.y, A.y, B.y);
-    // vertical line
-    if (almostEqual(A.x, B.x) && almostEqual(p.x, A.x)) {
-        return !almostEqual(p.y, B.y) && !almostEqual(p.y, A.y) && midY < 0;
-    }
-
-    // horizontal line
-    if (almostEqual(A.y, B.y) && almostEqual(p.y, A.y)) {
-        return !almostEqual(p.x, B.x) && !almostEqual(p.x, A.x) && midX < 0;
-    }
-
-    if (
-        // range check
-        midX > 0 ||
-        midY > 0 ||
-        // exclude end points
-        innerP.almostEqual(A) ||
-        innerP.almostEqual(B)
-    ) {
-        return false;
-    }
-
-    const subA = Point.from(p).sub(A);
-    const subAB = Point.from(B).sub(A);
-
-    if (Math.abs(subA.cross(subAB)) > TOL) {
-        return false;
-    }
-
-    const dot = subA.dot(subAB);
-
-    if (dot < TOL) {
-        return false;
-    }
-
-    const len2 = innerA.len2(B);
-
-    return !(dot > len2 || almostEqual(dot, len2));
-}
+import { almostEqual, cycleIndex } from './shared-helpers';
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
 export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {

@@ -37,6 +37,20 @@ export default class Point implements IPoint {
         return this;
     }
 
+    public mul(point: IPoint): Point {
+        this.x *= point.x;
+        this.y *= point.y;
+
+        return this;
+    }
+
+    public scale(value: number): Point {
+        this.x *= value;
+        this.y *= value;
+
+        return this;
+    }
+
     public max(point: IPoint): Point {
         return this.set(Math.max(this.x, point.x), Math.max(this.y, point.y));
     }
@@ -166,7 +180,15 @@ export default class Point implements IPoint {
     }
 
     public get length(): number {
-        return Math.sqrt(this.x * this.x + this.y * this.y);
+        return Math.sqrt(this.length2);
+    }
+
+    public get length2(): number {
+        return this.x * this.x + this.y * this.y;
+    }
+
+    public get isEmpty(): boolean {
+        return this.x === 0 && this.y === 0;
     }
 
     public static create(x: number, y: number): Point {
@@ -183,5 +205,9 @@ export default class Point implements IPoint {
 
     public static from(point: IPoint): Point {
         return Point.create(point.x, point.y);
+    }
+
+    public static lineEquation(point1: IPoint, point2: IPoint): number[] {
+        return [point2.y - point1.y, point1.x - point2.x, point2.x * point1.y - point1.x * point2.y];
     }
 }

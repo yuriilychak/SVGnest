@@ -1,5 +1,5 @@
 import ClipperLib from 'js-clipper';
-import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, onSegment, pointInPolygon } from './helpers';
+import { keyToNFPData, rotatePolygon, getPolygonBounds, polygonArea, pointInPolygon } from './helpers';
 import { almostEqual, cycleIndex, midValue } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { BoundRect, IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
@@ -15,19 +15,19 @@ interface ISegmentCheck {
     checkEnd: Point;
     target: Point;
 }
+
+interface IVector {
+    value: Point;
+    start: IPoint;
+    end: IPoint;
+}
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
 function lineIntersect(A: IPoint, B: IPoint, E: IPoint, F: IPoint): boolean {
-    const offsetAB = Point.from(A).sub(B);
-    const offsetEF = Point.from(E).sub(F);
-    const a1 = -offsetAB.y;
-    const b1 = offsetAB.x;
-    const c1 = B.x * A.y - A.x * B.y;
-    const a2 = -offsetEF.y;
-    const b2 = offsetEF.x;
-    const c2 = F.x * E.y - E.x * F.y;
-    const denom = offsetEF.y * offsetAB.x - offsetAB.y * offsetEF.x;
+    const [a1, b1, c1] = Point.lineEquation(A, B);
+    const [a2, b2, c2] = Point.lineEquation(E, F);
+    const denom = a1 * b2 - a2 * b1;
     const x = (b1 * c2 - b2 * c1) / denom;
     const y = (a2 * c1 - a1 * c2) / denom;
 
@@ -351,10 +351,10 @@ function segmentDistance(A: IPoint, B: IPoint, E: IPoint, F: IPoint, direction: 
 }
 
 function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPoint): number {
-    const A1: Point = Point.zero();
-    const A2: Point = Point.zero();
-    const B1: Point = Point.zero();
-    const B2: Point = Point.zero();
+    const a1: Point = Point.zero();
+    const a2: Point = Point.zero();
+    const b1: Point = Point.zero();
+    const b2: Point = Point.zero();
     const offsetA: Point = Point.create(inputA.offsetx || 0, inputA.offsety || 0);
     const offsetB: Point = Point.create(inputB.offsetx || 0, inputB.offsety || 0);
     const A = inputA.slice(0);
@@ -380,18 +380,18 @@ function polygonSlideDistance(inputA: IPolygon, inputB: IPolygon, direction: IPo
     let j: number = 0;
 
     for (i = 0; i < sizeB - 1; ++i) {
-        B1.update(edgeB[i]).add(offsetB);
-        B2.update(edgeB[i + 1]).add(offsetB);
+        b1.update(edgeB[i]).add(offsetB);
+        b2.update(edgeB[i + 1]).add(offsetB);
 
         for (j = 0; j < sizeA - 1; ++j) {
-            A1.update(edgeA[j]).add(offsetA);
-            A2.update(edgeA[j + 1]).add(offsetA);
+            a1.update(edgeA[j]).add(offsetA);
+            a2.update(edgeA[j + 1]).add(offsetA);
 
-            if (A1.almostEqual(A2) || B1.almostEqual(B2)) {
+            if (a1.almostEqual(a2) || b1.almostEqual(b2)) {
                 continue; // ignore extremely small lines
             }
 
-            d = segmentDistance(A1, A2, B1, B2, dir);
+            d = segmentDistance(a1, a2, b1, b2, dir);
 
             if (d !== null && (distance === null || d < distance)) {
                 if (d > 0 || almostEqual(d)) {
@@ -420,11 +420,8 @@ function polygonProjectionDistance(inputA: IPolygon, inputB: IPolygon, direction
         B.push(B[0]);
     }
 
-    const edgeA = A;
-    const edgeB = B;
-    const sizeA: number = edgeA.length;
-    const sizeB: number = edgeB.length;
-
+    const sizeA: number = A.length;
+    const sizeB: number = B.length;
     let distance = null;
     let p: Point = Point.zero();
     let d: number = 0;
@@ -438,11 +435,11 @@ function polygonProjectionDistance(inputA: IPolygon, inputB: IPolygon, direction
     for (i = 0; i < sizeB; ++i) {
         // the shortest/most negative projection of B onto A
         minProjection = null;
-        p.update(edgeB[i]).add(offsetB);
+        p.update(B[i]).add(offsetB);
 
         for (j = 0; j < sizeA - 1; ++j) {
-            s1.update(edgeA[j]).add(offsetA);
-            s2.update(edgeA[j + 1]).add(offsetA);
+            s1.update(A[j]).add(offsetA);
+            s2.update(A[j + 1]).add(offsetA);
             sOffset.update(s2).sub(s1);
 
             if (almostEqual(sOffset.cross(direction))) {
@@ -504,17 +501,23 @@ function noFitPolygonRectangle(A: IPolygon, B: IPolygon): IPoint[][] {
 }
 
 // returns true if point already exists in the given nfp
-function inNfp(p: IPoint, nfp: IPoint[][]): boolean {
+function inNfp(p: Point, nfp: IPoint[][]): boolean {
     if (!nfp || nfp.length === 0) {
         return false;
     }
 
+    const nfpCount: number = nfp.length;
+    let currentNfp: IPoint[] = null;
+    let pointCount: number = 0;
     let i: number = 0;
     let j: number = 0;
 
-    for (i = 0; i < nfp.length; ++i) {
-        for (j = 0; j < nfp[i].length; ++j) {
-            if (almostEqual(p.x, nfp[i][j].x) && almostEqual(p.y, nfp[i][j].y)) {
+    for (i = 0; i < nfpCount; ++i) {
+        currentNfp = nfp[i];
+        pointCount = currentNfp.length;
+
+        for (j = 0; j < pointCount; ++j) {
+            if (p.almostEqual(currentNfp[j])) {
                 return true;
             }
         }
@@ -523,9 +526,29 @@ function inNfp(p: IPoint, nfp: IPoint[][]): boolean {
     return false;
 }
 
+function getInside(A: IPolygon, B: IPolygon, startPoint: Point, defaultValue: boolean | null): boolean | null {
+    B.offsetx = startPoint.x;
+    B.offsety = startPoint.y;
+
+    const point: Point = Point.zero();
+    let i: number = 0;
+    let inPoly: boolean = false;
+
+    for (i = 0; i < B.length; ++i) {
+        point.update(B[i]).add(startPoint);
+        inPoly = pointInPolygon(point, A);
+
+        if (inPoly !== null) {
+            return inPoly;
+        }
+    }
+
+    return defaultValue;
+}
+
 // searches for an arrangement of A and B such that they do not overlap
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
-function searchStartPoint(inputA: IPolygon, inputB: IPolygon, inside: boolean, NFP: IPoint[][] = []): IPoint {
+function searchStartPoint(inputA: IPolygon, inputB: IPolygon, inside: boolean, NFP: IPoint[][] = []): Point {
     // clone arrays
     const A = inputA.slice(0) as IPolygon;
     const B = inputB.slice(0) as IPolygon;
@@ -539,88 +562,66 @@ function searchStartPoint(inputA: IPolygon, inputB: IPolygon, inside: boolean, N
         B.push(B[0]);
     }
 
+    const startPoint: Point = Point.zero();
+    const v: Point = Point.zero();
+    const vNeg: Point = Point.zero();
     let i: number = 0;
     let j: number = 0;
-    let k: number = 0;
-    let vx = 0;
-    let vy = 0;
-    let inpoly: boolean = false;
-    let startPoint: IPoint = null;
     let d: number = null;
-    let Binside: boolean = null;
+    let isInside: boolean = null;
 
-    for (i = 0; i < A.length - 1; i++) {
+    for (i = 0; i < A.length - 1; ++i) {
         if (!A[i].marked) {
             A[i].marked = true;
-            for (j = 0; j < B.length; j++) {
-                B.offsetx = A[i].x - B[j].x;
-                B.offsety = A[i].y - B[j].y;
+            for (j = 0; j < B.length; ++j) {
+                startPoint.update(A[i]).sub(B[j]);
 
-                Binside = null;
-                for (k = 0; k < B.length; k++) {
-                    inpoly = pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A);
-                    if (inpoly !== null) {
-                        Binside = inpoly;
-                        break;
-                    }
-                }
+                isInside = getInside(A, B, startPoint, null);
 
-                if (Binside === null) {
+                if (isInside === null) {
                     // A and B are the same
                     return null;
                 }
 
-                startPoint = { x: B.offsetx, y: B.offsety };
-                if (((Binside && inside) || (!Binside && !inside)) && !intersect(A, B) && !inNfp(startPoint, NFP)) {
+                if (isInside === inside && !intersect(A, B) && !inNfp(startPoint, NFP)) {
                     return startPoint;
                 }
 
                 // slide B along vector
-                vx = A[i + 1].x - A[i].x;
-                vy = A[i + 1].y - A[i].y;
+                v.update(A[i + 1]).sub(A[i]);
+                vNeg.update(v).reverse();
 
-                const d1 = polygonProjectionDistance(A, B, { x: vx, y: vy });
-                const d2 = polygonProjectionDistance(B, A, { x: -vx, y: -vy });
+                const d1 = polygonProjectionDistance(A, B, v);
+                const d2 = polygonProjectionDistance(B, A, vNeg);
 
-                d = null;
+                d = -1;
 
                 // old-todo: clean this up
-                if (d1 === null && d2 === null) {
-                    // nothin
-                } else if (d1 === null) {
-                    d = d2;
-                } else if (d2 === null) {
-                    d = d1;
-                } else {
+                if (d1 !== null && d2 !== null) {
                     d = Math.min(d1, d2);
+                } else if (d2 !== null) {
+                    d = d2;
+                } else if (d1 !== null) {
+                    d = d1;
                 }
 
                 // only slide until no longer negative
                 // old-todo: clean this up
-                if (!(d !== null && !almostEqual(d, 0) && d > 0)) {
+                if (d < TOL) {
                     continue;
                 }
 
-                const vd2 = vx * vx + vy * vy;
+                const vd = v.length;
 
-                if (d * d < vd2 && !almostEqual(d * d, vd2)) {
-                    const vd = Math.sqrt(vx * vx + vy * vy);
-                    vx = vx * (d / vd);
-                    vy = vy * (d / vd);
+                if (vd - d >= TOL) {
+                    v.scale(d / vd);
                 }
 
-                B.offsetx = B.offsetx + vx;
-                B.offsety = B.offsety + vy;
+                startPoint.add(v);
 
-                for (k = 0; k < B.length; ++k) {
-                    inpoly = pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A);
-                    if (inpoly !== null) {
-                        Binside = inpoly;
-                        break;
-                    }
-                }
-                startPoint = { x: B.offsetx, y: B.offsety };
-                if (((Binside && inside) || (!Binside && !inside)) && !intersect(A, B) && !inNfp(startPoint, NFP)) {
+                isInside = getInside(A, B, startPoint, isInside);
+
+                if (isInside === inside && !intersect(A, B) && !inNfp(startPoint, NFP)) {
                     return startPoint;
                 }
             }
@@ -628,6 +629,23 @@ function searchStartPoint(inputA: IPolygon, inputB: IPolygon, inside: boolean, N
     }
 
     return null;
+}
+
+function getVector(
+    polygon: IPolygon,
+    startIndex: number,
+    endIndex: number,
+    baseValue: IPoint = polygon[endIndex],
+    subValue: IPoint = polygon[startIndex],
+    offset: Point = null
+): IVector {
+    const value = Point.from(baseValue).sub(subValue);
+
+    if (offset !== null) {
+        value.sub(offset);
+    }
+
+    return { value, start: polygon[startIndex], end: polygon[endIndex] };
 }
 
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
@@ -645,266 +663,213 @@ function noFitPolygon(A: IPolygon, B: IPolygon, inside: boolean, searchEdges: bo
     let j: number = 0;
 
     let minA = A[0].y;
-    let minAindex = 0;
+    let minIndexA = 0;
 
     let maxB = B[0].y;
-    let maxBindex = 0;
+    let maxIndexB = 0;
 
-    for (i = 1; i < A.length; i++) {
+    for (i = 1; i < A.length; ++i) {
         A[i].marked = false;
         if (A[i].y < minA) {
             minA = A[i].y;
-            minAindex = i;
+            minIndexA = i;
         }
     }
 
-    for (i = 1; i < B.length; i++) {
+    for (i = 1; i < B.length; ++i) {
         B[i].marked = false;
         if (B[i].y > maxB) {
             maxB = B[i].y;
-            maxBindex = i;
+            maxIndexB = i;
         }
     }
 
-    let startpoint: IPoint = null;
-
-    if (!inside) {
-        // shift B such that the bottom-most point of B is at the top-most
-        // point of A. This guarantees an initial placement with no intersections
-        startpoint = {
-            x: A[minAindex].x - B[maxBindex].x,
-            y: A[minAindex].y - B[maxBindex].y
-        };
-    } else {
-        // no reliable heuristic for inside
-        startpoint = searchStartPoint(A, B, true);
-    }
+    // shift B such that the bottom-most point of B is at the top-most
+    // point of A. This guarantees an initial placement with no intersections
+    // no reliable heuristic for inside
+    let startPoint: Point = inside ? searchStartPoint(A, B, true) : Point.from(A[minIndexA]).sub(B[maxIndexB]);
 
     const NFPlist = [];
+    const reference: Point = Point.zero();
+    const start: Point = Point.zero();
+    const offsetB: Point = Point.zero();
+    const sizeA: number = A.length;
+    const sizeB: number = B.length;
+    const condition: number = 10 * (sizeA + sizeB);
+    const pointA: Point = Point.zero();
+    const pointANext: Point = Point.zero();
+    const pointB: Point = Point.zero();
+    const pointBNext: Point = Point.zero();
+    const currUnitV: Point = Point.zero();
+    const prevUnitV: Point = Point.zero();
+    let counter: number = 0;
+    let nfp: IPoint[] = null;
+    let currVector: IVector = null;
+    let prevVector: IVector = null;
+    // maintain a list of touching points/edges
+    let touchings: number[][] = null;
+    let touching: number[] = null;
+    let iNext: number = 0;
+    let jNext: number = 0;
+    let looped: boolean = false;
+    let currA: number = 0;
+    let prevA: number = 0;
+    let nextA: number = 0;
+    let currB: number = 0;
+    let prevB: number = 0;
+    let nextB: number = 0;
+    let vectors: IVector[] = null;
+    let translate: IVector = null;
+    let maxDistance: number = 0;
+    let distance: number = 0;
+    let vecDistance: number = 0;
+    let nfpSize: number = 0;
+    let vLength: number = 0;
 
-    while (startpoint !== null) {
-        B.offsetx = startpoint.x;
-        B.offsety = startpoint.y;
+    while (startPoint !== null) {
+        offsetB.update(startPoint);
+        B.offsetx = offsetB.x;
+        B.offsety = offsetB.y;
 
-        // maintain a list of touching points/edges
-        let touching: { type: number; A: number; B: number }[] = [];
+        touchings = [];
+        prevVector = null; // keep track of previous vector
+        reference.update(B[0]).add(startPoint);
+        start.update(reference);
+        nfp = [reference.export()];
+        counter = 0;
 
-        let prevvector = null; // keep track of previous vector
-        let NFP = [
-            {
-                x: B[0].x + B.offsetx,
-                y: B[0].y + B.offsety
-            }
-        ];
-
-        let referencex = B[0].x + B.offsetx;
-        let referencey = B[0].y + B.offsety;
-        const startx = referencex;
-        const starty = referencey;
-        let counter = 0;
-
-        while (counter < 10 * (A.length + B.length)) {
+        while (counter < condition) {
             // sanity check, prevent infinite loop
-            touching = [];
+            touchings = [];
             // find touching vertices/edges
-            for (i = 0; i < A.length; i++) {
-                const nexti = i === A.length - 1 ? 0 : i + 1;
-                for (j = 0; j < B.length; j++) {
-                    const nextj = j === B.length - 1 ? 0 : j + 1;
-                    if (almostEqual(A[i].x, B[j].x + B.offsetx) && almostEqual(A[i].y, B[j].y + B.offsety)) {
-                        touching.push({ type: 0, A: i, B: j });
-                    } else if (
-                        onSegment(A[i], A[nexti], {
-                            x: B[j].x + B.offsetx,
-                            y: B[j].y + B.offsety
-                        })
-                    ) {
-                        touching.push({ type: 1, A: nexti, B: j });
-                    } else if (
-                        onSegment(
-                            { x: B[j].x + B.offsetx, y: B[j].y + B.offsety },
-                            { x: B[nextj].x + B.offsetx, y: B[nextj].y + B.offsety },
-                            A[i]
-                        )
-                    ) {
-                        touching.push({ type: 2, A: i, B: nextj });
+            for (i = 0; i < sizeA; ++i) {
+                iNext = cycleIndex(i, sizeA, 1);
+                pointA.update(A[i]);
+                pointANext.update(A[iNext]);
+                for (j = 0; j < sizeB; ++j) {
+                    jNext = cycleIndex(j, sizeB, 1);
+                    pointB.update(B[j]).add(offsetB);
+                    pointBNext.update(B[jNext]).add(offsetB);
+
+                    if (pointB.almostEqual(A[i])) {
+                        touchings.push([0, i, j]);
+                    } else if (pointB.onSegment(pointA, pointANext)) {
+                        touchings.push([1, iNext, j]);
+                    } else if (pointA.onSegment(pointB, pointBNext)) {
+                        touchings.push([2, i, jNext]);
                     }
                 }
             }
 
             // generate translation vectors from touching vertices/edges
-            const vectors = [];
-            for (i = 0; i < touching.length; i++) {
-                const vertexA = A[touching[i].A];
-                vertexA.marked = true;
+            vectors = [];
 
+            for (i = 0; i < touchings.length; ++i) {
+                touching = touchings[i];
                 // adjacent A vertices
-                let prevAindex = touching[i].A - 1;
-                let nextAindex = touching[i].A + 1;
+                currA = touching[1];
+                currB = touching[2];
+                prevA = cycleIndex(currA, sizeA, -1); // loop
+                nextA = cycleIndex(currA, sizeA, 1); // loop
+                prevB = cycleIndex(currB, sizeB, -1); // loop
+                nextB = cycleIndex(currB, sizeB, 1); // loop
 
-                prevAindex = prevAindex < 0 ? A.length - 1 : prevAindex; // loop
-                nextAindex = nextAindex >= A.length ? 0 : nextAindex; // loop
+                A[currA].marked = true;
 
-                const prevA = A[prevAindex];
-                const nextA = A[nextAindex];
-
-                // adjacent B vertices
-                const vertexB = B[touching[i].B];
-
-                let prevBindex = touching[i].B - 1;
-                let nextBindex = touching[i].B + 1;
-
-                prevBindex = prevBindex < 0 ? B.length - 1 : prevBindex; // loop
-                nextBindex = nextBindex >= B.length ? 0 : nextBindex; // loop
-
-                const prevB = B[prevBindex];
-                const nextB = B[nextBindex];
-
-                if (touching[i].type === 0) {
-                    const vA1 = {
-                        x: prevA.x - vertexA.x,
-                        y: prevA.y - vertexA.y,
-                        start: vertexA,
-                        end: prevA
-                    };
-
-                    const vA2 = {
-                        x: nextA.x - vertexA.x,
-                        y: nextA.y - vertexA.y,
-                        start: vertexA,
-                        end: nextA
-                    };
-
-                    // B vectors need to be inverted
-                    const vB1 = {
-                        x: vertexB.x - prevB.x,
-                        y: vertexB.y - prevB.y,
-                        start: prevB,
-                        end: vertexB
-                    };
-
-                    const vB2 = {
-                        x: vertexB.x - nextB.x,
-                        y: vertexB.y - nextB.y,
-                        start: nextB,
-                        end: vertexB
-                    };
-
-                    vectors.push(vA1);
-                    vectors.push(vA2);
-                    vectors.push(vB1);
-                    vectors.push(vB2);
-                } else if (touching[i].type === 1) {
-                    vectors.push({
-                        x: vertexA.x - (vertexB.x + B.offsetx),
-                        y: vertexA.y - (vertexB.y + B.offsety),
-                        start: prevA,
-                        end: vertexA
-                    });
-
-                    vectors.push({
-                        x: prevA.x - (vertexB.x + B.offsetx),
-                        y: prevA.y - (vertexB.y + B.offsety),
-                        start: vertexA,
-                        end: prevA
-                    });
-                } else if (touching[i].type === 2) {
-                    vectors.push({
-                        x: vertexA.x - (vertexB.x + B.offsetx),
-                        y: vertexA.y - (vertexB.y + B.offsety),
-                        start: prevB,
-                        end: vertexB
-                    });
-
-                    vectors.push({
-                        x: vertexA.x - (prevB.x + B.offsetx),
-                        y: vertexA.y - (prevB.y + B.offsety),
-                        start: vertexB,
-                        end: prevB
-                    });
+                switch (touching[0]) {
+                    case 0: {
+                        vectors.push(getVector(A, currA, prevA));
+                        vectors.push(getVector(A, currA, nextA));
+                        // B vectors need to be inverted
+                        vectors.push(getVector(B, prevB, currB));
+                        vectors.push(getVector(B, nextB, currB));
+                        break;
+                    }
+                    case 1: {
+                        vectors.push(getVector(A, prevA, currA, A[currA], B[currB], offsetB));
+                        vectors.push(getVector(A, currA, prevA, A[prevA], B[currB], offsetB));
+                        break;
+                    }
+                    default: {
+                        vectors.push(getVector(B, prevB, currB, A[currA], B[currB], offsetB));
+                        vectors.push(getVector(B, currB, prevB, A[currA], B[prevB], offsetB));
+                    }
                 }
             }
 
             // old-todo: there should be a faster way to reject vectors
             // that will cause immediate intersection. For now just check them all
+            translate = null;
+            maxDistance = 0;
 
-            let translate = null;
-            let maxd = 0;
+            for (i = 0; i < vectors.length; ++i) {
+                currVector = vectors[i];
 
-            for (i = 0; i < vectors.length; i++) {
-                if (vectors[i].x === 0 && vectors[i].y === 0) {
+                if (currVector.value.isEmpty) {
                     continue;
                 }
 
                 // if this vector points us back to where we came from, ignore it.
                 // ie cross product = 0, dot product < 0
-                if (prevvector && vectors[i].y * prevvector.y + vectors[i].x * prevvector.x < 0) {
+                if (prevVector && currVector.value.dot(prevVector.value) < 0) {
                     // compare magnitude with unit vectors
-                    const vectorlength = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y);
-                    const unitv = {
-                        x: vectors[i].x / vectorlength,
-                        y: vectors[i].y / vectorlength
-                    };
-
-                    const prevlength = Math.sqrt(prevvector.x * prevvector.x + prevvector.y * prevvector.y);
-                    const prevunit = {
-                        x: prevvector.x / prevlength,
-                        y: prevvector.y / prevlength
-                    };
+                    currUnitV.update(currVector.value).normalize();
+                    prevUnitV.update(prevVector.value).normalize();
 
                     // we need to scale down to unit vectors to normalize vector length. Could also just do a tan here
-                    if (Math.abs(unitv.y * prevunit.x - unitv.x * prevunit.y) < 0.0001) {
+                    if (Math.abs(currUnitV.cross(prevUnitV)) < 0.0001) {
                         continue;
                     }
                 }
 
-                let d = polygonSlideDistance(A, B, vectors[i]);
-                const vecd2 = vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y;
+                distance = polygonSlideDistance(A, B, currVector.value);
+                vecDistance = currVector.value.length;
 
-                if (d === null || d * d > vecd2) {
-                    const vecd = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y);
-                    d = vecd;
+                if (distance === null || Math.abs(distance) > vecDistance) {
+                    distance = vecDistance;
                 }
 
-                if (d !== null && d > maxd) {
-                    maxd = d;
+                if (distance !== null && distance > maxDistance) {
+                    maxDistance = distance;
                     translate = vectors[i];
                 }
             }
 
-            if (translate === null || almostEqual(maxd, 0)) {
+            if (translate === null || almostEqual(maxDistance)) {
                 // didn't close the loop, something went wrong here
-                NFP = null;
+                nfp = null;
                 break;
             }
 
             translate.start.marked = true;
             translate.end.marked = true;
 
-            prevvector = translate;
+            prevVector = translate;
+            maxDistance = Math.abs(maxDistance);
 
             // trim
-            const vlength2 = translate.x * translate.x + translate.y * translate.y;
-            if (maxd * maxd < vlength2 && !almostEqual(maxd * maxd, vlength2)) {
-                const scale = Math.sqrt((maxd * maxd) / vlength2);
-                translate.x = translate.x * scale;
-                translate.y = translate.y * scale;
+            vLength = translate.value.length;
+
+            if (maxDistance < vLength && !almostEqual(maxDistance, vLength)) {
+                translate.value.scale(maxDistance / vLength);
             }
 
-            referencex = referencex + translate.x;
-            referencey = referencey + translate.y;
+            reference.add(translate.value);
 
-            if (almostEqual(referencex, startx) && almostEqual(referencey, starty)) {
+            if (reference.almostEqual(start)) {
                 // we've made a full loop
                 break;
             }
 
             // if A and B start on a touching horizontal line, the end point may not be the start point
-            let looped = false;
-            if (NFP.length > 0) {
-                for (i = 0; i < NFP.length - 1; i++) {
-                    if (almostEqual(referencex, NFP[i].x) && almostEqual(referencey, NFP[i].y)) {
+            looped = false;
+            nfpSize = nfp.length;
+
+            if (nfpSize > 0) {
+                for (i = 0; i < nfpSize - 1; ++i) {
+                    if (reference.almostEqual(nfp[i])) {
                         looped = true;
+                        break;
                     }
                 }
             }
@@ -914,19 +879,17 @@ function noFitPolygon(A: IPolygon, B: IPolygon, inside: boolean, searchEdges: bo
                 break;
             }
 
-            NFP.push({
-                x: referencex,
-                y: referencey
-            });
+            nfp.push(reference.export());
 
-            B.offsetx = B.offsetx + translate.x;
-            B.offsety = B.offsety + translate.y;
+            offsetB.add(translate.value);
+            B.offsetx = offsetB.x;
+            B.offsety = offsetB.y;
 
-            counter++;
+            ++counter;
         }
 
-        if (NFP && NFP.length > 0) {
-            NFPlist.push(NFP);
+        if (nfp && nfp.length > 0) {
+            NFPlist.push(nfp);
         }
 
         if (!searchEdges) {
@@ -934,7 +897,7 @@ function noFitPolygon(A: IPolygon, B: IPolygon, inside: boolean, searchEdges: bo
             break;
         }
 
-        startpoint = searchStartPoint(A, B, inside, NFPlist);
+        startPoint = searchStartPoint(A, B, inside, NFPlist);
     }
 
     return NFPlist;
