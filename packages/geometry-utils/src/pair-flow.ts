@@ -382,15 +382,13 @@ function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, directi
     let i: number = 0;
     let j: number = 0;
     let minProjection: number = null;
-    const iterationCountB = polygonB.isClosed ? sizeB - 1 : sizeB;
-    const iterationCountA = polygonA.isClosed ? sizeA - 1 : sizeA;
 
-    for (i = 0; i < iterationCountB; ++i) {
+    for (i = 0; i < sizeB; ++i) {
         // the shortest/most negative projection of B onto A
         minProjection = null;
         p.update(polygonB.at(i)).add(offset);
 
-        for (j = 0; j < iterationCountA; ++j) {
+        for (j = 0; j < sizeA - 1; ++j) {
             s1.update(polygonA.at(j));
             s2.update(polygonA.at(cycleIndex(j, sizeA, 1)));
             sOffset.update(s2).sub(s1);
@@ -506,6 +504,8 @@ function searchStartPoint(
     markedIndices: number[],
     NFP: IPoint[][] = []
 ): Point {
+    polygonA.close();
+    polygonB.close();
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const startPoint: Point = Point.zero();
@@ -515,13 +515,12 @@ function searchStartPoint(
     let j: number = 0;
     let d: number = null;
     let isInside: boolean = null;
-    const iterationsB: number = sizeB + 1;
 
-    for (i = 0; i < sizeA; ++i) {
+    for (i = 0; i < sizeA - 1; ++i) {
         if (markedIndices.indexOf(i) === -1) {
             markedIndices.push(i);
 
-            for (j = 0; j < iterationsB; ++j) {
+            for (j = 0; j < sizeB; ++j) {
                 startPoint.update(polygonA.at(i)).sub(polygonB.at(cycleIndex(j, sizeB, 0)));
 
                 isInside = getInside(polygonA, polygonB, startPoint, null);

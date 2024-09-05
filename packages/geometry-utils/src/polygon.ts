@@ -78,6 +78,29 @@ export default class Polygon implements BoundRect {
 
         return inside;
     }
+    public close(): void {
+        if (this.isClosed) {
+            return;
+        }
+
+        this.points.push(this.first);
+    }
+
+    public reverse(): void {
+        this.points.reverse();
+    }
+
+    public exportLegacy(): IPoint[] {
+        const result: IPoint[] = [];
+        const pointCount: number = this.length;
+        let i: number = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            result.push(this.points[i].export());
+        }
+
+        return result;
+    }
 
     private calculateBounds(): void {
         if (this.isBroken) {
