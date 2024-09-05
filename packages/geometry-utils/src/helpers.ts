@@ -8,7 +8,6 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
         return null;
     }
 
-    const offset: Point = Point.create(polygon.offsetx || 0, polygon.offsety || 0);
     const innerPoint: Point = Point.from(point);
     const currPoint: Point = Point.zero();
     const prevPoint: Point = Point.zero();
@@ -17,8 +16,8 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-        currPoint.update(polygon[i]).add(offset);
-        prevPoint.update(polygon[cycleIndex(i, pointCount, -1)]).add(offset);
+        currPoint.update(polygon[i]);
+        prevPoint.update(polygon[cycleIndex(i, pointCount, -1)]);
 
         //  no result                            exactly on the segment
         if (currPoint.almostEqual(innerPoint) || innerPoint.onSegment(currPoint, prevPoint)) {

@@ -1,8 +1,8 @@
 import ClipperLib from 'js-clipper';
-import { keyToNFPData, polygonArea, pointInPolygon } from './helpers';
+import { keyToNFPData, polygonArea } from './helpers';
 import { almostEqual, cycleIndex, midValue } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
-import { IPoint, IPolygon, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
+import { IPoint, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 import Point from './point';
 import Polygon from './polygon';
 import { TOL } from './constants';
@@ -164,7 +164,7 @@ function intersect(polygonA: Polygon, polygonB: Polygon, offset: Point): boolean
     return false;
 }
 
-function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale: number): IPoint[][] {
+function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale: number): Polygon[] {
     const clipperA: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonA, clipperScale);
     const clipperB: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonB, -clipperScale);
     const solutions: ClipperLib.IntPoint[][] = ClipperLib.Clipper.MinkowskiSum(clipperA, clipperB, true);
@@ -191,7 +191,7 @@ function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale:
         clipperNfp[i].y = clipperNfp[i].y + firstPoint.y;
     }
 
-    return [clipperNfp];
+    return [Polygon.fromLegacy(clipperNfp)];
 }
 
 function pointDistance(p: Point, s1: Point, s2: Point, inputNormal: Point, infinite: boolean = false): number {
@@ -414,7 +414,7 @@ function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, directi
 }
 
 // returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle(A: Polygon, B: Polygon): IPoint[][] {
+function noFitPolygonRectangle(A: Polygon, B: Polygon): Polygon[] {
     const minA: Point = Point.from(A.first);
     const maxA: Point = Point.from(A.first);
     const minB: Point = Point.from(B.first);
@@ -442,23 +442,23 @@ function noFitPolygonRectangle(A: Polygon, B: Polygon): IPoint[][] {
     maxDiff.add(B.first);
 
     return [
-        [
+        Polygon.fromLegacy([
             { x: minDiff.x, y: minDiff.y },
             { x: maxDiff.x, y: minDiff.y },
             { x: maxDiff.x, y: maxDiff.y },
             { x: minDiff.x, y: maxDiff.y }
-        ]
+        ])
     ];
 }
 
 // returns true if point already exists in the given nfp
-function inNfp(p: Point, nfp: IPoint[][]): boolean {
+function inNfp(p: Point, nfp: Polygon[]): boolean {
     if (!nfp || nfp.length === 0) {
         return false;
     }
 
     const nfpCount: number = nfp.length;
-    let currentNfp: IPoint[] = null;
+    let currentNfp: Polygon= null;
     let pointCount: number = 0;
     let i: number = 0;
     let j: number = 0;
@@ -468,7 +468,7 @@ function inNfp(p: Point, nfp: IPoint[][]): boolean {
         pointCount = currentNfp.length;
 
         for (j = 0; j < pointCount; ++j) {
-            if (p.almostEqual(currentNfp[j])) {
+            if (p.almostEqual(currentNfp.at(j))) {
                 return true;
             }
         }
@@ -502,7 +502,7 @@ function searchStartPoint(
     polygonB: Polygon,
     inside: boolean,
     markedIndices: number[],
-    NFP: IPoint[][] = []
+    nfp: Polygon[] = []
 ): Point {
     polygonA.close();
     polygonB.close();
@@ -530,7 +530,7 @@ function searchStartPoint(
                     return null;
                 }
 
-                if (isInside === inside && !intersect(polygonA, polygonB, startPoint) && !inNfp(startPoint, NFP)) {
+                if (isInside === inside && !intersect(polygonA, polygonB, startPoint) && !inNfp(startPoint, nfp)) {
                     return startPoint;
                 }
 
@@ -568,7 +568,7 @@ function searchStartPoint(
 
                 isInside = getInside(polygonA, polygonB, startPoint, isInside);
 
-                if (isInside === inside && !intersect(polygonA, polygonB, startPoint) && !inNfp(startPoint, NFP)) {
+                if (isInside === inside && !intersect(polygonA, polygonB, startPoint) && !inNfp(startPoint, nfp)) {
                     return startPoint;
                 }
             }
@@ -591,9 +591,9 @@ function getVector(start: number, end: number, baseValue: Point, subValue: Point
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
-function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, searchEdges: boolean) {
+function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, searchEdges: boolean): Polygon[] {
     if (polygonA.isBroken || polygonB.isBroken) {
-        return null;
+        return [];
     }
 
     let i: number = 0;
@@ -626,7 +626,7 @@ function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, sea
     let startPoint: Point = inside
         ? searchStartPoint(polygonA, polygonB, true, markedIndices)
         : Point.from(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
-    const nfpList = [];
+    const result: Polygon[] = [];
     const reference: Point = Point.zero();
     const start: Point = Point.zero();
     const sizeA: number = polygonA.length;
@@ -827,7 +827,7 @@ function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, sea
         }
 
         if (nfp && nfp.length > 0) {
-            nfpList.push(nfp);
+            result.push(Polygon.fromLegacy(nfp));
         }
 
         if (!searchEdges) {
@@ -835,10 +835,10 @@ function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, sea
             break;
         }
 
-        startPoint = searchStartPoint(polygonA, polygonB, inside, markedIndices, nfpList);
+        startPoint = searchStartPoint(polygonA, polygonB, inside, markedIndices, result);
     }
 
-    return nfpList;
+    return result;
 }
 
 export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerResult | null {
@@ -851,7 +851,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
     const nfpContent: NFPContent = keyToNFPData(pair.key, rotations);
     const polygonA: Polygon = Polygon.fromLegacy(pair.A);
     const polygonB: Polygon = Polygon.fromLegacy(pair.B);
-    let nfp: IPoint[][] = null;
+    let nfp: Polygon[] = null;
     let i: number = 0;
 
     polygonA.rotate(nfpContent.Arotation);
@@ -863,9 +863,9 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
             : noFitPolygon(polygonA, polygonB, true, exploreConcave);
 
         // ensure all interior NFPs have the same winding direction
-        if (nfp && nfp.length > 0) {
+        if (nfp.length > 0) {
             for (i = 0; i < nfp.length; ++i) {
-                if (polygonArea(nfp[i]) > 0) {
+                if (nfp[i].area > 0) {
                     nfp[i].reverse();
                 }
             }
@@ -879,7 +879,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
             ? noFitPolygon(polygonA, polygonB, false, exploreConcave)
             : minkowskiDifference(polygonA, polygonB, clipperScale);
         // sanity check
-        if (!nfp || nfp.length === 0) {
+        if (nfp.length === 0) {
             console.log('NFP Error: ', pair.key);
             console.log('A: ', JSON.stringify(polygonA));
             console.log('B: ', JSON.stringify(polygonB));
@@ -890,8 +890,8 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
         for (i = 0; i < nfp.length; ++i) {
             if (!exploreConcave || i === 0) {
                 // if searchedges is active, only the first NFP is guaranteed to pass sanity check
-                if (Math.abs(polygonArea(nfp[i])) < Math.abs(polygonA.area)) {
-                    console.log('NFP Area Error: ', Math.abs(polygonArea(nfp[i])), pair.key);
+                if (Math.abs(nfp[i].area) < Math.abs(polygonA.area)) {
+                    console.log('NFP Area Error: ', Math.abs(nfp[i].area), pair.key);
                     console.log('NFP:', JSON.stringify(nfp[i]));
                     console.log('A: ', JSON.stringify(polygonA));
                     console.log('B: ', JSON.stringify(polygonB));
@@ -908,16 +908,12 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
 
         // for outer NFPs, the first is guaranteed to be the largest. Any subsequent NFPs that lie inside the first are holes
         for (i = 0; i < nfp.length; ++i) {
-            if (polygonArea(nfp[i]) > 0) {
+            if (nfp[i].area > 0) {
                 nfp[i].reverse();
             }
 
-            if (i > 0) {
-                if (pointInPolygon(nfp[i][0], nfp[0] as IPolygon)) {
-                    if (polygonArea(nfp[i]) < 0) {
-                        nfp[i].reverse();
-                    }
-                }
+            if (i > 0 && nfp[0].pointIn(nfp[i].first) && nfp[i].area < 0) {
+                nfp[i].reverse();
             }
         }
 
@@ -931,14 +927,14 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
 
                 // no need to find nfp if B's bounding box is too big
                 if (child.width > polygonB.width && child.height > polygonB.height) {
-                    const noFitPolygons: IPoint[][] = noFitPolygon(child, polygonB, true, exploreConcave);
+                    const noFitPolygons: Polygon[] = noFitPolygon(child, polygonB, true, exploreConcave);
                     const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                     // ensure all interior NFPs have the same winding direction
                     if (noFitCount !== 0) {
                         let j: number = 0;
 
                         for (j = 0; j < noFitCount; ++j) {
-                            if (polygonArea(noFitPolygons[j]) < 0) {
+                            if (noFitPolygons[j].area < 0) {
                                 noFitPolygons[j].reverse();
                             }
 
@@ -950,5 +946,5 @@ export function pairData(pair: NFPPair, configuration: NestConfig): PairWorkerRe
         }
     }
 
-    return { key: pair.key, value: nfp };
+    return { key: pair.key, value: nfp.map(element => element.exportLegacy()) };
 }
