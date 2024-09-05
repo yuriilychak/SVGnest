@@ -79,6 +79,27 @@ function getSegmentCheck(
     return { point, polygon, segmentStart, segmentEnd, checkStart, checkEnd, target, offset };
 }
 
+function getSegmentStats({
+    point,
+    segmentStart,
+    segmentEnd,
+    target,
+    polygon,
+    checkStart,
+    checkEnd,
+    offset
+}: ISegmentCheck): boolean {
+    if (point.onSegment(segmentStart, segmentEnd) || point.almostEqual(target)) {
+        // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
+        const pointIn1 = polygon.pointIn(checkStart, offset);
+        const pointIn2 = polygon.pointIn(checkEnd, offset);
+
+        return pointIn1 !== null && pointIn2 !== null && pointIn1 !== pointIn2;
+    }
+
+    return null;
+}
+
 function intersect(polygonA: Polygon, polygonB: Polygon, offset: Point): boolean {
     const a0: Point = Point.zero();
     const a1: Point = Point.zero();
@@ -98,9 +119,6 @@ function intersect(polygonA: Polygon, polygonB: Polygon, offset: Point): boolean
         getSegmentCheck(a2, polygonB, b1, b2, a1, a3, a1, offsetA)
     ];
     const segmentCheckCount = segmentChecks.length;
-    let segmentCheck: ISegmentCheck = null;
-    let pointIn1: boolean = false;
-    let pointIn2: boolean = false;
     let i: number = 0;
     let j: number = 0;
     let k: number = 0;
@@ -128,17 +146,9 @@ function intersect(polygonA: Polygon, polygonB: Polygon, offset: Point): boolean
             segmentStats = null;
 
             for (k = 0; k < segmentCheckCount; ++k) {
-                segmentCheck = segmentChecks[k];
+                segmentStats = getSegmentStats(segmentChecks[k]);
 
-                if (
-                    segmentCheck.point.onSegment(segmentCheck.segmentStart, segmentCheck.segmentEnd) ||
-                    segmentCheck.point.almostEqual(segmentCheck.target)
-                ) {
-                    // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-                    pointIn1 = segmentCheck.polygon.pointIn(segmentCheck.checkStart, segmentCheck.offset);
-                    pointIn2 = segmentCheck.polygon.pointIn(segmentCheck.checkEnd, segmentCheck.offset);
-
-                    segmentStats = pointIn1 !== null && pointIn2 !== null && pointIn1 !== pointIn2;
+                if (segmentStats !== null) {
                     break;
                 }
             }
@@ -372,13 +382,15 @@ function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, directi
     let i: number = 0;
     let j: number = 0;
     let minProjection: number = null;
+    const iterationCountB = polygonB.isClosed ? sizeB - 1 : sizeB;
+    const iterationCountA = polygonA.isClosed ? sizeA - 1 : sizeA;
 
-    for (i = 0; i < sizeB; ++i) {
+    for (i = 0; i < iterationCountB; ++i) {
         // the shortest/most negative projection of B onto A
         minProjection = null;
         p.update(polygonB.at(i)).add(offset);
 
-        for (j = 0; j < sizeA; ++j) {
+        for (j = 0; j < iterationCountA; ++j) {
             s1.update(polygonA.at(j));
             s2.update(polygonA.at(cycleIndex(j, sizeA, 1)));
             sOffset.update(s2).sub(s1);
@@ -503,13 +515,14 @@ function searchStartPoint(
     let j: number = 0;
     let d: number = null;
     let isInside: boolean = null;
+    const iterationsB: number = sizeB + 1;
 
     for (i = 0; i < sizeA; ++i) {
         if (markedIndices.indexOf(i) === -1) {
             markedIndices.push(i);
 
-            for (j = 0; j < sizeB; ++j) {
-                startPoint.update(polygonA.at(i)).sub(polygonB.at(j));
+            for (j = 0; j < iterationsB; ++j) {
+                startPoint.update(polygonA.at(i)).sub(polygonB.at(cycleIndex(j, sizeB, 0)));
 
                 isInside = getInside(polygonA, polygonB, startPoint, null);
 

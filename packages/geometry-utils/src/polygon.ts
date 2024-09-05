@@ -142,6 +142,10 @@ export default class Polygon implements BoundRect {
         return this.points.length < 3;
     }
 
+    public get isClosed(): boolean {
+        return this.points[0].almostEqual(this.points[this.length - 1]);
+    }
+
     public get isRectangle(): boolean {
         const pointCount: number = this.length;
         const rightX: number = this.innerX + this.innerWidth;
