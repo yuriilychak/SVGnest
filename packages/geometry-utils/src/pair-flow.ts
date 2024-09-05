@@ -177,18 +177,13 @@ function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale:
     let area: number = 0;
 
     for (i = 0; i < solutionCount; ++i) {
-        n = ClipperWrapper.toNest(solutions[i], clipperScale);
+        n = ClipperWrapper.toNest(solutions[i], clipperScale, firstPoint);
         area = polygonArea(n);
 
         if (largestArea === null || largestArea > area) {
             clipperNfp = n;
             largestArea = area;
         }
-    }
-
-    for (i = 0; i < clipperNfp.length; ++i) {
-        clipperNfp[i].x = clipperNfp[i].x + firstPoint.x;
-        clipperNfp[i].y = clipperNfp[i].y + firstPoint.y;
     }
 
     return [Polygon.fromLegacy(clipperNfp)];
@@ -458,7 +453,7 @@ function inNfp(p: Point, nfp: Polygon[]): boolean {
     }
 
     const nfpCount: number = nfp.length;
-    let currentNfp: Polygon= null;
+    let currentNfp: Polygon = null;
     let pointCount: number = 0;
     let i: number = 0;
     let j: number = 0;

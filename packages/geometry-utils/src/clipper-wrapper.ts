@@ -169,7 +169,7 @@ export default class ClipperWrapper {
         return result;
     }
 
-    public static toNest(polygon: IntPoint[], scale: number = 1): IPoint[] {
+    public static toNest(polygon: IntPoint[], scale: number = 1, offset: IPoint = { x: 0, y: 0 }): IPoint[] {
         const pointCount: number = polygon.length;
         const result: IPoint[] = [];
         let i: number = 0;
@@ -177,7 +177,7 @@ export default class ClipperWrapper {
 
         for (i = 0; i < pointCount; ++i) {
             point = polygon[i];
-            result.push({ x: point.X / scale, y: point.Y / scale });
+            result.push({ x: point.X / scale + offset.x, y: point.Y / scale + offset.y });
         }
 
         return result;
