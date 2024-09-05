@@ -15,11 +15,8 @@ export default class Polygon implements BoundRect {
 
     private innerChildren: Polygon[];
 
-    private innerOffset: Point;
-
     private constructor(points: Point[] = []) {
         this.points = points;
-        this.innerOffset = Point.zero();
         this.innerChildren = [];
         this.calculateBounds();
     }
@@ -40,7 +37,7 @@ export default class Polygon implements BoundRect {
         return index >= this.length ? null : this.points[index];
     }
 
-    public pointIn(point: IPoint): boolean {
+    public pointIn(point: IPoint, offset: Point = null): boolean {
         if (this.isBroken) {
             return null;
         }
@@ -53,8 +50,13 @@ export default class Polygon implements BoundRect {
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            currPoint.update(this.at(i)).add(this.offset);
-            prevPoint.update(this.at(cycleIndex(i, pointCount, -1))).add(this.offset);
+            currPoint.update(this.at(i));
+            prevPoint.update(this.at(cycleIndex(i, pointCount, -1)));
+
+            if (offset !== null) {
+                currPoint.add(offset);
+                prevPoint.add(offset);
+            }
 
             //  no result                            exactly on the segment
             if (currPoint.almostEqual(innerPoint) || innerPoint.onSegment(currPoint, prevPoint)) {
@@ -83,8 +85,8 @@ export default class Polygon implements BoundRect {
         }
 
         const pointCount: number = this.length;
-        const min: Point = Point.from(this.at(0));
-        const size: Point = Point.from(this.at(0));
+        const min: Point = Point.from(this.first);
+        const size: Point = Point.from(this.first);
         let i: number = 0;
 
         for (i = 1; i < pointCount; ++i) {
@@ -118,6 +120,10 @@ export default class Polygon implements BoundRect {
 
     public get height(): number {
         return this.innerHeight;
+    }
+
+    public get first(): Point {
+        return this.points[0];
     }
 
     public get children(): Polygon[] {
@@ -175,10 +181,6 @@ export default class Polygon implements BoundRect {
         }
 
         return 0.5 * result;
-    }
-
-    public get offset(): Point {
-        return this.innerOffset;
     }
 
     public static fromLegacy(data: IPolygon | IPoint[]): Polygon {
