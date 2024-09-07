@@ -3,20 +3,18 @@ import { almostEqual, cycleIndex } from './shared-helpers';
 import { BoundRect, IPoint, IPolygon } from './types';
 
 export default class Polygon implements BoundRect {
+    private position: Point;
+
+    private size: Point;
+
     private points: Point[];
-
-    private innerX: number;
-
-    private innerY: number;
-
-    private innerWidth: number;
-
-    private innerHeight: number;
 
     private innerChildren: Polygon[];
 
     private constructor(points: Point[] = []) {
         this.points = points;
+        this.position = Point.zero();
+        this.size = Point.zero();
         this.innerChildren = [];
         this.calculateBounds();
     }
@@ -27,7 +25,7 @@ export default class Polygon implements BoundRect {
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            this.points[i].rotate(radianAngle);
+            this.at(i).rotate(radianAngle);
         }
 
         this.calculateBounds();
@@ -96,7 +94,7 @@ export default class Polygon implements BoundRect {
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            result.push(this.points[i].export());
+            result.push(this.at(i).export());
         }
 
         return result;
@@ -107,22 +105,18 @@ export default class Polygon implements BoundRect {
             return;
         }
 
+        this.position.update(this.first);
+        this.size.update(this.first);
+
         const pointCount: number = this.length;
-        const min: Point = Point.from(this.first);
-        const size: Point = Point.from(this.first);
         let i: number = 0;
 
         for (i = 1; i < pointCount; ++i) {
-            min.min(this.at(i));
-            size.max(this.at(i));
+            this.position.min(this.at(i));
+            this.size.max(this.at(i));
         }
 
-        size.sub(min);
-
-        this.innerX = min.x;
-        this.innerY = min.y;
-        this.innerWidth = size.x;
-        this.innerHeight = size.y;
+        this.size.sub(this.position);
     }
 
     public get length(): number {
@@ -130,23 +124,27 @@ export default class Polygon implements BoundRect {
     }
 
     public get x(): number {
-        return this.innerX;
+        return this.position.x;
     }
 
     public get y(): number {
-        return this.innerY;
+        return this.position.y;
     }
 
     public get width(): number {
-        return this.innerWidth;
+        return this.size.x;
     }
 
     public get height(): number {
-        return this.innerHeight;
+        return this.size.y;
     }
 
     public get first(): Point {
-        return this.points[0];
+        return this.at(0);
+    }
+
+    public get last(): Point {
+        return this.at(this.length - 1);
     }
 
     public get children(): Polygon[] {
@@ -158,21 +156,20 @@ export default class Polygon implements BoundRect {
     }
 
     public get hasChildren(): boolean {
-        return this.innerChildren.length !== 0;
+        return this.childrCount !== 0;
     }
 
     public get isBroken(): boolean {
-        return this.points.length < 3;
+        return this.length < 3;
     }
 
     public get isClosed(): boolean {
-        return this.points[0].almostEqual(this.points[this.length - 1]);
+        return this.first.almostEqual(this.last);
     }
 
     public get isRectangle(): boolean {
         const pointCount: number = this.length;
-        const rightX: number = this.innerX + this.innerWidth;
-        const bottomY: number = this.innerY + this.innerHeight;
+        const right: Point = Point.from(this.position).add(this.size);
         let point: Point = null;
         let i: number = 0;
 
@@ -181,8 +178,8 @@ export default class Polygon implements BoundRect {
 
             if (
                 !(
-                    (almostEqual(point.x, this.innerX) || almostEqual(point.x, rightX)) &&
-                    (almostEqual(point.y, this.innerY) || almostEqual(point.y, bottomY))
+                    (almostEqual(point.x, this.position.x) || almostEqual(point.x, right.x)) &&
+                    (almostEqual(point.y, this.position.y) || almostEqual(point.y, right.y))
                 )
             ) {
                 return false;

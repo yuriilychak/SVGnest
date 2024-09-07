@@ -1,15 +1,15 @@
 // Import the library if needed for side effects
-import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint, Polygon } from 'js-clipper';
+import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
 import { BoundRect, IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
 import { getPolygonBounds, nestPolygons, normalizePolygon, polygonArea } from './helpers';
 import { default as LocalPolygon } from './polygon';
 
 export default class ClipperWrapper {
-    #configuration: NestConfig;
+    private configuration: NestConfig;
 
     constructor(configuration: NestConfig) {
-        this.#configuration = configuration;
+        this.configuration = configuration;
     }
 
     public generateBounds(binPolygon: IPolygon): { binPolygon: IPolygon; bounds: BoundRect } {
@@ -63,11 +63,11 @@ export default class ClipperWrapper {
     }
 
     public offsetPolygon(polygon: IPolygon, sign: number): boolean {
-        if (this.#configuration.spacing === 0) {
+        if (this.configuration.spacing === 0) {
             return false;
         }
 
-        const { clipperScale, curveTolerance, spacing } = this.#configuration;
+        const { clipperScale, curveTolerance, spacing } = this.configuration;
         const offset: number = 0.5 * spacing * sign;
         const miterLimit: number = 2;
         const path: IntPoint[] = ClipperWrapper.toClipper(polygon, clipperScale);
@@ -105,7 +105,7 @@ export default class ClipperWrapper {
     }
 
     public cleanPolygon(polygon: IPolygon): IPoint[] {
-        const { clipperScale, curveTolerance } = this.#configuration;
+        const { clipperScale, curveTolerance } = this.configuration;
         const clipperPolygon = ClipperWrapper.toClipper(polygon, clipperScale);
         const simple: IClipperPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IClipperPoint[][];
 

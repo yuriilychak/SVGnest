@@ -1,6 +1,6 @@
 import ClipperLib from 'js-clipper';
-import { keyToNFPData, polygonArea } from './helpers';
-import { almostEqual, cycleIndex, midValue } from './shared-helpers';
+import { polygonArea } from './helpers';
+import { almostEqual, cycleIndex, midValue, keyToNFPData } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { IPoint, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 import Point from './point';
@@ -201,7 +201,7 @@ function pointDistance(p: Point, s1: Point, s2: Point, inputNormal: Point, infin
 
     if (!infinite) {
         if (midValue(pdot, s1dot, s2dot) > TOL) {
-            return null; // dot doesn't collide with segment, or lies directly on the vertex
+            return NaN; // dot doesn't collide with segment, or lies directly on the vertex
         }
 
         if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && midValue(pdotnorm, s1dotnorm, s2dotnorm) > 0) {
@@ -232,7 +232,7 @@ function coincedentDistance(
 
     const result: number = pointDistance(point1, point3, point4, direction);
 
-    if (result === null) {
+    if (Number.isNaN(result)) {
         return defaultValue;
     }
 
@@ -395,7 +395,7 @@ function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, directi
             // project point, ignore edge boundaries
             d = pointDistance(p, s1, s2, direction);
 
-            if (d !== null && (minProjection === null || d < minProjection)) {
+            if (!Number.isNaN(d) && (minProjection === null || d < minProjection)) {
                 minProjection = d;
             }
         }
@@ -430,7 +430,7 @@ function noFitPolygonRectangle(A: Polygon, B: Polygon): Polygon[] {
     const maxDiff = Point.from(maxA).sub(maxB);
 
     if (maxDiff.x <= minDiff.x || maxDiff.y <= minDiff.y) {
-        return null;
+        return [];
     }
 
     minDiff.add(B.first);
@@ -472,14 +472,14 @@ function inNfp(p: Point, nfp: Polygon[]): boolean {
     return false;
 }
 
-function getInside(polygonA: Polygon, polygonB: Polygon, startPoint: Point, defaultValue: boolean | null): boolean | null {
+function getInside(polygonA: Polygon, polygonB: Polygon, offset: Point, defaultValue: boolean | null): boolean | null {
     const point: Point = Point.zero();
     const sizeB: number = polygonB.length;
     let i: number = 0;
     let inPoly: boolean = false;
 
     for (i = 0; i < sizeB; ++i) {
-        point.update(polygonB.at(i)).add(startPoint);
+        point.update(polygonB.at(i)).add(offset);
         inPoly = polygonA.pointIn(point);
 
         if (inPoly !== null) {
@@ -643,7 +643,7 @@ function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, sea
     let touching: number[] = null;
     let iNext: number = 0;
     let jNext: number = 0;
-    let looped: boolean = false;
+    let isLooped: boolean = false;
     let currA: number = 0;
     let prevA: number = 0;
     let nextA: number = 0;
@@ -797,19 +797,19 @@ function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, sea
             }
 
             // if A and B start on a touching horizontal line, the end point may not be the start point
-            looped = false;
+            isLooped = false;
             nfpSize = nfp.length;
 
             if (nfpSize > 0) {
                 for (i = 0; i < nfpSize - 1; ++i) {
                     if (reference.almostEqual(nfp[i])) {
-                        looped = true;
+                        isLooped = true;
                         break;
                     }
                 }
             }
 
-            if (looped) {
+            if (isLooped) {
                 // we've made a full loop
                 break;
             }
