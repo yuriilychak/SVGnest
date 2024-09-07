@@ -11,11 +11,24 @@ export default class Polygon implements BoundRect {
 
     private innerChildren: Polygon[];
 
-    private constructor(points: Point[] = []) {
-        this.points = points;
+    private constructor() {
+        this.points = [];
         this.innerPosition = Point.zero();
         this.innerSize = Point.zero();
         this.innerChildren = [];
+        this.calculateBounds();
+    }
+
+    public reset(points: IPoint[]): void {
+        const pointCount: number = points.length;
+        let i: number = 0;
+
+        this.points.length = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            this.points.push(Point.from(points[i]));
+        }
+
         this.calculateBounds();
     }
 
@@ -216,14 +229,10 @@ export default class Polygon implements BoundRect {
     }
 
     public static fromLegacy(data: IPolygon | IPoint[]): Polygon {
-        const points: Point[] = [];
-        const pointCount: number = data.length;
-        let i: number = 0;
+        const result = new Polygon();
 
-        for (i = 0; i < pointCount; ++i) {
-            points.push(Point.from(data[i]));
-        }
+        result.reset(data);
 
-        return new Polygon(points);
+        return result;
     }
 }

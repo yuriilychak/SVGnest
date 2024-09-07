@@ -3,6 +3,8 @@ import { IPoint, IPolygon, PlacementWorkerData, PlacementWorkerResult } from './
 import { getPolygonBounds, polygonArea, rotatePolygon } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { almostEqual, generateNFPCacheKey } from './shared-helpers';
+import Point from './point';
+import Polygon from './polygon';
 
 interface ShiftVector extends IPoint {
     nfp: ClipperLib.Paths;
@@ -36,6 +38,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
         paths.push(rotatedPath);
     }
 
+    const polygon: Polygon = Polygon.fromLegacy([]);
     const allplacements = [];
     let fitness = 0;
     const binarea = Math.abs(polygonArea(placementData.binPolygon));
@@ -204,13 +207,10 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                 }
 
                 for (k = 0; k < nf.length; ++k) {
-                    const allPoints: IPoint[] = [];
+                    const allPoints: Point[] = [];
                     for (m = 0; m < placed.length; ++m) {
                         for (n = 0; n < placed[m].length; ++n) {
-                            allPoints.push({
-                                x: placed[m][n].x + placements[m].x,
-                                y: placed[m][n].y + placements[m].y
-                            });
+                            allPoints.push(Point.from(placed[m][n]).add(placements[m]));
                         }
                     }
 
@@ -222,17 +222,13 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                         nfp: combinedNfp
                     };
 
-                    for (m = 0; m < path.length; m++) {
-                        allPoints.push({
-                            x: path[m].x + shiftVector.x,
-                            y: path[m].y + shiftVector.y
-                        });
+                    for (m = 0; m < path.length; ++m) {
+                        allPoints.push(Point.from(path[m]).add(shiftVector));
                     }
 
-                    const rectbounds = getPolygonBounds(allPoints);
-
+                    polygon.reset(allPoints);
                     // weigh width more, to help compress in direction of gravity
-                    area = rectbounds.width * 2 + rectbounds.height;
+                    area = polygon.width * 2 + polygon.height;
 
                     if (
                         Number.isNaN(minArea) ||
@@ -240,7 +236,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                         (almostEqual(minArea, area) && (Number.isNaN(minX) || shiftVector.x < minX))
                     ) {
                         minArea = area;
-                        minWidth = rectbounds.width;
+                        minWidth = polygon.width;
                         position = shiftVector;
                         minX = shiftVector.x;
                     }
