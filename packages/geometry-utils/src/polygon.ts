@@ -3,9 +3,9 @@ import { almostEqual, cycleIndex } from './shared-helpers';
 import { BoundRect, IPoint, IPolygon } from './types';
 
 export default class Polygon implements BoundRect {
-    private position: Point;
+    private innerPosition: Point;
 
-    private size: Point;
+    private innerSize: Point;
 
     private points: Point[];
 
@@ -13,8 +13,8 @@ export default class Polygon implements BoundRect {
 
     private constructor(points: Point[] = []) {
         this.points = points;
-        this.position = Point.zero();
-        this.size = Point.zero();
+        this.innerPosition = Point.zero();
+        this.innerSize = Point.zero();
         this.innerChildren = [];
         this.calculateBounds();
     }
@@ -105,18 +105,18 @@ export default class Polygon implements BoundRect {
             return;
         }
 
-        this.position.update(this.first);
-        this.size.update(this.first);
+        this.innerPosition.update(this.first);
+        this.innerSize.update(this.first);
 
         const pointCount: number = this.length;
         let i: number = 0;
 
         for (i = 1; i < pointCount; ++i) {
-            this.position.min(this.at(i));
-            this.size.max(this.at(i));
+            this.innerPosition.min(this.at(i));
+            this.innerSize.max(this.at(i));
         }
 
-        this.size.sub(this.position);
+        this.innerSize.sub(this.innerPosition);
     }
 
     public get length(): number {
@@ -124,19 +124,19 @@ export default class Polygon implements BoundRect {
     }
 
     public get x(): number {
-        return this.position.x;
+        return this.innerPosition.x;
     }
 
     public get y(): number {
-        return this.position.y;
+        return this.innerPosition.y;
     }
 
     public get width(): number {
-        return this.size.x;
+        return this.innerSize.x;
     }
 
     public get height(): number {
-        return this.size.y;
+        return this.innerSize.y;
     }
 
     public get first(): Point {
@@ -169,7 +169,7 @@ export default class Polygon implements BoundRect {
 
     public get isRectangle(): boolean {
         const pointCount: number = this.length;
-        const right: Point = Point.from(this.position).add(this.size);
+        const right: Point = Point.from(this.innerPosition).add(this.innerSize);
         let point: Point = null;
         let i: number = 0;
 
@@ -178,8 +178,8 @@ export default class Polygon implements BoundRect {
 
             if (
                 !(
-                    (almostEqual(point.x, this.position.x) || almostEqual(point.x, right.x)) &&
-                    (almostEqual(point.y, this.position.y) || almostEqual(point.y, right.y))
+                    (almostEqual(point.x, this.innerPosition.x) || almostEqual(point.x, right.x)) &&
+                    (almostEqual(point.y, this.innerPosition.y) || almostEqual(point.y, right.y))
                 )
             ) {
                 return false;
@@ -205,6 +205,14 @@ export default class Polygon implements BoundRect {
         }
 
         return 0.5 * result;
+    }
+
+    public get position(): Point {
+        return this.innerPosition;
+    }
+
+    public get size(): Point {
+        return this.innerSize;
     }
 
     public static fromLegacy(data: IPolygon | IPoint[]): Polygon {

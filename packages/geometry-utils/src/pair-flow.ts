@@ -244,7 +244,7 @@ function coincedentDistance(
         }
     }
 
-    return defaultValue !== null ? Math.min(result, defaultValue) : result;
+    return Number.isNaN(defaultValue) ? result : Math.min(result, defaultValue);
 }
 
 function segmentDistance(A: Point, B: Point, E: Point, F: Point, direction: Point): number {
@@ -266,7 +266,7 @@ function segmentDistance(A: Point, B: Point, E: Point, F: Point, direction: Poin
 
     // segments that will merely touch at one point
     if (maxAB - minEF < TOL || maxEF - minAB < TOL) {
-        return null;
+        return NaN;
     }
     // segments miss eachother completely
     const overlap: number =
@@ -290,7 +290,7 @@ function segmentDistance(A: Point, B: Point, E: Point, F: Point, direction: Poin
             const normdot = normAB.dot(direction);
             // the segments merely slide along eachother
             if (almostEqual(normdot)) {
-                return null;
+                return NaN;
             }
 
             if (normdot < 0) {
@@ -298,10 +298,10 @@ function segmentDistance(A: Point, B: Point, E: Point, F: Point, direction: Poin
             }
         }
 
-        return null;
+        return NaN;
     }
 
-    let result: number = null;
+    let result: number = NaN;
 
     // coincident points
     if (almostEqual(dotA, dotE)) {
@@ -313,9 +313,9 @@ function segmentDistance(A: Point, B: Point, E: Point, F: Point, direction: Poin
     }
 
     if (almostEqual(dotB, dotE)) {
-        result = result !== null ? Math.min(crossB - crossE, result) : crossB - crossE;
+        result = Number.isNaN(result) ? crossB - crossE : Math.min(crossB - crossE, result);
     } else if (almostEqual(dotB, dotF)) {
-        result = result !== null ? Math.min(crossB - crossF, result) : crossB - crossF;
+        result = Number.isNaN(result) ? crossB - crossF : Math.min(crossB - crossF, result);
     } else {
         result = coincedentDistance(B, A, E, F, reverse, normal, overlap, result);
     }
@@ -334,7 +334,7 @@ function polygonSlideDistance(polygonA: Polygon, polygonB: Polygon, direction: I
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const dir = Point.from(direction).normalize();
-    let distance = null;
+    let distance = NaN;
     let d: number = 0;
     let i: number = 0;
     let j: number = 0;
@@ -353,7 +353,7 @@ function polygonSlideDistance(polygonA: Polygon, polygonB: Polygon, direction: I
 
             d = segmentDistance(a1, a2, b1, b2, dir);
 
-            if (d !== null && (distance === null || d < distance)) {
+            if (!Number.isNaN(d) && (Number.isNaN(distance) || d < distance)) {
                 if (d > 0 || almostEqual(d)) {
                     distance = d;
                 }
@@ -368,7 +368,7 @@ function polygonSlideDistance(polygonA: Polygon, polygonB: Polygon, direction: I
 function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, direction: Point, offset: Point): number {
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
-    let distance = null;
+    let result: number = NaN;
     let p: Point = Point.zero();
     let d: number = 0;
     let s1: Point = Point.zero();
@@ -376,11 +376,11 @@ function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, directi
     let sOffset: Point = Point.zero();
     let i: number = 0;
     let j: number = 0;
-    let minProjection: number = null;
+    let minProjection: number = 0;
 
     for (i = 0; i < sizeB; ++i) {
         // the shortest/most negative projection of B onto A
-        minProjection = null;
+        minProjection = NaN;
         p.update(polygonB.at(i)).add(offset);
 
         for (j = 0; j < sizeA - 1; ++j) {
@@ -395,46 +395,30 @@ function polygonProjectionDistance(polygonA: Polygon, polygonB: Polygon, directi
             // project point, ignore edge boundaries
             d = pointDistance(p, s1, s2, direction);
 
-            if (!Number.isNaN(d) && (minProjection === null || d < minProjection)) {
+            if (!Number.isNaN(d) && (Number.isNaN(minProjection) || d < minProjection)) {
                 minProjection = d;
             }
         }
 
-        if (minProjection !== null && (distance === null || minProjection > distance)) {
-            distance = minProjection;
+        if (!Number.isNaN(minProjection) && (Number.isNaN(result) || minProjection > result)) {
+            result = minProjection;
         }
     }
 
-    return distance;
+    return result;
 }
 
 // returns an interior NFP for the special case where A is a rectangle
 function noFitPolygonRectangle(A: Polygon, B: Polygon): Polygon[] {
-    const minA: Point = Point.from(A.first);
-    const maxA: Point = Point.from(A.first);
-    const minB: Point = Point.from(B.first);
-    const maxB: Point = Point.from(B.first);
-    let i: number = 0;
+    const minDiff = Point.from(A.position).sub(B.position);
+    const maxDiff = Point.from(A.size).sub(B.size);
 
-    for (i = 1; i < A.length; ++i) {
-        minA.min(A.at(i));
-        maxA.max(A.at(i));
-    }
-
-    for (i = 1; i < B.length; ++i) {
-        minB.min(B.at(i));
-        maxB.max(B.at(i));
-    }
-
-    const minDiff = Point.from(minA).sub(minB);
-    const maxDiff = Point.from(maxA).sub(maxB);
-
-    if (maxDiff.x <= minDiff.x || maxDiff.y <= minDiff.y) {
+    if (maxDiff.x <= 0 || maxDiff.y <= 0) {
         return [];
     }
 
     minDiff.add(B.first);
-    maxDiff.add(B.first);
+    maxDiff.add(minDiff);
 
     return [
         Polygon.fromLegacy([
@@ -448,7 +432,7 @@ function noFitPolygonRectangle(A: Polygon, B: Polygon): Polygon[] {
 
 // returns true if point already exists in the given nfp
 function inNfp(p: Point, nfp: Polygon[]): boolean {
-    if (!nfp || nfp.length === 0) {
+    if (nfp.length === 0) {
         return false;
     }
 
@@ -508,8 +492,8 @@ function searchStartPoint(
     const vNeg: Point = Point.zero();
     let i: number = 0;
     let j: number = 0;
-    let d: number = null;
-    let isInside: boolean = null;
+    let d: number = 0;
+    let isInside: boolean = false;
 
     for (i = 0; i < sizeA - 1; ++i) {
         if (markedIndices.indexOf(i) === -1) {
@@ -538,12 +522,11 @@ function searchStartPoint(
 
                 d = -1;
 
-                // old-todo: clean this up
-                if (d1 !== null && d2 !== null) {
+                if (!Number.isNaN(d1) && !Number.isNaN(d2)) {
                     d = Math.min(d1, d2);
-                } else if (d2 !== null) {
+                } else if (!Number.isNaN(d2)) {
                     d = d2;
-                } else if (d1 !== null) {
+                } else if (!Number.isNaN(d1)) {
                     d = d1;
                 }
 
@@ -755,11 +738,11 @@ function noFitPolygon(polygonA: Polygon, polygonB: Polygon, inside: boolean, sea
                 distance = polygonSlideDistance(polygonA, polygonB, currVector.value, offset);
                 vecDistance = currVector.value.length;
 
-                if (distance === null || Math.abs(distance) > vecDistance) {
+                if (Number.isNaN(distance) || Math.abs(distance) > vecDistance) {
                     distance = vecDistance;
                 }
 
-                if (distance !== null && distance > maxDistance) {
+                if (!Number.isNaN(distance) && distance > maxDistance) {
                     maxDistance = distance;
                     translate = vectors[i];
                 }
