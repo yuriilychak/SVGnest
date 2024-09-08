@@ -1,16 +1,21 @@
 import ClipperLib from 'js-clipper';
 import { IPoint, IPolygon, PlacementWorkerData, PlacementWorkerResult } from './types';
-import { getPolygonBounds, polygonArea, rotatePolygon } from './helpers';
+import { polygonArea, rotatePolygon } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { almostEqual, generateNFPCacheKey } from './shared-helpers';
 import Point from './point';
 import Polygon from './polygon';
+import PointPool from './point-pool';
 
 interface ShiftVector extends IPoint {
     nfp: ClipperLib.Paths;
 }
 
-export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData): PlacementWorkerResult | null {
+export function placePaths(
+    inputPaths: IPolygon[],
+    placementData: PlacementWorkerData,
+    pointPool: PointPool
+): PlacementWorkerResult | null {
     if (!placementData.binPolygon) {
         return null;
     }
@@ -46,6 +51,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     let nfp: IPoint[][] = null;
     let minWidth: number = 0;
     let area: number = 0;
+    let pointIndices: number = 0;
 
     while (paths.length > 0) {
         const placed = [];
@@ -194,8 +200,8 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
             // which are not optimal for real-world use
             // OLD-TODO generalize gravity direction
             minWidth = 0;
-            let minArea: number = Number.NaN;
-            let minX: number = Number.NaN;
+            let minArea: number = NaN;
+            let minX: number = NaN;
             area = 0;
             let nf: IPoint[] = null;
             let shiftVector: ShiftVector = null;

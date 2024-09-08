@@ -1,4 +1,4 @@
-import { BoundRect, IPoint, IPolygon, NFPContent } from './types';
+import { BoundRect, IPoint, IPolygon } from './types';
 import Point from './point';
 import { almostEqual, cycleIndex } from './shared-helpers';
 

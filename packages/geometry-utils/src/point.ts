@@ -7,7 +7,7 @@ export default class Point implements IPoint {
 
     private offset: number;
 
-    private constructor(data: Float64Array, offset: number = 0) {
+    public constructor(data: Float64Array, offset: number = 0) {
         this.data = data;
         this.offset = offset;
     }
