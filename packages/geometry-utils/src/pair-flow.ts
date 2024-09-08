@@ -297,19 +297,22 @@ function segmentDistance(pointPool: PointPool, A: Point, B: Point, E: Point, F: 
         (maxAB > maxEF && minAB < minEF) || (maxEF > maxAB && minEF < minAB)
             ? 1
             : (Math.min(maxAB, maxEF) - Math.max(minAB, minEF)) / (Math.max(maxAB, maxEF) - Math.min(minAB, minEF));
-    const diffAB: Point = Point.from(B).sub(A);
-    const diffAE: Point = Point.from(E).sub(A);
-    const diffAF: Point = Point.from(F).sub(A);
+    const pointIndices2: number = pointPool.alloc(3);
+    const diffAB: Point = pointPool.get(pointIndices2, 0).update(B).sub(A);
+    const diffAE: Point = pointPool.get(pointIndices2, 1).update(E).sub(A);
+    const diffAF: Point = pointPool.get(pointIndices2, 2).update(F).sub(A);
     const crossABE = diffAE.cross(diffAB);
     const crossABF = diffAF.cross(diffAB);
 
+    sharedPointIndices |= pointIndices2;
+
     // lines are colinear
     if (almostEqual(crossABE) && almostEqual(crossABF)) {
-        const pointIndices2: number = pointPool.alloc(2);
-        const normAB = pointPool.get(pointIndices2, 0).update(B).sub(A).normal().normalize();
-        const normEF = pointPool.get(pointIndices2, 1).update(F).sub(E).normal().normalize();
+        const pointIndices3: number = pointPool.alloc(2);
+        const normAB = pointPool.get(pointIndices3, 0).update(B).sub(A).normal().normalize();
+        const normEF = pointPool.get(pointIndices3, 1).update(F).sub(E).normal().normalize();
 
-        sharedPointIndices |= pointIndices2;
+        sharedPointIndices |= pointIndices3;
 
         // segment normals must point in opposite directions
         if (almostEqual(normAB.cross(normEF)) && normAB.dot(normEF) < 0) {
