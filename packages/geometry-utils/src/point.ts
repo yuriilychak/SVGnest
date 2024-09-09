@@ -5,16 +5,16 @@ import { almostEqual, midValue } from './shared-helpers';
 export default class Point implements IPoint {
     private data: Float64Array;
 
-    private offset: number;
+    private innerOffset: number;
 
     public constructor(data: Float64Array, offset: number = 0) {
         this.data = data;
-        this.offset = offset;
+        this.innerOffset = offset;
     }
 
-    public bind(data: Float64Array, offset: number): void {
+    public bind(data: Float64Array, offset: number = 0): void {
         this.data = data;
-        this.offset = offset;
+        this.innerOffset = offset;
     }
 
     public set(x: number, y: number): Point {
@@ -169,19 +169,19 @@ export default class Point implements IPoint {
     }
 
     public get x(): number {
-        return this.data[this.offset];
+        return this.data[this.innerOffset];
     }
 
     public set x(value: number) {
-        this.data[this.offset] = value;
+        this.data[this.innerOffset] = value;
     }
 
     public get y(): number {
-        return this.data[this.offset + 1];
+        return this.data[this.innerOffset + 1];
     }
 
     public set y(value: number) {
-        this.data[this.offset + 1] = value;
+        this.data[this.innerOffset + 1] = value;
     }
 
     public get length(): number {
@@ -194,6 +194,14 @@ export default class Point implements IPoint {
 
     public get isEmpty(): boolean {
         return this.x === 0 && this.y === 0;
+    }
+
+    public get offset(): number {
+        return this.innerOffset;
+    }
+
+    public set offset(value: number) {
+        this.innerOffset = value;
     }
 
     public static create(x: number, y: number): Point {

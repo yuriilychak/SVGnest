@@ -31,16 +31,18 @@ export default class Polygon implements BoundRect {
 
     public reset(points: IPoint[]): void {
         this.pointCount = points.length;
-        this.data = new Float64Array((this.pointCount << 1) + 4);
+        const pointMem: number = this.pointCount << 1;
+        this.data = new Float64Array(pointMem + 4);
         this.offset = 0;
 
-        this.innerPosition.bind(this.data, this.pointCount << 1);
-        this.innerSize.bind(this.data, (this.pointCount + 1) << 1);
+        this.innerPosition.bind(this.data, pointMem);
+        this.innerSize.bind(this.data, pointMem + 2);
+        this.tmpPoint.bind(this.data);
 
         let i: number = 0;
 
         for (i = 0; i < this.pointCount; ++i) {
-            this.tmpPoint.bind(this.data, this.offset + (i << 1));
+            this.tmpPoint.offset = this.offset + (i << 1);
             this.tmpPoint.update(points[i]);
         }
 
@@ -66,7 +68,7 @@ export default class Polygon implements BoundRect {
 
         const pointIndex: number = cycleIndex(index, this.pointCount, 0);
 
-        this.tmpPoint.bind(this.data, this.offset + (pointIndex << 1));
+        this.tmpPoint.offset = this.offset + (pointIndex << 1);
 
         return this.tmpPoint;
     }
