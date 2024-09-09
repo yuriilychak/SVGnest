@@ -12,6 +12,11 @@ export default class Point implements IPoint {
         this.offset = offset;
     }
 
+    public bind(data: Float64Array, offset: number): void {
+        this.data = data;
+        this.offset = offset;
+    }
+
     public set(x: number, y: number): Point {
         this.x = x;
         this.y = y;

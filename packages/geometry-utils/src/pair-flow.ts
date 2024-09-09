@@ -688,7 +688,7 @@ function noFitPolygon(
         }
     }
 
-    const pointIndices = pointPool.alloc(10);
+    const pointIndices = pointPool.alloc(16);
     const reference: Point = pointPool.get(pointIndices, 0);
     const start: Point = pointPool.get(pointIndices, 1);
     const pointA: Point = pointPool.get(pointIndices, 2);
@@ -699,6 +699,12 @@ function noFitPolygon(
     const prevUnitV: Point = pointPool.get(pointIndices, 7);
     const offset: Point = pointPool.get(pointIndices, 8);
     const startPoint: Point = pointPool.get(pointIndices, 9).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
+    const prevA: Point = pointPool.get(pointIndices, 10);
+    const currA: Point = pointPool.get(pointIndices, 11);
+    const nextA: Point = pointPool.get(pointIndices, 12);
+    const prevB: Point = pointPool.get(pointIndices, 13);
+    const currB: Point = pointPool.get(pointIndices, 14);
+    const nextB: Point = pointPool.get(pointIndices, 15);
     const result: Polygon[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
@@ -714,12 +720,12 @@ function noFitPolygon(
     let iNext: number = 0;
     let jNext: number = 0;
     let isLooped: boolean = false;
-    let currA: number = 0;
-    let prevA: number = 0;
-    let nextA: number = 0;
-    let currB: number = 0;
-    let prevB: number = 0;
-    let nextB: number = 0;
+    let currIndexA: number = 0;
+    let prevIndexA: number = 0;
+    let nextIndexA: number = 0;
+    let currIndexB: number = 0;
+    let prevIndexB: number = 0;
+    let nextIndexB: number = 0;
     let vectors: IVector[] = null;
     let translate: IVector = null;
     let maxDistance: number = 0;
@@ -782,32 +788,39 @@ function noFitPolygon(
             for (i = 0; i < touchings.length; ++i) {
                 touching = touchings[i];
                 // adjacent A vertices
-                currA = touching[1];
-                currB = touching[2];
-                prevA = cycleIndex(currA, sizeA, -1); // loop
-                nextA = cycleIndex(currA, sizeA, 1); // loop
-                prevB = cycleIndex(currB, sizeB, -1); // loop
-                nextB = cycleIndex(currB, sizeB, 1); // loop
+                currIndexA = touching[1];
+                currIndexB = touching[2];
+                prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop
+                nextIndexA = cycleIndex(currIndexA, sizeA, 1); // loop
+                prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
+                nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
 
-                markedIndices.push(currA);
+                markedIndices.push(currIndexA);
+
+                prevA.update(polygonA.at(prevIndexA));
+                currA.update(polygonA.at(currIndexA));
+                nextA.update(polygonA.at(nextIndexA));
+                prevB.update(polygonB.at(prevIndexB));
+                currB.update(polygonB.at(currIndexB));
+                nextB.update(polygonB.at(nextIndexB));
 
                 switch (touching[0]) {
                     case 0: {
-                        vectors.push(getVector(currA, prevA, polygonA.at(prevA), polygonA.at(currA)));
-                        vectors.push(getVector(currA, nextA, polygonA.at(nextA), polygonA.at(currA)));
+                        vectors.push(getVector(currIndexA, prevIndexA, prevA, currA));
+                        vectors.push(getVector(currIndexA, nextIndexA, nextA, currA));
                         // B vectors need to be inverted
-                        vectors.push(getVector(-1, -1, polygonB.at(currB), polygonB.at(prevB)));
-                        vectors.push(getVector(-1, -1, polygonB.at(currB), polygonB.at(nextB)));
+                        vectors.push(getVector(-1, -1, currB, prevB));
+                        vectors.push(getVector(-1, -1, currB, nextB));
                         break;
                     }
                     case 1: {
-                        vectors.push(getVector(prevA, currA, polygonA.at(currA), polygonB.at(currB), offset));
-                        vectors.push(getVector(currA, prevA, polygonA.at(prevA), polygonB.at(currB), offset));
+                        vectors.push(getVector(prevIndexA, currIndexA, currA, currB, offset));
+                        vectors.push(getVector(currIndexA, prevIndexA, prevA, currB, offset));
                         break;
                     }
                     default: {
-                        vectors.push(getVector(-1, -1, polygonA.at(currA), polygonB.at(currB), offset));
-                        vectors.push(getVector(-1, -1, polygonA.at(currA), polygonB.at(prevB), offset));
+                        vectors.push(getVector(-1, -1, currA, currB, offset));
+                        vectors.push(getVector(-1, -1, currA, prevB, offset));
                     }
                 }
             }
