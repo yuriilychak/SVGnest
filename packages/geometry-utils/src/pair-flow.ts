@@ -170,7 +170,7 @@ function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, o
     return false;
 }
 
-function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale: number): Polygon[] {
+function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale: number): Float64Array[] {
     const clipperA: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonA, clipperScale);
     const clipperB: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonB, -clipperScale);
     const solutions: ClipperLib.IntPoint[][] = ClipperLib.Clipper.MinkowskiSum(clipperA, clipperB, true);
@@ -192,7 +192,16 @@ function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale:
         }
     }
 
-    return [Polygon.fromLegacy(clipperNfp)];
+    const pointCount: number = clipperNfp.length;
+
+    const result = new Float64Array(pointCount << 1);
+
+    for (i = 0; i < pointCount; ++i) {
+        result[i << 1] = clipperNfp[i].x;
+        result[(i << 1) + 1] = clipperNfp[i].y;
+    }
+
+    return [result];
 }
 
 function pointDistance(
@@ -465,7 +474,7 @@ function polygonProjectionDistance(
 }
 
 // returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle(pointPool: PointPool, A: Polygon, B: Polygon): Polygon[] {
+function noFitPolygonRectangle(pointPool: PointPool, A: Polygon, B: Polygon): Float64Array[] {
     const pointIndices = pointPool.alloc(2);
     const minDiff = pointPool.get(pointIndices, 0).update(A.position).sub(B.position);
     const maxDiff = pointPool.get(pointIndices, 1).update(A.size).sub(B.size);
@@ -477,14 +486,7 @@ function noFitPolygonRectangle(pointPool: PointPool, A: Polygon, B: Polygon): Po
     minDiff.add(B.first);
     maxDiff.add(minDiff);
 
-    const result = [
-        Polygon.fromLegacy([
-            { x: minDiff.x, y: minDiff.y },
-            { x: maxDiff.x, y: minDiff.y },
-            { x: maxDiff.x, y: maxDiff.y },
-            { x: minDiff.x, y: maxDiff.y }
-        ])
-    ];
+    const result = [new Float64Array([minDiff.x, minDiff.y, maxDiff.x, minDiff.y, maxDiff.x, maxDiff.y, minDiff.x, maxDiff.y])];
 
     pointPool.malloc(pointIndices);
 
@@ -492,27 +494,33 @@ function noFitPolygonRectangle(pointPool: PointPool, A: Polygon, B: Polygon): Po
 }
 
 // returns true if point already exists in the given nfp
-function inNfp(p: Point, nfp: Polygon[]): boolean {
+function inNfp(pointPool: PointPool, point: Point, nfp: Float64Array[]): boolean {
     if (nfp.length === 0) {
         return false;
     }
 
+    const poinntIndices = pointPool.alloc(1);
+    const tmpPoint = pointPool.get(poinntIndices, 0);
     const nfpCount: number = nfp.length;
-    let currentNfp: Polygon = null;
+    let currentNfp: Float64Array = null;
     let pointCount: number = 0;
     let i: number = 0;
     let j: number = 0;
 
     for (i = 0; i < nfpCount; ++i) {
         currentNfp = nfp[i];
-        pointCount = currentNfp.length;
+        pointCount = currentNfp.length >> 1;
 
         for (j = 0; j < pointCount; ++j) {
-            if (p.almostEqual(currentNfp.at(j))) {
+            if (point.almostEqual(tmpPoint.bind(currentNfp, j << 1))) {
+                pointPool.malloc(poinntIndices);
+
                 return true;
             }
         }
     }
+
+    pointPool.malloc(poinntIndices);
 
     return false;
 }
@@ -554,7 +562,7 @@ function searchStartPoint(
     polygonB: Polygon,
     inside: boolean,
     markedIndices: number[],
-    nfp: Polygon[] = []
+    nfp: Float64Array[] = []
 ): IPoint {
     polygonA.close();
     polygonB.close();
@@ -585,7 +593,11 @@ function searchStartPoint(
                     return null;
                 }
 
-                if (isInside === inside && !intersect(pointPool, polygonA, polygonB, startPoint) && !inNfp(startPoint, nfp)) {
+                if (
+                    isInside === inside &&
+                    !intersect(pointPool, polygonA, polygonB, startPoint) &&
+                    !inNfp(pointPool, startPoint, nfp)
+                ) {
                     result = startPoint.export();
                     pointPool.malloc(pointIndices);
 
@@ -625,7 +637,11 @@ function searchStartPoint(
 
                 isInside = getInside(pointPool, polygonA, polygonB, startPoint, isInside);
 
-                if (isInside === inside && !intersect(pointPool, polygonA, polygonB, startPoint) && !inNfp(startPoint, nfp)) {
+                if (
+                    isInside === inside &&
+                    !intersect(pointPool, polygonA, polygonB, startPoint) &&
+                    !inNfp(pointPool, startPoint, nfp)
+                ) {
                     result = startPoint.export();
                     pointPool.malloc(pointIndices);
 
@@ -659,7 +675,7 @@ function noFitPolygon(
     polygonB: Polygon,
     inside: boolean,
     searchEdges: boolean
-): Polygon[] {
+): Float64Array[] {
     if (polygonA.isBroken || polygonB.isBroken) {
         return [];
     }
@@ -705,12 +721,12 @@ function noFitPolygon(
     const prevB: Point = pointPool.get(pointIndices, 13);
     const currB: Point = pointPool.get(pointIndices, 14);
     const nextB: Point = pointPool.get(pointIndices, 15);
-    const result: Polygon[] = [];
+    const result: Float64Array[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const condition: number = 10 * (sizeA + sizeB);
     let counter: number = 0;
-    let nfp: IPoint[] = null;
+    let nfp: number[] = null;
     let startPointRaw: IPoint = null;
     let currVector: IVector = null;
     let prevVector: IVector = null;
@@ -756,7 +772,7 @@ function noFitPolygon(
         prevVector = null; // keep track of previous vector
         reference.update(polygonB.first).add(startPoint);
         start.update(reference);
-        nfp = [reference.export()];
+        nfp = [reference.x, reference.y];
         counter = 0;
 
         while (counter < condition) {
@@ -896,11 +912,11 @@ function noFitPolygon(
 
             // if A and B start on a touching horizontal line, the end point may not be the start point
             isLooped = false;
-            nfpSize = nfp.length;
+            nfpSize = nfp.length >> 1;
 
             if (nfpSize > 0) {
                 for (i = 0; i < nfpSize - 1; ++i) {
-                    if (reference.almostEqual(nfp[i])) {
+                    if (almostEqual(nfp[i << 1], reference.x) && almostEqual(nfp[(i << 1) + 1], reference.y)) {
                         isLooped = true;
                         break;
                     }
@@ -912,7 +928,8 @@ function noFitPolygon(
                 break;
             }
 
-            nfp.push(reference.export());
+            nfp.push(reference.x);
+            nfp.push(reference.y);
 
             offset.add(translate.value);
 
@@ -920,7 +937,7 @@ function noFitPolygon(
         }
 
         if (nfp && nfp.length > 0) {
-            result.push(Polygon.fromLegacy(nfp));
+            result.push(new Float64Array(nfp));
         }
 
         if (!searchEdges) {
@@ -952,7 +969,8 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
     const nfpContent: NFPContent = keyToNFPData(pair.key, rotations);
     const polygonA: Polygon = Polygon.fromLegacy(pair.A);
     const polygonB: Polygon = Polygon.fromLegacy(pair.B);
-    let nfp: Polygon[] = null;
+    const tmpPolygon: Polygon = Polygon.create();
+    let nfp: Float64Array[] = null;
     let i: number = 0;
 
     polygonA.rotate(nfpContent.Arotation);
@@ -966,8 +984,10 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         // ensure all interior NFPs have the same winding direction
         if (nfp.length > 0) {
             for (i = 0; i < nfp.length; ++i) {
-                if (nfp[i].area > 0) {
-                    nfp[i].reverse();
+                tmpPolygon.bind(nfp[i]);
+
+                if (tmpPolygon.area > 0) {
+                    tmpPolygon.reverse();
                 }
             }
         } else {
@@ -990,10 +1010,11 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
 
         for (i = 0; i < nfp.length; ++i) {
             if (!exploreConcave || i === 0) {
+                tmpPolygon.bind(nfp[i]);
                 // if searchedges is active, only the first NFP is guaranteed to pass sanity check
-                if (Math.abs(nfp[i].area) < Math.abs(polygonA.area)) {
-                    console.log('NFP Area Error: ', Math.abs(nfp[i].area), pair.key);
-                    console.log('NFP:', JSON.stringify(nfp[i]));
+                if (Math.abs(tmpPolygon.area) < Math.abs(polygonA.area)) {
+                    console.log('NFP Area Error: ', Math.abs(tmpPolygon.area), pair.key);
+                    console.log('NFP:', JSON.stringify(tmpPolygon));
                     console.log('A: ', JSON.stringify(polygonA));
                     console.log('B: ', JSON.stringify(polygonB));
                     nfp.splice(i, 1);
@@ -1007,14 +1028,20 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
             return null;
         }
 
+        const firstNfp: Polygon = Polygon.create();
+
+        firstNfp.bind(nfp[0]);
+
         // for outer NFPs, the first is guaranteed to be the largest. Any subsequent NFPs that lie inside the first are holes
         for (i = 0; i < nfp.length; ++i) {
-            if (nfp[i].area > 0) {
-                nfp[i].reverse();
+            tmpPolygon.bind(nfp[i]);
+
+            if (tmpPolygon.area > 0) {
+                tmpPolygon.reverse();
             }
 
-            if (i > 0 && nfp[0].pointIn(nfp[i].first) && nfp[i].area < 0) {
-                nfp[i].reverse();
+            if (i > 0 && firstNfp.pointIn(tmpPolygon.first) && tmpPolygon.area < 0) {
+                tmpPolygon.reverse();
             }
         }
 
@@ -1028,15 +1055,16 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
 
                 // no need to find nfp if B's bounding box is too big
                 if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
-                    const noFitPolygons: Polygon[] = noFitPolygon(pointPool, child, polygonB, true, exploreConcave);
+                    const noFitPolygons: Float64Array[] = noFitPolygon(pointPool, child, polygonB, true, exploreConcave);
                     const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                     // ensure all interior NFPs have the same winding direction
                     if (noFitCount !== 0) {
                         let j: number = 0;
 
                         for (j = 0; j < noFitCount; ++j) {
-                            if (noFitPolygons[j].area < 0) {
-                                noFitPolygons[j].reverse();
+                            tmpPolygon.bind(noFitPolygons[j]);
+                            if (tmpPolygon.area < 0) {
+                                tmpPolygon.reverse();
                             }
 
                             nfp.push(noFitPolygons[j]);
@@ -1047,5 +1075,12 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         }
     }
 
-    return { key: pair.key, value: nfp.map(element => element.exportLegacy()) };
+    return {
+        key: pair.key,
+        value: nfp.map(element => {
+            tmpPolygon.bind(element);
+
+            return tmpPolygon.exportLegacy();
+        })
+    };
 }

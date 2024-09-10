@@ -31,6 +31,14 @@ export default class Polygon {
         this.rectangle = false;
     }
 
+    public bind(data: Float64Array, offset: number = 0, pointCount: number = data.length >> 1): void {
+        this.pointCount = pointCount;
+        this.offset = offset;
+        this.data = data;
+
+        this.calculateBounds();
+    }
+
     public reset(points: IPoint[]): void {
         this.pointCount = points.length;
         this.offset = 0;
@@ -262,6 +270,10 @@ export default class Polygon {
 
     public get size(): Point {
         return this.tmpPoint.bind(this.rectData, 2);
+    }
+
+    public static create(): Polygon {
+        return new Polygon();
     }
 
     public static fromLegacy(data: IPolygon | IPoint[]): Polygon {
