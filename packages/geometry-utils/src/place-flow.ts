@@ -11,6 +11,31 @@ interface ShiftVector extends IPoint {
     nfp: ClipperLib.Paths;
 }
 
+function fillPointStack(
+    pointPool: PointPool,
+    pointStack: Float64Array,
+    points: IPoint[],
+    offset: IPoint,
+    prevValue: number
+): number {
+    const pointIndices: number = pointPool.alloc(1);
+    const tmpPoint: Point = pointPool.get(pointIndices, 0);
+    const pointCount = points.length;
+    let i: number = 0;
+    let index: number = 0;
+
+    for (i = 0; i < pointCount; ++i) {
+        tmpPoint.update(points[i]).add(offset);
+        index = (prevValue + i) << 1;
+        pointStack[index] = tmpPoint.x;
+        pointStack[index + 1] = tmpPoint.y;
+    }
+
+    pointPool.malloc(pointIndices);
+
+    return prevValue + pointCount;
+}
+
 export function placePaths(
     inputPaths: IPolygon[],
     placementData: PlacementWorkerData,
@@ -24,7 +49,6 @@ export function placePaths(
     let j: number = 0;
     let k: number = 0;
     let m: number = 0;
-    let n: number = 0;
     let path: IPolygon = null;
     let rotatedPath: IPolygon = null;
     // rotate paths by given rotation
@@ -47,11 +71,12 @@ export function placePaths(
     const allplacements = [];
     let fitness = 0;
     const binarea = Math.abs(polygonArea(placementData.binPolygon));
+    const pointStack: Float64Array = new Float64Array(2048);
+    let pointCount: number = 0;
     let key: number = 0;
     let nfp: IPoint[][] = null;
     let minWidth: number = 0;
     let area: number = 0;
-    let pointIndices: number = 0;
 
     while (paths.length > 0) {
         const placed = [];
@@ -213,11 +238,10 @@ export function placePaths(
                 }
 
                 for (k = 0; k < nf.length; ++k) {
-                    const allPoints: Point[] = [];
+                    pointCount = 0;
+
                     for (m = 0; m < placed.length; ++m) {
-                        for (n = 0; n < placed[m].length; ++n) {
-                            allPoints.push(Point.from(placed[m][n]).add(placements[m]));
-                        }
+                        pointCount = fillPointStack(pointPool, pointStack, placed[m], placements[m], pointCount);
                     }
 
                     shiftVector = {
@@ -228,11 +252,9 @@ export function placePaths(
                         nfp: combinedNfp
                     };
 
-                    for (m = 0; m < path.length; ++m) {
-                        allPoints.push(Point.from(path[m]).add(shiftVector));
-                    }
+                    pointCount = fillPointStack(pointPool, pointStack, path, shiftVector, pointCount);
 
-                    polygon.reset(allPoints);
+                    polygon.bind(pointStack, 0, pointCount);
                     // weigh width more, to help compress in direction of gravity
                     area = polygon.size.x * 2 + polygon.size.y;
 
