@@ -1027,7 +1027,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
                 child = polygonA.children[i];
 
                 // no need to find nfp if B's bounding box is too big
-                if (child.width > polygonB.width && child.height > polygonB.height) {
+                if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
                     const noFitPolygons: Polygon[] = noFitPolygon(pointPool, child, polygonB, true, exploreConcave);
                     const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                     // ensure all interior NFPs have the same winding direction

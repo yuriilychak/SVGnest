@@ -1,12 +1,8 @@
 import Point from './point';
 import { almostEqual, cycleIndex } from './shared-helpers';
-import { BoundRect, IPoint, IPolygon } from './types';
+import { IPoint, IPolygon } from './types';
 
-export default class Polygon implements BoundRect {
-    private innerPosition: Point;
-
-    private innerSize: Point;
-
+export default class Polygon {
     private innerChildren: Polygon[];
 
     private data: Float64Array;
@@ -21,29 +17,29 @@ export default class Polygon implements BoundRect {
 
     private tmpPoint: Point;
 
+    private rectangle: boolean;
+
+    private rectData: Float64Array;
+
     private constructor() {
         this.tmpPoint = Point.zero();
-        this.innerPosition = Point.zero();
-        this.innerSize = Point.zero();
         this.innerChildren = [];
+        this.rectData = new Float64Array(4);
         this.closed = false;
+        this.pointCount = 0;
+        this.offset = 0;
+        this.rectangle = false;
     }
 
     public reset(points: IPoint[]): void {
         this.pointCount = points.length;
-        const pointMem: number = this.pointCount << 1;
-        this.data = new Float64Array(pointMem + 4);
         this.offset = 0;
-
-        this.innerPosition.bind(this.data, pointMem);
-        this.innerSize.bind(this.data, pointMem + 2);
-        this.tmpPoint.bind(this.data);
+        this.data = new Float64Array(this.getPointOffset(this.pointCount + 2));
 
         let i: number = 0;
 
         for (i = 0; i < this.pointCount; ++i) {
-            this.tmpPoint.offset = this.offset + (i << 1);
-            this.tmpPoint.update(points[i]);
+            this.tmpPoint.bind(this.data, this.getPointOffset(i)).update(points[i]);
         }
 
         this.calculateBounds();
@@ -68,9 +64,7 @@ export default class Polygon implements BoundRect {
 
         const pointIndex: number = cycleIndex(index, this.pointCount, 0);
 
-        this.tmpPoint.offset = this.offset + (pointIndex << 1);
-
-        return this.tmpPoint;
+        return this.tmpPoint.bind(this.data, this.getPointOffset(pointIndex));
     }
 
     public pointIn(point: IPoint, offset: Point = null): boolean {
@@ -134,10 +128,10 @@ export default class Polygon implements BoundRect {
 
         for (i = 0; i < halfPointCount; ++i) {
             j = lastIndex - i;
-            i2 = i << 1;
-            j2 = j << 1;
-            i2Plus1 = i2 + 1;
-            j2Plus1 = j2 + 1;
+            i2 = this.offset + (i << 1);
+            j2 = this.offset + (j << 1);
+            i2Plus1 = this.offset + i2 + 1;
+            j2Plus1 = this.offset + j2 + 1;
 
             this.data[i2] = this.data[i2] + this.data[j2];
             this.data[j2] = this.data[i2] - this.data[j2];
@@ -160,51 +154,56 @@ export default class Polygon implements BoundRect {
         return result;
     }
 
+    private getPointOffset(index: number): number {
+        return this.offset + (index << 1);
+    }
+
     private calculateBounds(): void {
         if (this.isBroken) {
             return;
         }
 
-        this.innerPosition.update(this.first);
-        this.innerSize.update(this.last);
+        const point1: Point = Point.from(this.first);
+        const point2: Point = Point.from(this.last);
 
-        this.closed = this.innerPosition.almostEqual(this.innerSize);
-
-        this.innerSize.update(this.first);
+        this.closed = point1.almostEqual(point2);
 
         const pointCount: number = this.pointCount;
         let i: number = 0;
         let point: Point = null;
 
-        for (i = 1; i < pointCount; ++i) {
+        for (i = 0; i < pointCount; ++i) {
             point = this.at(i);
-            this.innerPosition.min(point);
-            this.innerSize.max(point);
+            point1.min(point);
+            point2.max(point);
         }
 
-        this.innerSize.sub(this.innerPosition);
+        this.rectangle = true;
+
+        for (i = 0; i < this.pointCount; ++i) {
+            point = this.at(i);
+
+            if (
+                !(
+                    (almostEqual(point.x, point1.x) || almostEqual(point.x, point2.x)) &&
+                    (almostEqual(point.y, point1.y) || almostEqual(point.y, point2.y))
+                )
+            ) {
+                this.rectangle = false;
+                break;
+            }
+        }
+
+        point2.sub(point1);
+
+        this.tmpPoint.bind(this.rectData, 0).update(point1);
+        this.tmpPoint.bind(this.rectData, 2).update(point2);
     }
 
     public get length(): number {
         const offset: number = this.closedDirty ? 1 : 0;
 
         return this.pointCount + offset;
-    }
-
-    public get x(): number {
-        return this.innerPosition.x;
-    }
-
-    public get y(): number {
-        return this.innerPosition.y;
-    }
-
-    public get width(): number {
-        return this.innerSize.x;
-    }
-
-    public get height(): number {
-        return this.innerSize.y;
     }
 
     public get first(): Point {
@@ -236,25 +235,7 @@ export default class Polygon implements BoundRect {
     }
 
     public get isRectangle(): boolean {
-        const pointCount: number = this.pointCount;
-        const right: Point = Point.from(this.innerPosition).add(this.innerSize);
-        let point: Point = null;
-        let i: number = 0;
-
-        for (i = 0; i < pointCount; ++i) {
-            point = this.at(i);
-
-            if (
-                !(
-                    (almostEqual(point.x, this.innerPosition.x) || almostEqual(point.x, right.x)) &&
-                    (almostEqual(point.y, this.innerPosition.y) || almostEqual(point.y, right.y))
-                )
-            ) {
-                return false;
-            }
-        }
-
-        return true;
+        return this.rectangle;
     }
 
     // returns the area of the polygon, assuming no self-intersections
@@ -276,11 +257,11 @@ export default class Polygon implements BoundRect {
     }
 
     public get position(): Point {
-        return this.innerPosition;
+        return this.tmpPoint.bind(this.rectData, 0);
     }
 
     public get size(): Point {
-        return this.innerSize;
+        return this.tmpPoint.bind(this.rectData, 2);
     }
 
     public static fromLegacy(data: IPolygon | IPoint[]): Polygon {

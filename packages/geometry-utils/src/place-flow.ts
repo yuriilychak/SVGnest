@@ -234,7 +234,7 @@ export function placePaths(
 
                     polygon.reset(allPoints);
                     // weigh width more, to help compress in direction of gravity
-                    area = polygon.width * 2 + polygon.height;
+                    area = polygon.size.x * 2 + polygon.size.y;
 
                     if (
                         Number.isNaN(minArea) ||
@@ -242,7 +242,7 @@ export function placePaths(
                         (almostEqual(minArea, area) && (Number.isNaN(minX) || shiftVector.x < minX))
                     ) {
                         minArea = area;
-                        minWidth = polygon.width;
+                        minWidth = polygon.size.x;
                         position = shiftVector;
                         minX = shiftVector.x;
                     }
