@@ -69,7 +69,7 @@ export function placePaths(
         paths.push(rotatedPath);
     }
 
-    const polygon: Polygon = Polygon.fromLegacy([]);
+    const polygon: Polygon = Polygon.create();
     const placements = [];
     const areaTrashold: number = 0.1 * placementData.config.clipperScale * placementData.config.clipperScale;
     const cleanTrashold: number = 0.0001 * placementData.config.clipperScale;
@@ -113,10 +113,9 @@ export function placePaths(
 
             for (j = 0; j < placed.length; ++j) {
                 key = generateNFPCacheKey(placementData.angleSplit, false, placed[j], path);
-                nfp = placementData.nfpCache.get(key);
+                isError = !placementData.nfpCache.has(key);
 
-                if (!nfp) {
-                    isError = true;
+                if (isError) {
                     break;
                 }
             }
@@ -158,11 +157,11 @@ export function placePaths(
             for (j = 0; j < placed.length; ++j) {
                 key = generateNFPCacheKey(placementData.angleSplit, false, placed[j], path);
 
-                nfp = placementData.nfpCache.get(key);
-
-                if (!nfp) {
+                if (!placementData.nfpCache.has(key)) {
                     continue;
                 }
+
+                nfp = placementData.nfpCache.get(key);
 
                 let clone: ClipperLib.IntPoint[] = null;
 
