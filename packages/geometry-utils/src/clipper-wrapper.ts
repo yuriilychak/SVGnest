@@ -144,7 +144,8 @@ export default class ClipperWrapper {
         polygon: IPoint[] | LocalPolygon,
         scale: number = 1,
         offset: IPoint = { x: 0, y: 0 },
-        isRound: boolean = false
+        isRound: boolean = false,
+        cleanTrashold: number = -1
     ): IntPoint[] {
         const pointCount: number = polygon.length;
         const result = [];
@@ -167,7 +168,7 @@ export default class ClipperWrapper {
             result.push({ X: x, Y: y });
         }
 
-        return result;
+        return cleanTrashold !== -1 ? Clipper.CleanPolygon(result, cleanTrashold) : result;
     }
 
     public static toNest(polygon: IntPoint[], scale: number = 1, offset: IPoint = { x: 0, y: 0 }): IPoint[] {

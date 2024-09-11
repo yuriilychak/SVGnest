@@ -36,6 +36,27 @@ function fillPointStack(
     return prevValue + pointCount;
 }
 
+function applyNfps(
+    clipper: ClipperLib.Clipper,
+    nfps: IPoint[][],
+    scale: number,
+    offset: IPoint,
+    areaTrashold: number,
+    cleanTrashold: number
+): void {
+    const nfpCount: number = nfps.length;
+    let clone: ClipperLib.IntPoint[] = null;
+    let i: number = 0;
+
+    for (i = 0; i < nfpCount; ++i) {
+        clone = ClipperWrapper.toClipper(nfps[i], scale, offset, false, cleanTrashold);
+
+        if (clone.length > 2 && Math.abs(ClipperLib.Clipper.Area(clone)) > areaTrashold) {
+            clipper.AddPath(clone, ClipperLib.PolyType.ptSubject, true);
+        }
+    }
+}
+
 export function placePaths(
     inputPaths: IPolygon[],
     placementData: PlacementWorkerData,
@@ -80,12 +101,13 @@ export function placePaths(
     let fitness: number = 0;
     let pointCount: number = 0;
     let key: number = 0;
-    let nfp: IPoint[][] = null;
+    let nfps: IPoint[][] = null;
     let minWidth: number = 0;
     let curArea: number = 0;
     let placed: IPolygon[] = [];
     let currPlacements: IPoint[] = [];
     let binNfp: IPoint[][] = null;
+    let finalNfp: ClipperLib.Paths = null;
     let isError: boolean = false;
     let minArea: number = 0;
     let minX: number = 0;
@@ -161,19 +183,9 @@ export function placePaths(
                     continue;
                 }
 
-                nfp = placementData.nfpCache.get(key);
+                nfps = placementData.nfpCache.get(key);
 
-                let clone: ClipperLib.IntPoint[] = null;
-
-                for (k = 0; k < nfp.length; ++k) {
-                    clone = ClipperWrapper.toClipper(nfp[k], placementData.config.clipperScale, currPlacements[j]);
-                    clone = ClipperLib.Clipper.CleanPolygon(clone, cleanTrashold);
-                    curArea = Math.abs(ClipperLib.Clipper.Area(clone));
-
-                    if (clone.length > 2 && curArea > areaTrashold) {
-                        clipper.AddPath(clone, ClipperLib.PolyType.ptSubject, true);
-                    }
-                }
+                applyNfps(clipper, nfps, placementData.config.clipperScale, currPlacements[j], areaTrashold, cleanTrashold);
             }
 
             if (
@@ -188,11 +200,12 @@ export function placePaths(
             }
 
             // difference with bin polygon
-            let finalNfp = new ClipperLib.Paths();
+            finalNfp = new ClipperLib.Paths();
             clipper = new ClipperLib.Clipper();
 
             clipper.AddPaths(combinedNfp, ClipperLib.PolyType.ptClip, true);
             clipper.AddPaths(clipperBinNfp, ClipperLib.PolyType.ptSubject, true);
+
             if (
                 !clipper.Execute(
                     ClipperLib.ClipType.ctDifference,
@@ -214,7 +227,7 @@ export function placePaths(
                 }
             }
 
-            if (!finalNfp || finalNfp.length === 0) {
+            if (finalNfp.length === 0) {
                 continue;
             }
 
@@ -281,16 +294,16 @@ export function placePaths(
 
         for (i = 0; i < placed.length; ++i) {
             const index = paths.indexOf(placed[i]);
-            if (index >= 0) {
+            if (index !== -1) {
                 paths.splice(index, 1);
             }
         }
 
-        if (currPlacements && currPlacements.length > 0) {
-            placements.push(currPlacements);
-        } else {
+        if (currPlacements.length === 0) {
             break; // something went wrong
         }
+
+        placements.push(currPlacements);
     }
 
     // there were parts that couldn't be placed
