@@ -1,5 +1,4 @@
 import ClipperLib from 'js-clipper';
-import { polygonArea } from './helpers';
 import { almostEqual, cycleIndex, midValue, keyToNFPData } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { IPoint, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
@@ -170,38 +169,30 @@ function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, o
     return false;
 }
 
-function minkowskiDifference(polygonA: Polygon, polygonB: Polygon, clipperScale: number): Float64Array[] {
+function minkowskiDifference(polygon: Polygon, polygonA: Polygon, polygonB: Polygon, clipperScale: number): Float64Array[] {
     const clipperA: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonA, clipperScale);
     const clipperB: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonB, -clipperScale);
     const solutions: ClipperLib.IntPoint[][] = ClipperLib.Clipper.MinkowskiSum(clipperA, clipperB, true);
     const solutionCount: number = solutions.length;
     const firstPoint: IPoint = polygonB.first;
-    let i: number = 0;
-    let clipperNfp: IPoint[] = null;
+    const memSeg: Float64Array = new Float64Array(256);
+    let resuly: Float64Array = null;
     let largestArea: number = null;
-    let n = null;
     let area: number = 0;
+    let i: number = 0;
 
     for (i = 0; i < solutionCount; ++i) {
-        n = ClipperWrapper.toNest(solutions[i], clipperScale, firstPoint);
-        area = polygonArea(n);
+        ClipperWrapper.toMemSeg(solutions[i], clipperScale, memSeg, firstPoint);
+        polygon.bind(memSeg, 0, solutions[i].length);
+        area = polygon.area;
 
         if (largestArea === null || largestArea > area) {
-            clipperNfp = n;
+            resuly = memSeg.slice(0, solutions[i].length << 1);
             largestArea = area;
         }
     }
 
-    const pointCount: number = clipperNfp.length;
-
-    const result = new Float64Array(pointCount << 1);
-
-    for (i = 0; i < pointCount; ++i) {
-        result[i << 1] = clipperNfp[i].x;
-        result[(i << 1) + 1] = clipperNfp[i].y;
-    }
-
-    return [result];
+    return [resuly];
 }
 
 function pointDistance(
@@ -630,7 +621,7 @@ function searchStartPoint(
                 const vd = v.length;
 
                 if (vd - d >= TOL) {
-                    v.scale(d / vd);
+                    v.scaleUp(d / vd);
                 }
 
                 startPoint.add(v);
@@ -900,7 +891,7 @@ function noFitPolygon(
             vLength = translate.value.length;
 
             if (maxDistance < vLength && !almostEqual(maxDistance, vLength)) {
-                translate.value.scale(maxDistance / vLength);
+                translate.value.scaleUp(maxDistance / vLength);
             }
 
             reference.add(translate.value);
@@ -998,7 +989,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
     } else {
         nfp = exploreConcave
             ? noFitPolygon(pointPool, polygonA, polygonB, false, exploreConcave)
-            : minkowskiDifference(polygonA, polygonB, clipperScale);
+            : minkowskiDifference(tmpPolygon, polygonA, polygonB, clipperScale);
         // sanity check
         if (nfp.length === 0) {
             console.log('NFP Error: ', pair.key);

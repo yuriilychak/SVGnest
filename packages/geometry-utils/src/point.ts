@@ -3,20 +3,25 @@ import { TOL } from './constants';
 import { almostEqual, midValue } from './shared-helpers';
 
 export default class Point implements IPoint {
-    private data: Float64Array;
+    private memSeg: Float64Array;
 
     private offset: number;
 
     public constructor(data: Float64Array, offset: number = 0) {
-        this.data = data;
+        this.memSeg = data;
         this.offset = offset;
     }
 
     public bind(data: Float64Array, offset: number = 0): Point {
-        this.data = data;
+        this.memSeg = data;
         this.offset = offset;
 
         return this;
+    }
+
+    public fill(memSeg: Float64Array, index: number): void {
+        memSeg[index << 1] = this.x;
+        memSeg[(index << 1) + 1] = this.y;
     }
 
     public set(x: number, y: number): Point {
@@ -28,6 +33,10 @@ export default class Point implements IPoint {
 
     public update(point: IPoint): Point {
         return this.set(point.x, point.y);
+    }
+
+    public fromClipper(point: { X: number; Y: number }): Point {
+        return this.set(point.X, point.Y);
     }
 
     public add(point: IPoint): Point {
@@ -51,9 +60,16 @@ export default class Point implements IPoint {
         return this;
     }
 
-    public scale(value: number): Point {
+    public scaleUp(value: number): Point {
         this.x *= value;
         this.y *= value;
+
+        return this;
+    }
+
+    public scaleDown(value: number): Point {
+        this.x /= value;
+        this.y /= value;
 
         return this;
     }
@@ -171,19 +187,19 @@ export default class Point implements IPoint {
     }
 
     public get x(): number {
-        return this.data[this.offset];
+        return this.memSeg[this.offset];
     }
 
     public set x(value: number) {
-        this.data[this.offset] = value;
+        this.memSeg[this.offset] = value;
     }
 
     public get y(): number {
-        return this.data[this.offset + 1];
+        return this.memSeg[this.offset + 1];
     }
 
     public set y(value: number) {
-        this.data[this.offset + 1] = value;
+        this.memSeg[this.offset + 1] = value;
     }
 
     public get length(): number {

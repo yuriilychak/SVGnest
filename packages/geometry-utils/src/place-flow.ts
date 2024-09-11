@@ -45,6 +45,8 @@ export function placePaths(
         return null;
     }
 
+    const pointIndices: number = pointPool.alloc(1);
+    const tmpPoint: Point = pointPool.get(pointIndices, 0);
     let i: number = 0;
     let j: number = 0;
     let k: number = 0;
@@ -68,27 +70,38 @@ export function placePaths(
     }
 
     const polygon: Polygon = Polygon.fromLegacy([]);
-    const allplacements = [];
-    let fitness = 0;
-    const binarea = Math.abs(polygonArea(placementData.binPolygon));
+    const placements = [];
+    const areaTrashold: number = 0.1 * placementData.config.clipperScale * placementData.config.clipperScale;
+    const cleanTrashold: number = 0.0001 * placementData.config.clipperScale;
+    const area = Math.abs(polygonArea(placementData.binPolygon));
     const pointStack: Float64Array = new Float64Array(2048);
+    const nfpMemSeg: Float64Array = new Float64Array(512);
+    let shiftVector: ShiftVector = null;
+    let fitness: number = 0;
     let pointCount: number = 0;
     let key: number = 0;
     let nfp: IPoint[][] = null;
     let minWidth: number = 0;
-    let area: number = 0;
+    let curArea: number = 0;
+    let placed: IPolygon[] = [];
+    let currPlacements: IPoint[] = [];
+    let binNfp: IPoint[][] = null;
+    let isError: boolean = false;
+    let minArea: number = 0;
+    let minX: number = 0;
+    let nfpSize: number = 0;
 
     while (paths.length > 0) {
-        const placed = [];
-        const placements = [];
-        fitness = fitness + 1; // add 1 for each new bin opened (lower fitness is better)
+        placed = [];
+        currPlacements = [];
+        ++fitness; // add 1 for each new bin opened (lower fitness is better)
 
         for (i = 0; i < paths.length; ++i) {
             path = paths[i];
 
             // inner NFP
             key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, path);
-            const binNfp = placementData.nfpCache.get(key);
+            binNfp = placementData.nfpCache.get(key);
 
             // part unplaceable, skip
             if (!binNfp || binNfp.length === 0) {
@@ -96,7 +109,8 @@ export function placePaths(
             }
 
             // ensure all necessary NFPs exist
-            let isError: boolean = false;
+            isError = false;
+
             for (j = 0; j < placed.length; ++j) {
                 key = generateNFPCacheKey(placementData.angleSplit, false, placed[j], path);
                 nfp = placementData.nfpCache.get(key);
@@ -113,22 +127,19 @@ export function placePaths(
             }
 
             let position: IPoint = null;
+
             if (placed.length === 0) {
                 // first placement, put it on the left
                 for (j = 0; j < binNfp.length; ++j) {
                     for (k = 0; k < binNfp[j].length; ++k) {
-                        if (position === null || binNfp[j][k].x - path[0].x < position.x) {
-                            position = {
-                                x: binNfp[j][k].x - path[0].x,
-                                y: binNfp[j][k].y - path[0].y,
-                                id: path.id,
-                                rotation: path.rotation
-                            };
+                        tmpPoint.update(binNfp[j][k]).sub(path[0]);
+                        if (position === null || tmpPoint.x < position.x) {
+                            position = { x: tmpPoint.x, y: tmpPoint.y, id: path.id, rotation: path.rotation };
                         }
                     }
                 }
 
-                placements.push(position);
+                currPlacements.push(position);
                 placed.push(path);
 
                 continue;
@@ -156,14 +167,11 @@ export function placePaths(
                 let clone: ClipperLib.IntPoint[] = null;
 
                 for (k = 0; k < nfp.length; ++k) {
-                    clone = ClipperWrapper.toClipper(nfp[k], placementData.config.clipperScale, placements[j]);
-                    clone = ClipperLib.Clipper.CleanPolygon(clone, 0.0001 * placementData.config.clipperScale);
-                    area = Math.abs(ClipperLib.Clipper.Area(clone));
+                    clone = ClipperWrapper.toClipper(nfp[k], placementData.config.clipperScale, currPlacements[j]);
+                    clone = ClipperLib.Clipper.CleanPolygon(clone, cleanTrashold);
+                    curArea = Math.abs(ClipperLib.Clipper.Area(clone));
 
-                    if (
-                        clone.length > 2 &&
-                        area > 0.1 * placementData.config.clipperScale * placementData.config.clipperScale
-                    ) {
+                    if (clone.length > 2 && curArea > areaTrashold) {
                         clipper.AddPath(clone, ClipperLib.PolyType.ptSubject, true);
                     }
                 }
@@ -197,14 +205,11 @@ export function placePaths(
                 continue;
             }
 
-            finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, 0.0001 * placementData.config.clipperScale);
+            finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, cleanTrashold);
 
             for (j = 0; j < finalNfp.length; ++j) {
-                area = Math.abs(ClipperLib.Clipper.Area(finalNfp[j]));
-                if (
-                    finalNfp[j].length < 3 ||
-                    area < 0.1 * placementData.config.clipperScale * placementData.config.clipperScale
-                ) {
+                curArea = Math.abs(ClipperLib.Clipper.Area(finalNfp[j]));
+                if (finalNfp[j].length < 3 || curArea < areaTrashold) {
                     finalNfp.splice(j, 1);
                     --j;
                 }
@@ -214,70 +219,65 @@ export function placePaths(
                 continue;
             }
 
-            const f: IPoint[][] = [];
-            for (j = 0; j < finalNfp.length; ++j) {
-                // back to normal scale
-                f.push(ClipperWrapper.toNest(finalNfp[j], placementData.config.clipperScale));
-            }
-
             // choose placement that results in the smallest bounding box
             // could use convex hull instead, but it can create oddly shaped nests (triangles or long slivers)
             // which are not optimal for real-world use
             // OLD-TODO generalize gravity direction
             minWidth = 0;
-            let minArea: number = NaN;
-            let minX: number = NaN;
-            area = 0;
-            let nf: IPoint[] = null;
-            let shiftVector: ShiftVector = null;
+            minArea = NaN;
+            minX = NaN;
+            curArea = 0;
+            shiftVector = null;
 
-            for (j = 0; j < f.length; ++j) {
-                nf = f[j];
-                if (Math.abs(polygonArea(nf)) < 2) {
+            for (j = 0; j < finalNfp.length; ++j) {
+                nfpSize = finalNfp[j].length;
+                ClipperWrapper.toMemSeg(finalNfp[j], placementData.config.clipperScale, nfpMemSeg);
+                polygon.bind(nfpMemSeg, 0, nfpSize);
+
+                if (Math.abs(polygon.area) < 2) {
                     continue;
                 }
 
-                for (k = 0; k < nf.length; ++k) {
+                for (k = 0; k < nfpSize; ++k) {
                     pointCount = 0;
 
                     for (m = 0; m < placed.length; ++m) {
-                        pointCount = fillPointStack(pointPool, pointStack, placed[m], placements[m], pointCount);
+                        pointCount = fillPointStack(pointPool, pointStack, placed[m], currPlacements[m], pointCount);
                     }
 
-                    shiftVector = {
-                        x: nf[k].x - path[0].x,
-                        y: nf[k].y - path[0].y,
-                        id: path.id,
-                        rotation: path.rotation,
-                        nfp: combinedNfp
-                    };
+                    polygon.bind(nfpMemSeg, 0, nfpSize);
+
+                    tmpPoint.update(polygon.at(k)).sub(path[0]);
+
+                    shiftVector = { x: tmpPoint.x, y: tmpPoint.y, id: path.id, rotation: path.rotation, nfp: combinedNfp };
 
                     pointCount = fillPointStack(pointPool, pointStack, path, shiftVector, pointCount);
 
                     polygon.bind(pointStack, 0, pointCount);
                     // weigh width more, to help compress in direction of gravity
-                    area = polygon.size.x * 2 + polygon.size.y;
+                    curArea = polygon.size.x * 2 + polygon.size.y;
 
                     if (
                         Number.isNaN(minArea) ||
-                        area < minArea ||
-                        (almostEqual(minArea, area) && (Number.isNaN(minX) || shiftVector.x < minX))
+                        curArea < minArea ||
+                        (almostEqual(minArea, curArea) && (Number.isNaN(minX) || shiftVector.x < minX))
                     ) {
-                        minArea = area;
+                        minArea = curArea;
                         minWidth = polygon.size.x;
                         position = shiftVector;
                         minX = shiftVector.x;
                     }
                 }
             }
+
             if (position) {
                 placed.push(path);
-                placements.push(position);
+                currPlacements.push(position);
             }
         }
 
         if (minWidth) {
-            fitness = fitness + minWidth / binarea;
+            fitness += minWidth / area;
         }
 
         for (i = 0; i < placed.length; ++i) {
@@ -287,20 +287,17 @@ export function placePaths(
             }
         }
 
-        if (placements && placements.length > 0) {
-            allplacements.push(placements);
+        if (currPlacements && currPlacements.length > 0) {
+            placements.push(currPlacements);
         } else {
             break; // something went wrong
         }
     }
 
     // there were parts that couldn't be placed
-    fitness = fitness + 2 * paths.length;
+    fitness += paths.length << 1;
 
-    return {
-        placements: allplacements,
-        fitness,
-        paths,
-        area: binarea
-    };
+    pointPool.malloc(pointIndices);
+
+    return { placements, fitness, paths, area };
 }

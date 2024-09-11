@@ -4,6 +4,7 @@ import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoin
 import { BoundRect, IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
 import { getPolygonBounds, nestPolygons, normalizePolygon, polygonArea } from './helpers';
 import { default as LocalPolygon } from './polygon';
+import Point from './point';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -178,6 +179,24 @@ export default class ClipperWrapper {
         for (i = 0; i < pointCount; ++i) {
             point = polygon[i];
             result.push({ x: point.X / scale + offset.x, y: point.Y / scale + offset.y });
+        }
+
+        return result;
+    }
+
+    public static toMemSeg(
+        polygon: IntPoint[],
+        scale: number = 1,
+        memSeg: Float64Array = null,
+        offset: IPoint = { x: 0, y: 0 }
+    ): Float64Array {
+        const pointCount: number = polygon.length;
+        const result: Float64Array = memSeg ? memSeg : new Float64Array(pointCount << 1);
+        const tempPoint: Point = Point.zero();
+        let i: number = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            tempPoint.fromClipper(polygon[i]).scaleDown(scale).add(offset).fill(result, i);
         }
 
         return result;
