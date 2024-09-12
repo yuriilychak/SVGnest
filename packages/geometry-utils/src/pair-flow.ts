@@ -169,9 +169,9 @@ function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, o
     return false;
 }
 
-function minkowskiDifference(polygon: Polygon, polygonA: Polygon, polygonB: Polygon, clipperScale: number): Float64Array[] {
-    const clipperA: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonA, clipperScale);
-    const clipperB: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonB, -clipperScale);
+function minkowskiDifference(polygon: Polygon, polygonA: Polygon, polygonB: Polygon): Float64Array[] {
+    const clipperA: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonA);
+    const clipperB: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonB, -1);
     const solutions: ClipperLib.IntPoint[][] = ClipperLib.Clipper.MinkowskiSum(clipperA, clipperB, true);
     const solutionCount: number = solutions.length;
     const firstPoint: IPoint = polygonB.first;
@@ -182,7 +182,7 @@ function minkowskiDifference(polygon: Polygon, polygonA: Polygon, polygonB: Poly
     let i: number = 0;
 
     for (i = 0; i < solutionCount; ++i) {
-        ClipperWrapper.toMemSeg(solutions[i], clipperScale, memSeg, firstPoint);
+        ClipperWrapper.toMemSeg(solutions[i], memSeg, firstPoint);
         polygon.bind(memSeg, 0, solutions[i].length);
         area = polygon.area;
 
@@ -951,7 +951,7 @@ function noFitPolygon(
 }
 
 export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: PointPool): PairWorkerResult | null {
-    const { clipperScale, exploreConcave, useHoles, rotations } = configuration;
+    const { exploreConcave, useHoles, rotations } = configuration;
 
     if (!pair || pair.length === 0) {
         return null;
@@ -989,7 +989,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
     } else {
         nfp = exploreConcave
             ? noFitPolygon(pointPool, polygonA, polygonB, false, exploreConcave)
-            : minkowskiDifference(tmpPolygon, polygonA, polygonB, clipperScale);
+            : minkowskiDifference(tmpPolygon, polygonA, polygonB);
         // sanity check
         if (nfp.length === 0) {
             console.log('NFP Error: ', pair.key);

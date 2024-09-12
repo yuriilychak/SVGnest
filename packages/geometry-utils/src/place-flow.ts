@@ -7,13 +7,9 @@ import Point from './point';
 import Polygon from './polygon';
 import PointPool from './point-pool';
 
-interface ShiftVector extends IPoint {
-    nfp: ClipperLib.Paths;
-}
-
-function fillPointStack(
+function fillPointMemSeg(
     pointPool: PointPool,
-    pointStack: Float64Array,
+    memSeg: Float64Array,
     points: IPoint[],
     offset: IPoint,
     prevValue: number
@@ -22,13 +18,12 @@ function fillPointStack(
     const tmpPoint: Point = pointPool.get(pointIndices, 0);
     const pointCount = points.length;
     let i: number = 0;
-    let index: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-        tmpPoint.update(points[i]).add(offset);
-        index = (prevValue + i) << 1;
-        pointStack[index] = tmpPoint.x;
-        pointStack[index + 1] = tmpPoint.y;
+        tmpPoint
+            .update(points[i])
+            .add(offset)
+            .fill(memSeg, prevValue + i);
     }
 
     pointPool.malloc(pointIndices);
@@ -36,25 +31,116 @@ function fillPointStack(
     return prevValue + pointCount;
 }
 
-function applyNfps(
-    clipper: ClipperLib.Clipper,
-    nfps: IPoint[][],
-    scale: number,
-    offset: IPoint,
-    areaTrashold: number,
-    cleanTrashold: number
-): void {
+function applyNfps(clipper: ClipperLib.Clipper, nfps: IPoint[][], offset: IPoint): void {
     const nfpCount: number = nfps.length;
     let clone: ClipperLib.IntPoint[] = null;
     let i: number = 0;
 
     for (i = 0; i < nfpCount; ++i) {
-        clone = ClipperWrapper.toClipper(nfps[i], scale, offset, false, cleanTrashold);
+        clone = ClipperWrapper.toClipper(nfps[i], 1, offset, false, ClipperWrapper.CLEAN_TRASHOLD);
 
-        if (clone.length > 2 && Math.abs(ClipperLib.Clipper.Area(clone)) > areaTrashold) {
+        if (clone.length > 2 && Math.abs(ClipperLib.Clipper.Area(clone)) > ClipperWrapper.AREA_TRASHOLD) {
             clipper.AddPath(clone, ClipperLib.PolyType.ptSubject, true);
         }
     }
+}
+
+// ensure all necessary NFPs exist
+function getNfpError(placementData: PlacementWorkerData, placed: IPolygon[], path: IPolygon): boolean {
+    let i: number = 0;
+    let key: number = 0;
+
+    for (i = 0; i < placed.length; ++i) {
+        key = generateNFPCacheKey(placementData.angleSplit, false, placed[i], path);
+
+        if (!placementData.nfpCache.has(key)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function nfpToClipper(pointPool: PointPool, nfps: IPoint[][]): ClipperLib.IntPoint[][] {
+    const pointIndices = pointPool.alloc(1);
+    const offset: Point = pointPool.get(pointIndices, 0).set(0, 0);
+    const nfpCount: number = nfps.length;
+    let i: number = 0;
+    const result = [];
+
+    for (i = 0; i < nfpCount; ++i) {
+        result.push(ClipperWrapper.toClipper(nfps[i], 1, offset, true));
+    }
+
+    pointPool.malloc(pointIndices);
+
+    return result;
+}
+
+function getFinalNfps(
+    pointPool: PointPool,
+    placementData: PlacementWorkerData,
+    placed: IPolygon[],
+    path: IPolygon,
+    binNfp: IPoint[][],
+    currPlacements: IPoint[]
+) {
+    let clipper = new ClipperLib.Clipper();
+    let i: number = 0;
+    let key: number = 0;
+
+    for (i = 0; i < placed.length; ++i) {
+        key = generateNFPCacheKey(placementData.angleSplit, false, placed[i], path);
+
+        if (!placementData.nfpCache.has(key)) {
+            continue;
+        }
+
+        applyNfps(clipper, placementData.nfpCache.get(key), currPlacements[i]);
+    }
+
+    const combinedNfp = new ClipperLib.Paths();
+
+    if (
+        !clipper.Execute(
+            ClipperLib.ClipType.ctUnion,
+            combinedNfp,
+            ClipperLib.PolyFillType.pftNonZero,
+            ClipperLib.PolyFillType.pftNonZero
+        )
+    ) {
+        return null;
+    }
+
+    // difference with bin polygon
+    let finalNfp: ClipperLib.Paths = new ClipperLib.Paths();
+    const clipperBinNfp: ClipperLib.IntPoint[][] = nfpToClipper(pointPool, binNfp);
+
+    clipper = new ClipperLib.Clipper();
+    clipper.AddPaths(combinedNfp, ClipperLib.PolyType.ptClip, true);
+    clipper.AddPaths(clipperBinNfp, ClipperLib.PolyType.ptSubject, true);
+
+    if (
+        !clipper.Execute(
+            ClipperLib.ClipType.ctDifference,
+            finalNfp,
+            ClipperLib.PolyFillType.pftNonZero,
+            ClipperLib.PolyFillType.pftNonZero
+        )
+    ) {
+        return null;
+    }
+
+    finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, ClipperWrapper.CLEAN_TRASHOLD);
+
+    for (i = 0; i < finalNfp.length; ++i) {
+        if (finalNfp[i].length < 3 || Math.abs(ClipperLib.Clipper.Area(finalNfp[i])) < ClipperWrapper.AREA_TRASHOLD) {
+            finalNfp.splice(i, 1);
+            --i;
+        }
+    }
+
+    return finalNfp.length === 0 ? null : finalNfp;
 }
 
 export function placePaths(
@@ -66,6 +152,9 @@ export function placePaths(
         return null;
     }
 
+    // rotate paths by given rotation
+    const paths: IPolygon[] = [];
+    const emptyPath: IPolygon = [] as IPolygon;
     const pointIndices: number = pointPool.alloc(1);
     const tmpPoint: Point = pointPool.get(pointIndices, 0);
     let i: number = 0;
@@ -74,9 +163,6 @@ export function placePaths(
     let m: number = 0;
     let path: IPolygon = null;
     let rotatedPath: IPolygon = null;
-    // rotate paths by given rotation
-    const paths: IPolygon[] = [];
-    const emptyPath: IPolygon = [] as IPolygon;
 
     emptyPath.id = -1;
     emptyPath.rotation = 0;
@@ -92,26 +178,24 @@ export function placePaths(
 
     const polygon: Polygon = Polygon.create();
     const placements = [];
-    const areaTrashold: number = 0.1 * placementData.config.clipperScale * placementData.config.clipperScale;
-    const cleanTrashold: number = 0.0001 * placementData.config.clipperScale;
     const area = Math.abs(polygonArea(placementData.binPolygon));
-    const pointStack: Float64Array = new Float64Array(2048);
+    const pntMemSeg: Float64Array = new Float64Array(2048);
     const nfpMemSeg: Float64Array = new Float64Array(512);
-    let shiftVector: ShiftVector = null;
+    let shiftVector: IPoint = null;
     let fitness: number = 0;
     let pointCount: number = 0;
     let key: number = 0;
-    let nfps: IPoint[][] = null;
     let minWidth: number = 0;
     let curArea: number = 0;
     let placed: IPolygon[] = [];
     let currPlacements: IPoint[] = [];
     let binNfp: IPoint[][] = null;
     let finalNfp: ClipperLib.Paths = null;
-    let isError: boolean = false;
     let minArea: number = 0;
     let minX: number = 0;
     let nfpSize: number = 0;
+    let binNfpCount: number = 0;
+    let position: IPoint = null;
 
     while (paths.length > 0) {
         placed = [];
@@ -125,33 +209,18 @@ export function placePaths(
             key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, path);
             binNfp = placementData.nfpCache.get(key);
 
-            // part unplaceable, skip
-            if (!binNfp || binNfp.length === 0) {
+            // part unplaceable, skip             part unplaceable, skip
+            if (!binNfp || binNfp.length === 0 || getNfpError(placementData, placed, path)) {
                 continue;
             }
 
-            // ensure all necessary NFPs exist
-            isError = false;
+            position = null;
 
-            for (j = 0; j < placed.length; ++j) {
-                key = generateNFPCacheKey(placementData.angleSplit, false, placed[j], path);
-                isError = !placementData.nfpCache.has(key);
-
-                if (isError) {
-                    break;
-                }
-            }
-
-            // part unplaceable, skip
-            if (isError) {
-                continue;
-            }
-
-            let position: IPoint = null;
+            binNfpCount = binNfp.length;
 
             if (placed.length === 0) {
                 // first placement, put it on the left
-                for (j = 0; j < binNfp.length; ++j) {
+                for (j = 0; j < binNfpCount; ++j) {
                     for (k = 0; k < binNfp[j].length; ++k) {
                         tmpPoint.update(binNfp[j][k]).sub(path[0]);
                         if (position === null || tmpPoint.x < position.x) {
@@ -166,68 +235,9 @@ export function placePaths(
                 continue;
             }
 
-            const clipperBinNfp = [];
-            for (j = 0; j < binNfp.length; ++j) {
-                clipperBinNfp.push(
-                    ClipperWrapper.toClipper(binNfp[j], placementData.config.clipperScale, { x: 0, y: 0 }, true)
-                );
-            }
+            finalNfp = getFinalNfps(pointPool, placementData, placed, path, binNfp, currPlacements);
 
-            let clipper = new ClipperLib.Clipper();
-            const combinedNfp = new ClipperLib.Paths();
-
-            for (j = 0; j < placed.length; ++j) {
-                key = generateNFPCacheKey(placementData.angleSplit, false, placed[j], path);
-
-                if (!placementData.nfpCache.has(key)) {
-                    continue;
-                }
-
-                nfps = placementData.nfpCache.get(key);
-
-                applyNfps(clipper, nfps, placementData.config.clipperScale, currPlacements[j], areaTrashold, cleanTrashold);
-            }
-
-            if (
-                !clipper.Execute(
-                    ClipperLib.ClipType.ctUnion,
-                    combinedNfp,
-                    ClipperLib.PolyFillType.pftNonZero,
-                    ClipperLib.PolyFillType.pftNonZero
-                )
-            ) {
-                continue;
-            }
-
-            // difference with bin polygon
-            finalNfp = new ClipperLib.Paths();
-            clipper = new ClipperLib.Clipper();
-
-            clipper.AddPaths(combinedNfp, ClipperLib.PolyType.ptClip, true);
-            clipper.AddPaths(clipperBinNfp, ClipperLib.PolyType.ptSubject, true);
-
-            if (
-                !clipper.Execute(
-                    ClipperLib.ClipType.ctDifference,
-                    finalNfp,
-                    ClipperLib.PolyFillType.pftNonZero,
-                    ClipperLib.PolyFillType.pftNonZero
-                )
-            ) {
-                continue;
-            }
-
-            finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, cleanTrashold);
-
-            for (j = 0; j < finalNfp.length; ++j) {
-                curArea = Math.abs(ClipperLib.Clipper.Area(finalNfp[j]));
-                if (finalNfp[j].length < 3 || curArea < areaTrashold) {
-                    finalNfp.splice(j, 1);
-                    --j;
-                }
-            }
-
-            if (finalNfp.length === 0) {
+            if (finalNfp === null) {
                 continue;
             }
 
@@ -243,7 +253,7 @@ export function placePaths(
 
             for (j = 0; j < finalNfp.length; ++j) {
                 nfpSize = finalNfp[j].length;
-                ClipperWrapper.toMemSeg(finalNfp[j], placementData.config.clipperScale, nfpMemSeg);
+                ClipperWrapper.toMemSeg(finalNfp[j], nfpMemSeg);
                 polygon.bind(nfpMemSeg, 0, nfpSize);
 
                 if (Math.abs(polygon.area) < 2) {
@@ -254,18 +264,18 @@ export function placePaths(
                     pointCount = 0;
 
                     for (m = 0; m < placed.length; ++m) {
-                        pointCount = fillPointStack(pointPool, pointStack, placed[m], currPlacements[m], pointCount);
+                        pointCount = fillPointMemSeg(pointPool, pntMemSeg, placed[m], currPlacements[m], pointCount);
                     }
 
                     polygon.bind(nfpMemSeg, 0, nfpSize);
 
                     tmpPoint.update(polygon.at(k)).sub(path[0]);
 
-                    shiftVector = { x: tmpPoint.x, y: tmpPoint.y, id: path.id, rotation: path.rotation, nfp: combinedNfp };
+                    shiftVector = { x: tmpPoint.x, y: tmpPoint.y, id: path.id, rotation: path.rotation };
 
-                    pointCount = fillPointStack(pointPool, pointStack, path, shiftVector, pointCount);
+                    pointCount = fillPointMemSeg(pointPool, pntMemSeg, path, shiftVector, pointCount);
 
-                    polygon.bind(pointStack, 0, pointCount);
+                    polygon.bind(pntMemSeg, 0, pointCount);
                     // weigh width more, to help compress in direction of gravity
                     curArea = polygon.size.x * 2 + polygon.size.y;
 

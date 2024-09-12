@@ -68,20 +68,20 @@ export default class ClipperWrapper {
             return false;
         }
 
-        const { clipperScale, curveTolerance, spacing } = this.configuration;
+        const { curveTolerance, spacing } = this.configuration;
         const offset: number = 0.5 * spacing * sign;
         const miterLimit: number = 2;
-        const path: IntPoint[] = ClipperWrapper.toClipper(polygon, clipperScale);
-        const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * clipperScale);
+        const path: IntPoint[] = ClipperWrapper.toClipper(polygon);
+        const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
         const resultPath: Paths = new Paths();
 
         let i: number = 0;
 
         clipper.AddPath(path, JoinType.jtRound, EndType.etClosedPolygon);
-        clipper.Execute(resultPath, offset * clipperScale);
+        clipper.Execute(resultPath, offset * ClipperWrapper.CLIPPER_SCALE);
 
         if (resultPath.length === 1) {
-            const offsetPaths: IPoint[] = ClipperWrapper.toNest(resultPath[0], clipperScale);
+            const offsetPaths: IPoint[] = ClipperWrapper.toNestLegacy(resultPath[0]);
             // replace array items in place
             polygon.length = 0;
 
@@ -106,8 +106,8 @@ export default class ClipperWrapper {
     }
 
     public cleanPolygon(polygon: IPolygon): IPoint[] {
-        const { clipperScale, curveTolerance } = this.configuration;
-        const clipperPolygon = ClipperWrapper.toClipper(polygon, clipperScale);
+        const { curveTolerance } = this.configuration;
+        const clipperPolygon = ClipperWrapper.toClipper(polygon);
         const simple: IClipperPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IClipperPoint[][];
 
         if (!simple || simple.length === 0) {
@@ -130,14 +130,14 @@ export default class ClipperWrapper {
         }
 
         // clean up singularities, coincident points and edges
-        const cleanPolygon: IntPoint[] = Clipper.CleanPolygon(biggest, curveTolerance * clipperScale);
+        const cleanPolygon: IntPoint[] = Clipper.CleanPolygon(biggest, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
         pointCount = cleanPolygon && cleanPolygon.length ? cleanPolygon.length : 0;
 
         if (!pointCount) {
             return null;
         }
 
-        return ClipperWrapper.toNest(cleanPolygon, clipperScale);
+        return ClipperWrapper.toNestLegacy(cleanPolygon);
     }
 
     public static toClipper(
@@ -147,6 +147,7 @@ export default class ClipperWrapper {
         isRound: boolean = false,
         cleanTrashold: number = -1
     ): IntPoint[] {
+        const resultScale = scale * ClipperWrapper.CLIPPER_SCALE;
         const pointCount: number = polygon.length;
         const result = [];
         let i: number = 0;
@@ -157,8 +158,8 @@ export default class ClipperWrapper {
         for (i = 0; i < pointCount; ++i) {
             //@ts-ignore
             point = polygon.at(i);
-            x = (point.x + offset.x) * scale;
-            y = (point.y + offset.y) * scale;
+            x = (point.x + offset.x) * resultScale;
+            y = (point.y + offset.y) * resultScale;
 
             if (isRound) {
                 x = Math.round(x);
@@ -171,7 +172,7 @@ export default class ClipperWrapper {
         return cleanTrashold !== -1 ? Clipper.CleanPolygon(result, cleanTrashold) : result;
     }
 
-    public static toNest(polygon: IntPoint[], scale: number = 1, offset: IPoint = { x: 0, y: 0 }): IPoint[] {
+    public static toNestLegacy(polygon: IntPoint[]): IPoint[] {
         const pointCount: number = polygon.length;
         const result: IPoint[] = [];
         let i: number = 0;
@@ -179,27 +180,27 @@ export default class ClipperWrapper {
 
         for (i = 0; i < pointCount; ++i) {
             point = polygon[i];
-            result.push({ x: point.X / scale + offset.x, y: point.Y / scale + offset.y });
+            result.push({ x: point.X / ClipperWrapper.CLIPPER_SCALE, y: point.Y / ClipperWrapper.CLIPPER_SCALE });
         }
 
         return result;
     }
 
-    public static toMemSeg(
-        polygon: IntPoint[],
-        scale: number = 1,
-        memSeg: Float64Array = null,
-        offset: IPoint = { x: 0, y: 0 }
-    ): Float64Array {
+    public static toMemSeg(polygon: IntPoint[], memSeg: Float64Array = null, offset: IPoint = { x: 0, y: 0 }): Float64Array {
         const pointCount: number = polygon.length;
         const result: Float64Array = memSeg ? memSeg : new Float64Array(pointCount << 1);
         const tempPoint: Point = Point.zero();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            tempPoint.fromClipper(polygon[i]).scaleDown(scale).add(offset).fill(result, i);
+            tempPoint.fromClipper(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE).add(offset).fill(result, i);
         }
 
         return result;
     }
+
+    private static CLIPPER_SCALE: number = 10000000;
+
+    public static AREA_TRASHOLD: number = 0.1 * ClipperWrapper.CLIPPER_SCALE * ClipperWrapper.CLIPPER_SCALE;
+    public static CLEAN_TRASHOLD: number = 0.0001 * ClipperWrapper.CLIPPER_SCALE;
 }

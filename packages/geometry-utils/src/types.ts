@@ -24,7 +24,6 @@ export interface IPolygon extends Array<IPoint> {
 }
 
 export type NestConfig = {
-    clipperScale: number;
     curveTolerance: number;
     spacing: number;
     rotations: number;

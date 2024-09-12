@@ -33,8 +33,7 @@ export const DEFAULT_SETTING: SettingsData = {
     [SETTING_ID.POPULATION_SIZE]: 10,
     [SETTING_ID.MUTATION_RATE]: 10,
     [SETTING_ID.USE_HOLES]: false,
-    [SETTING_ID.EXPLORE_CONCAVE]: true,
-    [SETTING_ID.CLIPPER_SCALE]: 10000000
+    [SETTING_ID.EXPLORE_CONCAVE]: true
 };
 
 const getSettingConfig = (
