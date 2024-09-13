@@ -179,8 +179,8 @@ export function placePaths(
     const polygon: Polygon = Polygon.create();
     const placements = [];
     const area = Math.abs(polygonArea(placementData.binPolygon));
-    const pntMemSeg: Float64Array = new Float64Array(2048);
-    const nfpMemSeg: Float64Array = new Float64Array(512);
+    const pntMemSeg: Float64Array = new Float64Array(8192);
+    const nfpMemSeg: Float64Array = new Float64Array(2048);
     let shiftVector: IPoint = null;
     let fitness: number = 0;
     let pointCount: number = 0;
