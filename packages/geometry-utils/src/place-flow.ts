@@ -35,9 +35,9 @@ function fillPointMemSeg(
 function bindNFP(polygon: Polygon, memSeg: Float64Array, index: number): void {
     const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
     const offset: number = compressedInfo >>> NFP_SHIFT_AMOUNT;
-    const size: number = compressedInfo & ((1 << NFP_SHIFT_AMOUNT) - 1);
+    const size: number = (compressedInfo & ((1 << NFP_SHIFT_AMOUNT) - 1)) >>> 1;
 
-    polygon.bind(memSeg, offset, size >> 1);
+    polygon.bind(memSeg, offset, size);
 }
 
 function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpMemSeg: Float64Array, offset: IPoint): void {

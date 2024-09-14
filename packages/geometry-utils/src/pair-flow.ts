@@ -946,44 +946,30 @@ function noFitPolygon(
 }
 
 function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
-    const numArrays = nfpArrays.length; // Винесення кількості масивів у константу
+    const nfpCount: number = nfpArrays.length;
+    const info = new Float64Array(nfpCount);
+    let totalSize: number = NFP_INFO_START_INDEX + nfpCount;
+    let offset: number = 0;
+    let size: number = 0;
+    let i: number = 0;
 
-    // Розраховуємо кількість елементів у новому Float64Array
-    let totalSize = NFP_INFO_START_INDEX + numArrays; // 1 для ключа, 1 для кількості масивів, numArrays для інформації про кожен масив
-    const info = new Float64Array(numArrays); // масив для збереження стисненої інформації
-
-    // Змінні для розрахунку розміру та зміщення
-    let offset = 0;
-    let size = 0;
-    let i = 0; // Винесення змінної i
-
-    // Розрахунок загальної кількості елементів та стиснення інформації
-    for (; i < numArrays; ++i) {
-        size = nfpArrays[i].length; // розмір поточного масиву
-        offset = totalSize; // зміщення починається після вже заповнених елементів (INFO_START_INDEX + numArrays)
-        info[i] = size | (offset << NFP_SHIFT_AMOUNT); // стиснення size і offset в одне число
-        totalSize += size; // оновлюємо загальний розмір
+    for (i = 0; i < nfpCount; ++i) {
+        size = nfpArrays[i].length;
+        offset = totalSize;
+        info[i] = size | (offset << NFP_SHIFT_AMOUNT);
+        totalSize += size;
     }
 
-    // Створення нового масиву Float64Array необхідного розміру
     const result = new Float64Array(totalSize);
 
-    // Ініціалізація першого елемента з ключем
     result[0] = key;
+    result[1] = nfpCount;
 
-    // Ініціалізація другого елемента з кількістю масивів у nfp
-    result[1] = numArrays;
-
-    // Додаємо стиснену інформацію `info` у `result`, починаючи з індексу INFO_START_INDEX
     result.set(info, NFP_INFO_START_INDEX);
 
-    // Очищення змінних для перевикористання у другому циклі
-    offset = 0;
-
-    // Додаємо масиви nfp до результатного масиву
-    for (i = 0; i < numArrays; ++i) {
-        offset = info[i] >>> NFP_SHIFT_AMOUNT; // відновлюємо offset (старші SHIFT_AMOUNT бітів)
-        result.set(nfpArrays[i], offset); // копіюємо дані масиву nfp до вихідного масиву
+    for (i = 0; i < nfpCount; ++i) {
+        offset = info[i] >>> NFP_SHIFT_AMOUNT; 
+        result.set(nfpArrays[i], offset);
     }
 
     return result;

@@ -75,5 +75,5 @@ export default class PointPool {
         throw Error(`Can't find point with ${index}`);
     }
 
-    private static MAX_POOL_SIZE: number = 53;
+    private static MAX_POOL_SIZE: number = 32;
 }
