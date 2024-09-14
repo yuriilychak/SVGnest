@@ -71,12 +71,16 @@ export default class SVGParser {
     // returns an array of SVG elements that represent the placement, for export or rendering
     public applyPlacement({
         placements,
+        pathItems,
         tree,
-        bounds
+        bounds,
+        angleSplit
     }: {
-        placements: IPoint[][];
+        placements: number[][];
+        pathItems: number[][];
         tree: IPolygon[];
         bounds: { x: number; y: number; width: number; height: number };
+        angleSplit: number;
     }): string {
         const clone: INode[] = [];
         const partCount: number = this.#parts.length;
@@ -87,11 +91,14 @@ export default class SVGParser {
         let k: number = 0;
         let newSvg: INode = null;
         let binClone: INode = null;
-        let p: IPoint = null;
+        let placement: number[] = null;
+        let pathItem: number[] = null;
         let part: IPolygon = null;
         let partGroup: INode = null;
         let flattened: IPolygon[] = null;
         let c: INode = null;
+        let id: number = 0;
+        let rotation: number = 0;
 
         for (i = 0; i < partCount; ++i) {
             clone.push(JSON.parse(JSON.stringify(this.#parts[i])) as INode);
@@ -116,9 +123,13 @@ export default class SVGParser {
             binClone.attributes.transform = `translate(${-bounds.x} ${-bounds.y})`;
             newSvg.children.push(binClone);
 
-            for (j = 0; j < placements[i].length; ++j) {
-                p = placements[i][j];
-                part = tree[p.id];
+            placement = placements[i];
+            pathItem = pathItems[i];
+
+            for (j = 0; j < pathItem.length; ++j) {
+                id = pathItem[j] >> 16;
+                rotation = pathItem[j] - (id << 16);
+                part = tree[id];
 
                 partGroup = {
                     name: 'g',
@@ -128,7 +139,7 @@ export default class SVGParser {
                     children: []
                 };
                 // the original path could have transforms and stuff on it, so apply our transforms on a group
-                partGroup.attributes.transform = `translate(${p.x} ${p.y}) rotate(${p.rotation})`;
+                partGroup.attributes.transform = `translate(${placement[j << 1]} ${placement[(j << 1) + 1]}) rotate(${Math.round((rotation * 360) / angleSplit)})`;
                 partGroup.attributes.id = 'exportContent';
                 partGroup.children.push(clone[part.source]);
 

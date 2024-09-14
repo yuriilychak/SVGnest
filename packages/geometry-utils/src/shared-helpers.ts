@@ -21,6 +21,10 @@ function unshiftNfpVaue(value: number, index: number): number {
     return value >> NFP_KEY_INDICES[index];
 }
 
+export function toRotationIndex(angle: number, rotationSplit: number): number {
+    return Math.round((angle * rotationSplit) / 360);
+}
+
 export function generateNFPCacheKey(
     rotationSplit: number,
     inside: boolean,
@@ -29,9 +33,8 @@ export function generateNFPCacheKey(
     rotation1: number = polygon1.rotation,
     rotation2: number = polygon2.rotation
 ) {
-    const rotationOffset: number = Math.round(360 / rotationSplit);
-    const rotationIndex1: number = Math.round(rotation1 / rotationOffset);
-    const rotationIndex2: number = Math.round(rotation2 / rotationOffset);
+    const rotationIndex1: number = toRotationIndex(rotation1, rotationSplit);
+    const rotationIndex2: number = toRotationIndex(rotation2, rotationSplit);
     const data: number[] = [polygon1.id + 1, polygon2.id + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0];
     const size: number = data.length;
     let result: number = 0;

@@ -36,8 +36,6 @@ export enum SVG_TAG {
 }
 
 export interface IPoint {
-    id?: number;
-    rotation?: number;
     x: number;
     y: number;
 }

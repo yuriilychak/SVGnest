@@ -19,6 +19,13 @@ export default class Point implements IPoint {
         return this;
     }
 
+    public fromMemSeg(data: Float64Array | number[], index: number, offset: number = 0): Point {
+        this.x = data[offset + (index << 1)];
+        this.y = data[offset + (index << 1) + 1];
+
+        return this;
+    }
+
     public fill(memSeg: Float64Array, index: number): void {
         memSeg[index << 1] = this.x;
         memSeg[(index << 1) + 1] = this.y;

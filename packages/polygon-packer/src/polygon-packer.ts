@@ -113,24 +113,32 @@ export default class PolygonPacker {
         if (!this.#best || bestResult.fitness < this.#best.fitness) {
             this.#best = bestResult;
 
+            const placementCount = this.#best.pathItems.length;
+            const binArea: number = Math.abs(polygonArea(this.#binPolygon));
             let placedArea: number = 0;
             let totalArea: number = 0;
-
-            let bestPlacement = null;
-            const placementCount = this.#best.placements.length;
+            let pathId: number = 0;
+            let bestItems: number[] = null;
 
             for (i = 0; i < placementCount; ++i) {
-                totalArea = totalArea + Math.abs(polygonArea(this.#binPolygon));
-                bestPlacement = this.#best.placements[i];
+                totalArea += binArea;
+                bestItems = this.#best.pathItems[i];
 
-                numPlacedParts = numPlacedParts + bestPlacement.length;
+                numPlacedParts += bestItems.length;
 
-                for (j = 0; j < bestPlacement.length; ++j) {
-                    placedArea = placedArea + Math.abs(polygonArea(tree[bestPlacement[j].id]));
+                for (j = 0; j < bestItems.length; ++j) {
+                    pathId = bestItems[j] >> 16;
+                    placedArea += Math.abs(polygonArea(tree[pathId]));
                 }
             }
 
-            result = { placements: this.#best.placements, tree, bounds: this.#binBounds };
+            result = {
+                placements: this.#best.placements,
+                pathItems: this.#best.pathItems,
+                tree,
+                bounds: this.#binBounds,
+                angleSplit: configuration.rotations
+            };
             numParts = this.#nfpStore.placementCount;
             placePerecntage = placedArea / totalArea;
         }

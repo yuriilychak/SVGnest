@@ -1,6 +1,4 @@
 export interface IPoint {
-    id?: number;
-    rotation?: number;
     x: number;
     y: number;
 }
@@ -78,7 +76,8 @@ export type PlacementWorkerData = {
 };
 
 export interface PlacementWorkerResult {
-    placements: IPoint[][];
+    placements: number[][];
+    pathItems: number[][];
     fitness: number;
     area: number;
 }
@@ -90,7 +89,13 @@ export type DisplayCallback = (
     partCount: number
 ) => void;
 
-export type PlacementData = { placements: IPoint[][]; tree: IPolygon[]; bounds: BoundRect };
+export type PlacementData = {
+    placements: number[][];
+    pathItems: number[][];
+    tree: IPolygon[];
+    bounds: BoundRect;
+    angleSplit: number;
+};
 
 export type ThreadData = {
     env: NestConfig;

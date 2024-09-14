@@ -1,6 +1,4 @@
 export interface IPoint {
-    id?: number;
-    rotation?: number;
     x: number;
     y: number;
 }
@@ -81,7 +79,8 @@ export type PairWorkerResult = {
 };
 
 export interface PlacementWorkerResult {
-    placements: IPoint[][];
+    placements: number[][];
+    pathItems: number[][];
     fitness: number;
     area: number;
 }
