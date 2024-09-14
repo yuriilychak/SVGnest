@@ -24,7 +24,10 @@ const App: FC = () => {
     const handleOpenApp = useCallback((nextDemoMode: boolean) => handleUpdateScreen(nextDemoMode, true), [handleUpdateScreen]);
 
     useEffect(() => {
+        const metaElement = document.getElementById('metaDescription');
         document.title = t('root.title');
+
+        metaElement.setAttribute('content', t('root.description'));
     }, [t]);
 
     return (

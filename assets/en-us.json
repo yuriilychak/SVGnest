@@ -1,5 +1,6 @@
 {
     "root.title": "SVGnest - Free and Open Source nesting for CNC machines, lasers and plasma cutters",
+    "root.description": "A completely free and open source application for automatic nesting. Comes with advanced features like part-in-part nesting and concave area detection.",
     "splashScreen.title": "SVGnest",
     "splashScreen.subtitle": "Open Source nesting",
     "splashScreen.helpDrawer.title": "FAQ",
