@@ -1,4 +1,4 @@
-import type { IPolygon, NestConfig, NFPPair, PairWorkerResult, PlacementWorkerResult, ThreadData } from '../types';
+import type { IPolygon, NestConfig, NFPPair, PlacementWorkerResult, ThreadData } from '../types';
 
 // Use importScripts to load the external script
 declare function importScripts(...urls: string[]): void;
@@ -6,7 +6,7 @@ declare function importScripts(...urls: string[]): void;
 declare module geometryUtils {
     export class PointPool {}
     export function placePaths(paths: IPolygon[], config: NestConfig, pointPool: PointPool): PlacementWorkerResult | null;
-    export function pairData(paths: NFPPair, config: NestConfig, pointPool: PointPool): PairWorkerResult | null;
+    export function pairData(paths: NFPPair, config: NestConfig, pointPool: PointPool): Float64Array;
 }
 
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));

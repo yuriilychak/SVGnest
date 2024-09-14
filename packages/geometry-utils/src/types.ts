@@ -72,7 +72,7 @@ export type PlacementWorkerData = {
     ids: number[];
     rotations: number[];
     config: NestConfig;
-    nfpCache: Map<number, IPoint[][]>;
+    nfpCache: Map<number, Float64Array>;
 };
 
 export type PairWorkerResult = {

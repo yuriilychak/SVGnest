@@ -3,15 +3,7 @@ import { polygonArea } from 'geometry-utils';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import {
-    BoundRect,
-    DisplayCallback,
-    IPolygon,
-    NestConfig,
-    PairWorkerResult,
-    PlacementWorkerResult,
-    THREAD_TYPE
-} from './types';
+import { BoundRect, DisplayCallback, IPolygon, NestConfig, PlacementWorkerResult, THREAD_TYPE } from './types';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -63,7 +55,7 @@ export default class PolygonPacker {
             THREAD_TYPE.PAIR,
             this.#nfpStore.nfpPairs,
             configuration,
-            (generatedNfp: PairWorkerResult[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
+            (generatedNfp: Float64Array[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
             this.onError,
             this.onSpawn
         );
@@ -76,7 +68,7 @@ export default class PolygonPacker {
     private onPair(
         tree: IPolygon[],
         configuration: NestConfig,
-        generatedNfp: PairWorkerResult[],
+        generatedNfp: Float64Array[],
         displayCallback: DisplayCallback
     ): void {
         const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, configuration, this.#binPolygon);

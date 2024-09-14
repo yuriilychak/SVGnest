@@ -4,7 +4,7 @@ import ClipperWrapper from './clipper-wrapper';
 import { IPoint, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
 import Point from './point';
 import Polygon from './polygon';
-import { TOL } from './constants';
+import { NFP_INFO_START_INDEX, NFP_SHIFT_AMOUNT, TOL } from './constants';
 import PointPool from './point-pool';
 
 interface ISegmentCheck {
@@ -945,11 +945,55 @@ function noFitPolygon(
     return result;
 }
 
-export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: PointPool): PairWorkerResult | null {
+function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
+    const numArrays = nfpArrays.length; // Винесення кількості масивів у константу
+
+    // Розраховуємо кількість елементів у новому Float64Array
+    let totalSize = NFP_INFO_START_INDEX + numArrays; // 1 для ключа, 1 для кількості масивів, numArrays для інформації про кожен масив
+    const info = new Float64Array(numArrays); // масив для збереження стисненої інформації
+
+    // Змінні для розрахунку розміру та зміщення
+    let offset = 0;
+    let size = 0;
+    let i = 0; // Винесення змінної i
+
+    // Розрахунок загальної кількості елементів та стиснення інформації
+    for (; i < numArrays; ++i) {
+        size = nfpArrays[i].length; // розмір поточного масиву
+        offset = totalSize; // зміщення починається після вже заповнених елементів (INFO_START_INDEX + numArrays)
+        info[i] = size | (offset << NFP_SHIFT_AMOUNT); // стиснення size і offset в одне число
+        totalSize += size; // оновлюємо загальний розмір
+    }
+
+    // Створення нового масиву Float64Array необхідного розміру
+    const result = new Float64Array(totalSize);
+
+    // Ініціалізація першого елемента з ключем
+    result[0] = key;
+
+    // Ініціалізація другого елемента з кількістю масивів у nfp
+    result[1] = numArrays;
+
+    // Додаємо стиснену інформацію `info` у `result`, починаючи з індексу INFO_START_INDEX
+    result.set(info, NFP_INFO_START_INDEX);
+
+    // Очищення змінних для перевикористання у другому циклі
+    offset = 0;
+
+    // Додаємо масиви nfp до результатного масиву
+    for (i = 0; i < numArrays; ++i) {
+        offset = info[i] >>> NFP_SHIFT_AMOUNT; // відновлюємо offset (старші SHIFT_AMOUNT бітів)
+        result.set(nfpArrays[i], offset); // копіюємо дані масиву nfp до вихідного масиву
+    }
+
+    return result;
+}
+
+export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: PointPool): Float64Array {
     const { exploreConcave, useHoles, rotations } = configuration;
 
     if (!pair || pair.length === 0) {
-        return null;
+        return new Float64Array(0);
     }
 
     const nfpContent: NFPContent = keyToNFPData(pair.key, rotations);
@@ -991,7 +1035,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
             console.log('A: ', JSON.stringify(polygonA));
             console.log('B: ', JSON.stringify(polygonB));
 
-            return null;
+            return new Float64Array(0);
         }
 
         for (i = 0; i < nfp.length; ++i) {
@@ -1005,13 +1049,13 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
                     console.log('B: ', JSON.stringify(polygonB));
                     nfp.splice(i, 1);
 
-                    return null;
+                    return new Float64Array(0);
                 }
             }
         }
 
         if (nfp.length === 0) {
-            return null;
+            return new Float64Array(0);
         }
 
         const firstNfp: Polygon = Polygon.create();
@@ -1068,12 +1112,5 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         }
     }
 
-    return {
-        key: pair.key,
-        value: nfp.map(element => {
-            tmpPolygon.bind(element);
-
-            return tmpPolygon.exportLegacy();
-        })
-    };
+    return getResult(pair.key, nfp);
 }

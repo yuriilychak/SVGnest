@@ -1,10 +1,10 @@
 import { generateNFPCacheKey } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
-import { IPolygon, NestConfig, NFPPair, PlacementWorkerData, PairWorkerResult, IPoint } from './types';
+import { IPolygon, NestConfig, NFPPair, PlacementWorkerData, NFPCache } from './types';
 
 export default class NFPStore {
-    #nfpCache: Map<number, IPoint[][]> = new Map<number, IPoint[][]>();
+    #nfpCache: NFPCache = new Map<number, Float64Array>();
 
     #nfpPairs: NFPPair[] = [];
 
@@ -23,7 +23,7 @@ export default class NFPStore {
         const placeList: IPolygon[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = placeList.length;
-        const newCache: Map<number, IPoint[][]> = new Map<number, IPoint[][]>();
+        const newCache: NFPCache = new Map<number, Float64Array>();
         let part = null;
         let i: number = 0;
         let j: number = 0;
@@ -44,19 +44,19 @@ export default class NFPStore {
         this.#nfpCache = newCache;
     }
 
-    private update(generatedNfp: PairWorkerResult[]): void {
+    private update(generatedNfp: Float64Array[]): void {
         if (generatedNfp) {
             const nfpCount: number = generatedNfp.length;
             let i: number = 0;
-            let nfp: PairWorkerResult = null;
+            let nfp: Float64Array = null;
 
             for (i = 0; i < nfpCount; ++i) {
                 nfp = generatedNfp[i];
 
-                if (nfp) {
+                if (nfp.length > 2) {
                     // a null nfp means the nfp could not be generated, either because the parts simply don't
                     // fit or an error in the nfp algo
-                    this.#nfpCache.set(nfp.key, nfp.value);
+                    this.#nfpCache.set(nfp[0], nfp);
                 }
             }
         }
@@ -68,7 +68,7 @@ export default class NFPStore {
         rotation1: number,
         rotation2: number,
         inside: boolean,
-        newCache: Map<number, IPoint[][]>
+        newCache: NFPCache
     ): void {
         const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2, rotation1, rotation2);
 
@@ -86,11 +86,7 @@ export default class NFPStore {
         this.#individual = null;
     }
 
-    public getPlacementWorkerData(
-        generatedNfp: PairWorkerResult[],
-        config: NestConfig,
-        binPolygon: IPolygon
-    ): PlacementWorkerData {
+    public getPlacementWorkerData(generatedNfp: Float64Array[], config: NestConfig, binPolygon: IPolygon): PlacementWorkerData {
         this.update(generatedNfp);
 
         return {

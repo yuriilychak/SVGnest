@@ -65,6 +65,8 @@ export enum THREAD_TYPE {
     PAIR = 'pair'
 }
 
+export type NFPCache = Map<number, Float64Array>;
+
 export type PlacementWorkerData = {
     angleSplit: number;
     binPolygon: IPolygon;
@@ -72,12 +74,7 @@ export type PlacementWorkerData = {
     ids: number[];
     rotations: number[];
     config: NestConfig;
-    nfpCache: Map<number, IPoint[][]>;
-};
-
-export type PairWorkerResult = {
-    key: number;
-    value: IPoint[][];
+    nfpCache: NFPCache;
 };
 
 export interface PlacementWorkerResult {
@@ -102,6 +99,6 @@ export type ThreadData = {
     data: IPolygon[] | NFPPair;
 };
 
-export type ThreadOutput = PlacementWorkerResult | PairWorkerResult | null;
+export type ThreadOutput = PlacementWorkerResult | Float64Array | null;
 
 export type ThreadInput = IPolygon[] | NFPPair;
