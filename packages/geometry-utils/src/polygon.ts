@@ -5,7 +5,7 @@ import { IPoint, IPolygon } from './types';
 export default class Polygon {
     private innerChildren: Polygon[];
 
-    private data: Float64Array;
+    private memSeg: Float64Array;
 
     private offset: number;
 
@@ -15,16 +15,16 @@ export default class Polygon {
 
     private closedDirty: boolean;
 
-    private tmpPoint: Point;
+    private point: Point;
 
     private rectangle: boolean;
 
-    private rectData: Float64Array;
+    private rectMemSeg: Float64Array;
 
     private constructor() {
-        this.tmpPoint = Point.zero();
+        this.point = Point.zero();
         this.innerChildren = [];
-        this.rectData = new Float64Array(4);
+        this.rectMemSeg = new Float64Array(4);
         this.closed = false;
         this.pointCount = 0;
         this.offset = 0;
@@ -34,7 +34,7 @@ export default class Polygon {
     public bind(data: Float64Array, offset: number = 0, pointCount: number = data.length >> 1): void {
         this.pointCount = pointCount;
         this.offset = offset;
-        this.data = data;
+        this.memSeg = data;
 
         this.calculateBounds();
     }
@@ -42,12 +42,12 @@ export default class Polygon {
     public reset(points: IPoint[]): void {
         this.pointCount = points.length;
         this.offset = 0;
-        this.data = new Float64Array(this.getPointOffset(this.pointCount + 2));
+        this.memSeg = new Float64Array(this.getPointOffset(this.pointCount + 2));
 
         let i: number = 0;
 
         for (i = 0; i < this.pointCount; ++i) {
-            this.tmpPoint.bind(this.data, this.getPointOffset(i)).update(points[i]);
+            this.point.bind(this.memSeg, this.getPointOffset(i)).update(points[i]);
         }
 
         this.calculateBounds();
@@ -72,7 +72,7 @@ export default class Polygon {
 
         const pointIndex: number = cycleIndex(index, this.pointCount, 0);
 
-        return this.tmpPoint.bind(this.data, this.getPointOffset(pointIndex));
+        return this.point.bind(this.memSeg, this.getPointOffset(pointIndex));
     }
 
     public pointIn(point: IPoint, offset: Point = null): boolean {
@@ -141,12 +141,12 @@ export default class Polygon {
             i2Plus1 = this.offset + i2 + 1;
             j2Plus1 = this.offset + j2 + 1;
 
-            this.data[i2] = this.data[i2] + this.data[j2];
-            this.data[j2] = this.data[i2] - this.data[j2];
-            this.data[i2] = this.data[i2] - this.data[j2];
-            this.data[i2Plus1] = this.data[i2Plus1] + this.data[j2Plus1];
-            this.data[j2Plus1] = this.data[i2Plus1] - this.data[j2Plus1];
-            this.data[i2Plus1] = this.data[i2Plus1] - this.data[j2Plus1];
+            this.memSeg[i2] = this.memSeg[i2] + this.memSeg[j2];
+            this.memSeg[j2] = this.memSeg[i2] - this.memSeg[j2];
+            this.memSeg[i2] = this.memSeg[i2] - this.memSeg[j2];
+            this.memSeg[i2Plus1] = this.memSeg[i2Plus1] + this.memSeg[j2Plus1];
+            this.memSeg[j2Plus1] = this.memSeg[i2Plus1] - this.memSeg[j2Plus1];
+            this.memSeg[i2Plus1] = this.memSeg[i2Plus1] - this.memSeg[j2Plus1];
         }
     }
 
@@ -204,8 +204,8 @@ export default class Polygon {
 
         point2.sub(point1);
 
-        this.tmpPoint.bind(this.rectData, 0).update(point1);
-        this.tmpPoint.bind(this.rectData, 2).update(point2);
+        this.point.bind(this.rectMemSeg, 0).update(point1);
+        this.point.bind(this.rectMemSeg, 2).update(point2);
     }
 
     public get length(): number {
@@ -265,11 +265,11 @@ export default class Polygon {
     }
 
     public get position(): Point {
-        return this.tmpPoint.bind(this.rectData, 0);
+        return this.point.bind(this.rectMemSeg, 0);
     }
 
     public get size(): Point {
-        return this.tmpPoint.bind(this.rectData, 2);
+        return this.point.bind(this.rectMemSeg, 2);
     }
 
     public static create(): Polygon {
