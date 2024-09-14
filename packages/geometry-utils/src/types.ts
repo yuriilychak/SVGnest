@@ -83,7 +83,6 @@ export type PairWorkerResult = {
 export interface PlacementWorkerResult {
     placements: IPoint[][];
     fitness: number;
-    paths: IPoint[][];
     area: number;
 }
 

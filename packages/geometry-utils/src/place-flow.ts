@@ -95,7 +95,7 @@ function getFinalNfps(
     placed: IPolygon[],
     path: IPolygon,
     binNfp: Float64Array,
-    currPlacements: IPoint[]
+    placement: IPoint[]
 ) {
     let clipper = new ClipperLib.Clipper();
     let i: number = 0;
@@ -108,7 +108,7 @@ function getFinalNfps(
             continue;
         }
 
-        applyNfps(polygon, clipper, placementData.nfpCache.get(key), currPlacements[i]);
+        applyNfps(polygon, clipper, placementData.nfpCache.get(key), placement[i]);
     }
 
     const combinedNfp = new ClipperLib.Paths();
@@ -189,18 +189,17 @@ export function placePaths(
     }
 
     const polygon: Polygon = Polygon.create();
-    const placements = [];
+    const placements: IPoint[][] = [];
     const area = Math.abs(polygonArea(placementData.binPolygon));
     const pntMemSeg: Float64Array = new Float64Array(8192);
     const nfpMemSeg: Float64Array = new Float64Array(2048);
-    let shiftVector: IPoint = null;
     let fitness: number = 0;
     let pointCount: number = 0;
     let key: number = 0;
     let minWidth: number = 0;
     let curArea: number = 0;
     let placed: IPolygon[] = [];
-    let currPlacements: IPoint[] = [];
+    let placement: IPoint[] = [];
     let binNfp: Float64Array = null;
     let finalNfp: ClipperLib.Paths = null;
     let minArea: number = 0;
@@ -211,7 +210,7 @@ export function placePaths(
 
     while (paths.length > 0) {
         placed = [];
-        currPlacements = [];
+        placement = [];
         ++fitness; // add 1 for each new bin opened (lower fitness is better)
 
         for (i = 0; i < paths.length; ++i) {
@@ -237,19 +236,20 @@ export function placePaths(
 
                     for (k = 0; k < polygon.length; ++k) {
                         tmpPoint.update(polygon.at(k)).sub(path[0]);
+
                         if (position === null || tmpPoint.x < position.x) {
                             position = { x: tmpPoint.x, y: tmpPoint.y, id: path.id, rotation: path.rotation };
                         }
                     }
                 }
 
-                currPlacements.push(position);
+                placement.push(position);
                 placed.push(path);
 
                 continue;
             }
 
-            finalNfp = getFinalNfps(polygon, pointPool, placementData, placed, path, binNfp, currPlacements);
+            finalNfp = getFinalNfps(polygon, pointPool, placementData, placed, path, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
@@ -263,7 +263,6 @@ export function placePaths(
             minArea = NaN;
             minX = NaN;
             curArea = 0;
-            shiftVector = null;
 
             for (j = 0; j < finalNfp.length; ++j) {
                 nfpSize = finalNfp[j].length;
@@ -278,16 +277,14 @@ export function placePaths(
                     pointCount = 0;
 
                     for (m = 0; m < placed.length; ++m) {
-                        pointCount = fillPointMemSeg(pointPool, pntMemSeg, placed[m], currPlacements[m], pointCount);
+                        pointCount = fillPointMemSeg(pointPool, pntMemSeg, placed[m], placement[m], pointCount);
                     }
 
                     polygon.bind(nfpMemSeg, 0, nfpSize);
 
                     tmpPoint.update(polygon.at(k)).sub(path[0]);
 
-                    shiftVector = { x: tmpPoint.x, y: tmpPoint.y, id: path.id, rotation: path.rotation };
-
-                    pointCount = fillPointMemSeg(pointPool, pntMemSeg, path, shiftVector, pointCount);
+                    pointCount = fillPointMemSeg(pointPool, pntMemSeg, path, tmpPoint, pointCount);
 
                     polygon.bind(pntMemSeg, 0, pointCount);
                     // weigh width more, to help compress in direction of gravity
@@ -296,19 +293,19 @@ export function placePaths(
                     if (
                         Number.isNaN(minArea) ||
                         curArea < minArea ||
-                        (almostEqual(minArea, curArea) && (Number.isNaN(minX) || shiftVector.x < minX))
+                        (almostEqual(minArea, curArea) && (Number.isNaN(minX) || tmpPoint.x < minX))
                     ) {
                         minArea = curArea;
                         minWidth = polygon.size.x;
-                        position = shiftVector;
-                        minX = shiftVector.x;
+                        position = { x: tmpPoint.x, y: tmpPoint.y, id: path.id, rotation: path.rotation };
+                        minX = tmpPoint.x;
                     }
                 }
             }
 
             if (position) {
                 placed.push(path);
-                currPlacements.push(position);
+                placement.push(position);
             }
         }
 
@@ -323,11 +320,11 @@ export function placePaths(
             }
         }
 
-        if (currPlacements.length === 0) {
+        if (placement.length === 0) {
             break; // something went wrong
         }
 
-        placements.push(currPlacements);
+        placements.push(placement);
     }
 
     // there were parts that couldn't be placed
@@ -335,5 +332,5 @@ export function placePaths(
 
     pointPool.malloc(pointIndices);
 
-    return { placements, fitness, paths, area };
+    return { placements, fitness, area };
 }
