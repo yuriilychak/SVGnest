@@ -75,23 +75,15 @@ export type PlacementWorkerData = {
     nfpCache: NFPCache;
 };
 
-export interface PlacementWorkerResult {
-    placements: number[][];
-    pathItems: number[][];
-    fitness: number;
-    area: number;
-}
-
 export type DisplayCallback = (
-    placementData: PlacementData,
+    placementsData: PlacementData,
     placePerecntage: number,
     lacedParts: number,
     partCount: number
 ) => void;
 
 export type PlacementData = {
-    placements: number[][];
-    pathItems: number[][];
+    placementsData: Float64Array;
     tree: IPolygon[];
     bounds: BoundRect;
     angleSplit: number;
@@ -102,7 +94,5 @@ export type ThreadData = {
     id: string;
     data: IPolygon[] | NFPPair;
 };
-
-export type ThreadOutput = PlacementWorkerResult | Float64Array | null;
 
 export type ThreadInput = IPolygon[] | NFPPair;

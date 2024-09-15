@@ -70,35 +70,34 @@ export default class SVGParser {
 
     // returns an array of SVG elements that represent the placement, for export or rendering
     public applyPlacement({
-        placements,
-        pathItems,
+        placementsData,
         tree,
         bounds,
         angleSplit
     }: {
-        placements: number[][];
-        pathItems: number[][];
+        placementsData: Float64Array;
         tree: IPolygon[];
         bounds: { x: number; y: number; width: number; height: number };
         angleSplit: number;
     }): string {
         const clone: INode[] = [];
         const partCount: number = this.#parts.length;
-        const placementCount: number = placements.length;
+        const placementCount: number = placementsData[1];
         const svglist: INode[] = [];
         let i: number = 0;
         let j: number = 0;
         let k: number = 0;
         let newSvg: INode = null;
         let binClone: INode = null;
-        let placement: number[] = null;
-        let pathItem: number[] = null;
         let part: IPolygon = null;
         let partGroup: INode = null;
         let flattened: IPolygon[] = null;
         let c: INode = null;
         let id: number = 0;
         let rotation: number = 0;
+        let placementData: number = 0;
+        let offset: number = 0;
+        let size: number = 0;
 
         for (i = 0; i < partCount; ++i) {
             clone.push(JSON.parse(JSON.stringify(this.#parts[i])) as INode);
@@ -123,12 +122,13 @@ export default class SVGParser {
             binClone.attributes.transform = `translate(${-bounds.x} ${-bounds.y})`;
             newSvg.children.push(binClone);
 
-            placement = placements[i];
-            pathItem = pathItems[i];
+            placementData = placementsData[2 + i];
+            offset = placementData >>> 16;
+            size = placementData - (offset << 16);
 
-            for (j = 0; j < pathItem.length; ++j) {
-                id = pathItem[j] >> 16;
-                rotation = pathItem[j] - (id << 16);
+            for (j = 0; j < size; ++j) {
+                id = placementsData[offset + j] >> 16;
+                rotation = placementsData[offset + j] - (id << 16);
                 part = tree[id];
 
                 partGroup = {
@@ -139,7 +139,7 @@ export default class SVGParser {
                     children: []
                 };
                 // the original path could have transforms and stuff on it, so apply our transforms on a group
-                partGroup.attributes.transform = `translate(${placement[j << 1]} ${placement[(j << 1) + 1]}) rotate(${Math.round((rotation * 360) / angleSplit)})`;
+                partGroup.attributes.transform = `translate(${placementsData[offset + size + (j << 1)]} ${placementsData[offset + size + (j << 1) + 1]}) rotate(${Math.round((rotation * 360) / angleSplit)})`;
                 partGroup.attributes.id = 'exportContent';
                 partGroup.children.push(clone[part.source]);
 

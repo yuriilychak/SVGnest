@@ -44,14 +44,14 @@ export default class NFPStore {
         this.#nfpCache = newCache;
     }
 
-    private update(generatedNfp: Float64Array[]): void {
+    private update(generatedNfp: ArrayBuffer[]): void {
         if (generatedNfp) {
             const nfpCount: number = generatedNfp.length;
             let i: number = 0;
             let nfp: Float64Array = null;
 
             for (i = 0; i < nfpCount; ++i) {
-                nfp = generatedNfp[i];
+                nfp = new Float64Array(generatedNfp[i]);
 
                 if (nfp.length > 2) {
                     // a null nfp means the nfp could not be generated, either because the parts simply don't
@@ -86,7 +86,7 @@ export default class NFPStore {
         this.#individual = null;
     }
 
-    public getPlacementWorkerData(generatedNfp: Float64Array[], config: NestConfig, binPolygon: IPolygon): PlacementWorkerData {
+    public getPlacementWorkerData(generatedNfp: ArrayBuffer[], config: NestConfig, binPolygon: IPolygon): PlacementWorkerData {
         this.update(generatedNfp);
 
         return {

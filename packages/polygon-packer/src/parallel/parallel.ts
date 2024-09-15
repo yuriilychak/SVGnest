@@ -1,4 +1,4 @@
-﻿import { THREAD_TYPE, ThreadInput, ThreadOutput } from '../types';
+﻿import { THREAD_TYPE, ThreadInput } from '../types';
 import DedicatedWorkerWrapper from './dedicated-worker-wrapper';
 import SharedWorkerWrapper from './shared-worker-wrapper';
 import { IThread, Options, ThreadTarget } from './types';
@@ -14,7 +14,7 @@ export default class Parallel {
 
     #input: ThreadInput[] = null;
 
-    #output: ThreadOutput[] = null;
+    #output: ArrayBuffer[] = null;
 
     #threadIndices: number[];
 
@@ -32,7 +32,7 @@ export default class Parallel {
 
     #onError: (error: ErrorEvent) => void = null;
 
-    #onSuccess: (result: ThreadOutput[]) => void = null;
+    #onSuccess: (result: ArrayBuffer[]) => void = null;
 
     #onSpawn: (count: number) => void = null;
 
@@ -52,7 +52,7 @@ export default class Parallel {
         id: THREAD_TYPE,
         input: ThreadInput[],
         env: object,
-        onSuccess: (result: ThreadOutput[]) => void,
+        onSuccess: (result: ArrayBuffer[]) => void,
         onError: (error: ErrorEvent) => void,
         onSpawn: (scount: number) => void = null
     ): boolean {
@@ -131,7 +131,7 @@ export default class Parallel {
         return true;
     }
 
-    private onMessage = (message: MessageEvent<ThreadOutput>) => {
+    private onMessage = (message: MessageEvent<ArrayBuffer>) => {
         const index = this.clean(message.currentTarget as MessagePort | Worker);
         const threadIndex = this.#threadIndices[index];
 

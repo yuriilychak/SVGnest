@@ -165,13 +165,40 @@ function getPathKey(id: number, rotation: number, placementData: PlacementWorker
     return (id << 16) | toRotationIndex(rotation, placementData.angleSplit);
 }
 
-export function placePaths(
-    inputPaths: IPolygon[],
-    placementData: PlacementWorkerData,
-    pointPool: PointPool
-): PlacementWorkerResult | null {
+function getResult(placements: number[][], pathItems: number[][], fitness: number): Float64Array {
+    const placementCount: number = pathItems.length;
+    const info = new Float64Array(placementCount);
+    let totalSize: number = NFP_INFO_START_INDEX + placementCount;
+    let offset: number = 0;
+    let size: number = 0;
+    let i: number = 0;
+
+    for (i = 0; i < placementCount; ++i) {
+        size = pathItems[i].length;
+        info[i] = size | (totalSize << NFP_SHIFT_AMOUNT);
+        totalSize += size * 3;
+    }
+
+    const result = new Float64Array(totalSize);
+
+    result[0] = fitness;
+    result[1] = placementCount;
+
+    result.set(info, NFP_INFO_START_INDEX);
+
+    for (i = 0; i < placementCount; ++i) {
+        offset = info[i] >>> NFP_SHIFT_AMOUNT;
+        size = info[i] & ((1 << NFP_SHIFT_AMOUNT) - 1);
+        result.set(pathItems[i], offset);
+        result.set(placements[i], offset + size);
+    }
+
+    return result;
+}
+
+export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
     if (!placementData.binPolygon) {
-        return null;
+        return new Float64Array(0);
     }
 
     // rotate paths by given rotation
@@ -356,5 +383,5 @@ export function placePaths(
 
     pointPool.malloc(pointIndices);
 
-    return { placements, pathItems, fitness, area };
+    return getResult(placements, pathItems, fitness);
 }

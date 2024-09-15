@@ -949,14 +949,12 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
     const nfpCount: number = nfpArrays.length;
     const info = new Float64Array(nfpCount);
     let totalSize: number = NFP_INFO_START_INDEX + nfpCount;
-    let offset: number = 0;
     let size: number = 0;
     let i: number = 0;
 
     for (i = 0; i < nfpCount; ++i) {
         size = nfpArrays[i].length;
-        offset = totalSize;
-        info[i] = size | (offset << NFP_SHIFT_AMOUNT);
+        info[i] = size | (totalSize << NFP_SHIFT_AMOUNT);
         totalSize += size;
     }
 
@@ -968,8 +966,7 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
     result.set(info, NFP_INFO_START_INDEX);
 
     for (i = 0; i < nfpCount; ++i) {
-        offset = info[i] >>> NFP_SHIFT_AMOUNT; 
-        result.set(nfpArrays[i], offset);
+        result.set(nfpArrays[i], info[i] >>> NFP_SHIFT_AMOUNT);
     }
 
     return result;

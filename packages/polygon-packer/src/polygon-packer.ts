@@ -3,7 +3,7 @@ import { polygonArea } from 'geometry-utils';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import { BoundRect, DisplayCallback, IPolygon, NestConfig, PlacementWorkerResult, THREAD_TYPE } from './types';
+import { BoundRect, DisplayCallback, IPolygon, NestConfig, THREAD_TYPE } from './types';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -14,7 +14,7 @@ export default class PolygonPacker {
 
     #isWorking: boolean = false;
 
-    #best: PlacementWorkerResult = null;
+    #best: Float64Array = null;
 
     #progress: number = 0;
 
@@ -55,7 +55,7 @@ export default class PolygonPacker {
             THREAD_TYPE.PAIR,
             this.#nfpStore.nfpPairs,
             configuration,
-            (generatedNfp: Float64Array[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
+            (generatedNfp: ArrayBuffer[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
             this.onError,
             this.onSpawn
         );
@@ -68,7 +68,7 @@ export default class PolygonPacker {
     private onPair(
         tree: IPolygon[],
         configuration: NestConfig,
-        generatedNfp: Float64Array[],
+        generatedNfp: ArrayBuffer[],
         displayCallback: DisplayCallback
     ): void {
         const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, configuration, this.#binPolygon);
@@ -78,7 +78,7 @@ export default class PolygonPacker {
             THREAD_TYPE.PLACEMENT,
             [this.#nfpStore.clonePlacement()],
             placementWorkerData,
-            (placements: PlacementWorkerResult[]) => this.onPlacement(tree, configuration, placements, displayCallback),
+            (placements: ArrayBuffer[]) => this.onPlacement(tree, configuration, placements, displayCallback),
             this.onError
         );
     }
@@ -86,7 +86,7 @@ export default class PolygonPacker {
     private onPlacement(
         tree: IPolygon[],
         configuration: NestConfig,
-        placements: PlacementWorkerResult[],
+        placements: ArrayBuffer[],
         displayCallback: DisplayCallback
     ): void {
         if (!placements || placements.length === 0) {
@@ -95,13 +95,14 @@ export default class PolygonPacker {
 
         let i: number = 0;
         let j: number = 0;
-        let bestResult: PlacementWorkerResult = placements[0];
-
-        this.#nfpStore.fitness = bestResult.fitness;
+        let bestResult: Float64Array = new Float64Array(placements[0]);
+        let currentPlacement: Float64Array = null;
+        this.#nfpStore.fitness = bestResult[0];
 
         for (i = 1; i < placements.length; ++i) {
-            if (placements[i].fitness < bestResult.fitness) {
-                bestResult = placements[i];
+            currentPlacement = new Float64Array(placements[i]);
+            if (currentPlacement[0] < bestResult[0]) {
+                bestResult = currentPlacement;
             }
         }
 
@@ -110,31 +111,33 @@ export default class PolygonPacker {
         let numPlacedParts: number = 0;
         let placePerecntage: number = 0;
 
-        if (!this.#best || bestResult.fitness < this.#best.fitness) {
+        if (!this.#best || bestResult[0] < this.#best[0]) {
             this.#best = bestResult;
 
-            const placementCount = this.#best.pathItems.length;
+            const placementCount = this.#best[1];
             const binArea: number = Math.abs(polygonArea(this.#binPolygon));
             let placedArea: number = 0;
             let totalArea: number = 0;
             let pathId: number = 0;
-            let bestItems: number[] = null;
+            let itemData: number = 0;
+            let offset: number = 0;
+            let size: number = 0;
 
             for (i = 0; i < placementCount; ++i) {
                 totalArea += binArea;
-                bestItems = this.#best.pathItems[i];
+                itemData = this.#best[2 + i];
+                offset = itemData >>> 16;
+                size = itemData - (offset << 16);
+                numPlacedParts += size;
 
-                numPlacedParts += bestItems.length;
-
-                for (j = 0; j < bestItems.length; ++j) {
-                    pathId = bestItems[j] >> 16;
+                for (j = 0; j < size; ++j) {
+                    pathId = this.#best[offset + j] >>> 16;
                     placedArea += Math.abs(polygonArea(tree[pathId]));
                 }
             }
 
             result = {
-                placements: this.#best.placements,
-                pathItems: this.#best.pathItems,
+                placementsData: this.#best,
                 tree,
                 bounds: this.#binBounds,
                 angleSplit: configuration.rotations
