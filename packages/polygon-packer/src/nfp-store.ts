@@ -4,7 +4,7 @@ import { Phenotype } from './genetic-algorithm';
 import { IPolygon, NestConfig, NFPPair, PlacementWorkerData, NFPCache } from './types';
 
 export default class NFPStore {
-    #nfpCache: NFPCache = new Map<number, Float64Array>();
+    #nfpCache: NFPCache = new Map<number, ArrayBuffer>();
 
     #nfpPairs: NFPPair[] = [];
 
@@ -23,7 +23,7 @@ export default class NFPStore {
         const placeList: IPolygon[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = placeList.length;
-        const newCache: NFPCache = new Map<number, Float64Array>();
+        const newCache: NFPCache = new Map<number, ArrayBuffer>();
         let part = null;
         let i: number = 0;
         let j: number = 0;
@@ -44,19 +44,20 @@ export default class NFPStore {
         this.#nfpCache = newCache;
     }
 
-    private update(generatedNfp: ArrayBuffer[]): void {
-        if (generatedNfp) {
-            const nfpCount: number = generatedNfp.length;
+    private update(nfps: ArrayBuffer[]): void {
+        const nfpCount: number = nfps.length;
+
+        if (nfpCount !== 0) {
             let i: number = 0;
-            let nfp: Float64Array = null;
+            let view: DataView = null;
 
             for (i = 0; i < nfpCount; ++i) {
-                nfp = new Float64Array(generatedNfp[i]);
+                view = new DataView(nfps[i]);
 
-                if (nfp.length > 2) {
+                if (nfps[i].byteLength > Float64Array.BYTES_PER_ELEMENT << 1) {
                     // a null nfp means the nfp could not be generated, either because the parts simply don't
                     // fit or an error in the nfp algo
-                    this.#nfpCache.set(nfp[0], nfp);
+                    this.#nfpCache.set(view.getFloat64(0, true), nfps[i]);
                 }
             }
         }

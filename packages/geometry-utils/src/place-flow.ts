@@ -40,7 +40,8 @@ function bindNFP(polygon: Polygon, memSeg: Float64Array, index: number): void {
     polygon.bind(memSeg, offset, size);
 }
 
-function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpMemSeg: Float64Array, offset: IPoint): void {
+function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpBuffer: ArrayBuffer, offset: IPoint): void {
+    const nfpMemSeg: Float64Array = new Float64Array(nfpBuffer);
     const nfpCount: number = nfpMemSeg[1];
     let clone: ClipperLib.IntPoint[] = null;
     let i: number = 0;
@@ -261,7 +262,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
 
             // inner NFP
             key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, path);
-            binNfp = placementData.nfpCache.get(key);
+            binNfp = placementData.nfpCache.has(key) ? new Float64Array(placementData.nfpCache.get(key)) : null;
 
             // part unplaceable, skip             part unplaceable, skip
             if (!binNfp || binNfp.length < 3 || getNfpError(placementData, placed, path)) {

@@ -63,7 +63,7 @@ export enum THREAD_TYPE {
     PAIR = 'pair'
 }
 
-export type NFPCache = Map<number, Float64Array>;
+export type NFPCache = Map<number, ArrayBuffer>;
 
 export type PlacementWorkerData = {
     angleSplit: number;
