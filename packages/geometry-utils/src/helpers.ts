@@ -72,13 +72,6 @@ export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
     for (i = 0; i < pointCount; ++i) {
         rotated.push(point.update(polygon[i]).rotate(radianAngle).export());
     }
-    // reset bounding box
-    const bounds: BoundRect = getPolygonBounds(rotated);
-
-    rotated.x = bounds.x;
-    rotated.y = bounds.y;
-    rotated.width = bounds.width;
-    rotated.height = bounds.height;
 
     return rotated;
 }
@@ -139,7 +132,6 @@ export function nestPolygons(polygons: IPolygon[], startId: number = 0): number 
                 }
 
                 innerNode.children.push(outerNode);
-                outerNode.parent = innerNode;
                 isChild = true;
                 break;
             }
@@ -163,7 +155,6 @@ export function nestPolygons(polygons: IPolygon[], startId: number = 0): number 
 
     for (i = 0; i < parentCount; ++i) {
         parent = parents[i];
-        parent.id = startId + i;
 
         if (parent.children) {
             childId = nestPolygons(parent.children, childId);

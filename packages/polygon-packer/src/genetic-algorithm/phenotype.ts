@@ -26,7 +26,7 @@ export default class Phenotype {
         let i: number = 0;
 
         for (i = 0; i < size; ++i) {
-            if (this.#placement[i].id === id) {
+            if (this.#placement[i].source === id) {
                 return true;
             }
         }
@@ -43,7 +43,7 @@ export default class Phenotype {
             placement = phenotype.placement[i];
             rotation = phenotype.rotation[i];
 
-            if (!this.contains(placement.id)) {
+            if (!this.contains(placement.source)) {
                 this.#placement.push(placement);
                 this.#rotations.push(rotation);
             }

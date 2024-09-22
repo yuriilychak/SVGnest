@@ -62,10 +62,8 @@ export enum MATRIX_OPERATIONS {
 }
 
 export interface IPolygon extends Array<IPoint> {
-    id: number;
     source: number;
-    hole?: boolean;
-    parent: IPolygon;
+    rotation?: number;
     children: IPolygon[];
 }
 

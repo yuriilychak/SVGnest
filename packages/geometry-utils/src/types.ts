@@ -4,16 +4,9 @@ export interface IPoint {
 }
 
 export interface IPolygon extends Array<IPoint> {
-    id: number;
     source: number;
-    hole?: boolean;
-    parent: IPolygon;
-    children: IPolygon[];
-    x?: number;
-    y?: number;
     rotation?: number;
-    width?: number;
-    height?: number;
+    children: IPolygon[];
 }
 
 export type NestConfig = {

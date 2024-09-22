@@ -50,18 +50,26 @@ export function convertElement(element: SVGElement): INode {
     return result;
 }
 
-export function flattenTree(tree: IPolygon[], hole: boolean, result: IPolygon[] = []): IPolygon[] {
+export function flattenTree(
+    tree: IPolygon[],
+    hole: boolean,
+    result: { polygons: IPolygon[]; holes: number[] } = { polygons: [], holes: [] }
+): { polygons: IPolygon[]; holes: number[] } {
     const nodeCount = tree.length;
     let i = 0;
-    let node = null;
+    let node: IPolygon = null;
     let children = null;
 
     for (i = 0; i < nodeCount; ++i) {
         node = tree[i];
-        node.hole = hole;
+
+        if (hole) {
+            result.holes.push(node.source);
+        }
+
         children = node.children;
 
-        result.push(node);
+        result.polygons.push(node);
 
         if (children && children.length > 0) {
             flattenTree(children, !hole, result);

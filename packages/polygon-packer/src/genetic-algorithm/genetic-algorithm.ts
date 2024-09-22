@@ -61,6 +61,7 @@ export default class GeneticAlgorithm {
         const angles: number[] = [];
         const step: number = 360 / angleCount;
         let angle: number = 0;
+        let bounds: BoundRect = null;
         let i: number = 0;
         let j: number = 0;
 
@@ -79,9 +80,10 @@ export default class GeneticAlgorithm {
 
         for (i = 0; i < angleCount; ++i) {
             rotatedPart = rotatePolygon(part, angles[i]);
+            bounds = getPolygonBounds(rotatedPart);
 
             // don't use obviously bad angles where the part doesn't fit in the bin
-            if (rotatedPart.width < this.#binBounds.width && rotatedPart.height < this.#binBounds.height) {
+            if (bounds.width < this.#binBounds.width && bounds.height < this.#binBounds.height) {
                 return angles[i];
             }
         }

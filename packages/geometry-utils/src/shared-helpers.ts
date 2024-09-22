@@ -35,7 +35,7 @@ export function generateNFPCacheKey(
 ) {
     const rotationIndex1: number = toRotationIndex(rotation1, rotationSplit);
     const rotationIndex2: number = toRotationIndex(rotation2, rotationSplit);
-    const data: number[] = [polygon1.id + 1, polygon2.id + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0];
+    const data: number[] = [polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0];
     const size: number = data.length;
     let result: number = 0;
     let i: number = 0;

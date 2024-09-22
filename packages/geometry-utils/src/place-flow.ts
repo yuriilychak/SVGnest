@@ -214,7 +214,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     let path: IPolygon = null;
     let rotatedPath: IPolygon = null;
 
-    emptyPath.id = -1;
+    emptyPath.source = -1;
     emptyPath.rotation = 0;
 
     for (i = 0; i < inputPaths.length; ++i) {
@@ -222,7 +222,6 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
         rotatedPath = rotatePolygon(path, path.rotation);
         rotatedPath.rotation = path.rotation;
         rotatedPath.source = path.source;
-        rotatedPath.id = path.id;
         paths.push(rotatedPath);
     }
 
@@ -258,7 +257,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
 
         for (i = 0; i < paths.length; ++i) {
             path = paths[i];
-            pathKey = getPathKey(path.id, path.rotation, placementData);
+            pathKey = getPathKey(path.source, path.rotation, placementData);
 
             // inner NFP
             key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, path);

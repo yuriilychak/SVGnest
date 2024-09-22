@@ -91,7 +91,7 @@ export default class SVGParser {
         let binClone: INode = null;
         let part: IPolygon = null;
         let partGroup: INode = null;
-        let flattened: IPolygon[] = null;
+        let flattened: { polygons: IPolygon[]; holes: number[] } = null;
         let c: INode = null;
         let id: number = 0;
         let rotation: number = 0;
@@ -146,10 +146,13 @@ export default class SVGParser {
                 if (part.children && part.children.length > 0) {
                     flattened = flattenTree(part.children, true);
 
-                    for (k = 0; k < flattened.length; ++k) {
-                        c = clone[flattened[k].source];
+                    for (k = 0; k < flattened.polygons.length; ++k) {
+                        c = clone[flattened.polygons[k].source];
                         // add class to indicate hole
-                        if (flattened[k].hole && (!c.attributes.class || c.attributes.class.indexOf('hole') < 0)) {
+                        if (
+                            flattened.holes.includes(flattened.polygons[k].source) &&
+                            (!c.attributes.class || c.attributes.class.indexOf('hole') < 0)
+                        ) {
                             c.attributes.class = `${c.attributes.class} hole`;
                         }
                         partGroup.children.push(c);

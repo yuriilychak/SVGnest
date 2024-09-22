@@ -3,7 +3,7 @@ import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoin
 
 import { BoundRect, IPoint, IPolygon, NestConfig } from './types';
 import { getPolygonBounds, nestPolygons, normalizePolygon, polygonArea } from './helpers';
-import { default as LocalPolygon } from './polygon';
+import Polygon from './polygon';
 import Point from './point';
 
 export default class ClipperWrapper {
@@ -23,7 +23,7 @@ export default class ClipperWrapper {
         const bounds = getPolygonBounds(binPolygon);
 
         this.offsetPolygon(binPolygon, -1);
-        binPolygon.id = -1;
+        binPolygon.source = -1;
 
         const currentBounds = getPolygonBounds(binPolygon);
         const binSize = binPolygon.length;
@@ -34,9 +34,6 @@ export default class ClipperWrapper {
             point.x = point.x - currentBounds.x;
             point.y = point.y - currentBounds.y;
         }
-
-        binPolygon.width = currentBounds.width;
-        binPolygon.height = currentBounds.height;
 
         // all paths need to have the same winding direction
         if (polygonArea(binPolygon) > 0) {
@@ -141,7 +138,7 @@ export default class ClipperWrapper {
     }
 
     public static toClipper(
-        polygon: IPoint[] | LocalPolygon,
+        polygon: IPoint[] | Polygon,
         scale: number = 1,
         offset: IPoint = { x: 0, y: 0 },
         isRound: boolean = false,

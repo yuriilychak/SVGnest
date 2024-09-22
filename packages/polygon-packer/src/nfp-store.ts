@@ -30,7 +30,7 @@ export default class NFPStore {
 
         for (i = 0; i < placeCount; ++i) {
             part = placeList[i];
-            this.#ids.push(part.id);
+            this.#ids.push(part.source);
             part.rotation = rotations[i];
 
             this.updateCache(binPolygon, part, 0, rotations[i], true, newCache);
