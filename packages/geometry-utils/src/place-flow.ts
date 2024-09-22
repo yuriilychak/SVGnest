@@ -1,5 +1,5 @@
 import ClipperLib from 'js-clipper';
-import { IPoint, IPolygon, PlacementWorkerData, PlacementWorkerResult } from './types';
+import { IPoint, IPolygon, PlacementWorkerData } from './types';
 import { polygonArea, rotatePolygon } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { almostEqual, generateNFPCacheKey, toRotationIndex } from './shared-helpers';

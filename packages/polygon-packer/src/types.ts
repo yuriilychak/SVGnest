@@ -26,13 +26,6 @@ export type NestConfig = {
     exploreConcave: boolean;
 };
 
-export type Placement = {
-    id: number;
-    rotation: number;
-    x: number;
-    y: number;
-};
-
 export type BoundRect = {
     x: number;
     y: number;
@@ -40,23 +33,11 @@ export type BoundRect = {
     height: number;
 };
 
-export type NFPContent = {
-    A: number;
-    B: number;
-    inside: boolean;
-    Arotation: number;
-    Brotation: number;
-};
-
 export type NFPPair = {
     A: IPolygon;
     B: IPolygon;
-    length?: number;
     key: number;
-    [key: number]: IPolygon;
 };
-
-export type NFPData = { value: NFPPair; key: number };
 
 export enum THREAD_TYPE {
     PLACEMENT = 'placement',

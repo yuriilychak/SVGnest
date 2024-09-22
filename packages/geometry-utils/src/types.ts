@@ -3,11 +3,6 @@ export interface IPoint {
     y: number;
 }
 
-export interface IClipperPoint {
-    X: number;
-    Y: number;
-}
-
 export interface IPolygon extends Array<IPoint> {
     id: number;
     source: number;
@@ -31,13 +26,6 @@ export type NestConfig = {
     exploreConcave: boolean;
 };
 
-export type Placement = {
-    id: number;
-    rotation: number;
-    x: number;
-    y: number;
-};
-
 export type BoundRect = {
     x: number;
     y: number;
@@ -56,12 +44,8 @@ export type NFPContent = {
 export type NFPPair = {
     A: IPolygon;
     B: IPolygon;
-    length?: number;
     key: number;
-    [key: number]: IPolygon;
 };
-
-export type NFPData = { value: NFPPair; key: number };
 
 export type PlacementWorkerData = {
     angleSplit: number;
@@ -72,17 +56,5 @@ export type PlacementWorkerData = {
     config: NestConfig;
     nfpCache: Map<number, ArrayBuffer>;
 };
-
-export type PairWorkerResult = {
-    key: number;
-    value: IPoint[][];
-};
-
-export interface PlacementWorkerResult {
-    placements: number[][];
-    pathItems: number[][];
-    fitness: number;
-    area: number;
-}
 
 export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;

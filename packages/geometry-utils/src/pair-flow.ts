@@ -1,7 +1,7 @@
 import ClipperLib from 'js-clipper';
 import { almostEqual, cycleIndex, midValue, keyToNFPData } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
-import { IPoint, NestConfig, NFPContent, NFPPair, PairWorkerResult } from './types';
+import { IPoint, NestConfig, NFPContent, NFPPair } from './types';
 import Point from './point';
 import Polygon from './polygon';
 import { NFP_INFO_START_INDEX, NFP_SHIFT_AMOUNT, TOL } from './constants';
@@ -975,7 +975,7 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
 export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: PointPool): Float64Array {
     const { exploreConcave, useHoles, rotations } = configuration;
 
-    if (!pair || pair.length === 0) {
+    if (!pair) {
         return new Float64Array(0);
     }
 

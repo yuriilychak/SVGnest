@@ -1,7 +1,7 @@
 // Import the library if needed for side effects
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
-import { BoundRect, IClipperPoint, IPoint, IPolygon, NestConfig } from './types';
+import { BoundRect, IPoint, IPolygon, NestConfig } from './types';
 import { getPolygonBounds, nestPolygons, normalizePolygon, polygonArea } from './helpers';
 import { default as LocalPolygon } from './polygon';
 import Point from './point';
@@ -108,14 +108,14 @@ export default class ClipperWrapper {
     public cleanPolygon(polygon: IPolygon): IPoint[] {
         const { curveTolerance } = this.configuration;
         const clipperPolygon = ClipperWrapper.toClipper(polygon);
-        const simple: IClipperPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IClipperPoint[][];
+        const simple: IntPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IntPoint[][];
 
         if (!simple || simple.length === 0) {
             return null;
         }
 
         let i: number = 0;
-        let biggest: IClipperPoint[] = simple[0];
+        let biggest: IntPoint[] = simple[0];
         let biggestArea: number = Math.abs(Clipper.Area(biggest));
         let area: number = 0;
         let pointCount: number = simple.length;
@@ -176,7 +176,7 @@ export default class ClipperWrapper {
         const pointCount: number = polygon.length;
         const result: IPoint[] = [];
         let i: number = 0;
-        let point: IClipperPoint = null;
+        let point: IntPoint = null;
 
         for (i = 0; i < pointCount; ++i) {
             point = polygon[i];
