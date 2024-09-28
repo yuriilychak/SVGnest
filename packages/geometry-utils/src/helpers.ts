@@ -97,10 +97,11 @@ export function polygonArea(polygon: IPoint[]): number {
 export function normalizePolygon(polygon: IPolygon): void {
     // remove duplicate endpoints, ensure counterclockwise winding direction
     const start: IPoint = polygon[0];
-    const end: IPoint = polygon[polygon.length - 1];
+    let end: IPoint = polygon[polygon.length - 1];
 
-    if (start === end || (almostEqual(start.x, end.x) && almostEqual(start.y, end.y))) {
+    while (almostEqual(start.x, end.x) && almostEqual(start.y, end.y)) {
         polygon.pop();
+        end = polygon[polygon.length - 1];
     }
 
     if (polygonArea(polygon) > 0) {
@@ -109,7 +110,7 @@ export function normalizePolygon(polygon: IPolygon): void {
 }
 
 // Main function to nest polygons
-export function nestPolygons(polygons: IPolygon[], startId: number = 0): number {
+export function nestPolygons(polygons: IPolygon[]): void {
     const parents: IPolygon[] = [];
     let i: number = 0;
     let j: number = 0;
@@ -150,16 +151,13 @@ export function nestPolygons(polygons: IPolygon[], startId: number = 0): number 
     }
 
     const parentCount: number = parents.length;
-    let childId: number = startId + parentCount;
     let parent: IPolygon = null;
 
     for (i = 0; i < parentCount; ++i) {
         parent = parents[i];
 
         if (parent.children) {
-            childId = nestPolygons(parent.children, childId);
+            nestPolygons(parent.children);
         }
     }
-
-    return childId;
 }

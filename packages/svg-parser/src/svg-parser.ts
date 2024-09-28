@@ -4,6 +4,7 @@ import formatSVG from './format-svg';
 import { IClipperWrapper, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
 import { convertElement, flattenTree, polygonArea } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
+import PlacementWrapper from './placement-wrapper';
 
 export default class SVGParser {
     #svgRoot: INode = null;
@@ -80,10 +81,10 @@ export default class SVGParser {
         bounds: { x: number; y: number; width: number; height: number };
         angleSplit: number;
     }): string {
+        const placement: PlacementWrapper = new PlacementWrapper(placementsData, angleSplit);
         const clone: INode[] = [];
         const partCount: number = this.#parts.length;
-        const placementCount: number = placementsData[1];
-        const svglist: INode[] = [];
+        const svgList: INode[] = [];
         let i: number = 0;
         let j: number = 0;
         let k: number = 0;
@@ -93,55 +94,45 @@ export default class SVGParser {
         let partGroup: INode = null;
         let flattened: { polygons: IPolygon[]; holes: number[] } = null;
         let c: INode = null;
-        let id: number = 0;
-        let rotation: number = 0;
-        let placementData: number = 0;
-        let offset: number = 0;
-        let size: number = 0;
 
         for (i = 0; i < partCount; ++i) {
             clone.push(JSON.parse(JSON.stringify(this.#parts[i])) as INode);
         }
 
-        for (i = 0; i < placementCount; ++i) {
+        for (i = 0; i < placement.placementCount; ++i) {
+            binClone = JSON.parse(JSON.stringify(this.#bin)) as INode;
+            binClone.attributes.id = 'exportRoot';
+            binClone.attributes.transform = `translate(${-bounds.x} ${-bounds.y})`;
+
             newSvg = {
                 name: 'svg',
                 type: 'element',
                 value: '',
-                attributes: {},
-                children: []
+                attributes: {
+                    viewBox: `0 0 ${bounds.width} ${bounds.height}`,
+                    width: `${bounds.width}px`,
+                    height: `${bounds.height}px`
+                },
+                children: [binClone]
             };
 
-            newSvg.attributes.viewBox = `0 0 ${bounds.width} ${bounds.height}`;
-            newSvg.attributes.width = `${bounds.width}px`;
-            newSvg.attributes.height = `${bounds.height}px`;
+            placement.bindPlacement(i);
 
-            binClone = JSON.parse(JSON.stringify(this.#bin)) as INode;
-            binClone.attributes.id = 'exportRoot';
-
-            binClone.attributes.transform = `translate(${-bounds.x} ${-bounds.y})`;
-            newSvg.children.push(binClone);
-
-            placementData = placementsData[2 + i];
-            offset = placementData >>> 16;
-            size = placementData - (offset << 16);
-
-            for (j = 0; j < size; ++j) {
-                id = placementsData[offset + j] >> 16;
-                rotation = placementsData[offset + j] - (id << 16);
-                part = tree[id];
+            for (j = 0; j < placement.size; ++j) {
+                placement.bindData(j);
+                part = tree[placement.id];
 
                 partGroup = {
                     name: 'g',
                     type: 'element',
                     value: '',
-                    attributes: {},
-                    children: []
+                    // the original path could have transforms and stuff on it, so apply our transforms on a group
+                    attributes: {
+                        transform: `translate(${placement.x} ${placement.y}) rotate(${placement.rotation})`,
+                        id: 'exportContent'
+                    },
+                    children: [clone[part.source]]
                 };
-                // the original path could have transforms and stuff on it, so apply our transforms on a group
-                partGroup.attributes.transform = `translate(${placementsData[offset + size + (j << 1)]} ${placementsData[offset + size + (j << 1) + 1]}) rotate(${Math.round((rotation * 360) / angleSplit)})`;
-                partGroup.attributes.id = 'exportContent';
-                partGroup.children.push(clone[part.source]);
 
                 if (part.children && part.children.length > 0) {
                     flattened = flattenTree(part.children, true);
@@ -162,11 +153,10 @@ export default class SVGParser {
                 newSvg.children.push(partGroup);
             }
 
-            svglist.push(newSvg);
+            svgList.push(newSvg);
         }
 
-        const resultSvg: INode =
-            svglist.length === 1 ? svglist[0] : { ...(JSON.parse(JSON.stringify(newSvg)) as INode), children: svglist };
+        const resultSvg: INode = svgList.length === 1 ? svgList[0] : { ...newSvg, children: svgList };
 
         return stringify(resultSvg);
     }
