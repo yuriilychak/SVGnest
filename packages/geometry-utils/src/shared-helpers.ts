@@ -1,6 +1,16 @@
 import { NFP_KEY_INDICES, TOL } from './constants';
 import { IPolygon, NFPContent } from './types';
 
+export function setBits(source: number, value: number, index: number, bitCount: number): number {
+    const mask = ((1 << bitCount) - 1) << index;
+
+    return (source & ~mask) | ((value << index) & mask);
+}
+
+export function getBits(source: number, index: number, numBits: number): number {
+    return (source >> index) & ((1 << numBits) - 1);
+}
+
 export function almostEqual(a: number, b: number = 0, tolerance: number = TOL): boolean {
     return Math.abs(a - b) < tolerance;
 }

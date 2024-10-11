@@ -1,5 +1,5 @@
 import ClipperLib from 'js-clipper';
-import { almostEqual, cycleIndex, midValue, keyToNFPData } from './shared-helpers';
+import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { IPoint, NestConfig, NFPContent, NFPPair } from './types';
 import Point from './point';
@@ -651,6 +651,13 @@ function getVector(start: number, end: number, baseValue: Point, subValue: Point
     return { value, start, end };
 }
 
+function getTouch(type: number, firstIndex: number, secondIndex: number): number {
+    let result: number = setBits(0, type, 0, 2);
+
+    result = setBits(result, firstIndex, 2, 15);
+
+    return setBits(result, secondIndex, 17, 15);
+}
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
@@ -717,8 +724,8 @@ function noFitPolygon(
     let currVector: IVector = null;
     let prevVector: IVector = null;
     // maintain a list of touching points/edges
-    let touchings: number[][] = null;
-    let touching: number[] = null;
+    let touchings: number[] = null;
+    let touching: number = 0;
     let iNext: number = 0;
     let jNext: number = 0;
     let isLooped: boolean = false;
@@ -775,11 +782,11 @@ function noFitPolygon(
                     pointBNext.update(polygonB.at(jNext)).add(offset);
 
                     if (pointB.almostEqual(polygonA.at(i))) {
-                        touchings.push([0, i, j]);
+                        touchings.push(getTouch(0, i, j));
                     } else if (pointB.onSegment(pointA, pointANext)) {
-                        touchings.push([1, iNext, j]);
+                        touchings.push(getTouch(1, iNext, j));
                     } else if (pointA.onSegment(pointB, pointBNext)) {
-                        touchings.push([2, i, jNext]);
+                        touchings.push(getTouch(2, i, jNext));
                     }
                 }
             }
@@ -790,8 +797,8 @@ function noFitPolygon(
             for (i = 0; i < touchings.length; ++i) {
                 touching = touchings[i];
                 // adjacent A vertices
-                currIndexA = touching[1];
-                currIndexB = touching[2];
+                currIndexA = getBits(touching, 2, 15);
+                currIndexB = getBits(touching, 17, 15);
                 prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop
                 nextIndexA = cycleIndex(currIndexA, sizeA, 1); // loop
                 prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
@@ -806,7 +813,7 @@ function noFitPolygon(
                 currB.update(polygonB.at(currIndexB));
                 nextB.update(polygonB.at(nextIndexB));
 
-                switch (touching[0]) {
+                switch (getBits(touching, 0, 2)) {
                     case 0: {
                         vectors.push(getVector(currIndexA, prevIndexA, prevA, currA));
                         vectors.push(getVector(currIndexA, nextIndexA, nextA, currA));
