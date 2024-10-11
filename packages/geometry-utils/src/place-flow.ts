@@ -2,7 +2,7 @@ import ClipperLib from 'js-clipper';
 import { IPoint, IPolygon, PlacementWorkerData } from './types';
 import { polygonArea, rotatePolygon } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
-import { almostEqual, generateNFPCacheKey, toRotationIndex } from './shared-helpers';
+import { almostEqual, generateNFPCacheKey, getMask, toRotationIndex } from './shared-helpers';
 import Point from './point';
 import Polygon from './polygon';
 import PointPool from './point-pool';
@@ -35,7 +35,7 @@ function fillPointMemSeg(
 function bindNFP(polygon: Polygon, memSeg: Float64Array, index: number): void {
     const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
     const offset: number = compressedInfo >>> NFP_SHIFT_AMOUNT;
-    const size: number = (compressedInfo & ((1 << NFP_SHIFT_AMOUNT) - 1)) >>> 1;
+    const size: number = (compressedInfo & getMask(NFP_SHIFT_AMOUNT)) >>> 1;
 
     polygon.bind(memSeg, offset, size);
 }
@@ -189,7 +189,7 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 
     for (i = 0; i < placementCount; ++i) {
         offset = info[i] >>> NFP_SHIFT_AMOUNT;
-        size = info[i] & ((1 << NFP_SHIFT_AMOUNT) - 1);
+        size = info[i] & getMask(NFP_SHIFT_AMOUNT);
         result.set(pathItems[i], offset);
         result.set(placements[i], offset + size);
     }

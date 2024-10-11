@@ -1,14 +1,18 @@
 import { NFP_KEY_INDICES, TOL } from './constants';
 import { IPolygon, NFPContent } from './types';
 
+export function getMask(bitCount: number, offset: number = 0): number {
+    return ((1 << bitCount) - 1) << offset;
+}
+
 export function setBits(source: number, value: number, index: number, bitCount: number): number {
-    const mask = ((1 << bitCount) - 1) << index;
+    const mask = getMask(bitCount, index);
 
     return (source & ~mask) | ((value << index) & mask);
 }
 
 export function getBits(source: number, index: number, numBits: number): number {
-    return (source >> index) & ((1 << numBits) - 1);
+    return (source >>> index) & getMask(numBits);
 }
 
 export function almostEqual(a: number, b: number = 0, tolerance: number = TOL): boolean {

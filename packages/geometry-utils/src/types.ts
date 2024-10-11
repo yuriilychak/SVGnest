@@ -51,3 +51,10 @@ export type PlacementWorkerData = {
 };
 
 export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;
+
+export type PolygonNode = {
+    source: number;
+    rotation: number;
+    memSeg: Float64Array;
+    children: PolygonNode[];
+};
