@@ -5,24 +5,6 @@ export function degreesToRadians(value: number): number {
     return (value * Math.PI) / 180;
 }
 
-// returns the area of the polygon, assuming no self-intersections
-// a negative area indicates counter-clockwise winding direction
-export function polygonArea(polygon: IPoint[]): number {
-    const pointCount: number = polygon.length;
-    let result: number = 0;
-    let i: number = 0;
-    let point1: IPoint = null;
-    let point2: IPoint = null;
-
-    for (i = 0; i < pointCount; ++i) {
-        point1 = polygon[(i + pointCount - 1) % pointCount];
-        point2 = polygon[i];
-        result = result + (point1.x + point2.x) * (point1.y - point2.y);
-    }
-
-    return 0.5 * result;
-}
-
 export function convertElement(element: SVGElement): INode {
     const result: INode = {
         name: element.tagName,

@@ -1,6 +1,6 @@
 import { BoundRect, IPoint, IPolygon } from './types';
 import Point from './point';
-import { almostEqual, cycleIndex } from './shared-helpers';
+import { cycleIndex } from './shared-helpers';
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
 export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {

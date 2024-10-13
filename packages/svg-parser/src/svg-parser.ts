@@ -1,8 +1,8 @@
 import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
-import { IClipperWrapper, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
-import { convertElement, flattenTree, polygonArea } from './helpers';
+import { IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
+import { convertElement, flattenTree } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
 import PlacementWrapper from './placement-wrapper';
 
@@ -11,7 +11,7 @@ export default class SVGParser {
 
     #bin: INode = null;
 
-    #binPolygon: IPolygon = null;
+    #binPolygon: IPoint[] = null;
 
     #parts: INode[] = null;
 
@@ -19,31 +19,20 @@ export default class SVGParser {
         this.#svgRoot = formatSVG(svgString);
     }
 
-    public getTree(configuration: NestConfig, clipperWrapper: IClipperWrapper): IPolygon[] {
+    public getPolygons(configuration: NestConfig): IPoint[][] {
         const { curveTolerance } = configuration;
         this.#parts = this.#svgRoot.children.filter(node => node.attributes.guid !== this.#bin.attributes.guid);
-        this.#binPolygon = this.clearPolygon(this.#bin, curveTolerance, clipperWrapper);
+        this.#binPolygon = this.clearPolygon(this.#bin, curveTolerance);
 
         const nodeCount = this.#parts.length;
-        const trashold = curveTolerance * curveTolerance;
-        const polygons = [];
-        let polygon: IPolygon = null;
+        const result: IPoint[][] = [];
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
-            polygon = this.clearPolygon(this.#parts[i], curveTolerance, clipperWrapper);
-
-            if (!polygon || polygon.length < 3 || Math.abs(polygonArea(polygon)) <= trashold) {
-                console.warn('Can not parse polygon', this.#parts[i]);
-                continue;
-            }
-
-            polygon.source = i;
-            polygon.children = [];
-            polygons.push(polygon);
+            result.push(this.clearPolygon(this.#parts[i], curveTolerance));
         }
 
-        return clipperWrapper.generateTree(polygons);
+        return result;
     }
 
     public setBin(element: SVGElement): void {
@@ -54,18 +43,12 @@ export default class SVGParser {
         return this.#svgRoot.attributes;
     }
 
-    private clearPolygon(element: INode, tolerance: number, clipperWrapper: IClipperWrapper): IPolygon {
+    private clearPolygon(element: INode, tolerance: number): IPoint[] {
         const tagName: SVG_TAG = element.name as SVG_TAG;
 
-        if (!SHAPE_BUILDERS.has(tagName)) {
-            return [] as IPolygon;
-        }
-
-        const rawPolygon: IPoint[] = SHAPE_BUILDERS.get(tagName)
-            .create(element, tolerance, SVGParser.SVG_TOLERANCE)
-            .getResult();
-
-        return clipperWrapper.cleanPolygon(rawPolygon) as IPolygon;
+        return SHAPE_BUILDERS.has(tagName)
+            ? SHAPE_BUILDERS.get(tagName).create(element, tolerance, SVGParser.SVG_TOLERANCE).getResult()
+            : [];
     }
 
     // returns an array of SVG elements that represent the placement, for export or rendering
@@ -164,7 +147,7 @@ export default class SVGParser {
         return stringify(this.#svgRoot);
     }
 
-    public get binPolygon(): IPolygon {
+    public get binPolygon(): IPoint[] {
         return this.#binPolygon;
     }
 

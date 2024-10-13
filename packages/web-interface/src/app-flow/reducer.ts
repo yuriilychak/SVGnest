@@ -84,7 +84,8 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
         (prevState, { handleProgress, handleRenderSvg }) => {
             const { svgParser, polygonPacker, settings } = prevState;
             const clipperWrapper = new ClipperWrapper(settings);
-            const tree = svgParser.getTree(settings, clipperWrapper);
+            const polygons = svgParser.getPolygons(settings);
+            const tree = clipperWrapper.generateTree(polygons);
             const binData = clipperWrapper.generateBounds(svgParser.binPolygon);
 
             polygonPacker.start(settings, tree, binData, handleProgress, handleRenderSvg);

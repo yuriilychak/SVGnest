@@ -14,18 +14,21 @@ export default class ClipperWrapper {
         this.configuration = configuration;
     }
 
-    public generateBounds(polygon: IPolygon): { binPolygon: IPolygon; bounds: BoundRect } {
+    public generateBounds(points: IPoint[]): { binPolygon: IPolygon; bounds: BoundRect } {
         let i: number = 0;
 
-        if (polygon.length < 3) {
+        if (points.length < 3) {
             return null;
         }
 
-        const bounds = getPolygonBounds(polygon);
+        const bounds: BoundRect = getPolygonBounds(points);
+        const polygon: IPolygon = this.cleanPolygon(points) as IPolygon;
+
+        polygon.source = -1;
+        polygon.rotation = 0;
+        polygon.children = [];
+
         const binPolygon = this.offsetPolygon(polygon, -1);
-
-        binPolygon.source = -1;
-
         const currentBounds = getPolygonBounds(binPolygon);
         const binSize = binPolygon.length;
         let point = null;
@@ -39,7 +42,26 @@ export default class ClipperWrapper {
         return { binPolygon, bounds };
     }
 
-    public generateTree(tree: IPolygon[]): IPolygon[] {
+    public generateTree(points: IPoint[][]): IPolygon[] {
+        const { curveTolerance } = this.configuration;
+        const trashold = curveTolerance * curveTolerance;
+        const tree: IPolygon[] = [];
+        const nodeCount: number = points.length;
+        let node: IPolygon = null;
+        let i: number = 0;
+
+        for (i = 0; i < nodeCount; ++i) {
+            node = this.cleanPolygon(points[i]) as IPolygon;
+
+            if (node.length < 3 || Math.abs(polygonArea(node)) <= trashold) {
+                console.warn('Can not parse polygon', i);
+                continue;
+            }
+
+            node.source = i;
+            node.children = [];
+            tree.push(node);
+        }
         // turn the list into a tree
         nestPolygons(tree);
 
@@ -107,7 +129,7 @@ export default class ClipperWrapper {
         return result;
     }
 
-    public cleanPolygon(polygon: IPolygon): IPoint[] {
+    public cleanPolygon(polygon: IPoint[]): IPoint[] {
         const { curveTolerance } = this.configuration;
         const clipperPolygon = ClipperWrapper.toClipper(polygon);
         const simple: IntPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IntPoint[][];

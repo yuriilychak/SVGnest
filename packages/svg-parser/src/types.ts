@@ -76,8 +76,3 @@ export type NestConfig = {
     useHoles: boolean;
     exploreConcave: boolean;
 };
-
-export interface IClipperWrapper {
-    cleanPolygon(polygon: IPoint[]): IPoint[];
-    generateTree(tree: IPolygon[]): IPolygon[];
-}
