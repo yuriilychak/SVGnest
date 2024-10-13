@@ -94,21 +94,6 @@ export function polygonArea(polygon: IPoint[]): number {
     return 0.5 * result;
 }
 
-export function normalizePolygon(polygon: IPolygon): void {
-    // remove duplicate endpoints, ensure counterclockwise winding direction
-    const start: IPoint = polygon[0];
-    let end: IPoint = polygon[polygon.length - 1];
-
-    while (almostEqual(start.x, end.x) && almostEqual(start.y, end.y)) {
-        polygon.pop();
-        end = polygon[polygon.length - 1];
-    }
-
-    if (polygonArea(polygon) > 0) {
-        polygon.reverse();
-    }
-}
-
 // Main function to nest polygons
 export function nestPolygons(polygons: IPolygon[]): void {
     const parents: IPolygon[] = [];

@@ -33,18 +33,17 @@ export default class SVGParser {
         for (i = 0; i < nodeCount; ++i) {
             polygon = this.clearPolygon(this.#parts[i], curveTolerance, clipperWrapper);
 
-            if (polygon && polygon.length > 2 && Math.abs(polygonArea(polygon)) > trashold) {
-                polygon.source = i;
-                polygon.children = [];
-                polygons.push(polygon);
-            } else {
+            if (!polygon || polygon.length < 3 || Math.abs(polygonArea(polygon)) <= trashold) {
                 console.warn('Can not parse polygon', this.#parts[i]);
+                continue;
             }
+
+            polygon.source = i;
+            polygon.children = [];
+            polygons.push(polygon);
         }
 
-        clipperWrapper.generateTree(polygons);
-
-        return polygons;
+        return clipperWrapper.generateTree(polygons);
     }
 
     public setBin(element: SVGElement): void {

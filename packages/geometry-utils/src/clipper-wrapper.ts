@@ -2,9 +2,10 @@
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
 import { BoundRect, IPoint, IPolygon, NestConfig } from './types';
-import { getPolygonBounds, nestPolygons, normalizePolygon, polygonArea } from './helpers';
+import { getPolygonBounds, nestPolygons, polygonArea } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
+import { almostEqual } from './shared-helpers';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -13,16 +14,16 @@ export default class ClipperWrapper {
         this.configuration = configuration;
     }
 
-    public generateBounds(binPolygon: IPolygon): { binPolygon: IPolygon; bounds: BoundRect } {
+    public generateBounds(polygon: IPolygon): { binPolygon: IPolygon; bounds: BoundRect } {
         let i: number = 0;
 
-        if (binPolygon.length < 3) {
-            return;
+        if (polygon.length < 3) {
+            return null;
         }
 
-        const bounds = getPolygonBounds(binPolygon);
+        const bounds = getPolygonBounds(polygon);
+        const binPolygon = this.offsetPolygon(polygon, -1);
 
-        this.offsetPolygon(binPolygon, -1);
         binPolygon.source = -1;
 
         const currentBounds = getPolygonBounds(binPolygon);
@@ -35,71 +36,75 @@ export default class ClipperWrapper {
             point.y = point.y - currentBounds.y;
         }
 
-        // all paths need to have the same winding direction
-        if (polygonArea(binPolygon) > 0) {
-            binPolygon.reverse();
-        }
-
         return { binPolygon, bounds };
     }
 
-    public generateTree(tree: IPolygon[]): void {
+    public generateTree(tree: IPolygon[]): IPolygon[] {
         // turn the list into a tree
         nestPolygons(tree);
-        // build tree without bin
-        const polygonCount = tree.length;
-        let i = 0;
+
+        return this.offsetPolygons(tree, 1);
+    }
+
+    public offsetPolygons(polygons: IPolygon[], sign: number): IPolygon[] {
+        if (!polygons) {
+            return [];
+        }
+
+        const result: IPolygon[] = [];
+        const polygonCount: number = polygons.length;
+        let polygon: IPolygon = null;
+        let i: number = 0;
 
         for (i = 0; i < polygonCount; ++i) {
-            this.offsetPolygon(tree[i], 1);
+            polygon = this.offsetPolygon(polygons[i], sign);
+            polygon.children = this.offsetPolygons(polygon.children, -sign);
+
+            result.push(polygon);
+        }
+
+        return result;
+    }
+
+    private offsetPolygon(polygon: IPolygon, sign: number): IPolygon {
+        let result: IPolygon = polygon;
+
+        if (this.configuration.spacing !== 0) {
+            const { curveTolerance, spacing } = this.configuration;
+            const offset: number = 0.5 * spacing * sign;
+            const miterLimit: number = 2;
+            const path: IntPoint[] = ClipperWrapper.toClipper(polygon);
+            const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
+            const resultPath: Paths = new Paths();
+
+            clipper.AddPath(path, JoinType.jtRound, EndType.etClosedPolygon);
+            clipper.Execute(resultPath, offset * ClipperWrapper.CLIPPER_SCALE);
+
+            if (resultPath.length !== 1) {
+                throw new Error(`Error while offset ${JSON.stringify(polygon)}`);
+            }
+
+            result = ClipperWrapper.toNestLegacy(resultPath[0]) as IPolygon;
+
+            result.source = polygon.source;
+            result.rotation = polygon.rotation;
+            result.children = polygon.children;
         }
 
         // remove duplicate endpoints, ensure counterclockwise winding direction
-        for (i = 0; i < polygonCount; ++i) {
-            normalizePolygon(tree[i]);
-        }
-    }
+        const start: IPoint = result[0];
+        let end: IPoint = result[result.length - 1];
 
-    public offsetPolygon(polygon: IPolygon, sign: number): boolean {
-        if (this.configuration.spacing === 0) {
-            return false;
+        while (almostEqual(start.x, end.x) && almostEqual(start.y, end.y)) {
+            result.pop();
+            end = result[result.length - 1];
         }
 
-        const { curveTolerance, spacing } = this.configuration;
-        const offset: number = 0.5 * spacing * sign;
-        const miterLimit: number = 2;
-        const path: IntPoint[] = ClipperWrapper.toClipper(polygon);
-        const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
-        const resultPath: Paths = new Paths();
-
-        let i: number = 0;
-
-        clipper.AddPath(path, JoinType.jtRound, EndType.etClosedPolygon);
-        clipper.Execute(resultPath, offset * ClipperWrapper.CLIPPER_SCALE);
-
-        if (resultPath.length === 1) {
-            const offsetPaths: IPoint[] = ClipperWrapper.toNestLegacy(resultPath[0]);
-            // replace array items in place
-            polygon.length = 0;
-
-            const pointCount: number = offsetPaths.length;
-
-            for (i = 0; i < pointCount; ++i) {
-                polygon.push(offsetPaths[i]);
-            }
+        if (polygonArea(result) > 0) {
+            result.reverse();
         }
 
-        const childCount: number = polygon.children ? polygon.children.length : 0;
-
-        if (childCount === 0) {
-            return true;
-        }
-
-        for (i = 0; i < childCount; ++i) {
-            this.offsetPolygon(polygon.children[i], sign * -1);
-        }
-
-        return true;
+        return result;
     }
 
     public cleanPolygon(polygon: IPolygon): IPoint[] {

@@ -79,5 +79,5 @@ export type NestConfig = {
 
 export interface IClipperWrapper {
     cleanPolygon(polygon: IPoint[]): IPoint[];
-    generateTree(tree: IPolygon[]): void;
+    generateTree(tree: IPolygon[]): IPolygon[];
 }
