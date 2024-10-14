@@ -14,7 +14,7 @@ export default class ClipperWrapper {
         this.configuration = configuration;
     }
 
-    public generateBounds(points: IPoint[]): { binPolygon: IPolygon; bounds: BoundRect } {
+    public generateBounds(points: IPoint[]): { binPolygon: IPolygon; bounds: BoundRect; resultBounds: BoundRect } {
         let i: number = 0;
 
         if (points.length < 3) {
@@ -39,7 +39,9 @@ export default class ClipperWrapper {
             point.y = point.y - currentBounds.y;
         }
 
-        return { binPolygon, bounds };
+        const resultBounds = getPolygonBounds(binPolygon);
+
+        return { binPolygon, bounds, resultBounds };
     }
 
     public generateTree(points: IPoint[][]): IPolygon[] {

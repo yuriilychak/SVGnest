@@ -1,4 +1,4 @@
-import { rotatePolygon, getPolygonBounds, polygonArea } from 'geometry-utils';
+import { getAdam, randomAngle } from 'geometry-utils';
 
 import { BoundRect, IPolygon, NestConfig } from '../types';
 import Phenotype from './phenotype';
@@ -14,7 +14,7 @@ export default class GeneticAlgorithm {
 
     #trashold: number = 0;
 
-    public init(tree: IPolygon[], bin: IPolygon, config: NestConfig): void {
+    public init(tree: IPolygon[], bounds: BoundRect, config: NestConfig): void {
         if (!this.#isEmpty) {
             return;
         }
@@ -22,21 +22,18 @@ export default class GeneticAlgorithm {
         this.#rotations = config.rotations;
         this.#trashold = 0.01 * config.mutationRate;
         this.#isEmpty = false;
-        this.#binBounds = getPolygonBounds(bin);
+        this.#binBounds = bounds;
 
         // initiate new GA
-        const adam: IPolygon[] = tree.slice();
+        const adam: IPolygon[] = getAdam(tree);
         // population is an array of individuals. Each individual is a object representing the
         // order of insertion and the angle each part is rotated
         const angles: number[] = [];
         let i: number = 0;
         let mutant: Phenotype = null;
 
-        // seed with decreasing area
-        adam.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
-
         for (i = 0; i < adam.length; ++i) {
-            angles.push(this.randomAngle(adam[i]));
+            angles.push(randomAngle(adam[i], this.#rotations, this.#binBounds));
         }
 
         this.#population.push(new Phenotype(adam, angles));
@@ -52,43 +49,6 @@ export default class GeneticAlgorithm {
         this.#trashold = 0;
         this.#binBounds = null;
         this.#population.length = 0;
-    }
-
-    // returns a random angle of insertion
-    private randomAngle(part: IPolygon): number {
-        const angleCount: number = this.#rotations;
-        const lastIndex: number = angleCount - 1;
-        const angles: number[] = [];
-        const step: number = 360 / angleCount;
-        let angle: number = 0;
-        let bounds: BoundRect = null;
-        let i: number = 0;
-        let j: number = 0;
-
-        for (i = 0; i < angleCount; ++i) {
-            angles.push(i * step);
-        }
-
-        for (i = lastIndex; i > 0; --i) {
-            j = Math.floor(Math.random() * (i + 1));
-            angle = angles[i];
-            angles[i] = angles[j];
-            angles[j] = angle;
-        }
-
-        let rotatedPart: IPolygon = null;
-
-        for (i = 0; i < angleCount; ++i) {
-            rotatedPart = rotatePolygon(part, angles[i]);
-            bounds = getPolygonBounds(rotatedPart);
-
-            // don't use obviously bad angles where the part doesn't fit in the bin
-            if (bounds.width < this.#binBounds.width && bounds.height < this.#binBounds.height) {
-                return angles[i];
-            }
-        }
-
-        return 0;
     }
 
     // returns a mutated individual with the given mutation rate
@@ -117,7 +77,7 @@ export default class GeneticAlgorithm {
             rand = Math.random();
 
             if (rand < this.#trashold) {
-                clone.rotation[i] = this.randomAngle(clone.placement[i]);
+                clone.rotation[i] = randomAngle(clone.placement[i], this.#rotations, this.#binBounds);
             }
         }
 

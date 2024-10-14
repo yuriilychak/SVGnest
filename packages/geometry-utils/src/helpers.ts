@@ -172,6 +172,48 @@ export function getPlacementData(binPolygon: IPolygon, tree: IPolygon[], placeme
             placedArea += Math.abs(polygonArea(tree[pathId]));
         }
     }
-    
+
     return placedCount + placedArea / totalArea;
+}
+
+export function getAdam(tree: IPolygon[]): IPolygon[] {
+    const result: IPolygon[] = tree.slice();
+
+    return result.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
+}
+
+// returns a random angle of insertion
+export function randomAngle(part: IPolygon, angleCount: number, binBounds: BoundRect): number {
+    const lastIndex: number = angleCount - 1;
+    const angles: number[] = [];
+    const step: number = 360 / angleCount;
+    let angle: number = 0;
+    let bounds: BoundRect = null;
+    let i: number = 0;
+    let j: number = 0;
+
+    for (i = 0; i < angleCount; ++i) {
+        angles.push(i * step);
+    }
+
+    for (i = lastIndex; i > 0; --i) {
+        j = Math.floor(Math.random() * (i + 1));
+        angle = angles[i];
+        angles[i] = angles[j];
+        angles[j] = angle;
+    }
+
+    let rotatedPart: IPolygon = null;
+
+    for (i = 0; i < angleCount; ++i) {
+        rotatedPart = rotatePolygon(part, angles[i]);
+        bounds = getPolygonBounds(rotatedPart);
+
+        // don't use obviously bad angles where the part doesn't fit in the bin
+        if (bounds.width < binBounds.width && bounds.height < binBounds.height) {
+            return angles[i];
+        }
+    }
+
+    return 0;
 }

@@ -12,6 +12,8 @@ export default class PolygonPacker {
 
     #binBounds: BoundRect = null;
 
+    #resultBounds: BoundRect = null;
+
     #isWorking: boolean = false;
 
     #best: Float64Array = null;
@@ -29,12 +31,13 @@ export default class PolygonPacker {
     public start(
         configuration: NestConfig,
         tree: IPolygon[],
-        binData: { binPolygon: IPolygon; bounds: BoundRect },
+        binData: { binPolygon: IPolygon; bounds: BoundRect; resultBounds: BoundRect },
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {
         this.#binPolygon = binData.binPolygon;
         this.#binBounds = binData.bounds;
+        this.#resultBounds = binData.resultBounds;
         this.#isWorking = true;
 
         this.launchWorkers(tree, configuration, displayCallback);
@@ -49,7 +52,7 @@ export default class PolygonPacker {
     };
 
     launchWorkers(tree: IPolygon[], configuration: NestConfig, displayCallback: DisplayCallback) {
-        this.#geneticAlgorithm.init(tree, this.#binPolygon, configuration);
+        this.#geneticAlgorithm.init(tree, this.#resultBounds, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
         this.#paralele.start(
             THREAD_TYPE.PAIR,
