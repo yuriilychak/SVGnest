@@ -1,7 +1,7 @@
 import ClipperLib from 'js-clipper';
 import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
-import { IPoint, NestConfig, NFPContent, NFPPair } from './types';
+import { IPoint, NestConfig, NFPContent, NFPPair, PolygonNode } from './types';
 import Point from './point';
 import Polygon from './polygon';
 import { NFP_INFO_START_INDEX, NFP_SHIFT_AMOUNT, TOL } from './constants';
@@ -987,8 +987,8 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
     }
 
     const nfpContent: NFPContent = keyToNFPData(pair.key, rotations);
-    const polygonA: Polygon = Polygon.fromLegacy(pair.A);
-    const polygonB: Polygon = Polygon.fromLegacy(pair.B);
+    const polygonA: Polygon = Polygon.fromMemSeg(pair.A.memSeg);
+    const polygonB: Polygon = Polygon.fromMemSeg(pair.B.memSeg);
     const tmpPolygon: Polygon = Polygon.create();
     let nfp: Float64Array[] = null;
     let i: number = 0;
@@ -1066,12 +1066,14 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         }
 
         // generate nfps for children (holes of parts) if any exist
-        if (useHoles && polygonA.hasChildren) {
-            const childCount: number = polygonA.childrCount;
-            let child: Polygon = null;
+        if (useHoles && pair.A.children.length !== 0) {
+            const childCount: number = pair.A.children.length;
+            let node: PolygonNode = null;
+            const child: Polygon = Polygon.create();
 
             for (i = 0; i < childCount; ++i) {
-                child = polygonA.children[i];
+                node = pair.A.children[i];
+                child.bind(node.memSeg);
 
                 // no need to find nfp if B's bounding box is too big
                 if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {

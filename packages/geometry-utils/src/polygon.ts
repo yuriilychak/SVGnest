@@ -1,10 +1,8 @@
 import Point from './point';
 import { almostEqual, cycleIndex } from './shared-helpers';
-import { IPoint, IPolygon } from './types';
+import { IPoint } from './types';
 
 export default class Polygon {
-    private innerChildren: Polygon[];
-
     private memSeg: Float64Array;
 
     private offset: number;
@@ -23,7 +21,6 @@ export default class Polygon {
 
     private constructor() {
         this.point = Point.zero();
-        this.innerChildren = [];
         this.rectMemSeg = new Float64Array(4);
         this.closed = false;
         this.pointCount = 0;
@@ -35,20 +32,6 @@ export default class Polygon {
         this.pointCount = pointCount;
         this.offset = offset;
         this.memSeg = data;
-
-        this.calculateBounds();
-    }
-
-    public reset(points: IPoint[]): void {
-        this.pointCount = points.length;
-        this.offset = 0;
-        this.memSeg = new Float64Array(this.getPointOffset(this.pointCount + 2));
-
-        let i: number = 0;
-
-        for (i = 0; i < this.pointCount; ++i) {
-            this.point.bind(this.memSeg, this.getPointOffset(i)).update(points[i]);
-        }
 
         this.calculateBounds();
     }
@@ -222,18 +205,6 @@ export default class Polygon {
         return this.at(cycleIndex(this.length, this.pointCount, -1));
     }
 
-    public get children(): Polygon[] {
-        return this.innerChildren;
-    }
-
-    public get childrCount(): number {
-        return this.innerChildren.length;
-    }
-
-    public get hasChildren(): boolean {
-        return this.childrCount !== 0;
-    }
-
     public get isBroken(): boolean {
         return this.length < 3;
     }
@@ -276,10 +247,10 @@ export default class Polygon {
         return new Polygon();
     }
 
-    public static fromLegacy(data: IPolygon | IPoint[]): Polygon {
+    public static fromMemSeg(memSeg: Float64Array): Polygon {
         const result = new Polygon();
 
-        result.reset(data);
+        result.bind(memSeg);
 
         return result;
     }

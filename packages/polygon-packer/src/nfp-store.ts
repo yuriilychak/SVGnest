@@ -1,4 +1,4 @@
-import { generateNFPCacheKey } from 'geometry-utils';
+import { generateNFPCacheKey, legacyToPolygonNode } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
 import { IPolygon, NestConfig, NFPPair, PlacementWorkerData, NFPCache } from './types';
@@ -74,7 +74,7 @@ export default class NFPStore {
         const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2, rotation1, rotation2);
 
         if (!this.#nfpCache.has(key)) {
-            this.#nfpPairs.push({ A: polygon1, B: polygon2, key });
+            this.#nfpPairs.push({ A: legacyToPolygonNode(polygon1), B: legacyToPolygonNode(polygon2), key });
         } else {
             newCache.set(key, this.#nfpCache.get(key));
         }

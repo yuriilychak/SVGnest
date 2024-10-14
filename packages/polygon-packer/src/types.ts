@@ -27,8 +27,8 @@ export type BoundRect = {
 };
 
 export type NFPPair = {
-    A: IPolygon;
-    B: IPolygon;
+    A: PolygonNode;
+    B: PolygonNode;
     key: number;
 };
 
@@ -70,3 +70,10 @@ export type ThreadData = {
 };
 
 export type ThreadInput = IPolygon[] | NFPPair;
+
+export type PolygonNode = {
+    source: number;
+    rotation: number;
+    memSeg: Float64Array;
+    children: PolygonNode[];
+};

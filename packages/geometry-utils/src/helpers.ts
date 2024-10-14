@@ -1,4 +1,4 @@
-import { BoundRect, IPoint, IPolygon } from './types';
+import { BoundRect, IPoint, IPolygon, PolygonNode } from './types';
 import Point from './point';
 import { cycleIndex } from './shared-helpers';
 
@@ -216,4 +216,20 @@ export function randomAngle(part: IPolygon, angleCount: number, binBounds: Bound
     }
 
     return 0;
+}
+
+export function legacyToPolygonNode(polygon: IPolygon): PolygonNode {
+    const pointCount: number = polygon.length;
+    const source: number = polygon.source || -1;
+    const rotation: number = polygon.rotation || 0;
+    const memSeg: Float64Array = new Float64Array(pointCount << 1);
+    const children: IPolygon[] = polygon.children || [];
+    let i: number = 0;
+
+    for (i = 0; i < pointCount; ++i) {
+        memSeg[i << 1] = polygon[i].x;
+        memSeg[(i << 1) + 1] = polygon[i].y;
+    }
+
+    return { source, rotation, memSeg, children: children.map(legacyToPolygonNode) };
 }

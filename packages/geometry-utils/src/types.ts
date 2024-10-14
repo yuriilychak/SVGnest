@@ -34,12 +34,6 @@ export type NFPContent = {
     Brotation: number;
 };
 
-export type NFPPair = {
-    A: IPolygon;
-    B: IPolygon;
-    key: number;
-};
-
 export type PlacementWorkerData = {
     angleSplit: number;
     binPolygon: IPolygon;
@@ -57,4 +51,10 @@ export type PolygonNode = {
     rotation: number;
     memSeg: Float64Array;
     children: PolygonNode[];
+};
+
+export type NFPPair = {
+    A: PolygonNode;
+    B: PolygonNode;
+    key: number;
 };
