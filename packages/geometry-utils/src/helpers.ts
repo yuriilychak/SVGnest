@@ -146,3 +146,32 @@ export function nestPolygons(polygons: IPolygon[]): void {
         }
     }
 }
+
+export function getPlacementData(binPolygon: IPolygon, tree: IPolygon[], placementsData: Float64Array): number {
+    const placementCount = placementsData[1];
+    const binArea: number = Math.abs(polygonArea(binPolygon));
+    let placedCount: number = 0;
+    let placedArea: number = 0;
+    let totalArea: number = 0;
+    let pathId: number = 0;
+    let itemData: number = 0;
+    let offset: number = 0;
+    let size: number = 0;
+    let i: number = 0;
+    let j: number = 0;
+
+    for (i = 0; i < placementCount; ++i) {
+        totalArea += binArea;
+        itemData = placementsData[2 + i];
+        offset = itemData >>> 16;
+        size = itemData - (offset << 16);
+        placedCount += size;
+
+        for (j = 0; j < size; ++j) {
+            pathId = placementsData[offset + j] >>> 16;
+            placedArea += Math.abs(polygonArea(tree[pathId]));
+        }
+    }
+    
+    return placedCount + placedArea / totalArea;
+}
