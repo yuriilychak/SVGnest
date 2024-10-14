@@ -1,6 +1,7 @@
-import { BoundRect, IPoint, IPolygon, PolygonNode } from './types';
+import { BoundRect, IPoint, IPolygon, NFPPair, PolygonNode } from './types';
 import Point from './point';
 import { cycleIndex } from './shared-helpers';
+import Polygon from './polygon';
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
 export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
@@ -232,4 +233,27 @@ export function legacyToPolygonNode(polygon: IPolygon): PolygonNode {
     }
 
     return { source, rotation, memSeg, children: children.map(legacyToPolygonNode) };
+}
+
+function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): void {
+    polygon.bind(rootNode.memSeg);
+    polygon.rotate(rotation);
+
+    const childCount: number = rootNode.children.length;
+    let i: number = 0;
+
+    for (i = 0; i < childCount; ++i) {
+        rotateNode(polygon, rootNode.children[i], rotation);
+    }
+}
+
+export function getNfpPair(polygon1: IPolygon, polygon2: IPolygon, key: number, rotation1: number, rotation2: number): NFPPair {
+    const polygon: Polygon = Polygon.create();
+    const A: PolygonNode = legacyToPolygonNode(polygon1);
+    const B: PolygonNode = legacyToPolygonNode(polygon2);
+
+    rotateNode(polygon, A, rotation1);
+    rotateNode(polygon, B, rotation2);
+
+    return { A, B, key };
 }

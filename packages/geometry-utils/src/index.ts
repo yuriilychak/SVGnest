@@ -9,6 +9,7 @@ export {
     getPlacementData,
     getAdam,
     randomAngle,
-    legacyToPolygonNode
+    legacyToPolygonNode,
+    getNfpPair
 } from './helpers';
 export { default as PointPool } from './point-pool';

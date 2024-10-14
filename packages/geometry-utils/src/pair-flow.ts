@@ -993,9 +993,6 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
     let nfp: Float64Array[] = null;
     let i: number = 0;
 
-    polygonA.rotate(nfpContent.Arotation);
-    polygonB.rotate(nfpContent.Brotation);
-
     if (nfpContent.inside) {
         nfp = polygonA.isRectangle
             ? noFitPolygonRectangle(pointPool, polygonA, polygonB)
