@@ -68,7 +68,7 @@ export default class ClipperWrapper {
         return this.offsetPolygons(tree, 1);
     }
 
-    public offsetPolygons(polygons: IPolygon[], sign: number): IPolygon[] {
+    private offsetPolygons(polygons: IPolygon[], sign: number): IPolygon[] {
         if (!polygons) {
             return [];
         }
@@ -129,7 +129,7 @@ export default class ClipperWrapper {
         return result;
     }
 
-    public cleanPolygon(polygon: IPoint[]): IPoint[] {
+    private cleanPolygon(polygon: IPoint[]): IPoint[] {
         const { curveTolerance } = this.configuration;
         const clipperPolygon = ClipperWrapper.toClipper(polygon);
         const simple: IntPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IntPoint[][];
