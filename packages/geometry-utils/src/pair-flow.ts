@@ -1,10 +1,11 @@
 import ClipperLib from 'js-clipper';
-import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits } from './shared-helpers';
+
+import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits, getUint16, joinUint16 } from './shared-helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { IPoint, NestConfig, NFPContent, NFPPair, PolygonNode } from './types';
 import Point from './point';
 import Polygon from './polygon';
-import { NFP_INFO_START_INDEX, NFP_SHIFT_AMOUNT, TOL } from './constants';
+import { NFP_INFO_START_INDEX, TOL } from './constants';
 import PointPool from './point-pool';
 
 interface ISegmentCheck {
@@ -961,7 +962,7 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
 
     for (i = 0; i < nfpCount; ++i) {
         size = nfpArrays[i].length;
-        info[i] = size | (totalSize << NFP_SHIFT_AMOUNT);
+        info[i] = joinUint16(size, totalSize);
         totalSize += size;
     }
 
@@ -973,7 +974,7 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
     result.set(info, NFP_INFO_START_INDEX);
 
     for (i = 0; i < nfpCount; ++i) {
-        result.set(nfpArrays[i], info[i] >>> NFP_SHIFT_AMOUNT);
+        result.set(nfpArrays[i], getUint16(info[i], 1));
     }
 
     return result;
@@ -1029,8 +1030,8 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
             if (!exploreConcave || i === 0) {
                 tmpPolygon.bind(nfp[i]);
                 // if searchedges is active, only the first NFP is guaranteed to pass sanity check
-                if (Math.abs(tmpPolygon.area) < Math.abs(polygonA.area)) {
-                    console.log('NFP Area Error: ', Math.abs(tmpPolygon.area), pair.key);
+                if (tmpPolygon.absArea < polygonA.absArea) {
+                    console.log('NFP Area Error: ', tmpPolygon.absArea, pair.key);
                     console.log('NFP:', JSON.stringify(tmpPolygon));
                     console.log('A: ', JSON.stringify(polygonA));
                     console.log('B: ', JSON.stringify(polygonB));

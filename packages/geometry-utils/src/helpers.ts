@@ -250,7 +250,7 @@ export function legacyToPolygonNodes(polygons: IPolygon[] = []): PolygonNode[] {
     return result;
 }
 
-function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): void {
+export function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): void {
     polygon.bind(rootNode.memSeg);
     polygon.rotate(rotation);
 

@@ -235,6 +235,10 @@ export default class Polygon {
         return 0.5 * result;
     }
 
+    public get absArea(): number {
+        return Math.abs(this.area);
+    }
+
     public get position(): Point {
         return this.point.bind(this.rectMemSeg, 0);
     }

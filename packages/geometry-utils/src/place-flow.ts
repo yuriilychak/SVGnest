@@ -1,28 +1,28 @@
 import ClipperLib from 'js-clipper';
-import { IPoint, IPolygon, PlacementWorkerData } from './types';
-import { polygonArea, rotatePolygon } from './helpers';
+import { IPoint, IPolygon, PlacementWorkerData, PolygonNode } from './types';
+import { legacyToPolygonNodes, polygonArea, rotateNode } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
-import { almostEqual, generateNFPCacheKey, getMask, toRotationIndex } from './shared-helpers';
+import { almostEqual, generateNFPCacheKey, getUint16, joinUint16, toRotationIndex } from './shared-helpers';
 import Point from './point';
 import Polygon from './polygon';
 import PointPool from './point-pool';
-import { NFP_INFO_START_INDEX, NFP_SHIFT_AMOUNT } from './constants';
+import { NFP_INFO_START_INDEX } from './constants';
 
 function fillPointMemSeg(
     pointPool: PointPool,
     memSeg: Float64Array,
-    points: IPoint[],
+    node: PolygonNode,
     offset: IPoint,
     prevValue: number
 ): number {
     const pointIndices: number = pointPool.alloc(1);
     const tmpPoint: Point = pointPool.get(pointIndices, 0);
-    const pointCount = points.length;
+    const pointCount = node.memSeg.length >> 1;
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
         tmpPoint
-            .update(points[i])
+            .fromMemSeg(node.memSeg, i)
             .add(offset)
             .fill(memSeg, prevValue + i);
     }
@@ -34,8 +34,8 @@ function fillPointMemSeg(
 
 function bindNFP(polygon: Polygon, memSeg: Float64Array, index: number): void {
     const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
-    const offset: number = compressedInfo >>> NFP_SHIFT_AMOUNT;
-    const size: number = (compressedInfo & getMask(NFP_SHIFT_AMOUNT)) >>> 1;
+    const offset: number = getUint16(compressedInfo, 1);
+    const size: number = getUint16(compressedInfo, 0) >>> 1;
 
     polygon.bind(memSeg, offset, size);
 }
@@ -57,7 +57,7 @@ function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpBuffer: Arr
 }
 
 // ensure all necessary NFPs exist
-function getNfpError(placementData: PlacementWorkerData, placed: IPolygon[], path: IPolygon): boolean {
+function getNfpError(placementData: PlacementWorkerData, placed: PolygonNode[], path: PolygonNode): boolean {
     let i: number = 0;
     let key: number = 0;
 
@@ -93,8 +93,8 @@ function getFinalNfps(
     polygon: Polygon,
     pointPool: PointPool,
     placementData: PlacementWorkerData,
-    placed: IPolygon[],
-    path: IPolygon,
+    placed: PolygonNode[],
+    path: PolygonNode,
     binNfp: Float64Array,
     placement: number[]
 ) {
@@ -176,7 +176,7 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 
     for (i = 0; i < placementCount; ++i) {
         size = pathItems[i].length;
-        info[i] = size | (totalSize << NFP_SHIFT_AMOUNT);
+        info[i] = joinUint16(size, totalSize);
         totalSize += size * 3;
     }
 
@@ -188,8 +188,8 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
     result.set(info, NFP_INFO_START_INDEX);
 
     for (i = 0; i < placementCount; ++i) {
-        offset = info[i] >>> NFP_SHIFT_AMOUNT;
-        size = info[i] & getMask(NFP_SHIFT_AMOUNT);
+        offset = getUint16(info[i], 1);
+        size = getUint16(info[i], 0);
         result.set(pathItems[i], offset);
         result.set(placements[i], offset + size);
     }
@@ -198,37 +198,32 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 }
 
 export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
-    if (!placementData.binPolygon) {
-        return new Float64Array(0);
-    }
-
+    const nodes: PolygonNode[] = legacyToPolygonNodes(inputPaths);
+    const nodeCount: number = nodes.length;
     // rotate paths by given rotation
-    const paths: IPolygon[] = [];
-    const emptyPath: IPolygon = [] as IPolygon;
-    const pointIndices: number = pointPool.alloc(1);
+    const polygon: Polygon = Polygon.create();
+    const emptyPath: PolygonNode = {
+        source: -1,
+        rotation: 0,
+        memSeg: new Float64Array(0),
+        children: []
+    };
+    const pointIndices: number = pointPool.alloc(2);
     const tmpPoint: Point = pointPool.get(pointIndices, 0);
+    const firstPoint: Point = pointPool.get(pointIndices, 1);
     let i: number = 0;
     let j: number = 0;
     let k: number = 0;
     let m: number = 0;
-    let path: IPolygon = null;
-    let rotatedPath: IPolygon = null;
+    let node: PolygonNode = null;
 
-    emptyPath.source = -1;
-    emptyPath.rotation = 0;
-
-    for (i = 0; i < inputPaths.length; ++i) {
-        path = inputPaths[i];
-        rotatedPath = rotatePolygon(path, path.rotation);
-        rotatedPath.rotation = path.rotation;
-        rotatedPath.source = path.source;
-        paths.push(rotatedPath);
+    for (i = 0; i < nodeCount; ++i) {
+        rotateNode(polygon, nodes[i], nodes[i].rotation);
     }
 
-    const polygon: Polygon = Polygon.create();
     const placements: number[][] = [];
-    let placement: number[] = [];
     const pathItems: number[][] = [];
+    let placement: number[] = [];
     let pathItem: number[] = [];
     const area = Math.abs(polygonArea(placementData.binPolygon));
     const pntMemSeg: Float64Array = new Float64Array(8192);
@@ -240,7 +235,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     let key: number = 0;
     let minWidth: number = 0;
     let curArea: number = 0;
-    let placed: IPolygon[] = [];
+    let placed: PolygonNode[] = [];
     let binNfp: Float64Array = null;
     let finalNfp: ClipperLib.Paths = null;
     let minArea: number = 0;
@@ -249,22 +244,23 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     let binNfpCount: number = 0;
     let pathKey: number = 0;
 
-    while (paths.length > 0) {
+    while (nodes.length > 0) {
         placed = [];
         placement = [];
         pathItem = [];
         ++fitness; // add 1 for each new bin opened (lower fitness is better)
 
-        for (i = 0; i < paths.length; ++i) {
-            path = paths[i];
-            pathKey = getPathKey(path.source, path.rotation, placementData);
+        for (i = 0; i < nodes.length; ++i) {
+            node = nodes[i];
+            firstPoint.fromMemSeg(node.memSeg, 0);
+            pathKey = getPathKey(node.source, node.rotation, placementData);
 
             // inner NFP
-            key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, path);
+            key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, node);
             binNfp = placementData.nfpCache.has(key) ? new Float64Array(placementData.nfpCache.get(key)) : null;
 
             // part unplaceable, skip             part unplaceable, skip
-            if (!binNfp || binNfp.length < 3 || getNfpError(placementData, placed, path)) {
+            if (!binNfp || binNfp.length < 3 || getNfpError(placementData, placed, node)) {
                 continue;
             }
 
@@ -278,7 +274,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                     bindNFP(polygon, binNfp, j);
 
                     for (k = 0; k < polygon.length; ++k) {
-                        tmpPoint.update(polygon.at(k)).sub(path[0]);
+                        tmpPoint.update(polygon.at(k)).sub(firstPoint);
 
                         if (Number.isNaN(positionX) || tmpPoint.x < positionX) {
                             positionX = tmpPoint.x;
@@ -290,12 +286,12 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                 pathItem.push(pathKey);
                 placement.push(positionX);
                 placement.push(positionY);
-                placed.push(path);
+                placed.push(node);
 
                 continue;
             }
 
-            finalNfp = getFinalNfps(polygon, pointPool, placementData, placed, path, binNfp, placement);
+            finalNfp = getFinalNfps(polygon, pointPool, placementData, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
@@ -315,7 +311,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
                 ClipperWrapper.toMemSeg(finalNfp[j], nfpMemSeg);
                 polygon.bind(nfpMemSeg, 0, nfpSize);
 
-                if (Math.abs(polygon.area) < 2) {
+                if (polygon.absArea < 2) {
                     continue;
                 }
 
@@ -329,9 +325,9 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
 
                     polygon.bind(nfpMemSeg, 0, nfpSize);
 
-                    tmpPoint.update(polygon.at(k)).sub(path[0]);
+                    tmpPoint.update(polygon.at(k)).sub(firstPoint);
 
-                    pointCount = fillPointMemSeg(pointPool, pntMemSeg, path, tmpPoint, pointCount);
+                    pointCount = fillPointMemSeg(pointPool, pntMemSeg, node, tmpPoint, pointCount);
 
                     polygon.bind(pntMemSeg, 0, pointCount);
                     // weigh width more, to help compress in direction of gravity
@@ -352,7 +348,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
             }
 
             if (!Number.isNaN(positionX)) {
-                placed.push(path);
+                placed.push(node);
                 pathItem.push(pathKey);
                 placement.push(positionX);
                 placement.push(positionY);
@@ -364,9 +360,9 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
         }
 
         for (i = 0; i < placed.length; ++i) {
-            const index = paths.indexOf(placed[i]);
+            const index = nodes.indexOf(placed[i]);
             if (index !== -1) {
-                paths.splice(index, 1);
+                nodes.splice(index, 1);
             }
         }
 
@@ -379,7 +375,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     }
 
     // there were parts that couldn't be placed
-    fitness += paths.length << 1;
+    fitness += nodes.length << 1;
 
     pointPool.malloc(pointIndices);
 

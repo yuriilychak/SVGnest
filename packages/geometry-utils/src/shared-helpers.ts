@@ -1,5 +1,5 @@
-import { NFP_KEY_INDICES, TOL } from './constants';
-import { IPolygon, NFPContent } from './types';
+import { NFP_KEY_INDICES, TOL, UINT16_BIT_COUNT } from './constants';
+import { IPolygon, NFPContent, PolygonNode } from './types';
 
 export function getMask(bitCount: number, offset: number = 0): number {
     return ((1 << bitCount) - 1) << offset;
@@ -13,6 +13,14 @@ export function setBits(source: number, value: number, index: number, bitCount: 
 
 export function getBits(source: number, index: number, numBits: number): number {
     return (source >>> index) & getMask(numBits);
+}
+
+export function getUint16(source: number, index: number): number {
+    return getBits(source, index * UINT16_BIT_COUNT, UINT16_BIT_COUNT);
+}
+
+export function joinUint16(value1: number, value2: number): number {
+    return value1 | (value2 << UINT16_BIT_COUNT);
 }
 
 export function almostEqual(a: number, b: number = 0, tolerance: number = TOL): boolean {
@@ -42,8 +50,8 @@ export function toRotationIndex(angle: number, rotationSplit: number): number {
 export function generateNFPCacheKey(
     rotationSplit: number,
     inside: boolean,
-    polygon1: IPolygon,
-    polygon2: IPolygon,
+    polygon1: IPolygon | PolygonNode,
+    polygon2: IPolygon | PolygonNode,
     rotation1: number = polygon1.rotation,
     rotation2: number = polygon2.rotation
 ) {
