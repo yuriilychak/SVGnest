@@ -61,12 +61,6 @@ export enum MATRIX_OPERATIONS {
     NONE = ''
 }
 
-export interface IPolygon extends Array<IPoint> {
-    source: number;
-    rotation?: number;
-    children: IPolygon[];
-}
-
 export type NestConfig = {
     curveTolerance: number;
     spacing: number;
@@ -77,4 +71,11 @@ export type NestConfig = {
     exploreConcave: boolean;
 };
 
-export type FlattenedData = { polygons: IPolygon[]; holes: number[] };
+export type PolygonNode = {
+    source: number;
+    rotation: number;
+    memSeg: Float64Array;
+    children: PolygonNode[];
+};
+
+export type FlattenedData = { nodes: PolygonNode[]; holes: number[] };

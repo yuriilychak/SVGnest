@@ -1,7 +1,7 @@
 import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
-import { FlattenedData, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
+import { FlattenedData, IPoint, NestConfig, PolygonNode, SVG_TAG } from './types';
 import { convertElement, flattenTree } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
 import PlacementWrapper from './placement-wrapper';
@@ -54,12 +54,12 @@ export default class SVGParser {
     // returns an array of SVG elements that represent the placement, for export or rendering
     public applyPlacement({
         placementsData,
-        tree,
+        nodes,
         bounds,
         angleSplit
     }: {
         placementsData: Float64Array;
-        tree: IPolygon[];
+        nodes: PolygonNode[];
         bounds: { x: number; y: number; width: number; height: number };
         angleSplit: number;
     }): string {
@@ -72,7 +72,7 @@ export default class SVGParser {
         let k: number = 0;
         let newSvg: INode = null;
         let binClone: INode = null;
-        let part: IPolygon = null;
+        let node: PolygonNode = null;
         let partGroup: INode = null;
         let flattened: FlattenedData = null;
         let c: INode = null;
@@ -102,7 +102,7 @@ export default class SVGParser {
 
             for (j = 0; j < placement.size; ++j) {
                 placement.bindData(j);
-                part = tree[placement.id];
+                node = nodes[placement.id];
 
                 partGroup = {
                     name: 'g',
@@ -113,17 +113,17 @@ export default class SVGParser {
                         transform: `translate(${placement.x} ${placement.y}) rotate(${placement.rotation})`,
                         id: 'exportContent'
                     },
-                    children: [clone[part.source]]
+                    children: [clone[node.source]]
                 };
 
-                if (part.children && part.children.length > 0) {
-                    flattened = flattenTree(part.children, true);
+                if (node.children && node.children.length > 0) {
+                    flattened = flattenTree(node.children, true);
 
-                    for (k = 0; k < flattened.polygons.length; ++k) {
-                        c = clone[flattened.polygons[k].source];
+                    for (k = 0; k < flattened.nodes.length; ++k) {
+                        c = clone[flattened.nodes[k].source];
                         // add class to indicate hole
                         if (
-                            flattened.holes.includes(flattened.polygons[k].source) &&
+                            flattened.holes.includes(flattened.nodes[k].source) &&
                             (!c.attributes.class || c.attributes.class.indexOf('hole') < 0)
                         ) {
                             c.attributes.class = `${c.attributes.class} hole`;

@@ -4,6 +4,7 @@ import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
 import { BoundRect, DisplayCallback, IPoint, IPolygon, NestConfig, THREAD_TYPE } from './types';
+import { legacyToPolygonNodes } from 'geometry-utils/src/helpers';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -128,7 +129,12 @@ export default class PolygonPacker {
             numParts = this.#nfpStore.placementCount;
             numPlacedParts = placementData << 0;
             placePerecntage = placementData % 1;
-            result = { placementsData, tree, bounds: this.#binBounds, angleSplit: configuration.rotations };
+            result = {
+                placementsData,
+                nodes: legacyToPolygonNodes(tree),
+                bounds: this.#binBounds,
+                angleSplit: configuration.rotations
+            };
         }
 
         if (this.#isWorking) {

@@ -51,9 +51,16 @@ export type DisplayCallback = (
     partCount: number
 ) => void;
 
+export type PolygonNode = {
+    source: number;
+    rotation: number;
+    memSeg: Float64Array;
+    children: PolygonNode[];
+};
+
 export type PlacementData = {
     placementsData: Float64Array;
-    tree: IPolygon[];
+    nodes: PolygonNode[];
     bounds: BoundRect;
     angleSplit: number;
 };
@@ -65,10 +72,3 @@ export type ThreadData = {
 };
 
 export type ThreadInput = IPolygon[] | NFPPair;
-
-export type PolygonNode = {
-    source: number;
-    rotation: number;
-    memSeg: Float64Array;
-    children: PolygonNode[];
-};
