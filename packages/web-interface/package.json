@@ -9,15 +9,13 @@
         "lint:fix": "eslint src/**/*.ts src/**/*.tsx --fix"
     },
     "dependencies": {
-        "geometry-utils": "^1.0.0",
         "polygon-packer": "^1.0.0",
         "svg-parser": "^1.0.0"
     },
     "description": "user interface package for SVGNest",
     "keywords": [
         "react",
-        "UI",
-        "MUI"
+        "UI"
     ],
     "author": "yurii.lychak",
     "license": "MIT"

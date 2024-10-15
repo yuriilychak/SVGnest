@@ -1,9 +1,9 @@
-import { getPlacementData } from 'geometry-utils';
+import { ClipperWrapper, getPlacementData } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import { BoundRect, DisplayCallback, IPolygon, NestConfig, THREAD_TYPE } from './types';
+import { BoundRect, DisplayCallback, IPoint, IPolygon, NestConfig, THREAD_TYPE } from './types';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -30,11 +30,15 @@ export default class PolygonPacker {
     // displayCallback is called when a new placement has been made
     public start(
         configuration: NestConfig,
-        tree: IPolygon[],
-        binData: { binPolygon: IPolygon; bounds: BoundRect; resultBounds: BoundRect },
+        polygons: IPoint[][],
+        binPolygon: IPoint[],
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {
+        const clipperWrapper = new ClipperWrapper(configuration);
+        const tree = clipperWrapper.generateTree(polygons);
+        const binData = clipperWrapper.generateBounds(binPolygon);
+        
         this.#binPolygon = binData.binPolygon;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;

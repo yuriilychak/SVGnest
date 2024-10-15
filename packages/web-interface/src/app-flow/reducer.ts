@@ -1,4 +1,3 @@
-import { ClipperWrapper } from 'geometry-utils';
 import {
     ALERT_TYPE,
     MESSAGE_ID,
@@ -83,12 +82,9 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
         REDUCER_ACTION.START_NESTING,
         (prevState, { handleProgress, handleRenderSvg }) => {
             const { svgParser, polygonPacker, settings } = prevState;
-            const clipperWrapper = new ClipperWrapper(settings);
             const polygons = svgParser.getPolygons(settings);
-            const tree = clipperWrapper.generateTree(polygons);
-            const binData = clipperWrapper.generateBounds(svgParser.binPolygon);
 
-            polygonPacker.start(settings, tree, binData, handleProgress, handleRenderSvg);
+            polygonPacker.start(settings, polygons, svgParser.binPolygon, handleProgress, handleRenderSvg);
 
             return { ...prevState, isWorking: true, startTime: 0 };
         }

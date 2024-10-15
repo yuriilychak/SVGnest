@@ -12,16 +12,8 @@ export default {
         filename: 'svg-parser.js',
         path: path.resolve('../../dist')
     },
-    resolve: {
-        extensions: ['.ts']
-    },
+    resolve: { extensions: ['.ts'] },
     module: {
-        rules: [
-            {
-                test: /\.tsx?$/,
-                use: 'ts-loader',
-                exclude: /node_modules/
-            }
-        ]
+        rules: [{ test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ }]
     }
 };
