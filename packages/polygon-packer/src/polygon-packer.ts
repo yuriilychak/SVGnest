@@ -3,7 +3,7 @@ import { ClipperWrapper, getPlacementData } from 'geometry-utils';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import { BoundRect, DisplayCallback, IPoint, IPolygon, NestConfig, THREAD_TYPE } from './types';
+import { BoundRect, DisplayCallback, IPoint, IPolygon, NestConfig, PolygonNode, THREAD_TYPE } from './types';
 import { legacyToPolygonNodes } from 'geometry-utils/src/helpers';
 
 export default class PolygonPacker {
@@ -29,6 +29,8 @@ export default class PolygonPacker {
 
     #paralele: Parallel = new Parallel();
 
+    #nodes: PolygonNode[] = [];
+
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     public start(
@@ -47,6 +49,7 @@ export default class PolygonPacker {
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
         this.#isWorking = true;
+        this.#nodes = legacyToPolygonNodes(tree);
 
         this.launchWorkers(tree, configuration, displayCallback);
 
@@ -100,7 +103,7 @@ export default class PolygonPacker {
         placements: ArrayBuffer[],
         displayCallback: DisplayCallback
     ): void {
-        if (!placements || placements.length === 0) {
+        if (placements.length === 0) {
             return;
         }
 
@@ -124,16 +127,14 @@ export default class PolygonPacker {
         if (!this.#best || placementsData[0] < this.#best[0]) {
             this.#best = placementsData;
 
-            const nodes = legacyToPolygonNodes(tree);
-
-            const placementData: number = getPlacementData(Math.abs(this.#binArea), nodes, placementsData);
+            const placementData: number = getPlacementData(Math.abs(this.#binArea), this.#nodes, placementsData);
 
             numParts = this.#nfpStore.placementCount;
             numPlacedParts = placementData << 0;
             placePerecntage = placementData % 1;
             result = {
                 placementsData,
-                nodes,
+                nodes: this.#nodes,
                 bounds: this.#binBounds,
                 angleSplit: configuration.rotations
             };
@@ -156,6 +157,7 @@ export default class PolygonPacker {
         this.#paralele.terminate();
 
         if (isClean) {
+            this.#nodes = [];
             this.#best = null;
             this.#binPolygon = null;
             this.#geneticAlgorithm.clean();

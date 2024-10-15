@@ -99,6 +99,7 @@ export default class Polygon {
 
         return inside;
     }
+
     public close(): void {
         if (this.isClosed) {
             return;
@@ -131,18 +132,6 @@ export default class Polygon {
             this.memSeg[j2Plus1] = this.memSeg[i2Plus1] - this.memSeg[j2Plus1];
             this.memSeg[i2Plus1] = this.memSeg[i2Plus1] - this.memSeg[j2Plus1];
         }
-    }
-
-    public exportLegacy(): IPoint[] {
-        const result: IPoint[] = [];
-        const pointCount: number = this.pointCount;
-        let i: number = 0;
-
-        for (i = 0; i < pointCount; ++i) {
-            result.push(this.at(i).export());
-        }
-
-        return result;
     }
 
     private getPointOffset(index: number): number {
