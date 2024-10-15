@@ -1,7 +1,7 @@
 import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
-import { IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
+import { FlattenedData, IPoint, IPolygon, NestConfig, SVG_TAG } from './types';
 import { convertElement, flattenTree } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
 import PlacementWrapper from './placement-wrapper';
@@ -74,7 +74,7 @@ export default class SVGParser {
         let binClone: INode = null;
         let part: IPolygon = null;
         let partGroup: INode = null;
-        let flattened: { polygons: IPolygon[]; holes: number[] } = null;
+        let flattened: FlattenedData = null;
         let c: INode = null;
 
         for (i = 0; i < partCount; ++i) {

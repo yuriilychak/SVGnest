@@ -1,5 +1,5 @@
 import { INode } from 'svgson';
-import { IPoint, IPolygon } from './types';
+import { FlattenedData, IPoint, IPolygon } from './types';
 
 export function degreesToRadians(value: number): number {
     return (value * Math.PI) / 180;
@@ -35,8 +35,8 @@ export function convertElement(element: SVGElement): INode {
 export function flattenTree(
     tree: IPolygon[],
     hole: boolean,
-    result: { polygons: IPolygon[]; holes: number[] } = { polygons: [], holes: [] }
-): { polygons: IPolygon[]; holes: number[] } {
+    result: FlattenedData = { polygons: [], holes: [] }
+): FlattenedData {
     const nodeCount = tree.length;
     let i = 0;
     let node: IPolygon = null;

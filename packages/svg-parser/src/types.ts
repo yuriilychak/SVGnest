@@ -76,3 +76,5 @@ export type NestConfig = {
     useHoles: boolean;
     exploreConcave: boolean;
 };
+
+export type FlattenedData = { polygons: IPolygon[]; holes: number[] };
