@@ -124,14 +124,16 @@ export default class PolygonPacker {
         if (!this.#best || placementsData[0] < this.#best[0]) {
             this.#best = placementsData;
 
-            const placementData: number = getPlacementData(this.#binPolygon, tree, placementsData);
+            const nodes = legacyToPolygonNodes(tree);
+
+            const placementData: number = getPlacementData(Math.abs(this.#binArea), nodes, placementsData);
 
             numParts = this.#nfpStore.placementCount;
             numPlacedParts = placementData << 0;
             placePerecntage = placementData % 1;
             result = {
                 placementsData,
-                nodes: legacyToPolygonNodes(tree),
+                nodes,
                 bounds: this.#binBounds,
                 angleSplit: configuration.rotations
             };
