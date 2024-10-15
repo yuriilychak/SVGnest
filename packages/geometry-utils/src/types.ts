@@ -36,11 +36,7 @@ export type NFPContent = {
 
 export type PlacementWorkerData = {
     angleSplit: number;
-    binPolygon: IPolygon;
-    paths: IPolygon[];
-    ids: number[];
-    rotations: number[];
-    config: NestConfig;
+    binArea: number;
     nfpCache: Map<number, ArrayBuffer>;
 };
 

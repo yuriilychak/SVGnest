@@ -225,7 +225,7 @@ export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorke
     const pathItems: number[][] = [];
     let placement: number[] = [];
     let pathItem: number[] = [];
-    const area = Math.abs(polygonArea(placementData.binPolygon));
+    const area = placementData.binArea;
     const pntMemSeg: Float64Array = new Float64Array(8192);
     const nfpMemSeg: Float64Array = new Float64Array(2048);
     let positionX: number = 0;

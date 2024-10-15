@@ -10,6 +10,8 @@ export default class PolygonPacker {
 
     #binPolygon: IPolygon = null;
 
+    #binArea: number = 0;
+
     #binBounds: BoundRect = null;
 
     #resultBounds: BoundRect = null;
@@ -38,10 +40,11 @@ export default class PolygonPacker {
         const clipperWrapper = new ClipperWrapper(configuration);
         const tree = clipperWrapper.generateTree(polygons);
         const binData = clipperWrapper.generateBounds(binPolygon);
-        
+
         this.#binPolygon = binData.binPolygon;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;
+        this.#binArea = binData.area;
         this.#isWorking = true;
 
         this.launchWorkers(tree, configuration, displayCallback);
@@ -78,7 +81,7 @@ export default class PolygonPacker {
         generatedNfp: ArrayBuffer[],
         displayCallback: DisplayCallback
     ): void {
-        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, configuration, this.#binPolygon);
+        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, this.#binArea);
 
         // can't use .spawn because our data is an array
         this.#paralele.start(

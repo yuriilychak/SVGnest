@@ -1,14 +1,12 @@
 import { generateNFPCacheKey, getNfpPair } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
-import { IPolygon, NestConfig, NFPPair, PlacementWorkerData, NFPCache } from './types';
+import { IPolygon, NFPPair, PlacementWorkerData, NFPCache } from './types';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<number, ArrayBuffer>();
 
     #nfpPairs: NFPPair[] = [];
-
-    #ids: number[] = [];
 
     #individual: Phenotype = null;
 
@@ -18,7 +16,6 @@ export default class NFPStore {
         this.#individual = individual;
         this.#angleSplit = angleSplit;
         this.#nfpPairs = [];
-        this.#ids = [];
 
         const placeList: IPolygon[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
@@ -30,7 +27,6 @@ export default class NFPStore {
 
         for (i = 0; i < placeCount; ++i) {
             part = placeList[i];
-            this.#ids.push(part.source);
             part.rotation = rotations[i];
 
             this.updateCache(binPolygon, part, 0, rotations[i], true, newCache);
@@ -83,22 +79,13 @@ export default class NFPStore {
     public clean(): void {
         this.#nfpCache.clear();
         this.#nfpPairs = [];
-        this.#ids = [];
         this.#individual = null;
     }
 
-    public getPlacementWorkerData(generatedNfp: ArrayBuffer[], config: NestConfig, binPolygon: IPolygon): PlacementWorkerData {
+    public getPlacementWorkerData(generatedNfp: ArrayBuffer[], binArea: number): PlacementWorkerData {
         this.update(generatedNfp);
 
-        return {
-            angleSplit: this.#angleSplit,
-            binPolygon,
-            paths: this.clonePlacement(),
-            ids: this.#ids,
-            rotations: this.#individual.rotation,
-            config,
-            nfpCache: this.#nfpCache
-        };
+        return { angleSplit: this.#angleSplit, binArea, nfpCache: this.#nfpCache };
     }
 
     public clonePlacement(): IPolygon[] {

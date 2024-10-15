@@ -40,11 +40,7 @@ export type NFPCache = Map<number, ArrayBuffer>;
 
 export type PlacementWorkerData = {
     angleSplit: number;
-    binPolygon: IPolygon;
-    paths: IPolygon[];
-    ids: number[];
-    rotations: number[];
-    config: NestConfig;
+    binArea: number;
     nfpCache: NFPCache;
 };
 
