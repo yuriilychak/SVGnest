@@ -29,10 +29,10 @@ export default class NFPStore {
             part = placeList[i];
             part.rotation = rotations[i];
 
-            this.updateCache(binPolygon, part, 0, rotations[i], true, newCache);
+            this.updateCache(binPolygon, part, true, newCache);
 
             for (j = 0; j < i; ++j) {
-                this.updateCache(placeList[j], part, rotations[j], rotations[i], false, newCache);
+                this.updateCache(placeList[j], part, false, newCache);
             }
         }
 
@@ -59,18 +59,11 @@ export default class NFPStore {
         }
     }
 
-    private updateCache(
-        polygon1: IPolygon,
-        polygon2: IPolygon,
-        rotation1: number,
-        rotation2: number,
-        inside: boolean,
-        newCache: NFPCache
-    ): void {
-        const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2, rotation1, rotation2);
+    private updateCache(polygon1: IPolygon, polygon2: IPolygon, inside: boolean, newCache: NFPCache): void {
+        const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2);
 
         if (!this.#nfpCache.has(key)) {
-            this.#nfpPairs.push(getNfpPair(key, [polygon1, polygon2], [rotation1, rotation2]));
+            this.#nfpPairs.push(getNfpPair(key, [polygon1, polygon2]));
         } else {
             newCache.set(key, this.#nfpCache.get(key));
         }

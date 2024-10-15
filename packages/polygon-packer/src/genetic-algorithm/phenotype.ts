@@ -49,6 +49,21 @@ export default class Phenotype {
             }
         }
     }
+    public swap(index: number): boolean {
+        const nextIndex = index + 1;
+
+        if (nextIndex === this.size) {
+            return false;
+        }
+        // swap current part with next part
+
+        const placement: IPolygon = this.#placement[index];
+
+        this.#placement[index] = this.#placement[nextIndex];
+        this.#placement[nextIndex] = placement;
+
+        return true;
+    }
 
     public get placement(): IPolygon[] {
         return this.#placement;

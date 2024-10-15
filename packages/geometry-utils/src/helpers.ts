@@ -266,14 +266,14 @@ export function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: nu
     }
 }
 
-export function getNfpPair(key: number, polygons: IPolygon[], rotations: number[]): NFPPair {
+export function getNfpPair(key: number, polygons: IPolygon[]): NFPPair {
     const polygon: Polygon = Polygon.create();
     const nodes: PolygonNode[] = legacyToPolygonNodes(polygons);
     const nodeCount: number = nodes.length;
     let i: number = 0;
 
     for (i = 0; i < nodeCount; ++i) {
-        rotateNode(polygon, nodes[i], rotations[i]);
+        rotateNode(polygon, nodes[i], nodes[i].rotation);
     }
 
     return { nodes, key };

@@ -55,28 +55,14 @@ export default class GeneticAlgorithm {
     private mutate(individual: Phenotype): Phenotype {
         const clone: Phenotype = individual.clone();
         const size: number = clone.size;
-        let placement: IPolygon = null;
         let i: number = 0;
-        let j: number = 0;
-        let rand: number = 0;
 
         for (i = 0; i < size; ++i) {
-            rand = Math.random();
-
-            if (rand < this.#trashold) {
-                // swap current part with next part
-                j = i + 1;
-
-                if (j < size) {
-                    placement = clone.placement[i];
-                    clone.placement[i] = clone.placement[j];
-                    clone.placement[j] = placement;
-                }
+            if (this.isMutate) {
+                clone.swap(i);
             }
 
-            rand = Math.random();
-
-            if (rand < this.#trashold) {
+            if (this.isMutate) {
                 clone.rotation[i] = randomAngle(clone.placement[i], this.#rotations, this.#binBounds);
             }
         }
@@ -165,5 +151,9 @@ export default class GeneticAlgorithm {
         this.#population = result;
 
         return this.#population[1];
+    }
+
+    private get isMutate(): boolean {
+        return Math.random() < this.#trashold;
     }
 }

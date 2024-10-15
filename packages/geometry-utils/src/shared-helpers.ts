@@ -51,12 +51,10 @@ export function generateNFPCacheKey(
     rotationSplit: number,
     inside: boolean,
     polygon1: IPolygon | PolygonNode,
-    polygon2: IPolygon | PolygonNode,
-    rotation1: number = polygon1.rotation,
-    rotation2: number = polygon2.rotation
+    polygon2: IPolygon | PolygonNode
 ) {
-    const rotationIndex1: number = toRotationIndex(rotation1, rotationSplit);
-    const rotationIndex2: number = toRotationIndex(rotation2, rotationSplit);
+    const rotationIndex1: number = toRotationIndex(polygon1.rotation, rotationSplit);
+    const rotationIndex2: number = toRotationIndex(polygon2.rotation, rotationSplit);
     const data: number[] = [polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0];
     const size: number = data.length;
     let result: number = 0;
