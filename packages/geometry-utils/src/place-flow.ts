@@ -1,6 +1,6 @@
 import ClipperLib from 'js-clipper';
 import { IPoint, IPolygon, PlacementWorkerData, PolygonNode } from './types';
-import { legacyToPolygonNodes, polygonArea, rotateNode } from './helpers';
+import { legacyToPolygonNodes, rotateNode } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { almostEqual, generateNFPCacheKey, getUint16, joinUint16, toRotationIndex } from './shared-helpers';
 import Point from './point';

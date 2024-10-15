@@ -63,20 +63,6 @@ export function getPolygonBounds(polygon: IPoint[]): BoundRect {
     return result;
 }
 
-export function rotatePolygon(polygon: IPolygon, angle: number): IPolygon {
-    const pointCount: number = polygon.length;
-    const rotated: IPolygon = [] as IPolygon;
-    const radianAngle: number = (angle * Math.PI) / 180;
-    const point: Point = Point.zero();
-    let i: number = 0;
-
-    for (i = 0; i < pointCount; ++i) {
-        rotated.push(point.update(polygon[i]).rotate(radianAngle).export());
-    }
-
-    return rotated;
-}
-
 // returns the area of the polygon, assuming no self-intersections
 // a negative area indicates counter-clockwise winding direction
 export function polygonArea(polygon: IPoint[]): number {
@@ -149,8 +135,14 @@ export function nestPolygons(polygons: IPolygon[]): void {
 }
 
 export function getPlacementData(binPolygon: IPolygon, tree: IPolygon[], placementsData: Float64Array): number {
+    const polygon: Polygon = Polygon.create();
+    const binNode: PolygonNode = legacyToPolygonNode(binPolygon, []);
+    const nodes: PolygonNode[] = legacyToPolygonNodes(tree);
     const placementCount = placementsData[1];
-    const binArea: number = Math.abs(polygonArea(binPolygon));
+
+    polygon.bind(binNode.memSeg);
+
+    const binArea: number = polygon.absArea;
     let placedCount: number = 0;
     let placedArea: number = 0;
     let totalArea: number = 0;
@@ -170,7 +162,8 @@ export function getPlacementData(binPolygon: IPolygon, tree: IPolygon[], placeme
 
         for (j = 0; j < size; ++j) {
             pathId = placementsData[offset + j] >>> 16;
-            placedArea += Math.abs(polygonArea(tree[pathId]));
+            polygon.bind(nodes[pathId].memSeg);
+            placedArea += polygon.absArea;
         }
     }
 
@@ -178,18 +171,37 @@ export function getPlacementData(binPolygon: IPolygon, tree: IPolygon[], placeme
 }
 
 export function getAdam(tree: IPolygon[]): IPolygon[] {
+    const polygon: Polygon = Polygon.create();
     const result: IPolygon[] = tree.slice();
+    let node: PolygonNode = null;
+    let areaA: number = 0;
+    let areaB: number = 0;
 
-    return result.sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)));
+    return result.sort((a, b) => {
+        node = legacyToPolygonNode(a, []);
+
+        polygon.bind(node.memSeg);
+
+        areaA = polygon.absArea;
+
+        node = legacyToPolygonNode(b, []);
+
+        polygon.bind(node.memSeg);
+
+        areaB = polygon.absArea;
+
+        return areaB - areaA;
+    });
 }
 
 // returns a random angle of insertion
 export function randomAngle(part: IPolygon, angleCount: number, binBounds: BoundRect): number {
+    const polygon: Polygon = Polygon.create();
+    const node: PolygonNode = legacyToPolygonNode(part, []);
     const lastIndex: number = angleCount - 1;
     const angles: number[] = [];
     const step: number = 360 / angleCount;
     let angle: number = 0;
-    let bounds: BoundRect = null;
     let i: number = 0;
     let j: number = 0;
 
@@ -204,14 +216,12 @@ export function randomAngle(part: IPolygon, angleCount: number, binBounds: Bound
         angles[j] = angle;
     }
 
-    let rotatedPart: IPolygon = null;
-
     for (i = 0; i < angleCount; ++i) {
-        rotatedPart = rotatePolygon(part, angles[i]);
-        bounds = getPolygonBounds(rotatedPart);
+        polygon.bind(node.memSeg.slice());
+        polygon.rotate(angles[i]);
 
         // don't use obviously bad angles where the part doesn't fit in the bin
-        if (bounds.width < binBounds.width && bounds.height < binBounds.height) {
+        if (polygon.size.x < binBounds.width && polygon.size.y < binBounds.height) {
             return angles[i];
         }
     }
