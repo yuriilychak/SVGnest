@@ -74,7 +74,7 @@ export default class NFPStore {
         const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2, rotation1, rotation2);
 
         if (!this.#nfpCache.has(key)) {
-            this.#nfpPairs.push(getNfpPair(polygon1, polygon2, key, rotation1, rotation2));
+            this.#nfpPairs.push(getNfpPair(key, [polygon1, polygon2], [rotation1, rotation2]));
         } else {
             newCache.set(key, this.#nfpCache.get(key));
         }

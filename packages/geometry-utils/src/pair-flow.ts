@@ -987,8 +987,8 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
     }
 
     const nfpContent: NFPContent = keyToNFPData(pair.key, rotations);
-    const polygonA: Polygon = Polygon.fromMemSeg(pair.A.memSeg);
-    const polygonB: Polygon = Polygon.fromMemSeg(pair.B.memSeg);
+    const polygonA: Polygon = Polygon.fromMemSeg(pair.nodes[0].memSeg);
+    const polygonB: Polygon = Polygon.fromMemSeg(pair.nodes[1].memSeg);
     const tmpPolygon: Polygon = Polygon.create();
     let nfp: Float64Array[] = null;
     let i: number = 0;
@@ -1063,13 +1063,13 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         }
 
         // generate nfps for children (holes of parts) if any exist
-        if (useHoles && pair.A.children.length !== 0) {
-            const childCount: number = pair.A.children.length;
+        if (useHoles && pair.nodes[0].children.length !== 0) {
+            const childCount: number = pair.nodes[0].children.length;
             let node: PolygonNode = null;
             const child: Polygon = Polygon.create();
 
             for (i = 0; i < childCount; ++i) {
-                node = pair.A.children[i];
+                node = pair.nodes[0].children[i];
                 child.bind(node.memSeg);
 
                 // no need to find nfp if B's bounding box is too big

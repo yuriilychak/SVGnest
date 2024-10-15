@@ -27,8 +27,7 @@ export type BoundRect = {
 };
 
 export type NFPPair = {
-    A: PolygonNode;
-    B: PolygonNode;
+    nodes: PolygonNode[];
     key: number;
 };
 

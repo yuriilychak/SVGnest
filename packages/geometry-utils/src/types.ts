@@ -54,7 +54,6 @@ export type PolygonNode = {
 };
 
 export type NFPPair = {
-    A: PolygonNode;
-    B: PolygonNode;
+    nodes: PolygonNode[];
     key: number;
 };

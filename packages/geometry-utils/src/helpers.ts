@@ -219,12 +219,11 @@ export function randomAngle(part: IPolygon, angleCount: number, binBounds: Bound
     return 0;
 }
 
-export function legacyToPolygonNode(polygon: IPolygon): PolygonNode {
+export function legacyToPolygonNode(polygon: IPolygon, children: PolygonNode[]): PolygonNode {
     const pointCount: number = polygon.length;
     const source: number = polygon.source || -1;
     const rotation: number = polygon.rotation || 0;
     const memSeg: Float64Array = new Float64Array(pointCount << 1);
-    const children: IPolygon[] = polygon.children || [];
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
@@ -232,7 +231,23 @@ export function legacyToPolygonNode(polygon: IPolygon): PolygonNode {
         memSeg[(i << 1) + 1] = polygon[i].y;
     }
 
-    return { source, rotation, memSeg, children: children.map(legacyToPolygonNode) };
+    return { source, rotation, memSeg, children };
+}
+
+export function legacyToPolygonNodes(polygons: IPolygon[] = []): PolygonNode[] {
+    const result: PolygonNode[] = [];
+    const polygonCount: number = polygons.length;
+    let polygon: IPolygon = null;
+    let children: PolygonNode[] = null;
+    let i: number = 0;
+
+    for (i = 0; i < polygonCount; ++i) {
+        polygon = polygons[i];
+        children = legacyToPolygonNodes(polygon.children);
+        result.push(legacyToPolygonNode(polygon, children));
+    }
+
+    return result;
 }
 
 function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): void {
@@ -247,13 +262,15 @@ function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): 
     }
 }
 
-export function getNfpPair(polygon1: IPolygon, polygon2: IPolygon, key: number, rotation1: number, rotation2: number): NFPPair {
+export function getNfpPair(key: number, polygons: IPolygon[], rotations: number[]): NFPPair {
     const polygon: Polygon = Polygon.create();
-    const A: PolygonNode = legacyToPolygonNode(polygon1);
-    const B: PolygonNode = legacyToPolygonNode(polygon2);
+    const nodes: PolygonNode[] = legacyToPolygonNodes(polygons);
+    const nodeCount: number = nodes.length;
+    let i: number = 0;
 
-    rotateNode(polygon, A, rotation1);
-    rotateNode(polygon, B, rotation2);
+    for (i = 0; i < nodeCount; ++i) {
+        rotateNode(polygon, nodes[i], rotations[i]);
+    }
 
-    return { A, B, key };
+    return { nodes, key };
 }
