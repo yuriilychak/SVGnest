@@ -1,4 +1,5 @@
-import { IPolygon } from '../types';
+import { legacyToPolygonNodes } from 'geometry-utils';
+import { IPolygon, PolygonNode } from '../types';
 
 export default class Phenotype {
     #rotations: number[];
@@ -21,7 +22,8 @@ export default class Phenotype {
         return new Phenotype(this.#placement.slice(), this.#rotations.slice());
     }
 
-    public contains(id: number): boolean {
+    public contains(polygon: IPolygon): boolean {
+        const id: number = polygon.source;
         const size: number = this.size;
         let i: number = 0;
 
@@ -43,7 +45,7 @@ export default class Phenotype {
             placement = phenotype.placement[i];
             rotation = phenotype.rotation[i];
 
-            if (!this.contains(placement.source)) {
+            if (!this.contains(placement)) {
                 this.#placement.push(placement);
                 this.#rotations.push(rotation);
             }
@@ -63,6 +65,12 @@ export default class Phenotype {
         this.#placement[nextIndex] = placement;
 
         return true;
+    }
+
+    public export(): PolygonNode[] {
+        const nodes = legacyToPolygonNodes(this.#placement);
+
+        return nodes;
     }
 
     public get placement(): IPolygon[] {

@@ -1,10 +1,9 @@
-import { ClipperWrapper, getPlacementData } from 'geometry-utils';
+import { ClipperWrapper, getPlacementData, legacyToPolygonNodes } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
 import { BoundRect, DisplayCallback, IPoint, IPolygon, NestConfig, PolygonNode, THREAD_TYPE } from './types';
-import { legacyToPolygonNodes } from 'geometry-utils/src/helpers';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -90,7 +89,7 @@ export default class PolygonPacker {
         // can't use .spawn because our data is an array
         this.#paralele.start(
             THREAD_TYPE.PLACEMENT,
-            [this.#nfpStore.clonePlacement()],
+            [this.#nfpStore.exportPlacement()],
             placementWorkerData,
             (placements: ArrayBuffer[]) => this.onPlacement(tree, configuration, placements, displayCallback),
             this.onError

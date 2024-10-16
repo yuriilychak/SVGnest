@@ -1,7 +1,7 @@
 import { generateNFPCacheKey, getNfpPair } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
-import { IPolygon, NFPPair, PlacementWorkerData, NFPCache } from './types';
+import { IPolygon, NFPPair, PlacementWorkerData, NFPCache, PolygonNode } from './types';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<number, ArrayBuffer>();
@@ -18,7 +18,6 @@ export default class NFPStore {
         this.#nfpPairs = [];
 
         const placeList: IPolygon[] = this.#individual.placement;
-        const rotations: number[] = this.#individual.rotation;
         const placeCount: number = placeList.length;
         const newCache: NFPCache = new Map<number, ArrayBuffer>();
         let part = null;
@@ -27,7 +26,6 @@ export default class NFPStore {
 
         for (i = 0; i < placeCount; ++i) {
             part = placeList[i];
-            part.rotation = rotations[i];
 
             this.updateCache(binPolygon, part, true, newCache);
 
@@ -81,8 +79,8 @@ export default class NFPStore {
         return { angleSplit: this.#angleSplit, binArea, nfpCache: this.#nfpCache };
     }
 
-    public clonePlacement(): IPolygon[] {
-        return this.#individual.placement.slice();
+    public exportPlacement(): PolygonNode[] {
+        return this.#individual.export();
     }
 
     public get nfpPairs(): NFPPair[] {

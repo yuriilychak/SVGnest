@@ -1,6 +1,6 @@
 import ClipperLib from 'js-clipper';
-import { IPoint, IPolygon, PlacementWorkerData, PolygonNode } from './types';
-import { legacyToPolygonNodes, rotateNode } from './helpers';
+import { IPoint, PlacementWorkerData, PolygonNode } from './types';
+import { rotateNode } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { almostEqual, generateNFPCacheKey, getUint16, joinUint16, toRotationIndex } from './shared-helpers';
 import Point from './point';
@@ -197,8 +197,7 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
     return result;
 }
 
-export function placePaths(inputPaths: IPolygon[], placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
-    const nodes: PolygonNode[] = legacyToPolygonNodes(inputPaths);
+export function placePaths(nodes: PolygonNode[], placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
     const nodeCount: number = nodes.length;
     // rotate paths by given rotation
     const polygon: Polygon = Polygon.create();

@@ -1,11 +1,11 @@
-import type { IPolygon, NestConfig, NFPPair, ThreadData } from '../types';
+import type { PolygonNode, NestConfig, NFPPair, ThreadData } from '../types';
 
 // Use importScripts to load the external script
 declare function importScripts(...urls: string[]): void;
 
 declare module geometryUtils {
     export class PointPool {}
-    export function placePaths(paths: IPolygon[], config: NestConfig, pointPool: PointPool): Float64Array;
+    export function placePaths(paths: PolygonNode[], config: NestConfig, pointPool: PointPool): Float64Array;
     export function pairData(paths: NFPPair, config: NestConfig, pointPool: PointPool): Float64Array;
 }
 
@@ -23,7 +23,7 @@ function applyWorkerFlow(instance: MessagePort | Worker) {
         }
 
         const result: Float64Array =
-            id === 'pair' ? pairData(data as NFPPair, env, pointPool) : placePaths(data as IPolygon[], env, pointPool);
+            id === 'pair' ? pairData(data as NFPPair, env, pointPool) : placePaths(data as PolygonNode[], env, pointPool);
         const buffer = result.buffer;
 
         instance.postMessage(buffer, [buffer]);

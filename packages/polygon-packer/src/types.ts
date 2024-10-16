@@ -68,7 +68,7 @@ export type PlacementData = {
 export type ThreadData = {
     env: NestConfig;
     id: string;
-    data: IPolygon[] | NFPPair;
+    data: PolygonNode[] | NFPPair;
 };
 
-export type ThreadInput = IPolygon[] | NFPPair;
+export type ThreadInput = PolygonNode[] | NFPPair;
