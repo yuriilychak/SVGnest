@@ -1,5 +1,5 @@
 import { NFP_KEY_INDICES, TOL, UINT16_BIT_COUNT } from './constants';
-import { IPolygon, NFPContent, PolygonNode } from './types';
+import { NFPContent, PolygonNode } from './types';
 
 export function getMask(bitCount: number, offset: number = 0): number {
     return ((1 << bitCount) - 1) << offset;
@@ -47,12 +47,7 @@ export function toRotationIndex(angle: number, rotationSplit: number): number {
     return Math.round((angle * rotationSplit) / 360);
 }
 
-export function generateNFPCacheKey(
-    rotationSplit: number,
-    inside: boolean,
-    polygon1: IPolygon | PolygonNode,
-    polygon2: IPolygon | PolygonNode
-) {
+export function generateNFPCacheKey(rotationSplit: number, inside: boolean, polygon1: PolygonNode, polygon2: PolygonNode) {
     const rotationIndex1: number = toRotationIndex(polygon1.rotation, rotationSplit);
     const rotationIndex2: number = toRotationIndex(polygon2.rotation, rotationSplit);
     const data: number[] = [polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0];

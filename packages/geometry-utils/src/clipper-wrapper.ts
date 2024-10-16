@@ -2,7 +2,7 @@
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
 import { BoundRect, IPoint, IPolygon, NestConfig, PolygonNode } from './types';
-import { getPolygonBounds, legacyToPolygonNode, nestPolygons, polygonArea } from './helpers';
+import { getPolygonBounds, legacyToPolygonNode, legacyToPolygonNodes, nestPolygons, polygonArea } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
 import { almostEqual } from './shared-helpers';
@@ -50,7 +50,7 @@ export default class ClipperWrapper {
         return { binNode: legacyToPolygonNode(binPolygon, []), bounds, resultBounds, area };
     }
 
-    public generateTree(points: IPoint[][]): IPolygon[] {
+    public generateTree(points: IPoint[][]): PolygonNode[] {
         const { curveTolerance } = this.configuration;
         const trashold = curveTolerance * curveTolerance;
         const tree: IPolygon[] = [];
@@ -73,7 +73,7 @@ export default class ClipperWrapper {
         // turn the list into a tree
         nestPolygons(tree);
 
-        return this.offsetPolygons(tree, 1);
+        return legacyToPolygonNodes(this.offsetPolygons(tree, 1));
     }
 
     private offsetPolygons(polygons: IPolygon[], sign: number): IPolygon[] {

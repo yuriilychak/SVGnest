@@ -1,4 +1,4 @@
-import { ClipperWrapper, getPlacementData, legacyToPolygonNodes } from 'geometry-utils';
+import { ClipperWrapper, getPlacementData } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
@@ -40,7 +40,6 @@ export default class PolygonPacker {
         displayCallback: DisplayCallback
     ): void {
         const clipperWrapper = new ClipperWrapper(configuration);
-        const tree = clipperWrapper.generateTree(polygons);
         const binData = clipperWrapper.generateBounds(binPolygon);
 
         this.#binNode = binData.binNode;
@@ -48,7 +47,7 @@ export default class PolygonPacker {
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
         this.#isWorking = true;
-        this.#nodes = legacyToPolygonNodes(tree);
+        this.#nodes = clipperWrapper.generateTree(polygons);
 
         this.launchWorkers(configuration, displayCallback);
 
