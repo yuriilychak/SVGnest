@@ -164,40 +164,6 @@ export function getPlacementData(binArea: number, nodes: PolygonNode[], placemen
     return placedCount + placedArea / totalArea;
 }
 
-// returns a random angle of insertion
-export function randomAngle(node: PolygonNode, angleCount: number, binBounds: BoundRect): number {
-    const polygon: Polygon = Polygon.create();
-    const lastIndex: number = angleCount - 1;
-    const angles: number[] = [];
-    const step: number = 360 / angleCount;
-    let angle: number = 0;
-    let i: number = 0;
-    let j: number = 0;
-
-    for (i = 0; i < angleCount; ++i) {
-        angles.push(i * step);
-    }
-
-    for (i = lastIndex; i > 0; --i) {
-        j = Math.floor(Math.random() * (i + 1));
-        angle = angles[i];
-        angles[i] = angles[j];
-        angles[j] = angle;
-    }
-
-    for (i = 0; i < angleCount; ++i) {
-        polygon.bind(node.memSeg.slice());
-        polygon.rotate(angles[i]);
-
-        // don't use obviously bad angles where the part doesn't fit in the bin
-        if (polygon.size.x < binBounds.width && polygon.size.y < binBounds.height) {
-            return angles[i];
-        }
-    }
-
-    return 0;
-}
-
 export function legacyToPolygonNode(polygon: IPolygon, children: PolygonNode[] = []): PolygonNode {
     const pointCount: number = polygon.length;
     const source: number = typeof polygon.source === 'number' ? polygon.source : -1;
@@ -258,25 +224,6 @@ function cloneNodes(nodes: PolygonNode[]): PolygonNode[] {
     }
 
     return result;
-}
-
-export function getAdam(nodes: PolygonNode[]): PolygonNode[] {
-    const polygon: Polygon = Polygon.create();
-    const result: PolygonNode[] = nodes.slice();
-    let areaA: number = 0;
-    let areaB: number = 0;
-
-    return result.sort((a, b) => {
-        polygon.bind(a.memSeg);
-
-        areaA = polygon.absArea;
-
-        polygon.bind(b.memSeg);
-
-        areaB = polygon.absArea;
-
-        return areaB - areaA;
-    });
 }
 
 export function getNfpPair(key: number, polygons: PolygonNode[]): NFPPair {
