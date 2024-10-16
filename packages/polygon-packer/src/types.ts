@@ -3,12 +3,6 @@ export interface IPoint {
     y: number;
 }
 
-export interface IPolygon extends Array<IPoint> {
-    source: number;
-    rotation?: number;
-    children: IPolygon[];
-}
-
 export type NestConfig = {
     curveTolerance: number;
     spacing: number;

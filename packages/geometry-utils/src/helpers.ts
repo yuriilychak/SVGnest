@@ -164,34 +164,9 @@ export function getPlacementData(binArea: number, nodes: PolygonNode[], placemen
     return placedCount + placedArea / totalArea;
 }
 
-export function getAdam(tree: IPolygon[]): IPolygon[] {
-    const polygon: Polygon = Polygon.create();
-    const result: IPolygon[] = tree.slice();
-    let node: PolygonNode = null;
-    let areaA: number = 0;
-    let areaB: number = 0;
-
-    return result.sort((a, b) => {
-        node = legacyToPolygonNode(a, []);
-
-        polygon.bind(node.memSeg);
-
-        areaA = polygon.absArea;
-
-        node = legacyToPolygonNode(b, []);
-
-        polygon.bind(node.memSeg);
-
-        areaB = polygon.absArea;
-
-        return areaB - areaA;
-    });
-}
-
 // returns a random angle of insertion
-export function randomAngle(part: IPolygon, angleCount: number, binBounds: BoundRect): number {
+export function randomAngle(node: PolygonNode, angleCount: number, binBounds: BoundRect): number {
     const polygon: Polygon = Polygon.create();
-    const node: PolygonNode = legacyToPolygonNode(part, []);
     const lastIndex: number = angleCount - 1;
     const angles: number[] = [];
     const step: number = 360 / angleCount;
@@ -223,9 +198,9 @@ export function randomAngle(part: IPolygon, angleCount: number, binBounds: Bound
     return 0;
 }
 
-export function legacyToPolygonNode(polygon: IPolygon, children: PolygonNode[]): PolygonNode {
+export function legacyToPolygonNode(polygon: IPolygon, children: PolygonNode[] = []): PolygonNode {
     const pointCount: number = polygon.length;
-    const source: number = polygon.source || -1;
+    const source: number = typeof polygon.source === 'number' ? polygon.source : -1;
     const rotation: number = polygon.rotation || 0;
     const memSeg: Float64Array = new Float64Array(pointCount << 1);
     let i: number = 0;
@@ -266,9 +241,47 @@ export function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: nu
     }
 }
 
-export function getNfpPair(key: number, polygons: IPolygon[]): NFPPair {
+function cloneNodes(nodes: PolygonNode[]): PolygonNode[] {
+    const result: PolygonNode[] = [];
+    const nodeCount: number = nodes.length;
+    let node: PolygonNode = null;
+    let i: number = 0;
+
+    for (i = 0; i < nodeCount; ++i) {
+        node = nodes[i];
+
+        result.push({
+            ...node,
+            memSeg: node.memSeg.slice(),
+            children: cloneNodes(node.children)
+        });
+    }
+
+    return result;
+}
+
+export function getAdam(nodes: PolygonNode[]): PolygonNode[] {
     const polygon: Polygon = Polygon.create();
-    const nodes: PolygonNode[] = legacyToPolygonNodes(polygons);
+    const result: PolygonNode[] = nodes.slice();
+    let areaA: number = 0;
+    let areaB: number = 0;
+
+    return result.sort((a, b) => {
+        polygon.bind(a.memSeg);
+
+        areaA = polygon.absArea;
+
+        polygon.bind(b.memSeg);
+
+        areaB = polygon.absArea;
+
+        return areaB - areaA;
+    });
+}
+
+export function getNfpPair(key: number, polygons: PolygonNode[]): NFPPair {
+    const polygon: Polygon = Polygon.create();
+    const nodes: PolygonNode[] = cloneNodes(polygons);
     const nodeCount: number = nodes.length;
     let i: number = 0;
 

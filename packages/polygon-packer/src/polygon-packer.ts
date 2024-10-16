@@ -3,12 +3,12 @@ import { ClipperWrapper, getPlacementData, legacyToPolygonNodes } from 'geometry
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import { BoundRect, DisplayCallback, IPoint, IPolygon, NestConfig, PolygonNode, THREAD_TYPE } from './types';
+import { BoundRect, DisplayCallback, IPoint, NestConfig, PolygonNode, THREAD_TYPE } from './types';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
 
-    #binPolygon: IPolygon = null;
+    #binNode: PolygonNode = null;
 
     #binArea: number = 0;
 
@@ -43,14 +43,14 @@ export default class PolygonPacker {
         const tree = clipperWrapper.generateTree(polygons);
         const binData = clipperWrapper.generateBounds(binPolygon);
 
-        this.#binPolygon = binData.binPolygon;
+        this.#binNode = binData.binNode;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
         this.#isWorking = true;
         this.#nodes = legacyToPolygonNodes(tree);
 
-        this.launchWorkers(tree, configuration, displayCallback);
+        this.launchWorkers(configuration, displayCallback);
 
         this.#workerTimer = setInterval(() => {
             progressCallback(this.#progress);
@@ -61,14 +61,14 @@ export default class PolygonPacker {
         this.#progress = spawnCount / this.#nfpStore.nfpPairs.length;
     };
 
-    launchWorkers(tree: IPolygon[], configuration: NestConfig, displayCallback: DisplayCallback) {
-        this.#geneticAlgorithm.init(tree, this.#resultBounds, configuration);
-        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binPolygon, configuration.rotations);
+    launchWorkers(configuration: NestConfig, displayCallback: DisplayCallback) {
+        this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, configuration);
+        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binNode, configuration.rotations);
         this.#paralele.start(
             THREAD_TYPE.PAIR,
             this.#nfpStore.nfpPairs,
             configuration,
-            (generatedNfp: ArrayBuffer[]) => this.onPair(tree, configuration, generatedNfp, displayCallback),
+            (generatedNfp: ArrayBuffer[]) => this.onPair(configuration, generatedNfp, displayCallback),
             this.onError,
             this.onSpawn
         );
@@ -78,30 +78,20 @@ export default class PolygonPacker {
         console.log(error);
     }
 
-    private onPair(
-        tree: IPolygon[],
-        configuration: NestConfig,
-        generatedNfp: ArrayBuffer[],
-        displayCallback: DisplayCallback
-    ): void {
+    private onPair(configuration: NestConfig, generatedNfp: ArrayBuffer[], displayCallback: DisplayCallback): void {
         const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, this.#binArea);
 
         // can't use .spawn because our data is an array
         this.#paralele.start(
             THREAD_TYPE.PLACEMENT,
-            [this.#nfpStore.exportPlacement()],
+            [this.#nfpStore.placement],
             placementWorkerData,
-            (placements: ArrayBuffer[]) => this.onPlacement(tree, configuration, placements, displayCallback),
+            (placements: ArrayBuffer[]) => this.onPlacement(configuration, placements, displayCallback),
             this.onError
         );
     }
 
-    private onPlacement(
-        tree: IPolygon[],
-        configuration: NestConfig,
-        placements: ArrayBuffer[],
-        displayCallback: DisplayCallback
-    ): void {
+    private onPlacement(configuration: NestConfig, placements: ArrayBuffer[], displayCallback: DisplayCallback): void {
         if (placements.length === 0) {
             return;
         }
@@ -141,7 +131,7 @@ export default class PolygonPacker {
 
         if (this.#isWorking) {
             displayCallback(result, placePerecntage, numPlacedParts, numParts);
-            this.launchWorkers(tree, configuration, displayCallback);
+            this.launchWorkers(configuration, displayCallback);
         }
     }
 
@@ -158,7 +148,7 @@ export default class PolygonPacker {
         if (isClean) {
             this.#nodes = [];
             this.#best = null;
-            this.#binPolygon = null;
+            this.#binNode = null;
             this.#geneticAlgorithm.clean();
             this.#nfpStore.clean();
         }

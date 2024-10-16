@@ -1,6 +1,6 @@
 import { getAdam, randomAngle } from 'geometry-utils';
 
-import { BoundRect, IPolygon, NestConfig } from '../types';
+import { BoundRect, NestConfig, PolygonNode } from '../types';
 import Phenotype from './phenotype';
 
 export default class GeneticAlgorithm {
@@ -14,7 +14,7 @@ export default class GeneticAlgorithm {
 
     #trashold: number = 0;
 
-    public init(tree: IPolygon[], bounds: BoundRect, config: NestConfig): void {
+    public init(nodes: PolygonNode[], bounds: BoundRect, config: NestConfig): void {
         if (!this.#isEmpty) {
             return;
         }
@@ -25,7 +25,7 @@ export default class GeneticAlgorithm {
         this.#binBounds = bounds;
 
         // initiate new GA
-        const adam: IPolygon[] = getAdam(tree);
+        const adam: PolygonNode[] = getAdam(nodes);
         // population is an array of individuals. Each individual is a object representing the
         // order of insertion and the angle each part is rotated
         const angles: number[] = [];

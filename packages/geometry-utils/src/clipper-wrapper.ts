@@ -1,8 +1,8 @@
 // Import the library if needed for side effects
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
-import { BoundRect, IPoint, IPolygon, NestConfig } from './types';
-import { getPolygonBounds, nestPolygons, polygonArea } from './helpers';
+import { BoundRect, IPoint, IPolygon, NestConfig, PolygonNode } from './types';
+import { getPolygonBounds, legacyToPolygonNode, nestPolygons, polygonArea } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
 import { almostEqual } from './shared-helpers';
@@ -15,7 +15,7 @@ export default class ClipperWrapper {
     }
 
     public generateBounds(points: IPoint[]): {
-        binPolygon: IPolygon;
+        binNode: PolygonNode;
         bounds: BoundRect;
         resultBounds: BoundRect;
         area: number;
@@ -47,7 +47,7 @@ export default class ClipperWrapper {
         const resultBounds = getPolygonBounds(binPolygon);
         const area: number = polygonArea(binPolygon);
 
-        return { binPolygon, bounds, resultBounds, area };
+        return { binNode: legacyToPolygonNode(binPolygon, []), bounds, resultBounds, area };
     }
 
     public generateTree(points: IPoint[][]): IPolygon[] {
