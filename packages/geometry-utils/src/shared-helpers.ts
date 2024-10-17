@@ -82,3 +82,7 @@ export function keyToNFPData(numKey: number, rotationSplit: number): NFPContent 
         Brotation: result[3] * rotationOffset
     };
 }
+
+export function getPolygonNode(source: number, memSeg: Float64Array): PolygonNode {
+    return { source, rotation: 0, memSeg, children: [] };
+}

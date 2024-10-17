@@ -2,15 +2,19 @@
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
 import { BoundRect, IPoint, NestConfig, PolygonNode } from './types';
-import { nestPolygons, pointsToMemSeg } from './helpers';
+import { pointsToMemSeg } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
+import { getPolygonNode } from './shared-helpers';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
 
+    private polygon: Polygon;
+
     constructor(configuration: NestConfig) {
         this.configuration = configuration;
+        this.polygon = Polygon.create();
     }
 
     public generateBounds(points: IPoint[]): {
@@ -19,36 +23,30 @@ export default class ClipperWrapper {
         resultBounds: BoundRect;
         area: number;
     } {
-        const polygon: Polygon = Polygon.create();
-        const binNode: PolygonNode = {
-            source: -1,
-            rotation: 0,
-            memSeg: pointsToMemSeg(points),
-            children: []
-        };
+        const memSeg: Float64Array = pointsToMemSeg(points);
 
-        polygon.bind(binNode.memSeg);
+        this.polygon.bind(memSeg);
 
-        if (polygon.isBroken) {
+        if (this.polygon.isBroken) {
             return null;
         }
 
-        const bounds: BoundRect = polygon.exportBounds();
+        const binNode: PolygonNode = getPolygonNode(-1, memSeg);
+        const bounds: BoundRect = this.polygon.exportBounds();
 
         this.cleanNode(binNode);
-        this.offsetNode(polygon, binNode, -1);
+        this.offsetNode(binNode, -1);
 
-        polygon.bind(binNode.memSeg);
-        polygon.resetPosition();
+        this.polygon.bind(binNode.memSeg);
+        this.polygon.resetPosition();
 
-        const resultBounds = polygon.exportBounds();
-        const area: number = polygon.area;
+        const resultBounds = this.polygon.exportBounds();
+        const area: number = this.polygon.area;
 
         return { binNode, bounds, resultBounds, area };
     }
 
     public generateTree(points: IPoint[][]): PolygonNode[] {
-        const polygon: Polygon = Polygon.create();
         const point: Point = Point.zero();
         const { curveTolerance } = this.configuration;
         const trashold = curveTolerance * curveTolerance;
@@ -60,18 +58,13 @@ export default class ClipperWrapper {
 
         for (i = 0; i < nodeCount; ++i) {
             memSeg = pointsToMemSeg(points[i]);
-            node = {
-                source: i,
-                rotation: 0,
-                memSeg,
-                children: []
-            };
+            node = getPolygonNode(i, memSeg);
 
             this.cleanNode(node);
 
-            polygon.bind(node.memSeg);
+            this.polygon.bind(node.memSeg);
 
-            if (polygon.isBroken || polygon.absArea <= trashold) {
+            if (this.polygon.isBroken || this.polygon.absArea <= trashold) {
                 console.warn('Can not parse polygon', i);
                 continue;
             }
@@ -80,26 +73,78 @@ export default class ClipperWrapper {
         }
 
         // turn the list into a tree
-        nestPolygons(polygon, point, nodes);
-
-        this.offsetNodes(polygon, nodes, 1);
+        this.nestPolygons(point, nodes);
+        this.offsetNodes(nodes, 1);
 
         return nodes;
     }
 
-    private offsetNodes(polygon: Polygon, nodes: PolygonNode[], sign: number): void {
+    // Main function to nest polygons
+    private nestPolygons(point: Point, nodes: PolygonNode[]): void {
+        const parents: PolygonNode[] = [];
+        let i: number = 0;
+        let j: number = 0;
+
+        // assign a unique id to each leaf
+        let nodeCount: number = nodes.length;
+        let outerNode: PolygonNode = null;
+        let innerNode: PolygonNode = null;
+        let isChild: boolean = false;
+
+        for (i = 0; i < nodeCount; ++i) {
+            outerNode = nodes[i];
+            isChild = false;
+            point.fromMemSeg(outerNode.memSeg, 0);
+
+            for (j = 0; j < nodeCount; ++j) {
+                innerNode = nodes[j];
+                this.polygon.bind(innerNode.memSeg);
+
+                if (j !== i && this.polygon.pointIn(point)) {
+                    innerNode.children.push(outerNode);
+                    isChild = true;
+                    break;
+                }
+            }
+
+            if (!isChild) {
+                parents.push(outerNode);
+            }
+        }
+
+        for (i = 0; i < nodeCount; ++i) {
+            if (parents.indexOf(nodes[i]) < 0) {
+                nodes.splice(i, 1);
+                --nodeCount;
+                --i;
+            }
+        }
+
+        const parentCount: number = parents.length;
+        let parent: PolygonNode = null;
+
+        for (i = 0; i < parentCount; ++i) {
+            parent = parents[i];
+
+            if (parent.children) {
+                this.nestPolygons(point, parent.children);
+            }
+        }
+    }
+
+    private offsetNodes(nodes: PolygonNode[], sign: number): void {
         const nodeCont: number = nodes.length;
         let node: PolygonNode = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCont; ++i) {
             node = nodes[i];
-            this.offsetNode(polygon, node, sign);
-            this.offsetNodes(polygon, node.children, -sign);
+            this.offsetNode(node, sign);
+            this.offsetNodes(node.children, -sign);
         }
     }
 
-    private offsetNode(polygon: Polygon, node: PolygonNode, sign: number): void {
+    private offsetNode(node: PolygonNode, sign: number): void {
         if (this.configuration.spacing !== 0) {
             const { curveTolerance, spacing } = this.configuration;
             const offset: number = 0.5 * spacing * sign;
@@ -118,44 +163,9 @@ export default class ClipperWrapper {
             node.memSeg = ClipperWrapper.toMemSeg(resultPath[0]);
         }
 
-        polygon.bind(node.memSeg);
+        this.polygon.bind(node.memSeg);
 
-        node.memSeg = polygon.normalize();
-    }
-
-    private cleanPolygon(polygon: IPoint[]): IPoint[] {
-        const { curveTolerance } = this.configuration;
-        const clipperPolygon = ClipperWrapper.toClipper(polygon);
-        const simple: IntPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IntPoint[][];
-
-        if (!simple || simple.length === 0) {
-            return null;
-        }
-
-        let i: number = 0;
-        let biggest: IntPoint[] = simple[0];
-        let biggestArea: number = Math.abs(Clipper.Area(biggest));
-        let area: number = 0;
-        let pointCount: number = simple.length;
-
-        for (i = 1; i < pointCount; ++i) {
-            area = Math.abs(Clipper.Area(simple[i]));
-
-            if (area > biggestArea) {
-                biggest = simple[i];
-                biggestArea = area;
-            }
-        }
-
-        // clean up singularities, coincident points and edges
-        const cleanPolygon: IntPoint[] = Clipper.CleanPolygon(biggest, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
-        pointCount = cleanPolygon && cleanPolygon.length ? cleanPolygon.length : 0;
-
-        if (!pointCount) {
-            return null;
-        }
-
-        return ClipperWrapper.toNestLegacy(cleanPolygon);
+        node.memSeg = this.polygon.normalize();
     }
 
     private cleanNode(node: PolygonNode): void {
@@ -194,7 +204,7 @@ export default class ClipperWrapper {
     }
 
     public static toClipper(
-        polygon: IPoint[] | Polygon,
+        polygon: Polygon,
         scale: number = 1,
         offset: IPoint = { x: 0, y: 0 },
         isRound: boolean = false,
@@ -235,20 +245,6 @@ export default class ClipperWrapper {
                 X: memSeg[i << 1] * ClipperWrapper.CLIPPER_SCALE,
                 Y: memSeg[(i << 1) + 1] * ClipperWrapper.CLIPPER_SCALE
             });
-        }
-
-        return result;
-    }
-
-    public static toNestLegacy(polygon: IntPoint[]): IPoint[] {
-        const pointCount: number = polygon.length;
-        const result: IPoint[] = [];
-        let i: number = 0;
-        let point: IntPoint = null;
-
-        for (i = 0; i < pointCount; ++i) {
-            point = polygon[i];
-            result.push({ x: point.X / ClipperWrapper.CLIPPER_SCALE, y: point.Y / ClipperWrapper.CLIPPER_SCALE });
         }
 
         return result;
