@@ -34,8 +34,8 @@ export default class PolygonPacker {
     // displayCallback is called when a new placement has been made
     public start(
         configuration: NestConfig,
-        polygons: IPoint[][],
-        binPolygon: IPoint[],
+        polygons: Float64Array[],
+        binPolygon: Float64Array,
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {

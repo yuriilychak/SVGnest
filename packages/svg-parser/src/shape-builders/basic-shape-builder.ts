@@ -34,7 +34,7 @@ export default class BasicShapeBuilder extends BasicElementBuilder {
         }
     }
 
-    public getResult(): IPoint[] {
+    public getResult(): Float64Array {
         let pointCount: number = this.#result.length;
 
         while (
@@ -46,7 +46,15 @@ export default class BasicShapeBuilder extends BasicElementBuilder {
             --pointCount;
         }
 
-        return this.#result;
+        const result: Float64Array = new Float64Array(pointCount << 1);
+        let i: number = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            result[i << 1] = this.#result[i].x;
+            result[(i << 1) + 1] = this.#result[i].y;
+        }
+
+        return result;
     }
 
     private static almostEqual(a: number, b: number, tolerance: number): boolean {

@@ -2,7 +2,6 @@
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
 import { BoundRect, IPoint, NestConfig, PolygonNode } from './types';
-import { pointsToMemSeg } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
 import { getPolygonNode } from './shared-helpers';
@@ -17,14 +16,12 @@ export default class ClipperWrapper {
         this.polygon = Polygon.create();
     }
 
-    public generateBounds(points: IPoint[]): {
+    public generateBounds(memSeg: Float64Array): {
         binNode: PolygonNode;
         bounds: BoundRect;
         resultBounds: BoundRect;
         area: number;
     } {
-        const memSeg: Float64Array = pointsToMemSeg(points);
-
         this.polygon.bind(memSeg);
 
         if (this.polygon.isBroken) {
@@ -46,18 +43,18 @@ export default class ClipperWrapper {
         return { binNode, bounds, resultBounds, area };
     }
 
-    public generateTree(points: IPoint[][]): PolygonNode[] {
+    public generateTree(memSegs: Float64Array[]): PolygonNode[] {
         const point: Point = Point.zero();
         const { curveTolerance } = this.configuration;
         const trashold = curveTolerance * curveTolerance;
         const nodes: PolygonNode[] = [];
-        const nodeCount: number = points.length;
+        const nodeCount: number = memSegs.length;
         let memSeg: Float64Array = null;
         let node: PolygonNode = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
-            memSeg = pointsToMemSeg(points[i]);
+            memSeg = memSegs[i];
             node = getPolygonNode(i, memSeg);
 
             this.cleanNode(node);

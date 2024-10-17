@@ -1,18 +1,5 @@
-import { IPoint, NFPPair, PolygonNode } from './types';
+import { NFPPair, PolygonNode } from './types';
 import Polygon from './polygon';
-
-export function pointsToMemSeg(points: IPoint[]): Float64Array {
-    const pointCount: number = points.length;
-    const result: Float64Array = new Float64Array(pointCount << 1);
-    let i: number = 0;
-
-    for (i = 0; i < pointCount; ++i) {
-        result[i << 1] = points[i].x;
-        result[(i << 1) + 1] = points[i].y;
-    }
-
-    return result;
-}
 
 export function rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): void {
     polygon.bind(rootNode.memSeg);

@@ -1,10 +1,9 @@
 import { INode } from 'svgson';
 
 import BasicShapeBuilder from './basic-shape-builder';
-import { IPoint } from '../types';
 
 export default class EllipseBuilder extends BasicShapeBuilder {
-    public getResult(): IPoint[] {
+    public getResult(): Float64Array {
         const rx: number = this.getFloatAtrribute('rx');
         const ry: number = this.getFloatAtrribute('ry');
         const cx: number = this.getFloatAtrribute('cx');

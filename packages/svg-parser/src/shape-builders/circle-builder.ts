@@ -1,10 +1,9 @@
 import { INode } from 'svgson';
 
-import { IPoint } from '../types';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class CircleBuilder extends BasicShapeBuilder {
-    public getResult(): IPoint[] {
+    public getResult(): Float64Array {
         const radius: number = this.getFloatAtrribute('r');
         const cx: number = this.getFloatAtrribute('cx');
         const cy: number = this.getFloatAtrribute('cy');

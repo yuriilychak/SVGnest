@@ -1,10 +1,9 @@
 import { INode } from 'svgson';
 
-import { IPoint } from '../types';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class RectBuilder extends BasicShapeBuilder {
-    public getResult(): IPoint[] {
+    public getResult(): Float64Array {
         const x: number = this.getFloatAtrribute('x');
         const y: number = this.getFloatAtrribute('y');
         const width: number = this.getFloatAtrribute('width');
