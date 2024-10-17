@@ -1,8 +1,8 @@
 // Import the library if needed for side effects
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
-import { BoundRect, IPoint, IPolygon, NestConfig, PolygonNode } from './types';
-import { legacyToPolygonNodes, nestPolygons, pointsToMemSeg, polygonArea } from './helpers';
+import { BoundRect, IPoint, NestConfig, PolygonNode } from './types';
+import { nestPolygons, pointsToMemSeg } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
 
@@ -48,30 +48,39 @@ export default class ClipperWrapper {
     }
 
     public generateTree(points: IPoint[][]): PolygonNode[] {
+        const polygon: Polygon = Polygon.create();
+        const point: Point = Point.zero();
         const { curveTolerance } = this.configuration;
         const trashold = curveTolerance * curveTolerance;
-        const tree: IPolygon[] = [];
+        const nodes: PolygonNode[] = [];
         const nodeCount: number = points.length;
-        let node: IPolygon = null;
+        let memSeg: Float64Array = null;
+        let node: PolygonNode = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
-            node = this.cleanPolygon(points[i]) as IPolygon;
+            memSeg = pointsToMemSeg(points[i]);
+            node = {
+                source: i,
+                rotation: 0,
+                memSeg,
+                children: []
+            };
 
-            if (node.length < 3 || Math.abs(polygonArea(node)) <= trashold) {
+            this.cleanNode(node);
+
+            polygon.bind(node.memSeg);
+
+            if (polygon.isBroken || polygon.absArea <= trashold) {
                 console.warn('Can not parse polygon', i);
                 continue;
             }
 
-            node.source = i;
-            node.children = [];
-            tree.push(node);
+            nodes.push(node);
         }
-        // turn the list into a tree
-        nestPolygons(tree);
 
-        const nodes = legacyToPolygonNodes(tree);
-        const polygon: Polygon = Polygon.create();
+        // turn the list into a tree
+        nestPolygons(polygon, point, nodes);
 
         this.offsetNodes(polygon, nodes, 1);
 
