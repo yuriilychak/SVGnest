@@ -1,6 +1,6 @@
-import { BoundRect, IPoint, IPolygon, NFPPair, PolygonNode } from './types';
+import { IPoint, IPolygon, NFPPair, PolygonNode } from './types';
 import Point from './point';
-import { cycleIndex, getUint16 } from './shared-helpers';
+import { cycleIndex } from './shared-helpers';
 import Polygon from './polygon';
 
 // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
@@ -110,36 +110,6 @@ export function nestPolygons(polygons: IPolygon[]): void {
             nestPolygons(parent.children);
         }
     }
-}
-
-export function getPlacementData(binArea: number, nodes: PolygonNode[], placementsData: Float64Array): number {
-    const polygon: Polygon = Polygon.create();
-    const placementCount = placementsData[1];
-    let placedCount: number = 0;
-    let placedArea: number = 0;
-    let totalArea: number = 0;
-    let pathId: number = 0;
-    let itemData: number = 0;
-    let offset: number = 0;
-    let size: number = 0;
-    let i: number = 0;
-    let j: number = 0;
-
-    for (i = 0; i < placementCount; ++i) {
-        totalArea += binArea;
-        itemData = placementsData[2 + i];
-        offset = getUint16(itemData, 1);
-        size = getUint16(itemData, 0);
-        placedCount += size;
-
-        for (j = 0; j < size; ++j) {
-            pathId = getUint16(placementsData[offset + j], 1);
-            polygon.bind(nodes[pathId].memSeg);
-            placedArea += polygon.absArea;
-        }
-    }
-
-    return placedCount + placedArea / totalArea;
 }
 
 export function pointsToMemSeg(points: IPoint[]): Float64Array {

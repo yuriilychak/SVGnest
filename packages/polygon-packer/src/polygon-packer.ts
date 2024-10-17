@@ -1,4 +1,4 @@
-import { ClipperWrapper, getPlacementData } from 'geometry-utils';
+import { ClipperWrapper, getUint16, Polygon } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
@@ -115,11 +115,36 @@ export default class PolygonPacker {
         if (!this.#best || placementsData[0] < this.#best[0]) {
             this.#best = placementsData;
 
-            const placementData: number = getPlacementData(Math.abs(this.#binArea), this.#nodes, placementsData);
+            const binArea: number = Math.abs(this.#binArea);
+            const polygon: Polygon = Polygon.create();
+            const placementCount = placementsData[1];
+            let placedCount: number = 0;
+            let placedArea: number = 0;
+            let totalArea: number = 0;
+            let pathId: number = 0;
+            let itemData: number = 0;
+            let offset: number = 0;
+            let size: number = 0;
+            let i: number = 0;
+            let j: number = 0;
+
+            for (i = 0; i < placementCount; ++i) {
+                totalArea += binArea;
+                itemData = placementsData[2 + i];
+                offset = getUint16(itemData, 1);
+                size = getUint16(itemData, 0);
+                placedCount += size;
+
+                for (j = 0; j < size; ++j) {
+                    pathId = getUint16(placementsData[offset + j], 1);
+                    polygon.bind(this.#nodes[pathId].memSeg);
+                    placedArea += polygon.absArea;
+                }
+            }
 
             numParts = this.#nfpStore.placementCount;
-            numPlacedParts = placementData << 0;
-            placePerecntage = placementData % 1;
+            numPlacedParts = placedCount;
+            placePerecntage = placedArea / totalArea;
             result = {
                 placementsData,
                 nodes: this.#nodes,
