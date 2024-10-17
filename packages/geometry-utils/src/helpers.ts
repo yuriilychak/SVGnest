@@ -41,28 +41,6 @@ export function pointInPolygon(point: IPoint, polygon: IPolygon): boolean {
     return inside;
 }
 
-// returns the rectangular bounding box of the given polygon
-export function getPolygonBounds(polygon: IPoint[]): BoundRect {
-    if (!polygon || polygon.length < 3) {
-        return null;
-    }
-
-    const pointCount: number = polygon.length;
-    const min: Point = Point.from(polygon[0]);
-    const size: Point = Point.from(polygon[0]);
-    let i: number = 0;
-
-    for (i = 1; i < pointCount; ++i) {
-        min.min(polygon[i]);
-        size.max(polygon[i]);
-    }
-
-    size.sub(min);
-    const result = { x: min.x, y: min.y, width: size.x, height: size.y };
-
-    return result;
-}
-
 // returns the area of the polygon, assuming no self-intersections
 // a negative area indicates counter-clockwise winding direction
 export function polygonArea(polygon: IPoint[]): number {

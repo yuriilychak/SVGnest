@@ -2,7 +2,7 @@
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
 import { BoundRect, IPoint, IPolygon, NestConfig, PolygonNode } from './types';
-import { getPolygonBounds, legacyToPolygonNode, legacyToPolygonNodes, nestPolygons, polygonArea } from './helpers';
+import { legacyToPolygonNodes, nestPolygons, pointsToMemSeg, polygonArea } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
 import { almostEqual } from './shared-helpers';
@@ -20,34 +20,32 @@ export default class ClipperWrapper {
         resultBounds: BoundRect;
         area: number;
     } {
-        let i: number = 0;
+        const polygon: Polygon = Polygon.create();
+        const binNode: PolygonNode = {
+            source: -1,
+            rotation: 0,
+            memSeg: pointsToMemSeg(points),
+            children: []
+        };
 
-        if (points.length < 3) {
+        polygon.bind(binNode.memSeg);
+
+        if (polygon.isBroken) {
             return null;
         }
 
-        const bounds: BoundRect = getPolygonBounds(points);
-        const polygon: IPolygon = this.cleanPolygon(points) as IPolygon;
+        const bounds: BoundRect = polygon.exportBounds();
 
-        polygon.source = -1;
-        polygon.rotation = 0;
-        polygon.children = [];
+        this.cleanNode(binNode);
+        this.offsetNode(polygon, binNode, -1);
 
-        const binPolygon = this.offsetPolygon(polygon, -1);
-        const currentBounds = getPolygonBounds(binPolygon);
-        const binSize = binPolygon.length;
-        let point = null;
+        polygon.bind(binNode.memSeg);
+        polygon.resetPosition();
 
-        for (i = 0; i < binSize; ++i) {
-            point = binPolygon[i];
-            point.x = point.x - currentBounds.x;
-            point.y = point.y - currentBounds.y;
-        }
+        const resultBounds = polygon.exportBounds();
+        const area: number = polygon.area;
 
-        const resultBounds = getPolygonBounds(binPolygon);
-        const area: number = polygonArea(binPolygon);
-
-        return { binNode: legacyToPolygonNode(binPolygon, []), bounds, resultBounds, area };
+        return { binNode, bounds, resultBounds, area };
     }
 
     public generateTree(points: IPoint[][]): PolygonNode[] {
@@ -137,6 +135,30 @@ export default class ClipperWrapper {
         return result;
     }
 
+    private offsetNode(polygon: Polygon, node: PolygonNode, sign: number): void {
+        if (this.configuration.spacing !== 0) {
+            const { curveTolerance, spacing } = this.configuration;
+            const offset: number = 0.5 * spacing * sign;
+            const miterLimit: number = 2;
+            const path: IntPoint[] = ClipperWrapper.fromMemSeg(node.memSeg);
+            const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
+            const resultPath: Paths = new Paths();
+
+            clipper.AddPath(path, JoinType.jtRound, EndType.etClosedPolygon);
+            clipper.Execute(resultPath, offset * ClipperWrapper.CLIPPER_SCALE);
+
+            if (resultPath.length !== 1) {
+                throw new Error(`Error while offset ${JSON.stringify(node)}`);
+            }
+
+            node.memSeg = ClipperWrapper.toMemSeg(resultPath[0]);
+        }
+
+        polygon.bind(node.memSeg);
+
+        node.memSeg = polygon.normalize();
+    }
+
     private cleanPolygon(polygon: IPoint[]): IPoint[] {
         const { curveTolerance } = this.configuration;
         const clipperPolygon = ClipperWrapper.toClipper(polygon);
@@ -170,6 +192,41 @@ export default class ClipperWrapper {
         }
 
         return ClipperWrapper.toNestLegacy(cleanPolygon);
+    }
+
+    private cleanNode(node: PolygonNode): void {
+        const { curveTolerance } = this.configuration;
+        const clipperPolygon = ClipperWrapper.fromMemSeg(node.memSeg);
+        const simple: IntPoint[][] = Clipper.SimplifyPolygon(clipperPolygon, PolyFillType.pftNonZero) as IntPoint[][];
+
+        if (!simple || simple.length === 0) {
+            return;
+        }
+
+        let i: number = 0;
+        let biggest: IntPoint[] = simple[0];
+        let biggestArea: number = Math.abs(Clipper.Area(biggest));
+        let area: number = 0;
+        let pointCount: number = simple.length;
+
+        for (i = 1; i < pointCount; ++i) {
+            area = Math.abs(Clipper.Area(simple[i]));
+
+            if (area > biggestArea) {
+                biggest = simple[i];
+                biggestArea = area;
+            }
+        }
+
+        // clean up singularities, coincident points and edges
+        const cleanPolygon: IntPoint[] = Clipper.CleanPolygon(biggest, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
+        pointCount = cleanPolygon && cleanPolygon.length ? cleanPolygon.length : 0;
+
+        if (!pointCount) {
+            return;
+        }
+
+        node.memSeg = ClipperWrapper.toMemSeg(cleanPolygon);
     }
 
     public static toClipper(

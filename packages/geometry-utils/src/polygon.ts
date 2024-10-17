@@ -1,6 +1,6 @@
 import Point from './point';
 import { almostEqual, cycleIndex } from './shared-helpers';
-import { IPoint } from './types';
+import { BoundRect, IPoint } from './types';
 
 export default class Polygon {
     private memSeg: Float64Array;
@@ -132,6 +132,43 @@ export default class Polygon {
             this.memSeg[j2Plus1] = this.memSeg[i2Plus1] - this.memSeg[j2Plus1];
             this.memSeg[i2Plus1] = this.memSeg[i2Plus1] - this.memSeg[j2Plus1];
         }
+    }
+
+    public exportBounds(): BoundRect {
+        return { x: this.position.x, y: this.position.y, width: this.size.x, height: this.size.y };
+    }
+
+    public resetPosition(): void {
+        const position: Point = Point.from(this.position);
+        const binSize = this.length;
+        let i: number = 0;
+
+        for (i = 0; i < binSize; ++i) {
+            this.at(i).sub(position);
+        }
+    }
+
+    // remove duplicate endpoints, ensure counterclockwise winding direction
+    public normalize(): Float64Array {
+        let pointCount: number = this.pointCount;
+        const first: Point = Point.from(this.first);
+        const last: Point = Point.from(this.last);
+
+        while (first.almostEqual(last)) {
+            --pointCount;
+            last.update(this.at(pointCount - 1));
+        }
+
+        if (this.pointCount !== pointCount) {
+            this.pointCount = pointCount;
+            this.memSeg = this.memSeg.slice(this.offset, this.offset + (pointCount << 1));
+        }
+
+        if (this.area > 0) {
+            this.reverse();
+        }
+
+        return this.memSeg;
     }
 
     private getPointOffset(index: number): number {
