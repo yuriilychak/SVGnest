@@ -1,13 +1,13 @@
-import type { PolygonNode, NestConfig, NFPPair, ThreadData, PlacementWorkerData } from '../types';
+import type { NestConfig, ThreadData, PlacementWorkerData, CalculateConfig, ThreadInput } from '../types';
 
 // Use importScripts to load the external script
 declare function importScripts(...urls: string[]): void;
 
 declare module geometryUtils {
     export function calculate(
-        config: { pointPool: unknown; isInit: boolean },
+        config: CalculateConfig,
         id: string,
-        data: NFPPair | PolygonNode[],
+        data: ThreadInput,
         env: NestConfig | PlacementWorkerData
     ): ArrayBuffer;
 }
@@ -15,10 +15,7 @@ declare module geometryUtils {
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));
 
 function applyWorkerFlow(instance: MessagePort | Worker) {
-    const config: { pointPool: unknown; isInit: boolean } = {
-        isInit: false,
-        pointPool: null
-    };
+    const config: CalculateConfig = { isInit: false, pointPool: null };
 
     instance.onmessage = (event: MessageEvent<ThreadData>) => {
         const { data, env, id } = event.data;

@@ -38,6 +38,13 @@ export type PlacementWorkerData = {
     nfpCache: NFPCache;
 };
 
+export type PlacementData = {
+    placementsData: Float64Array;
+    nodes: PolygonNode[];
+    bounds: BoundRect;
+    angleSplit: number;
+};
+
 export type DisplayCallback = (
     placementsData: PlacementData,
     placePerecntage: number,
@@ -52,17 +59,12 @@ export type PolygonNode = {
     children: PolygonNode[];
 };
 
-export type PlacementData = {
-    placementsData: Float64Array;
-    nodes: PolygonNode[];
-    bounds: BoundRect;
-    angleSplit: number;
-};
-
 export type ThreadData = {
-    env: NestConfig;
+    env: NestConfig | PlacementWorkerData;
     id: string;
     data: PolygonNode[] | NFPPair;
 };
 
 export type ThreadInput = PolygonNode[] | NFPPair;
+
+export type CalculateConfig = { pointPool: unknown; isInit: boolean };
