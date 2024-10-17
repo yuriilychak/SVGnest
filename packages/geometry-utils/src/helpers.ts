@@ -164,17 +164,23 @@ export function getPlacementData(binArea: number, nodes: PolygonNode[], placemen
     return placedCount + placedArea / totalArea;
 }
 
-export function legacyToPolygonNode(polygon: IPolygon, children: PolygonNode[] = []): PolygonNode {
-    const pointCount: number = polygon.length;
-    const source: number = typeof polygon.source === 'number' ? polygon.source : -1;
-    const rotation: number = polygon.rotation || 0;
-    const memSeg: Float64Array = new Float64Array(pointCount << 1);
+export function pointsToMemSeg(points: IPoint[]): Float64Array {
+    const pointCount: number = points.length;
+    const result: Float64Array = new Float64Array(pointCount << 1);
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-        memSeg[i << 1] = polygon[i].x;
-        memSeg[(i << 1) + 1] = polygon[i].y;
+        result[i << 1] = points[i].x;
+        result[(i << 1) + 1] = points[i].y;
     }
+
+    return result;
+}
+
+export function legacyToPolygonNode(polygon: IPolygon, children: PolygonNode[] = []): PolygonNode {
+    const source: number = typeof polygon.source === 'number' ? polygon.source : -1;
+    const rotation: number = polygon.rotation || 0;
+    const memSeg: Float64Array = pointsToMemSeg(polygon);
 
     return { source, rotation, memSeg, children };
 }

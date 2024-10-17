@@ -204,6 +204,21 @@ export default class ClipperWrapper {
         return cleanTrashold !== -1 ? Clipper.CleanPolygon(result, cleanTrashold) : result;
     }
 
+    public static fromMemSeg(memSeg: Float64Array): IntPoint[] {
+        const pointCount: number = memSeg.length >> 1;
+        const result: IntPoint[] = [];
+        let i: number = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            result.push({
+                X: memSeg[i << 1] * ClipperWrapper.CLIPPER_SCALE,
+                Y: memSeg[(i << 1) + 1] * ClipperWrapper.CLIPPER_SCALE
+            });
+        }
+
+        return result;
+    }
+
     public static toNestLegacy(polygon: IntPoint[]): IPoint[] {
         const pointCount: number = polygon.length;
         const result: IPoint[] = [];
