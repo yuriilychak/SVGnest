@@ -163,7 +163,7 @@ function getFinalNfps(
 }
 
 function getPathKey(id: number, rotation: number, placementData: PlacementWorkerData): number {
-    return joinUint16(id, toRotationIndex(rotation, placementData.angleSplit));
+    return joinUint16(toRotationIndex(rotation, placementData.angleSplit), id);
 }
 
 function getResult(placements: number[][], pathItems: number[][], fitness: number): Float64Array {
