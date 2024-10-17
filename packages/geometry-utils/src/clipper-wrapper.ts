@@ -5,7 +5,6 @@ import { BoundRect, IPoint, IPolygon, NestConfig, PolygonNode } from './types';
 import { legacyToPolygonNodes, nestPolygons, pointsToMemSeg, polygonArea } from './helpers';
 import Polygon from './polygon';
 import Point from './point';
-import { almostEqual } from './shared-helpers';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -71,68 +70,24 @@ export default class ClipperWrapper {
         // turn the list into a tree
         nestPolygons(tree);
 
-        return legacyToPolygonNodes(this.offsetPolygons(tree, 1));
+        const nodes = legacyToPolygonNodes(tree);
+        const polygon: Polygon = Polygon.create();
+
+        this.offsetNodes(polygon, nodes, 1);
+
+        return nodes;
     }
 
-    private offsetPolygons(polygons: IPolygon[], sign: number): IPolygon[] {
-        if (!polygons) {
-            return [];
-        }
-
-        const result: IPolygon[] = [];
-        const polygonCount: number = polygons.length;
-        let polygon: IPolygon = null;
+    private offsetNodes(polygon: Polygon, nodes: PolygonNode[], sign: number): void {
+        const nodeCont: number = nodes.length;
+        let node: PolygonNode = null;
         let i: number = 0;
 
-        for (i = 0; i < polygonCount; ++i) {
-            polygon = this.offsetPolygon(polygons[i], sign);
-            polygon.children = this.offsetPolygons(polygon.children, -sign);
-
-            result.push(polygon);
+        for (i = 0; i < nodeCont; ++i) {
+            node = nodes[i];
+            this.offsetNode(polygon, node, sign);
+            this.offsetNodes(polygon, node.children, -sign);
         }
-
-        return result;
-    }
-
-    private offsetPolygon(polygon: IPolygon, sign: number): IPolygon {
-        let result: IPolygon = polygon;
-
-        if (this.configuration.spacing !== 0) {
-            const { curveTolerance, spacing } = this.configuration;
-            const offset: number = 0.5 * spacing * sign;
-            const miterLimit: number = 2;
-            const path: IntPoint[] = ClipperWrapper.toClipper(polygon);
-            const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
-            const resultPath: Paths = new Paths();
-
-            clipper.AddPath(path, JoinType.jtRound, EndType.etClosedPolygon);
-            clipper.Execute(resultPath, offset * ClipperWrapper.CLIPPER_SCALE);
-
-            if (resultPath.length !== 1) {
-                throw new Error(`Error while offset ${JSON.stringify(polygon)}`);
-            }
-
-            result = ClipperWrapper.toNestLegacy(resultPath[0]) as IPolygon;
-
-            result.source = polygon.source;
-            result.rotation = polygon.rotation;
-            result.children = polygon.children;
-        }
-
-        // remove duplicate endpoints, ensure counterclockwise winding direction
-        const start: IPoint = result[0];
-        let end: IPoint = result[result.length - 1];
-
-        while (almostEqual(start.x, end.x) && almostEqual(start.y, end.y)) {
-            result.pop();
-            end = result[result.length - 1];
-        }
-
-        if (polygonArea(result) > 0) {
-            result.reverse();
-        }
-
-        return result;
     }
 
     private offsetNode(polygon: Polygon, node: PolygonNode, sign: number): void {
