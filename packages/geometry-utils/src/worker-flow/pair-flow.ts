@@ -1,12 +1,12 @@
 import ClipperLib from 'js-clipper';
 
-import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits, getUint16, joinUint16 } from './helpers';
-import ClipperWrapper from './clipper-wrapper';
-import { IPoint, NestConfig, NFPContent, NFPPair, PolygonNode } from './types';
-import Point from './point';
-import Polygon from './polygon';
-import { NFP_INFO_START_INDEX, TOL } from './constants';
-import PointPool from './point-pool';
+import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits, getUint16, joinUint16 } from '../helpers';
+import ClipperWrapper from '../clipper-wrapper';
+import { IPoint, NestConfig, NFPContent, NFPPair, PolygonNode } from '../types';
+import Point from '../point';
+import Polygon from '../polygon';
+import { NFP_INFO_START_INDEX, TOL } from '../constants';
+import PointPool from '../point-pool';
 
 interface ISegmentCheck {
     point: Point;

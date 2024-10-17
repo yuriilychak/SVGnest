@@ -1,12 +1,12 @@
 import ClipperLib from 'js-clipper';
 
-import { IPoint, PlacementWorkerData, PolygonNode } from './types';
-import ClipperWrapper from './clipper-wrapper';
-import { almostEqual, generateNFPCacheKey, getPolygonNode, getUint16, joinUint16, toRotationIndex } from './helpers';
-import Point from './point';
-import Polygon from './polygon';
-import PointPool from './point-pool';
-import { NFP_INFO_START_INDEX } from './constants';
+import { IPoint, PlacementWorkerData, PolygonNode } from '../types';
+import ClipperWrapper from '../clipper-wrapper';
+import { almostEqual, generateNFPCacheKey, getPolygonNode, getUint16, joinUint16, toRotationIndex } from '../helpers';
+import Point from '../point';
+import Polygon from '../polygon';
+import PointPool from '../point-pool';
+import { NFP_INFO_START_INDEX } from '../constants';
 
 function fillPointMemSeg(
     pointPool: PointPool,

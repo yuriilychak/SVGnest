@@ -1,30 +1,29 @@
-import type { PolygonNode, NestConfig, NFPPair, ThreadData } from '../types';
+import type { PolygonNode, NestConfig, NFPPair, ThreadData, PlacementWorkerData } from '../types';
 
 // Use importScripts to load the external script
 declare function importScripts(...urls: string[]): void;
 
 declare module geometryUtils {
-    export class PointPool {}
-    export function placePaths(paths: PolygonNode[], config: NestConfig, pointPool: PointPool): Float64Array;
-    export function pairData(paths: NFPPair, config: NestConfig, pointPool: PointPool): Float64Array;
+    export function calculate(
+        config: { pointPool: unknown; isInit: boolean },
+        id: string,
+        data: NFPPair | PolygonNode[],
+        env: NestConfig | PlacementWorkerData
+    ): ArrayBuffer;
 }
 
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));
 
 function applyWorkerFlow(instance: MessagePort | Worker) {
-    let pointPool: geometryUtils.PointPool = null;
+    const config: { pointPool: unknown; isInit: boolean } = {
+        isInit: false,
+        pointPool: null
+    };
 
     instance.onmessage = (event: MessageEvent<ThreadData>) => {
         const { data, env, id } = event.data;
-        const { pairData, placePaths, PointPool } = geometryUtils;
 
-        if (pointPool === null) {
-            pointPool = new PointPool();
-        }
-
-        const result: Float64Array =
-            id === 'pair' ? pairData(data as NFPPair, env, pointPool) : placePaths(data as PolygonNode[], env, pointPool);
-        const buffer = result.buffer;
+        const buffer = geometryUtils.calculate(config, id, data, env);
 
         instance.postMessage(buffer, [buffer]);
     };
