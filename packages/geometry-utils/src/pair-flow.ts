@@ -1,6 +1,6 @@
 import ClipperLib from 'js-clipper';
 
-import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits, getUint16, joinUint16 } from './shared-helpers';
+import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits, getUint16, joinUint16 } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
 import { IPoint, NestConfig, NFPContent, NFPPair, PolygonNode } from './types';
 import Point from './point';

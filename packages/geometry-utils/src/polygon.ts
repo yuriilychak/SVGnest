@@ -1,5 +1,5 @@
 import Point from './point';
-import { almostEqual, cycleIndex } from './shared-helpers';
+import { almostEqual, cycleIndex } from './helpers';
 import { BoundRect, IPoint } from './types';
 
 export default class Polygon {

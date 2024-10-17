@@ -1,6 +1,6 @@
 import { IPoint } from './types';
 import { TOL } from './constants';
-import { almostEqual, midValue } from './shared-helpers';
+import { almostEqual, midValue } from './helpers';
 
 export default class Point implements IPoint {
     private memSeg: Float64Array;

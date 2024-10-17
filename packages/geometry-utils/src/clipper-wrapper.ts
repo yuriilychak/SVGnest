@@ -4,7 +4,7 @@ import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoin
 import { BoundRect, IPoint, NestConfig, PolygonNode } from './types';
 import Polygon from './polygon';
 import Point from './point';
-import { getPolygonNode } from './shared-helpers';
+import { getPolygonNode } from './helpers';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;

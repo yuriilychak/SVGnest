@@ -1,4 +1,4 @@
-import { generateNFPCacheKey, getNfpPair } from 'geometry-utils';
+import { generateNFPCacheKey, Polygon } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
 import { NFPPair, PlacementWorkerData, NFPCache, PolygonNode } from './types';
@@ -17,6 +17,7 @@ export default class NFPStore {
         this.#angleSplit = angleSplit;
         this.#nfpPairs = [];
 
+        const polygon: Polygon = Polygon.create();
         const nodes: PolygonNode[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = nodes.length;
@@ -29,10 +30,10 @@ export default class NFPStore {
             node = nodes[i];
             node.rotation = rotations[i];
 
-            this.updateCache(binNode, node, true, newCache);
+            this.updateCache(polygon, binNode, node, true, newCache);
 
             for (j = 0; j < i; ++j) {
-                this.updateCache(nodes[j], node, false, newCache);
+                this.updateCache(polygon, nodes[j], node, false, newCache);
             }
         }
 
@@ -59,11 +60,11 @@ export default class NFPStore {
         }
     }
 
-    private updateCache(polygon1: PolygonNode, polygon2: PolygonNode, inside: boolean, newCache: NFPCache): void {
-        const key: number = generateNFPCacheKey(this.#angleSplit, inside, polygon1, polygon2);
+    private updateCache(polygon: Polygon, node1: PolygonNode, node2: PolygonNode, inside: boolean, newCache: NFPCache): void {
+        const key: number = generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
 
         if (!this.#nfpCache.has(key)) {
-            this.#nfpPairs.push(getNfpPair(key, [polygon1, polygon2]));
+            this.#nfpPairs.push({ nodes: NFPStore.rotateNodes(polygon, [node1, node2]), key });
         } else {
             newCache.set(key, this.#nfpCache.get(key));
         }
@@ -82,7 +83,9 @@ export default class NFPStore {
     }
 
     public get placement(): PolygonNode[] {
-        return this.#individual.placement;
+        const polygon: Polygon = Polygon.create();
+        
+        return NFPStore.rotateNodes(polygon, this.#individual.placement);
     }
 
     public get nfpPairs(): NFPPair[] {
@@ -99,5 +102,49 @@ export default class NFPStore {
 
     public set fitness(value: number) {
         this.#individual.fitness = value;
+    }
+
+    private static rotateNodes(polygon: Polygon, nodes: PolygonNode[]): PolygonNode[] {
+        const result: PolygonNode[] = NFPStore.cloneNodes(nodes);
+
+        const nodeCount: number = result.length;
+        let i: number = 0;
+
+        for (i = 0; i < nodeCount; ++i) {
+            NFPStore.rotateNode(polygon, result[i], result[i].rotation);
+        }
+
+        return result;
+    }
+
+    private static rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): void {
+        polygon.bind(rootNode.memSeg);
+        polygon.rotate(rotation);
+
+        const childCount: number = rootNode.children.length;
+        let i: number = 0;
+
+        for (i = 0; i < childCount; ++i) {
+            NFPStore.rotateNode(polygon, rootNode.children[i], rotation);
+        }
+    }
+
+    private static cloneNodes(nodes: PolygonNode[]): PolygonNode[] {
+        const result: PolygonNode[] = [];
+        const nodeCount: number = nodes.length;
+        let node: PolygonNode = null;
+        let i: number = 0;
+
+        for (i = 0; i < nodeCount; ++i) {
+            node = nodes[i];
+
+            result.push({
+                ...node,
+                memSeg: node.memSeg.slice(),
+                children: NFPStore.cloneNodes(node.children)
+            });
+        }
+
+        return result;
     }
 }

@@ -1,8 +1,8 @@
 import ClipperLib from 'js-clipper';
+
 import { IPoint, PlacementWorkerData, PolygonNode } from './types';
-import { rotateNode } from './helpers';
 import ClipperWrapper from './clipper-wrapper';
-import { almostEqual, generateNFPCacheKey, getUint16, joinUint16, toRotationIndex } from './shared-helpers';
+import { almostEqual, generateNFPCacheKey, getPolygonNode, getUint16, joinUint16, toRotationIndex } from './helpers';
 import Point from './point';
 import Polygon from './polygon';
 import PointPool from './point-pool';
@@ -163,7 +163,7 @@ function getFinalNfps(
 }
 
 function getPathKey(id: number, rotation: number, placementData: PlacementWorkerData): number {
-    return (id << 16) | toRotationIndex(rotation, placementData.angleSplit);
+    return joinUint16(id, toRotationIndex(rotation, placementData.angleSplit));
 }
 
 function getResult(placements: number[][], pathItems: number[][], fitness: number): Float64Array {
@@ -198,35 +198,20 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 }
 
 export function placePaths(nodes: PolygonNode[], placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
-    const nodeCount: number = nodes.length;
     // rotate paths by given rotation
     const polygon: Polygon = Polygon.create();
-    const emptyPath: PolygonNode = {
-        source: -1,
-        rotation: 0,
-        memSeg: new Float64Array(0),
-        children: []
-    };
+    const emptyPath: PolygonNode = getPolygonNode(-1, new Float64Array(0));
     const pointIndices: number = pointPool.alloc(2);
     const tmpPoint: Point = pointPool.get(pointIndices, 0);
     const firstPoint: Point = pointPool.get(pointIndices, 1);
-    let i: number = 0;
-    let j: number = 0;
-    let k: number = 0;
-    let m: number = 0;
-    let node: PolygonNode = null;
-
-    for (i = 0; i < nodeCount; ++i) {
-        rotateNode(polygon, nodes[i], nodes[i].rotation);
-    }
-
     const placements: number[][] = [];
     const pathItems: number[][] = [];
-    let placement: number[] = [];
-    let pathItem: number[] = [];
     const area = placementData.binArea;
     const pntMemSeg: Float64Array = new Float64Array(8192);
     const nfpMemSeg: Float64Array = new Float64Array(2048);
+    let node: PolygonNode = null;
+    let placement: number[] = [];
+    let pathItem: number[] = [];
     let positionX: number = 0;
     let positionY: number = 0;
     let fitness: number = 0;
@@ -242,6 +227,10 @@ export function placePaths(nodes: PolygonNode[], placementData: PlacementWorkerD
     let nfpSize: number = 0;
     let binNfpCount: number = 0;
     let pathKey: number = 0;
+    let i: number = 0;
+    let j: number = 0;
+    let k: number = 0;
+    let m: number = 0;
 
     while (nodes.length > 0) {
         placed = [];
