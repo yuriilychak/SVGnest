@@ -29,7 +29,6 @@ export type NFPContent = {
 };
 
 export type PlacementWorkerData = {
-    angleSplit: number;
     binArea: number;
     nfpCache: Map<number, ArrayBuffer>;
 };

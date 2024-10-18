@@ -50,7 +50,7 @@ export default class Parallel {
 
     public start(
         id: THREAD_TYPE,
-        input: ThreadInput[],
+        input: ArrayBuffer[],
         env: object | null,
         onSuccess: (result: ArrayBuffer[]) => void,
         onError: (error: ErrorEvent) => void,

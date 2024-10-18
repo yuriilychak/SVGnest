@@ -1,5 +1,5 @@
 import PointPool from '../point-pool';
-import { PlacementWorkerData, PolygonNode } from '../types';
+import { PlacementWorkerData } from '../types';
 import { pairData } from './pair-flow';
 import { placePaths } from './place-flow';
 
@@ -8,7 +8,7 @@ export default function calculate(
     data:
         | {
               id: string;
-              data: PolygonNode[];
+              data: ArrayBuffer;
               env: PlacementWorkerData;
           }
         | ArrayBuffer

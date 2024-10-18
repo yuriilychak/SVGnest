@@ -92,10 +92,16 @@ export default class NFPStore {
         return { angleSplit: this.#angleSplit, binArea, nfpCache: this.#nfpCache };
     }
 
-    public get placement(): PolygonNode[] {
+    public get placement(): ArrayBuffer {
         const polygon: Polygon = Polygon.create();
 
-        return NFPStore.rotateNodes(polygon, this.#individual.placement);
+        const nodes = NFPStore.rotateNodes(polygon, this.#individual.placement);
+        const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT);
+        const view = new DataView(buffer);
+
+        view.setFloat64(0, this.#configCompressed);
+
+        return buffer;
     }
 
     public get nfpPairs(): ArrayBuffer[] {

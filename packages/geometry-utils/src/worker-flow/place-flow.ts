@@ -2,7 +2,16 @@ import ClipperLib from 'js-clipper';
 
 import { IPoint, PlacementWorkerData, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { almostEqual, generateNFPCacheKey, getPolygonNode, getUint16, joinUint16, toRotationIndex } from '../helpers';
+import {
+    almostEqual,
+    deserializeConfig,
+    deserializePolygonNodes,
+    generateNFPCacheKey,
+    getPolygonNode,
+    getUint16,
+    joinUint16,
+    toRotationIndex
+} from '../helpers';
 import Point from '../point';
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
@@ -57,12 +66,12 @@ function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpBuffer: Arr
 }
 
 // ensure all necessary NFPs exist
-function getNfpError(placementData: PlacementWorkerData, placed: PolygonNode[], path: PolygonNode): boolean {
+function getNfpError(placementData: PlacementWorkerData, rotations: number, placed: PolygonNode[], path: PolygonNode): boolean {
     let i: number = 0;
     let key: number = 0;
 
     for (i = 0; i < placed.length; ++i) {
-        key = generateNFPCacheKey(placementData.angleSplit, false, placed[i], path);
+        key = generateNFPCacheKey(rotations, false, placed[i], path);
 
         if (!placementData.nfpCache.has(key)) {
             return true;
@@ -93,6 +102,7 @@ function getFinalNfps(
     polygon: Polygon,
     pointPool: PointPool,
     placementData: PlacementWorkerData,
+    rotations: number,
     placed: PolygonNode[],
     path: PolygonNode,
     binNfp: Float64Array,
@@ -105,7 +115,7 @@ function getFinalNfps(
     let key: number = 0;
 
     for (i = 0; i < placed.length; ++i) {
-        key = generateNFPCacheKey(placementData.angleSplit, false, placed[i], path);
+        key = generateNFPCacheKey(rotations, false, placed[i], path);
 
         if (!placementData.nfpCache.has(key)) {
             continue;
@@ -162,8 +172,8 @@ function getFinalNfps(
     return finalNfp.length === 0 ? null : finalNfp;
 }
 
-function getPathKey(id: number, rotation: number, placementData: PlacementWorkerData): number {
-    return joinUint16(toRotationIndex(rotation, placementData.angleSplit), id);
+function getPathKey(id: number, rotation: number, rotations: number): number {
+    return joinUint16(toRotationIndex(rotation, rotations), id);
 }
 
 function getResult(placements: number[][], pathItems: number[][], fitness: number): Float64Array {
@@ -197,7 +207,10 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
     return result;
 }
 
-export function placePaths(nodes: PolygonNode[], placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
+export function placePaths(buffer: ArrayBuffer, placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
+    const view: DataView = new DataView(buffer);
+    const { rotations } = deserializeConfig(view.getFloat64(0));
+    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT);
     // rotate paths by given rotation
     const polygon: Polygon = Polygon.create();
     const emptyPath: PolygonNode = getPolygonNode(-1, new Float64Array(0));
@@ -241,14 +254,14 @@ export function placePaths(nodes: PolygonNode[], placementData: PlacementWorkerD
         for (i = 0; i < nodes.length; ++i) {
             node = nodes[i];
             firstPoint.fromMemSeg(node.memSeg, 0);
-            pathKey = getPathKey(node.source, node.rotation, placementData);
+            pathKey = getPathKey(node.source, node.rotation, rotations);
 
             // inner NFP
-            key = generateNFPCacheKey(placementData.angleSplit, true, emptyPath, node);
+            key = generateNFPCacheKey(rotations, true, emptyPath, node);
             binNfp = placementData.nfpCache.has(key) ? new Float64Array(placementData.nfpCache.get(key)) : null;
 
             // part unplaceable, skip             part unplaceable, skip
-            if (!binNfp || binNfp.length < 3 || getNfpError(placementData, placed, node)) {
+            if (!binNfp || binNfp.length < 3 || getNfpError(placementData, rotations, placed, node)) {
                 continue;
             }
 
@@ -279,7 +292,7 @@ export function placePaths(nodes: PolygonNode[], placementData: PlacementWorkerD
                 continue;
             }
 
-            finalNfp = getFinalNfps(polygon, pointPool, placementData, placed, node, binNfp, placement);
+            finalNfp = getFinalNfps(polygon, pointPool, placementData, rotations, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
