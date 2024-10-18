@@ -1,20 +1,23 @@
-import { generateNFPCacheKey, Polygon } from 'geometry-utils';
+import { generateNFPCacheKey, Polygon, serializeConfig, serializePolygonNodes } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
-import { NFPPair, PlacementWorkerData, NFPCache, PolygonNode } from './types';
+import { NFPPair, PlacementWorkerData, NFPCache, PolygonNode, NestConfig } from './types';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<number, ArrayBuffer>();
 
-    #nfpPairs: NFPPair[] = [];
+    #nfpPairs: ArrayBuffer[] = [];
 
     #individual: Phenotype = null;
 
     #angleSplit: number = 0;
 
-    public init(individual: Phenotype, binNode: PolygonNode, angleSplit: number): void {
+    #configCompressed: number = 0;
+
+    public init(individual: Phenotype, binNode: PolygonNode, config: NestConfig): void {
+        this.#configCompressed = serializeConfig(config);
         this.#individual = individual;
-        this.#angleSplit = angleSplit;
+        this.#angleSplit = config.rotations;
         this.#nfpPairs = [];
 
         const polygon: Polygon = Polygon.create();
@@ -64,7 +67,14 @@ export default class NFPStore {
         const key: number = generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
 
         if (!this.#nfpCache.has(key)) {
-            this.#nfpPairs.push({ nodes: NFPStore.rotateNodes(polygon, [node1, node2]), key });
+            const nodes = NFPStore.rotateNodes(polygon, [node1, node2]);
+            const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT << 1);
+            const view: DataView = new DataView(buffer);
+
+            view.setFloat64(0, key);
+            view.setFloat64(Float64Array.BYTES_PER_ELEMENT, this.#configCompressed);
+
+            this.#nfpPairs.push(buffer);
         } else {
             newCache.set(key, this.#nfpCache.get(key));
         }
@@ -84,11 +94,11 @@ export default class NFPStore {
 
     public get placement(): PolygonNode[] {
         const polygon: Polygon = Polygon.create();
-        
+
         return NFPStore.rotateNodes(polygon, this.#individual.placement);
     }
 
-    public get nfpPairs(): NFPPair[] {
+    public get nfpPairs(): ArrayBuffer[] {
         return this.#nfpPairs;
     }
 

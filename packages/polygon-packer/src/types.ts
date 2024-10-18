@@ -21,7 +21,7 @@ export type BoundRect = {
 };
 
 export type NFPPair = {
-    nodes: PolygonNode[];
+    buffer: ArrayBuffer;
     key: number;
 };
 
@@ -59,12 +59,14 @@ export type PolygonNode = {
     children: PolygonNode[];
 };
 
-export type ThreadData = {
-    env: NestConfig | PlacementWorkerData;
-    id: string;
-    data: PolygonNode[] | NFPPair;
-};
+export type ThreadData =
+    | {
+          env: NestConfig | PlacementWorkerData;
+          id: string;
+          data: PolygonNode[] | ArrayBuffer;
+      }
+    | ArrayBuffer;
 
-export type ThreadInput = PolygonNode[] | NFPPair;
+export type ThreadInput = PolygonNode[] | ArrayBuffer;
 
 export type CalculateConfig = { pointPool: unknown; isInit: boolean };

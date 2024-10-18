@@ -8,13 +8,17 @@ export default class SharedWorkerWrapper implements IThread {
     }
 
     public trigger(
-        data: Record<string, unknown>,
+        data: Record<string, unknown> | ArrayBuffer,
         onMessage: (message: MessageEvent) => void,
         onError: (error: ErrorEvent) => void
     ): void {
         this.#worker.port.onmessage = onMessage;
         this.#worker.onerror = onError;
-        this.#worker.port.postMessage(data);
+        if (data instanceof ArrayBuffer) {
+            this.#worker.port.postMessage(data, [data]);
+        } else {
+            this.#worker.port.postMessage(data);
+        }
     }
 
     public getInstance(target: ThreadTarget): boolean {

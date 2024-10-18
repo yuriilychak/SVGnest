@@ -51,7 +51,7 @@ export default class Parallel {
     public start(
         id: THREAD_TYPE,
         input: ThreadInput[],
-        env: object,
+        env: object | null,
         onSuccess: (result: ArrayBuffer[]) => void,
         onError: (error: ErrorEvent) => void,
         onSpawn: (scount: number) => void = null
@@ -126,7 +126,11 @@ export default class Parallel {
             this.#onSpawn(this.#startedThreads);
         }
 
-        thread.trigger({ ...this.#options, data: this.#input[threadIndex] }, this.onMessage, this.onError);
+        if (this.#options.env === null) {
+            thread.trigger(this.#input[threadIndex] as ArrayBuffer, this.onMessage, this.onError);
+        } else {
+            thread.trigger({ ...this.#options, data: this.#input[threadIndex] }, this.onMessage, this.onError);
+        }
 
         return true;
     }

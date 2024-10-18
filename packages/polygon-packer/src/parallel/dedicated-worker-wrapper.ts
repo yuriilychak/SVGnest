@@ -8,13 +8,17 @@ export default class DedicatedWorkerWrapper implements IThread {
     }
 
     public trigger(
-        data: Record<string, unknown>,
+        data: Record<string, unknown> | ArrayBuffer,
         onMessage: (message: MessageEvent) => void,
         onError: (error: ErrorEvent) => void
     ): void {
         this.#worker.onmessage = onMessage;
         this.#worker.onerror = onError;
-        this.#worker.postMessage(data);
+        if (data instanceof ArrayBuffer) {
+            this.#worker.postMessage(data, [data]);
+        } else {
+            this.#worker.postMessage(data);
+        }
     }
 
     public getInstance(target: ThreadTarget): boolean {

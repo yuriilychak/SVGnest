@@ -42,8 +42,3 @@ export type PolygonNode = {
     memSeg: Float64Array;
     children: PolygonNode[];
 };
-
-export type NFPPair = {
-    nodes: PolygonNode[];
-    key: number;
-};

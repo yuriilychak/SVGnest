@@ -8,7 +8,7 @@ export enum OPERATION_STATE {
 
 export type OperationCallback = (data: unknown) => void;
 
-export interface Options<T = object> {
+export interface Options<T = object | number> {
     id: THREAD_TYPE;
     env: T;
 }
@@ -17,7 +17,7 @@ export type ThreadTarget = MessagePort | Worker;
 
 export interface IThread {
     trigger(
-        data: Record<string, unknown>,
+        data: Record<string, unknown> | ArrayBuffer,
         onMessage: (message: MessageEvent) => void,
         onError: (error: ErrorEvent) => void
     ): void;

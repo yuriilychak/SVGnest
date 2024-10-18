@@ -1,8 +1,19 @@
 import ClipperLib from 'js-clipper';
 
-import { almostEqual, cycleIndex, midValue, keyToNFPData, setBits, getBits, getUint16, joinUint16 } from '../helpers';
+import {
+    almostEqual,
+    cycleIndex,
+    midValue,
+    keyToNFPData,
+    setBits,
+    getBits,
+    getUint16,
+    joinUint16,
+    deserializeConfig,
+    deserializePolygonNodes
+} from '../helpers';
 import ClipperWrapper from '../clipper-wrapper';
-import { IPoint, NestConfig, NFPContent, NFPPair, PolygonNode } from '../types';
+import { IPoint, NFPContent, PolygonNode } from '../types';
 import Point from '../point';
 import Polygon from '../polygon';
 import { NFP_INFO_START_INDEX, TOL } from '../constants';
@@ -980,16 +991,20 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
     return result;
 }
 
-export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: PointPool): Float64Array {
-    const { exploreConcave, useHoles, rotations } = configuration;
+export function pairData(buffer: ArrayBuffer, pointPool: PointPool): Float64Array {
+    const view: DataView = new DataView(buffer);
+    const key: number = view.getFloat64(0);
+    const configuration: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
+    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT << 1);
+    const { exploreConcave, useHoles, rotations } = deserializeConfig(configuration);
 
-    if (!pair) {
+    if (nodes.length === 0) {
         return new Float64Array(0);
     }
 
-    const nfpContent: NFPContent = keyToNFPData(pair.key, rotations);
-    const polygonA: Polygon = Polygon.fromMemSeg(pair.nodes[0].memSeg);
-    const polygonB: Polygon = Polygon.fromMemSeg(pair.nodes[1].memSeg);
+    const nfpContent: NFPContent = keyToNFPData(key, rotations);
+    const polygonA: Polygon = Polygon.fromMemSeg(nodes[0].memSeg);
+    const polygonB: Polygon = Polygon.fromMemSeg(nodes[1].memSeg);
     const tmpPolygon: Polygon = Polygon.create();
     let nfp: Float64Array[] = null;
     let i: number = 0;
@@ -1011,7 +1026,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         } else {
             // warning on null inner NFP
             // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
-            console.log('NFP Warning: ', pair.key);
+            console.log('NFP Warning: ', key);
         }
     } else {
         nfp = exploreConcave
@@ -1019,7 +1034,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
             : minkowskiDifference(tmpPolygon, polygonA, polygonB);
         // sanity check
         if (nfp.length === 0) {
-            console.log('NFP Error: ', pair.key);
+            console.log('NFP Error: ', key);
             console.log('A: ', JSON.stringify(polygonA));
             console.log('B: ', JSON.stringify(polygonB));
 
@@ -1031,7 +1046,7 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
                 tmpPolygon.bind(nfp[i]);
                 // if searchedges is active, only the first NFP is guaranteed to pass sanity check
                 if (tmpPolygon.absArea < polygonA.absArea) {
-                    console.log('NFP Area Error: ', tmpPolygon.absArea, pair.key);
+                    console.log('NFP Area Error: ', tmpPolygon.absArea, key);
                     console.log('NFP:', JSON.stringify(tmpPolygon));
                     console.log('A: ', JSON.stringify(polygonA));
                     console.log('B: ', JSON.stringify(polygonB));
@@ -1064,13 +1079,13 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         }
 
         // generate nfps for children (holes of parts) if any exist
-        if (useHoles && pair.nodes[0].children.length !== 0) {
-            const childCount: number = pair.nodes[0].children.length;
+        if (useHoles && nodes[0].children.length !== 0) {
+            const childCount: number = nodes[0].children.length;
             let node: PolygonNode = null;
             const child: Polygon = Polygon.create();
 
             for (i = 0; i < childCount; ++i) {
-                node = pair.nodes[0].children[i];
+                node = nodes[0].children[i];
                 child.bind(node.memSeg);
 
                 // no need to find nfp if B's bounding box is too big
@@ -1102,5 +1117,5 @@ export function pairData(pair: NFPPair, configuration: NestConfig, pointPool: Po
         }
     }
 
-    return getResult(pair.key, nfp);
+    return getResult(key, nfp);
 }

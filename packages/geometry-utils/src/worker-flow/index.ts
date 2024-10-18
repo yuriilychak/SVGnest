@@ -1,13 +1,17 @@
 import PointPool from '../point-pool';
-import { NestConfig, NFPPair, PlacementWorkerData, PolygonNode } from '../types';
+import { PlacementWorkerData, PolygonNode } from '../types';
 import { pairData } from './pair-flow';
 import { placePaths } from './place-flow';
 
 export default function calculate(
     config: { pointPool: PointPool; isInit: boolean },
-    id: string,
-    data: NFPPair | PolygonNode[],
-    env: NestConfig | PlacementWorkerData
+    data:
+        | {
+              id: string;
+              data: PolygonNode[];
+              env: PlacementWorkerData;
+          }
+        | ArrayBuffer
 ): ArrayBuffer {
     if (!config.isInit) {
         config.isInit = true;
@@ -15,9 +19,7 @@ export default function calculate(
     }
 
     const result: Float64Array =
-        id === 'pair'
-            ? pairData(data as NFPPair, env as NestConfig, config.pointPool)
-            : placePaths(data as PolygonNode[], env as PlacementWorkerData, config.pointPool);
+        data instanceof ArrayBuffer ? pairData(data, config.pointPool) : placePaths(data.data, data.env, config.pointPool);
 
     return result.buffer;
 }

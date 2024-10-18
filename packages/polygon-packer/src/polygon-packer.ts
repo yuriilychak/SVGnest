@@ -3,7 +3,7 @@ import { ClipperWrapper, getUint16, Polygon } from 'geometry-utils';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import { BoundRect, DisplayCallback, IPoint, NestConfig, PolygonNode, THREAD_TYPE } from './types';
+import { BoundRect, DisplayCallback, NestConfig, PolygonNode, THREAD_TYPE } from './types';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -62,11 +62,11 @@ export default class PolygonPacker {
 
     launchWorkers(configuration: NestConfig, displayCallback: DisplayCallback) {
         this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, configuration);
-        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binNode, configuration.rotations);
+        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binNode, configuration);
         this.#paralele.start(
             THREAD_TYPE.PAIR,
             this.#nfpStore.nfpPairs,
-            configuration,
+            null,
             (generatedNfp: ArrayBuffer[]) => this.onPair(configuration, generatedNfp, displayCallback),
             this.onError,
             this.onSpawn
