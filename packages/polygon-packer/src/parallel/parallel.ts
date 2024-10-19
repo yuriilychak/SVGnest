@@ -1,14 +1,9 @@
-﻿import DedicatedWorkerWrapper from './dedicated-worker-wrapper';
-import { ThreadTarget } from './types';
-
-export default class Parallel {
+﻿export default class Parallel {
     #threadsUsage: boolean[];
 
     #threadCount: number;
 
-    #instance: DedicatedWorkerWrapper;
-
-    #threads: DedicatedWorkerWrapper[];
+    #threads: Worker[];
 
     #input: ArrayBuffer[] = null;
 
@@ -31,7 +26,6 @@ export default class Parallel {
     #onSpawn: (count: number) => void = null;
 
     constructor() {
-        this.#instance = new DedicatedWorkerWrapper();
         this.#threadCount = navigator.hardwareConcurrency || 4;
         this.#threadsUsage = new Array(this.#threadCount);
         this.#threads = new Array(this.#threadCount);
@@ -68,7 +62,7 @@ export default class Parallel {
 
         if (this.#isTerminated) {
             for (i = 0; i < this.#threadCount; ++i) {
-                this.#threads[i] = this.#instance.clone();
+                this.#threads[i] = new Worker(new URL('./nest.worker', import.meta.url), { type: 'module' });
             }
 
             this.#isTerminated = false;
@@ -116,13 +110,17 @@ export default class Parallel {
             this.#onSpawn(this.#startedThreads);
         }
 
-        thread.trigger(this.#input[threadIndex], this.onMessage, this.onError);
+        const input = this.#input[threadIndex];
+
+        thread.onmessage = this.onMessage;
+        thread.onerror = this.onError;
+        thread.postMessage(input, [input]);
 
         return true;
     }
 
     private onMessage = (message: MessageEvent<ArrayBuffer>) => {
-        const index = this.clean(message.currentTarget as MessagePort | Worker);
+        const index = this.clean(message.currentTarget as Worker);
         const threadIndex = this.#threadIndices[index];
 
         this.#output[threadIndex] = message.data;
@@ -138,15 +136,15 @@ export default class Parallel {
     };
 
     private onError = (error: ErrorEvent) => {
-        this.clean(error.currentTarget as ThreadTarget);
+        this.clean(error.currentTarget as Worker);
         this.#onError(error);
     };
 
-    private clean(target: ThreadTarget): number {
+    private clean(target: Worker): number {
         let i: number = 0;
 
         for (i = 0; i < this.#threadCount; ++i) {
-            if (this.#threads[i].getInstance(target)) {
+            if (this.#threads[i] === target) {
                 break;
             }
         }
