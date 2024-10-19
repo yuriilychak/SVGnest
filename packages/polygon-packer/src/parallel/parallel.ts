@@ -1,6 +1,5 @@
-﻿import { THREAD_TYPE, ThreadInput } from '../types';
-import DedicatedWorkerWrapper from './dedicated-worker-wrapper';
-import { Options, ThreadTarget } from './types';
+﻿import DedicatedWorkerWrapper from './dedicated-worker-wrapper';
+import { ThreadTarget } from './types';
 
 export default class Parallel {
     #threadsUsage: boolean[];
@@ -11,13 +10,11 @@ export default class Parallel {
 
     #threads: DedicatedWorkerWrapper[];
 
-    #input: ThreadInput[] = null;
+    #input: ArrayBuffer[] = null;
 
     #output: ArrayBuffer[] = null;
 
     #threadIndices: number[];
-
-    #options: Options = { id: THREAD_TYPE.PAIR, env: null };
 
     #isTerminated: boolean = true;
 
@@ -46,9 +43,7 @@ export default class Parallel {
     }
 
     public start(
-        id: THREAD_TYPE,
         input: ArrayBuffer[],
-        env: object | null,
         onSuccess: (result: ArrayBuffer[]) => void,
         onError: (error: ErrorEvent) => void,
         onSpawn: (scount: number) => void = null
@@ -61,8 +56,6 @@ export default class Parallel {
         this.#onError = onError;
         this.#onSuccess = onSuccess;
         this.#onSpawn = onSpawn;
-        this.#options.id = id;
-        this.#options.env = env;
         this.#iterationCount = 0;
         this.#startedThreads = 0;
         this.#input = input;
@@ -123,11 +116,7 @@ export default class Parallel {
             this.#onSpawn(this.#startedThreads);
         }
 
-        if (this.#options.env === null) {
-            thread.trigger(this.#input[threadIndex] as ArrayBuffer, this.onMessage, this.onError);
-        } else {
-            thread.trigger({ ...this.#options, data: this.#input[threadIndex] }, this.onMessage, this.onError);
-        }
+        thread.trigger(this.#input[threadIndex], this.onMessage, this.onError);
 
         return true;
     }

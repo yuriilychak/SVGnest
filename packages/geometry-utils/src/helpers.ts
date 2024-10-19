@@ -225,16 +225,16 @@ export function serializeMapToBuffer(map: NFPCache): ArrayBuffer {
     return resultBuffer;
 }
 
-export function deserializeBufferToMap(buffer: ArrayBuffer): NFPCache {
+export function deserializeBufferToMap(buffer: ArrayBuffer, initialOffset: number, bufferSize: number): NFPCache {
     const view: DataView = new DataView(buffer);
     const map: NFPCache = new Map<number, ArrayBuffer>();
-    const bufferSize: number = buffer.byteLength;
-    let offset: number = 0;
+    const resultOffset: number = initialOffset + bufferSize;
+    let offset: number = initialOffset;
     let key: number = 0;
     let length: number = 0;
     let valueBuffer: ArrayBuffer = null;
 
-    while (offset < bufferSize) {
+    while (offset < resultOffset) {
         key = view.getUint32(offset);
         offset += Uint32Array.BYTES_PER_ELEMENT;
         length = view.getUint32(offset);

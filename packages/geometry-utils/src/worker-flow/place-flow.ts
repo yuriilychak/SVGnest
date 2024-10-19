@@ -1,6 +1,6 @@
 import ClipperLib from 'js-clipper';
 
-import { IPoint, NFPCache, PlacementWorkerData, PolygonNode } from '../types';
+import { IPoint, NFPCache, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import {
     almostEqual,
@@ -208,11 +208,19 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
     return result;
 }
 
-export function placePaths(buffer: ArrayBuffer, placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
+function deserializeBuffer(buffer: ArrayBuffer): { rotations: number; area: number; nfpCache: NFPCache; nodes: PolygonNode[] } {
     const view: DataView = new DataView(buffer);
-    const { rotations } = deserializeConfig(view.getFloat64(0));
-    const nfpCache: NFPCache = deserializeBufferToMap(placementData.nfpCache);
-    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT << 1);
+    const { rotations } = deserializeConfig(view.getFloat64(Float64Array.BYTES_PER_ELEMENT));
+    const area = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
+    const mapBufferSize: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 3);
+    const nfpCache: NFPCache = deserializeBufferToMap(buffer, Float64Array.BYTES_PER_ELEMENT * 4, mapBufferSize);
+    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 4 + mapBufferSize);
+
+    return { rotations, area, nfpCache, nodes };
+}
+
+export function placePaths(buffer: ArrayBuffer, pointPool: PointPool): Float64Array {
+    const { rotations, area, nodes, nfpCache } = deserializeBuffer(buffer);
     const polygon: Polygon = Polygon.create();
     const emptyPath: PolygonNode = getPolygonNode(-1, new Float64Array(0));
     const pointIndices: number = pointPool.alloc(2);
@@ -220,7 +228,6 @@ export function placePaths(buffer: ArrayBuffer, placementData: PlacementWorkerDa
     const firstPoint: Point = pointPool.get(pointIndices, 1);
     const placements: number[][] = [];
     const pathItems: number[][] = [];
-    const area = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
     const pntMemSeg: Float64Array = new Float64Array(8192);
     const nfpMemSeg: Float64Array = new Float64Array(2048);
     let node: PolygonNode = null;

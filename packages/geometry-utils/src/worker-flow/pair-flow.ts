@@ -991,18 +991,30 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
     return result;
 }
 
-export function pairData(buffer: ArrayBuffer, pointPool: PointPool): Float64Array {
+function deserializeBuffer(buffer: ArrayBuffer): {
+    nodes: PolygonNode[];
+    key: number;
+    exploreConcave: boolean;
+    useHoles: boolean;
+    nfpContent: NFPContent;
+} {
     const view: DataView = new DataView(buffer);
-    const key: number = view.getFloat64(0);
-    const configuration: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
-    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT << 1);
+    const key: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
+    const configuration: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
+    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
     const { exploreConcave, useHoles, rotations } = deserializeConfig(configuration);
+    const nfpContent: NFPContent = keyToNFPData(key, rotations);
+
+    return { nodes, key, exploreConcave, useHoles, nfpContent };
+}
+
+export function pairData(buffer: ArrayBuffer, pointPool: PointPool): Float64Array {
+    const { key, nodes, exploreConcave, useHoles, nfpContent } = deserializeBuffer(buffer);
 
     if (nodes.length === 0) {
         return new Float64Array(0);
     }
 
-    const nfpContent: NFPContent = keyToNFPData(key, rotations);
     const polygonA: Polygon = Polygon.fromMemSeg(nodes[0].memSeg);
     const polygonB: Polygon = Polygon.fromMemSeg(nodes[1].memSeg);
     const tmpPolygon: Polygon = Polygon.create();

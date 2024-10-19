@@ -1,7 +1,7 @@
 import { generateNFPCacheKey, Polygon, serializeConfig, serializeMapToBuffer, serializePolygonNodes } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
-import { PlacementWorkerData, NFPCache, PolygonNode, NestConfig } from './types';
+import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE } from './types';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<number, ArrayBuffer>();
@@ -44,7 +44,7 @@ export default class NFPStore {
         this.#nfpCache = newCache;
     }
 
-    private update(nfps: ArrayBuffer[]): void {
+    public update(nfps: ArrayBuffer[]): void {
         const nfpCount: number = nfps.length;
 
         if (nfpCount !== 0) {
@@ -68,11 +68,12 @@ export default class NFPStore {
 
         if (!this.#nfpCache.has(key)) {
             const nodes = NFPStore.rotateNodes(polygon, [node1, node2]);
-            const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT << 1);
+            const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT * 3);
             const view: DataView = new DataView(buffer);
 
-            view.setFloat64(0, key);
-            view.setFloat64(Float64Array.BYTES_PER_ELEMENT, this.#configCompressed);
+            view.setFloat64(0, THREAD_TYPE.PAIR);
+            view.setFloat64(Float64Array.BYTES_PER_ELEMENT, key);
+            view.setFloat64(Float64Array.BYTES_PER_ELEMENT << 1, this.#configCompressed);
 
             this.#nfpPairs.push(buffer);
         } else {
@@ -86,23 +87,22 @@ export default class NFPStore {
         this.#individual = null;
     }
 
-    public getPlacementWorkerData(generatedNfp: ArrayBuffer[]): PlacementWorkerData {
-        this.update(generatedNfp);
-
-        return { nfpCache: serializeMapToBuffer(this.#nfpCache) };
-    }
-
-    public getPlacementData(area: number): ArrayBuffer {
+    public getPlacementData(area: number): ArrayBuffer[] {
         const polygon: Polygon = Polygon.create();
-
+        const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
+        const bufferSize = nfpBuffer.byteLength;
         const nodes = NFPStore.rotateNodes(polygon, this.#individual.placement);
-        const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT << 1);
+        const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT * 4 + bufferSize);
         const view = new DataView(buffer);
 
-        view.setFloat64(0, this.#configCompressed);
-        view.setFloat64(Float64Array.BYTES_PER_ELEMENT, area);
+        view.setFloat64(0, THREAD_TYPE.PLACEMENT);
+        view.setFloat64(Float64Array.BYTES_PER_ELEMENT, this.#configCompressed);
+        view.setFloat64(Float64Array.BYTES_PER_ELEMENT * 2, area);
+        view.setFloat64(Float64Array.BYTES_PER_ELEMENT * 3, bufferSize);
 
-        return buffer;
+        new Uint8Array(buffer, Float64Array.BYTES_PER_ELEMENT * 4).set(new Uint8Array(nfpBuffer));
+
+        return [buffer];
     }
 
     public get nfpPairs(): ArrayBuffer[] {

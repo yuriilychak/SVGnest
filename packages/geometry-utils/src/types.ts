@@ -28,10 +28,6 @@ export type NFPContent = {
     Brotation: number;
 };
 
-export type PlacementWorkerData = {
-    nfpCache: ArrayBuffer;
-};
-
 export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;
 
 export type PolygonNode = {
@@ -42,3 +38,8 @@ export type PolygonNode = {
 };
 
 export type NFPCache = Map<number, ArrayBuffer>;
+
+export enum THREAD_TYPE {
+    PLACEMENT = 1,
+    PAIR = 0
+}

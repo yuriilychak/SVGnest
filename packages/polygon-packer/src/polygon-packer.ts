@@ -3,7 +3,7 @@ import { ClipperWrapper, getUint16, Polygon } from 'geometry-utils';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import { BoundRect, DisplayCallback, NestConfig, PolygonNode, THREAD_TYPE } from './types';
+import { BoundRect, DisplayCallback, NestConfig, PolygonNode } from './types';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -64,9 +64,7 @@ export default class PolygonPacker {
         this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, configuration);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binNode, configuration);
         this.#paralele.start(
-            THREAD_TYPE.PAIR,
             this.#nfpStore.nfpPairs,
-            null,
             (generatedNfp: ArrayBuffer[]) => this.onPair(configuration, generatedNfp, displayCallback),
             this.onError,
             this.onSpawn
@@ -78,13 +76,11 @@ export default class PolygonPacker {
     }
 
     private onPair(configuration: NestConfig, generatedNfp: ArrayBuffer[], displayCallback: DisplayCallback): void {
-        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp);
+        this.#nfpStore.update(generatedNfp);
 
         // can't use .spawn because our data is an array
         this.#paralele.start(
-            THREAD_TYPE.PLACEMENT,
-            [this.#nfpStore.getPlacementData(this.#binArea)],
-            placementWorkerData,
+            this.#nfpStore.getPlacementData(this.#binArea),
             (placements: ArrayBuffer[]) => this.onPlacement(configuration, placements, displayCallback),
             this.onError
         );

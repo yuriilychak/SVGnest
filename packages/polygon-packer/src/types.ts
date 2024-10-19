@@ -1,8 +1,3 @@
-export interface IPoint {
-    x: number;
-    y: number;
-}
-
 export type NestConfig = {
     curveTolerance: number;
     spacing: number;
@@ -20,21 +15,12 @@ export type BoundRect = {
     height: number;
 };
 
-export type NFPPair = {
-    buffer: ArrayBuffer;
-    key: number;
-};
-
 export enum THREAD_TYPE {
-    PLACEMENT = 'placement',
-    PAIR = 'pair'
+    PLACEMENT = 1,
+    PAIR = 0
 }
 
 export type NFPCache = Map<number, ArrayBuffer>;
-
-export type PlacementWorkerData = {
-    nfpCache: ArrayBuffer;
-};
 
 export type PlacementData = {
     placementsData: Float64Array;
@@ -56,15 +42,5 @@ export type PolygonNode = {
     memSeg: Float64Array;
     children: PolygonNode[];
 };
-
-export type ThreadData =
-    | {
-          env: NestConfig | PlacementWorkerData;
-          id: string;
-          data: PolygonNode[] | ArrayBuffer;
-      }
-    | ArrayBuffer;
-
-export type ThreadInput = PolygonNode[] | ArrayBuffer;
 
 export type CalculateConfig = { pointPool: unknown; isInit: boolean };
