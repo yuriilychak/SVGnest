@@ -17,6 +17,7 @@ import Point from '../point';
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import { NFP_INFO_START_INDEX } from '../constants';
+import { WorkerConfig } from './types';
 
 function fillPointMemSeg(
     pointPool: PointPool,
@@ -219,9 +220,10 @@ function deserializeBuffer(buffer: ArrayBuffer): { rotations: number; area: numb
     return { rotations, area, nfpCache, nodes };
 }
 
-export function placePaths(buffer: ArrayBuffer, pointPool: PointPool): Float64Array {
+export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
+    const { pointPool, polygons } = config;
     const { rotations, area, nodes, nfpCache } = deserializeBuffer(buffer);
-    const polygon: Polygon = Polygon.create();
+    const polygon: Polygon = polygons[0];
     const emptyPath: PolygonNode = getPolygonNode(-1, new Float64Array(0));
     const pointIndices: number = pointPool.alloc(2);
     const tmpPoint: Point = pointPool.get(pointIndices, 0);

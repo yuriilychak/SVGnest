@@ -18,6 +18,7 @@ import Point from '../point';
 import Polygon from '../polygon';
 import { NFP_INFO_START_INDEX, TOL } from '../constants';
 import PointPool from '../point-pool';
+import { WorkerConfig } from './types';
 
 interface ISegmentCheck {
     point: Point;
@@ -1008,16 +1009,20 @@ function deserializeBuffer(buffer: ArrayBuffer): {
     return { nodes, key, exploreConcave, useHoles, nfpContent };
 }
 
-export function pairData(buffer: ArrayBuffer, pointPool: PointPool): Float64Array {
+export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
+    const { pointPool, polygons } = config;
     const { key, nodes, exploreConcave, useHoles, nfpContent } = deserializeBuffer(buffer);
 
     if (nodes.length === 0) {
         return new Float64Array(0);
     }
 
-    const polygonA: Polygon = Polygon.fromMemSeg(nodes[0].memSeg);
-    const polygonB: Polygon = Polygon.fromMemSeg(nodes[1].memSeg);
-    const tmpPolygon: Polygon = Polygon.create();
+    const polygonA: Polygon = polygons[0];
+    const polygonB: Polygon = polygons[1];
+
+    polygonA.bind(nodes[0].memSeg);
+    polygonB.bind(nodes[1].memSeg);
+    const tmpPolygon: Polygon = polygons[2];
     let nfp: Float64Array[] = null;
     let i: number = 0;
 
@@ -1073,7 +1078,7 @@ export function pairData(buffer: ArrayBuffer, pointPool: PointPool): Float64Arra
             return new Float64Array(0);
         }
 
-        const firstNfp: Polygon = Polygon.create();
+        const firstNfp: Polygon = polygons[3];
 
         firstNfp.bind(nfp[0]);
 
@@ -1094,7 +1099,7 @@ export function pairData(buffer: ArrayBuffer, pointPool: PointPool): Float64Arra
         if (useHoles && nodes[0].children.length !== 0) {
             const childCount: number = nodes[0].children.length;
             let node: PolygonNode = null;
-            const child: Polygon = Polygon.create();
+            const child: Polygon = polygons[4];
 
             for (i = 0; i < childCount; ++i) {
                 node = nodes[0].children[i];

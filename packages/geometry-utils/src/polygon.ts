@@ -29,11 +29,26 @@ export default class Polygon {
     }
 
     public bind(data: Float64Array, offset: number = 0, pointCount: number = data.length >> 1): void {
+        this.closedDirty = false;
+        this.rectangle = false;
+        this.closed = false;
+        this.pointCount = 0;
+        this.offset = 0;
         this.pointCount = pointCount;
         this.offset = offset;
         this.memSeg = data;
 
         this.calculateBounds();
+    }
+
+    public clean(): void {
+        this.closedDirty = false;
+        this.rectangle = false;
+        this.closed = false;
+        this.pointCount = 0;
+        this.offset = 0;
+        this.memSeg = null;
+        this.point.bind(null);
     }
 
     public rotate(angle: number): void {
