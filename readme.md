@@ -4,12 +4,11 @@
 -   Restructure project to monorep for reusage of modules.
 -   Rewritten code to Typescript.
 -   Optimized worker flow. Now workers created only once and reused.
+-   Optimized concave flow. Now it faster then original.
 -   Migrated UI to React.
 
 ## Current TODO's
 
--   Refactor geometry-utils. Currently it use old non-refactored flows. Need to create classes to work with points and polygons
-    for bettter structuring of code, and codesplitting (currently polygon-packer has dependency to geometry-utils)
 -   Add node package for ability to run nesting tool from terminal on server-side.
 -   Rewrite ClipperLib flows with own functions. This library is old isn't maintained, also need for next step.
 -   Port geometry-utils to WASM using assembly-script usage for better performance.
@@ -21,7 +20,7 @@
 Currently I'm working on my own html game engine, and need tool for polyognal atlas generation. Due to I need polygon packing
 tool I splited it to packages for ability to reuse some modules in that tool.
 
-# ![SVGNest](https://camo.githubusercontent.com/7f7a41743f4e90ba20d9179aede82708eabeac431046933362e8975d9a10b109/687474703a2f2f7376676e6573742e636f6d2f6769746875622f6c6f676f322e706e67)
+# ![SVGNest](http://svgnest.com/github/logo2.png)
 
 **SVGNest**: A browser-based vector nesting tool.
 
