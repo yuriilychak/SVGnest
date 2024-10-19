@@ -3,6 +3,7 @@
 -   Migrated to modern Web-Project structure.
 -   Restructure project to monorep for reusage of modules.
 -   Rewritten code to Typescript.
+-   Migrate SVG parsing logic to non-DOM libs.
 -   Optimized worker flow. Now workers created only once and reused.
 -   Optimized concave flow. Now it faster then original.
 -   Migrated UI to React.
