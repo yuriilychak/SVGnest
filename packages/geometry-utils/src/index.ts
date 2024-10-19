@@ -4,7 +4,9 @@ export {
     serializePolygonNodes,
     deserializePolygonNodes,
     serializeConfig,
-    deserializeConfig
+    deserializeConfig,
+    serializeMapToBuffer,
+    deserializeBufferToMap
 } from './helpers';
 export { default as ClipperWrapper } from './clipper-wrapper';
 export { default as Polygon } from './polygon';

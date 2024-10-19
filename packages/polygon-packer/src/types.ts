@@ -33,9 +33,7 @@ export enum THREAD_TYPE {
 export type NFPCache = Map<number, ArrayBuffer>;
 
 export type PlacementWorkerData = {
-    angleSplit: number;
-    binArea: number;
-    nfpCache: NFPCache;
+    nfpCache: ArrayBuffer;
 };
 
 export type PlacementData = {

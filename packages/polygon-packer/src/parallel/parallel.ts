@@ -1,16 +1,15 @@
 ﻿import { THREAD_TYPE, ThreadInput } from '../types';
 import DedicatedWorkerWrapper from './dedicated-worker-wrapper';
-import SharedWorkerWrapper from './shared-worker-wrapper';
-import { IThread, Options, ThreadTarget } from './types';
+import { Options, ThreadTarget } from './types';
 
 export default class Parallel {
     #threadsUsage: boolean[];
 
     #threadCount: number;
 
-    #instance: IThread;
+    #instance: DedicatedWorkerWrapper;
 
-    #threads: IThread[];
+    #threads: DedicatedWorkerWrapper[];
 
     #input: ThreadInput[] = null;
 
@@ -28,8 +27,6 @@ export default class Parallel {
 
     #totalThreads: number = 0;
 
-    #isSharedWorkerSupported: boolean = typeof SharedWorker !== undefined;
-
     #onError: (error: ErrorEvent) => void = null;
 
     #onSuccess: (result: ArrayBuffer[]) => void = null;
@@ -37,7 +34,7 @@ export default class Parallel {
     #onSpawn: (count: number) => void = null;
 
     constructor() {
-        this.#instance = this.#isSharedWorkerSupported ? new SharedWorkerWrapper() : new DedicatedWorkerWrapper();
+        this.#instance = new DedicatedWorkerWrapper();
         this.#threadCount = navigator.hardwareConcurrency || 4;
         this.#threadsUsage = new Array(this.#threadCount);
         this.#threads = new Array(this.#threadCount);

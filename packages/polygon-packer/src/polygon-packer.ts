@@ -78,12 +78,12 @@ export default class PolygonPacker {
     }
 
     private onPair(configuration: NestConfig, generatedNfp: ArrayBuffer[], displayCallback: DisplayCallback): void {
-        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp, this.#binArea);
+        const placementWorkerData = this.#nfpStore.getPlacementWorkerData(generatedNfp);
 
         // can't use .spawn because our data is an array
         this.#paralele.start(
             THREAD_TYPE.PLACEMENT,
-            [this.#nfpStore.placement],
+            [this.#nfpStore.getPlacementData(this.#binArea)],
             placementWorkerData,
             (placements: ArrayBuffer[]) => this.onPlacement(configuration, placements, displayCallback),
             this.onError

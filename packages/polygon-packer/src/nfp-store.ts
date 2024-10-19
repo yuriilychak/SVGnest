@@ -1,7 +1,7 @@
-import { generateNFPCacheKey, Polygon, serializeConfig, serializePolygonNodes } from 'geometry-utils';
+import { generateNFPCacheKey, Polygon, serializeConfig, serializeMapToBuffer, serializePolygonNodes } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
-import { NFPPair, PlacementWorkerData, NFPCache, PolygonNode, NestConfig } from './types';
+import { PlacementWorkerData, NFPCache, PolygonNode, NestConfig } from './types';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<number, ArrayBuffer>();
@@ -86,20 +86,21 @@ export default class NFPStore {
         this.#individual = null;
     }
 
-    public getPlacementWorkerData(generatedNfp: ArrayBuffer[], binArea: number): PlacementWorkerData {
+    public getPlacementWorkerData(generatedNfp: ArrayBuffer[]): PlacementWorkerData {
         this.update(generatedNfp);
 
-        return { angleSplit: this.#angleSplit, binArea, nfpCache: this.#nfpCache };
+        return { nfpCache: serializeMapToBuffer(this.#nfpCache) };
     }
 
-    public get placement(): ArrayBuffer {
+    public getPlacementData(area: number): ArrayBuffer {
         const polygon: Polygon = Polygon.create();
 
         const nodes = NFPStore.rotateNodes(polygon, this.#individual.placement);
-        const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT);
+        const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT << 1);
         const view = new DataView(buffer);
 
         view.setFloat64(0, this.#configCompressed);
+        view.setFloat64(Float64Array.BYTES_PER_ELEMENT, area);
 
         return buffer;
     }

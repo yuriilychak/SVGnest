@@ -1,9 +1,10 @@
 import ClipperLib from 'js-clipper';
 
-import { IPoint, PlacementWorkerData, PolygonNode } from '../types';
+import { IPoint, NFPCache, PlacementWorkerData, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import {
     almostEqual,
+    deserializeBufferToMap,
     deserializeConfig,
     deserializePolygonNodes,
     generateNFPCacheKey,
@@ -66,14 +67,14 @@ function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpBuffer: Arr
 }
 
 // ensure all necessary NFPs exist
-function getNfpError(placementData: PlacementWorkerData, rotations: number, placed: PolygonNode[], path: PolygonNode): boolean {
+function getNfpError(nfpCache: NFPCache, rotations: number, placed: PolygonNode[], path: PolygonNode): boolean {
     let i: number = 0;
     let key: number = 0;
 
     for (i = 0; i < placed.length; ++i) {
         key = generateNFPCacheKey(rotations, false, placed[i], path);
 
-        if (!placementData.nfpCache.has(key)) {
+        if (!nfpCache.has(key)) {
             return true;
         }
     }
@@ -101,7 +102,7 @@ function nfpToClipper(polygon: Polygon, pointPool: PointPool, nfpMmSeg: Float64A
 function getFinalNfps(
     polygon: Polygon,
     pointPool: PointPool,
-    placementData: PlacementWorkerData,
+    nfpCache: NFPCache,
     rotations: number,
     placed: PolygonNode[],
     path: PolygonNode,
@@ -117,13 +118,13 @@ function getFinalNfps(
     for (i = 0; i < placed.length; ++i) {
         key = generateNFPCacheKey(rotations, false, placed[i], path);
 
-        if (!placementData.nfpCache.has(key)) {
+        if (!nfpCache.has(key)) {
             continue;
         }
 
         tmpPoint.fromMemSeg(placement, i);
 
-        applyNfps(polygon, clipper, placementData.nfpCache.get(key), tmpPoint);
+        applyNfps(polygon, clipper, nfpCache.get(key), tmpPoint);
     }
 
     pointPool.malloc(pointIndices);
@@ -210,8 +211,8 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 export function placePaths(buffer: ArrayBuffer, placementData: PlacementWorkerData, pointPool: PointPool): Float64Array {
     const view: DataView = new DataView(buffer);
     const { rotations } = deserializeConfig(view.getFloat64(0));
-    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT);
-    // rotate paths by given rotation
+    const nfpCache: NFPCache = deserializeBufferToMap(placementData.nfpCache);
+    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT << 1);
     const polygon: Polygon = Polygon.create();
     const emptyPath: PolygonNode = getPolygonNode(-1, new Float64Array(0));
     const pointIndices: number = pointPool.alloc(2);
@@ -219,7 +220,7 @@ export function placePaths(buffer: ArrayBuffer, placementData: PlacementWorkerDa
     const firstPoint: Point = pointPool.get(pointIndices, 1);
     const placements: number[][] = [];
     const pathItems: number[][] = [];
-    const area = placementData.binArea;
+    const area = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
     const pntMemSeg: Float64Array = new Float64Array(8192);
     const nfpMemSeg: Float64Array = new Float64Array(2048);
     let node: PolygonNode = null;
@@ -258,10 +259,10 @@ export function placePaths(buffer: ArrayBuffer, placementData: PlacementWorkerDa
 
             // inner NFP
             key = generateNFPCacheKey(rotations, true, emptyPath, node);
-            binNfp = placementData.nfpCache.has(key) ? new Float64Array(placementData.nfpCache.get(key)) : null;
+            binNfp = nfpCache.has(key) ? new Float64Array(nfpCache.get(key)) : null;
 
             // part unplaceable, skip             part unplaceable, skip
-            if (!binNfp || binNfp.length < 3 || getNfpError(placementData, rotations, placed, node)) {
+            if (!binNfp || binNfp.length < 3 || getNfpError(nfpCache, rotations, placed, node)) {
                 continue;
             }
 
@@ -292,7 +293,7 @@ export function placePaths(buffer: ArrayBuffer, placementData: PlacementWorkerDa
                 continue;
             }
 
-            finalNfp = getFinalNfps(polygon, pointPool, placementData, rotations, placed, node, binNfp, placement);
+            finalNfp = getFinalNfps(polygon, pointPool, nfpCache, rotations, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;

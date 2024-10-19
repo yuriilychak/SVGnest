@@ -29,8 +29,7 @@ export type NFPContent = {
 };
 
 export type PlacementWorkerData = {
-    binArea: number;
-    nfpCache: Map<number, ArrayBuffer>;
+    nfpCache: ArrayBuffer;
 };
 
 export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;
@@ -41,3 +40,5 @@ export type PolygonNode = {
     memSeg: Float64Array;
     children: PolygonNode[];
 };
+
+export type NFPCache = Map<number, ArrayBuffer>;

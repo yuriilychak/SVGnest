@@ -1,5 +1,5 @@
 import { NFP_KEY_INDICES, TOL, UINT16_BIT_COUNT } from './constants';
-import { NestConfig, NFPContent, PolygonNode } from './types';
+import { NestConfig, NFPCache, NFPContent, PolygonNode } from './types';
 
 export function getMask(bitCount: number, offset: number = 0): number {
     return ((1 << bitCount) - 1) << offset;
@@ -96,31 +96,25 @@ function calculateTotalSize(nodes: PolygonNode[], initialSize: number): number {
     }, initialSize);
 }
 
-// Винесена функція для серіалізації вузлів
 function serializeNodes(nodes: PolygonNode[], buffer: ArrayBuffer, view: DataView, offset: number): number {
     return nodes.reduce((result: number, node: PolygonNode) => {
-        // Записуємо source і rotation
         view.setFloat64(result, node.source + 1);
         result += Float64Array.BYTES_PER_ELEMENT;
         view.setFloat64(result, node.rotation);
         result += Float64Array.BYTES_PER_ELEMENT;
 
-        // Записуємо memSeg
-        const memSegLength = node.memSeg.length; // Кількість точок
-        view.setUint32(result, memSegLength >> 1); // Зберігаємо кількість точок
+        const memSegLength = node.memSeg.length;
+        view.setUint32(result, memSegLength >> 1);
         result += Uint32Array.BYTES_PER_ELEMENT;
 
-        // Копіюємо memSeg
         const memSegBytes = new Uint8Array(node.memSeg.buffer, node.memSeg.byteOffset, node.memSeg.byteLength);
         new Uint8Array(buffer, result).set(memSegBytes);
         result += memSegBytes.byteLength;
 
-        // Записуємо кількість дітей
         const childrenCount = node.children.length;
         view.setUint32(result, childrenCount);
         result += Uint32Array.BYTES_PER_ELEMENT;
 
-        // Рекурсивно серіалізуємо дітей
         return serializeNodes(node.children, buffer, view, result);
     }, offset);
 }
@@ -137,25 +131,18 @@ function deserializeNodes(nodes: PolygonNode[], view: DataView, buffer: ArrayBuf
     let i: number = 0;
 
     for (i = 0; i < nodeCount; ++i) {
-        // Читаємо source і rotation
         source = view.getFloat64(offset) - 1;
         offset += Float64Array.BYTES_PER_ELEMENT;
         rotation = view.getFloat64(offset);
         offset += Float64Array.BYTES_PER_ELEMENT;
-        // Читаємо memSeg
-        memSegLength = view.getUint32(offset) << 1; // Кількість точок, кожна має 2 координати
+        memSegLength = view.getUint32(offset) << 1;
         offset += Uint32Array.BYTES_PER_ELEMENT;
-        // Створюємо Float64Array без копіювання даних (вказуємо offset і довжину)
         memSeg = new Float64Array(buffer, offset, memSegLength);
         offset += memSeg.byteLength;
-
-        // Читаємо кількість дітей
         childrenCount = view.getUint32(offset);
         offset += Uint32Array.BYTES_PER_ELEMENT;
         children = new Array(childrenCount);
-
         offset = deserializeNodes(children, view, buffer, offset);
-
         nodes[i] = { source, rotation, memSeg, children };
     }
 
@@ -211,4 +198,52 @@ export function deserializeConfig(value: number): NestConfig {
         useHoles: Boolean(getBits(value, 28, 1)),
         exploreConcave: Boolean(getBits(value, 29, 1))
     };
+}
+
+export function serializeMapToBuffer(map: NFPCache): ArrayBuffer {
+    const totalSize: number = Array.from(map.values()).reduce(
+        (acc, buffer) => acc + (Uint32Array.BYTES_PER_ELEMENT << 1) + buffer.byteLength,
+        0
+    );
+    const resultBuffer: ArrayBuffer = new ArrayBuffer(totalSize);
+    const view: DataView = new DataView(resultBuffer);
+    const entries = Array.from(map.entries());
+    let length: number = 0;
+
+    entries.reduce((offset, [key, buffer]) => {
+        view.setUint32(offset, key);
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+        length = buffer.byteLength;
+        view.setUint32(offset, length);
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+
+        new Uint8Array(resultBuffer, offset).set(new Uint8Array(buffer));
+
+        return offset + length;
+    }, 0);
+
+    return resultBuffer;
+}
+
+export function deserializeBufferToMap(buffer: ArrayBuffer): NFPCache {
+    const view: DataView = new DataView(buffer);
+    const map: NFPCache = new Map<number, ArrayBuffer>();
+    const bufferSize: number = buffer.byteLength;
+    let offset: number = 0;
+    let key: number = 0;
+    let length: number = 0;
+    let valueBuffer: ArrayBuffer = null;
+
+    while (offset < bufferSize) {
+        key = view.getUint32(offset);
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+        length = view.getUint32(offset);
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+        valueBuffer = buffer.slice(offset, offset + length);
+        offset += length;
+
+        map.set(key, valueBuffer);
+    }
+
+    return map;
 }

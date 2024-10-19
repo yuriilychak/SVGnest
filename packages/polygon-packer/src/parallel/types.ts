@@ -14,14 +14,3 @@ export interface Options<T = object | number> {
 }
 
 export type ThreadTarget = MessagePort | Worker;
-
-export interface IThread {
-    trigger(
-        data: Record<string, unknown> | ArrayBuffer,
-        onMessage: (message: MessageEvent) => void,
-        onError: (error: ErrorEvent) => void
-    ): void;
-    terminate(): void;
-    getInstance(target: ThreadTarget): boolean;
-    clone(): IThread;
-}

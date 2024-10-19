@@ -1,6 +1,6 @@
-import { IThread, ThreadTarget } from './types';
+import { ThreadTarget } from './types';
 
-export default class DedicatedWorkerWrapper implements IThread {
+export default class DedicatedWorkerWrapper {
     #worker: Worker;
 
     public constructor() {
