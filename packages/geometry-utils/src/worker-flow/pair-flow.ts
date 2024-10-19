@@ -671,6 +671,123 @@ function getTouch(type: number, firstIndex: number, secondIndex: number): number
 
     return setBits(result, secondIndex, 17, 15);
 }
+
+function getTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool, offset: Point): number[] {
+    // sanity check, prevent infinite loop
+    const result: number[] = [];
+    const pointIndices = pointPool.alloc(4);
+    const pointA: Point = pointPool.get(pointIndices, 0);
+    const pointANext: Point = pointPool.get(pointIndices, 1);
+    const pointB: Point = pointPool.get(pointIndices, 2);
+    const pointBNext: Point = pointPool.get(pointIndices, 3);
+    const sizeA: number = polygonA.length;
+    const sizeB: number = polygonB.length;
+    let i: number = 0;
+    let j: number = 0;
+    let iNext: number = 0;
+    let jNext: number = 0;
+    // find touching vertices/edges
+    for (i = 0; i < sizeA; ++i) {
+        iNext = cycleIndex(i, sizeA, 1);
+        pointA.update(polygonA.at(i));
+        pointANext.update(polygonA.at(iNext));
+
+        for (j = 0; j < sizeB; ++j) {
+            jNext = cycleIndex(j, sizeB, 1);
+            pointB.update(polygonB.at(j)).add(offset);
+            pointBNext.update(polygonB.at(jNext)).add(offset);
+
+            if (pointB.almostEqual(polygonA.at(i))) {
+                result.push(getTouch(0, i, j));
+            } else if (pointB.onSegment(pointA, pointANext)) {
+                result.push(getTouch(1, iNext, j));
+            } else if (pointA.onSegment(pointB, pointBNext)) {
+                result.push(getTouch(2, i, jNext));
+            }
+        }
+    }
+
+    pointPool.malloc(pointIndices);
+
+    return result;
+}
+
+function getVectors(
+    polygonA: Polygon,
+    polygonB: Polygon,
+    touchings: number[],
+    pointPool: PointPool,
+    offset: Point,
+    markedIndices: number[]
+): IVector[] {
+    // generate translation vectors from touching vertices/edges\
+
+    const sizeA: number = polygonA.length;
+    const sizeB: number = polygonB.length;
+    const result: IVector[] = [];
+    const touchingCount: number = touchings.length;
+    const pointIndices = pointPool.alloc(6);
+    const prevA: Point = pointPool.get(pointIndices, 0);
+    const currA: Point = pointPool.get(pointIndices, 1);
+    const nextA: Point = pointPool.get(pointIndices, 2);
+    const prevB: Point = pointPool.get(pointIndices, 3);
+    const currB: Point = pointPool.get(pointIndices, 4);
+    const nextB: Point = pointPool.get(pointIndices, 5);
+    let currIndexA: number = 0;
+    let prevIndexA: number = 0;
+    let nextIndexA: number = 0;
+    let currIndexB: number = 0;
+    let prevIndexB: number = 0;
+    let nextIndexB: number = 0;
+    let type: number = 0;
+    let i: number = 0;
+    let touching: number = 0;
+
+    for (i = 0; i < touchingCount; ++i) {
+        touching = touchings[i];
+        // adjacent A vertices
+        type = getBits(touching, 0, 2);
+        currIndexA = getBits(touching, 2, 15);
+        currIndexB = getBits(touching, 17, 15);
+        prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop
+        nextIndexA = cycleIndex(currIndexA, sizeA, 1); // loop
+        prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
+        nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
+
+        markedIndices.push(currIndexA);
+
+        prevA.update(polygonA.at(prevIndexA));
+        currA.update(polygonA.at(currIndexA));
+        nextA.update(polygonA.at(nextIndexA));
+        prevB.update(polygonB.at(prevIndexB));
+        currB.update(polygonB.at(currIndexB));
+        nextB.update(polygonB.at(nextIndexB));
+
+        switch (type) {
+            case 0: {
+                result.push(getVector(currIndexA, prevIndexA, prevA, currA));
+                result.push(getVector(currIndexA, nextIndexA, nextA, currA));
+                // B vectors need to be inverted
+                result.push(getVector(-1, -1, currB, prevB));
+                result.push(getVector(-1, -1, currB, nextB));
+                break;
+            }
+            case 1: {
+                result.push(getVector(prevIndexA, currIndexA, currA, currB, offset));
+                result.push(getVector(currIndexA, prevIndexA, prevA, currB, offset));
+                break;
+            }
+            default: {
+                result.push(getVector(-1, -1, currA, currB, offset));
+                result.push(getVector(-1, -1, currA, prevB, offset));
+            }
+        }
+    }
+
+    pointPool.malloc(pointIndices);
+
+    return result;
+}
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
@@ -686,15 +803,12 @@ function noFitPolygon(
         return [];
     }
 
+    const markedIndices: number[] = [];
     let i: number = 0;
-    let j: number = 0;
-
     let minA = polygonA.first.y;
     let minIndexA = 0;
-
     let maxB = polygonB.first.y;
     let maxIndexB = 0;
-    const markedIndices: number[] = [];
 
     for (i = 1; i < polygonA.length; ++i) {
         if (polygonA.at(i).y < minA) {
@@ -710,23 +824,13 @@ function noFitPolygon(
         }
     }
 
-    const pointIndices = pointPool.alloc(16);
+    const pointIndices = pointPool.alloc(6);
     const reference: Point = pointPool.get(pointIndices, 0);
     const start: Point = pointPool.get(pointIndices, 1);
-    const pointA: Point = pointPool.get(pointIndices, 2);
-    const pointANext: Point = pointPool.get(pointIndices, 3);
-    const pointB: Point = pointPool.get(pointIndices, 4);
-    const pointBNext: Point = pointPool.get(pointIndices, 5);
-    const currUnitV: Point = pointPool.get(pointIndices, 6);
-    const prevUnitV: Point = pointPool.get(pointIndices, 7);
-    const offset: Point = pointPool.get(pointIndices, 8);
-    const startPoint: Point = pointPool.get(pointIndices, 9).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
-    const prevA: Point = pointPool.get(pointIndices, 10);
-    const currA: Point = pointPool.get(pointIndices, 11);
-    const nextA: Point = pointPool.get(pointIndices, 12);
-    const prevB: Point = pointPool.get(pointIndices, 13);
-    const currB: Point = pointPool.get(pointIndices, 14);
-    const nextB: Point = pointPool.get(pointIndices, 15);
+    const currUnitV: Point = pointPool.get(pointIndices, 2);
+    const prevUnitV: Point = pointPool.get(pointIndices, 3);
+    const offset: Point = pointPool.get(pointIndices, 4);
+    const startPoint: Point = pointPool.get(pointIndices, 5).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
     const result: Float64Array[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
@@ -738,16 +842,7 @@ function noFitPolygon(
     let prevVector: IVector = null;
     // maintain a list of touching points/edges
     let touchings: number[] = null;
-    let touching: number = 0;
-    let iNext: number = 0;
-    let jNext: number = 0;
     let isLooped: boolean = false;
-    let currIndexA: number = 0;
-    let prevIndexA: number = 0;
-    let nextIndexA: number = 0;
-    let currIndexB: number = 0;
-    let prevIndexB: number = 0;
-    let nextIndexB: number = 0;
     let vectors: IVector[] = null;
     let translate: IVector = null;
     let maxDistance: number = 0;
@@ -783,69 +878,9 @@ function noFitPolygon(
 
         while (counter < condition) {
             // sanity check, prevent infinite loop
-            touchings = [];
-            // find touching vertices/edges
-            for (i = 0; i < sizeA; ++i) {
-                iNext = cycleIndex(i, sizeA, 1);
-                pointA.update(polygonA.at(i));
-                pointANext.update(polygonA.at(iNext));
-                for (j = 0; j < sizeB; ++j) {
-                    jNext = cycleIndex(j, sizeB, 1);
-                    pointB.update(polygonB.at(j)).add(offset);
-                    pointBNext.update(polygonB.at(jNext)).add(offset);
-
-                    if (pointB.almostEqual(polygonA.at(i))) {
-                        touchings.push(getTouch(0, i, j));
-                    } else if (pointB.onSegment(pointA, pointANext)) {
-                        touchings.push(getTouch(1, iNext, j));
-                    } else if (pointA.onSegment(pointB, pointBNext)) {
-                        touchings.push(getTouch(2, i, jNext));
-                    }
-                }
-            }
-
+            touchings = getTouchings(polygonA, polygonB, pointPool, offset);
             // generate translation vectors from touching vertices/edges
-            vectors = [];
-
-            for (i = 0; i < touchings.length; ++i) {
-                touching = touchings[i];
-                // adjacent A vertices
-                currIndexA = getBits(touching, 2, 15);
-                currIndexB = getBits(touching, 17, 15);
-                prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop
-                nextIndexA = cycleIndex(currIndexA, sizeA, 1); // loop
-                prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
-                nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
-
-                markedIndices.push(currIndexA);
-
-                prevA.update(polygonA.at(prevIndexA));
-                currA.update(polygonA.at(currIndexA));
-                nextA.update(polygonA.at(nextIndexA));
-                prevB.update(polygonB.at(prevIndexB));
-                currB.update(polygonB.at(currIndexB));
-                nextB.update(polygonB.at(nextIndexB));
-
-                switch (getBits(touching, 0, 2)) {
-                    case 0: {
-                        vectors.push(getVector(currIndexA, prevIndexA, prevA, currA));
-                        vectors.push(getVector(currIndexA, nextIndexA, nextA, currA));
-                        // B vectors need to be inverted
-                        vectors.push(getVector(-1, -1, currB, prevB));
-                        vectors.push(getVector(-1, -1, currB, nextB));
-                        break;
-                    }
-                    case 1: {
-                        vectors.push(getVector(prevIndexA, currIndexA, currA, currB, offset));
-                        vectors.push(getVector(currIndexA, prevIndexA, prevA, currB, offset));
-                        break;
-                    }
-                    default: {
-                        vectors.push(getVector(-1, -1, currA, currB, offset));
-                        vectors.push(getVector(-1, -1, currA, prevB, offset));
-                    }
-                }
-            }
+            vectors = getVectors(polygonA, polygonB, touchings, pointPool, offset, markedIndices);
 
             // old-todo: there should be a faster way to reject vectors
             // that will cause immediate intersection. For now just check them all
