@@ -1,5 +1,3 @@
-import ClipperLib from 'js-clipper';
-
 import {
     almostEqual,
     cycleIndex,
@@ -12,7 +10,6 @@ import {
     deserializeConfig,
     deserializePolygonNodes
 } from '../helpers';
-import ClipperWrapper from '../clipper-wrapper';
 import { IPoint, NFPContent, PolygonNode } from '../types';
 import Point from '../point';
 import Polygon from '../polygon';
@@ -180,32 +177,6 @@ function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, o
     pointPool.malloc(pointIndices);
 
     return false;
-}
-
-function minkowskiDifference(polygon: Polygon, polygonA: Polygon, polygonB: Polygon): Float64Array[] {
-    const clipperA: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonA);
-    const clipperB: ClipperLib.IntPoint[] = ClipperWrapper.toClipper(polygonB, -1);
-    const solutions: ClipperLib.IntPoint[][] = ClipperLib.Clipper.MinkowskiSum(clipperA, clipperB, true);
-    const solutionCount: number = solutions.length;
-    const firstPoint: IPoint = polygonB.first;
-    const memSeg: Float64Array = new Float64Array(1024);
-    let resuly: Float64Array = null;
-    let largestArea: number = null;
-    let area: number = 0;
-    let i: number = 0;
-
-    for (i = 0; i < solutionCount; ++i) {
-        ClipperWrapper.toMemSeg(solutions[i], memSeg, firstPoint);
-        polygon.bind(memSeg, 0, solutions[i].length);
-        area = polygon.area;
-
-        if (largestArea === null || largestArea > area) {
-            resuly = memSeg.slice(0, solutions[i].length << 1);
-            largestArea = area;
-        }
-    }
-
-    return [resuly];
 }
 
 function pointDistance(
@@ -796,8 +767,7 @@ function noFitPolygon(
     polygon: Polygon,
     polygonA: Polygon,
     polygonB: Polygon,
-    inside: boolean,
-    searchEdges: boolean
+    inside: boolean
 ): Float64Array[] {
     if (polygonA.isBroken || polygonB.isBroken) {
         return [];
@@ -981,11 +951,6 @@ function noFitPolygon(
             result.push(new Float64Array(nfp));
         }
 
-        if (!searchEdges) {
-            // only get outer NFP or first inner NFP
-            break;
-        }
-
         startPointRaw = searchStartPoint(pointPool, polygon, polygonA, polygonB, inside, markedIndices, result);
 
         if (startPointRaw === null) {
@@ -1030,7 +995,6 @@ function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
 function deserializeBuffer(buffer: ArrayBuffer): {
     nodes: PolygonNode[];
     key: number;
-    exploreConcave: boolean;
     useHoles: boolean;
     nfpContent: NFPContent;
 } {
@@ -1038,15 +1002,15 @@ function deserializeBuffer(buffer: ArrayBuffer): {
     const key: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
     const configuration: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
     const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
-    const { exploreConcave, useHoles, rotations } = deserializeConfig(configuration);
+    const { useHoles, rotations } = deserializeConfig(configuration);
     const nfpContent: NFPContent = keyToNFPData(key, rotations);
 
-    return { nodes, key, exploreConcave, useHoles, nfpContent };
+    return { nodes, key, useHoles, nfpContent };
 }
 
 export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
     const { pointPool, polygons } = config;
-    const { key, nodes, exploreConcave, useHoles, nfpContent } = deserializeBuffer(buffer);
+    const { key, nodes, useHoles, nfpContent } = deserializeBuffer(buffer);
 
     if (nodes.length === 0) {
         return new Float64Array(0);
@@ -1064,7 +1028,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     if (nfpContent.inside) {
         nfp = polygonA.isRectangle
             ? noFitPolygonRectangle(pointPool, polygonA, polygonB)
-            : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, true, exploreConcave);
+            : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, true);
 
         // ensure all interior NFPs have the same winding direction
         if (nfp.length > 0) {
@@ -1081,9 +1045,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
             console.log('NFP Warning: ', key);
         }
     } else {
-        nfp = exploreConcave
-            ? noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, false, exploreConcave)
-            : minkowskiDifference(tmpPolygon, polygonA, polygonB);
+        nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, false);
         // sanity check
         if (nfp.length === 0) {
             console.log('NFP Error: ', key);
@@ -1094,7 +1056,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
         }
 
         for (i = 0; i < nfp.length; ++i) {
-            if (!exploreConcave || i === 0) {
+            if (i === 0) {
                 tmpPolygon.bind(nfp[i]);
                 // if searchedges is active, only the first NFP is guaranteed to pass sanity check
                 if (tmpPolygon.absArea < polygonA.absArea) {
@@ -1142,14 +1104,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
 
                 // no need to find nfp if B's bounding box is too big
                 if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
-                    const noFitPolygons: Float64Array[] = noFitPolygon(
-                        pointPool,
-                        tmpPolygon,
-                        child,
-                        polygonB,
-                        true,
-                        exploreConcave
-                    );
+                    const noFitPolygons: Float64Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, true);
                     const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                     // ensure all interior NFPs have the same winding direction
                     if (noFitCount !== 0) {

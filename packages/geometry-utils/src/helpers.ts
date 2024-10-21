@@ -183,7 +183,6 @@ export function serializeConfig(config: NestConfig): number {
     result = setBits(result, config.populationSize, 14, 7);
     result = setBits(result, config.mutationRate, 21, 7);
     result = setBits(result, Number(config.useHoles), 28, 1);
-    result = setBits(result, Number(config.exploreConcave), 29, 1);
 
     return result;
 }
@@ -195,8 +194,7 @@ export function deserializeConfig(value: number): NestConfig {
         rotations: getBits(value, 9, 5),
         populationSize: getBits(value, 14, 7),
         mutationRate: getBits(value, 21, 7),
-        useHoles: Boolean(getBits(value, 28, 1)),
-        exploreConcave: Boolean(getBits(value, 29, 1))
+        useHoles: Boolean(getBits(value, 28, 1))
     };
 }
 

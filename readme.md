@@ -5,7 +5,7 @@
 -   Rewritten code to Typescript.
 -   Migrate SVG parsing logic to non-DOM libs.
 -   Optimized worker flow. Now workers created only once and reused.
--   Optimized concave flow. Now it faster then original.
+-   Optimized concave flow. Now it faster then original. Original flow removed.
 -   Migrated UI to React.
 
 ## Current TODO's

@@ -28,7 +28,6 @@ export interface SettingsData {
     [SETTING_ID.POPULATION_SIZE]: number;
     [SETTING_ID.MUTATION_RATE]: number;
     [SETTING_ID.USE_HOLES]: boolean;
-    [SETTING_ID.EXPLORE_CONCAVE]: boolean;
 }
 
 export interface SettingConfig {

@@ -32,8 +32,7 @@ export const DEFAULT_SETTING: SettingsData = {
     [SETTING_ID.ROTATIONS]: 4,
     [SETTING_ID.POPULATION_SIZE]: 10,
     [SETTING_ID.MUTATION_RATE]: 10,
-    [SETTING_ID.USE_HOLES]: false,
-    [SETTING_ID.EXPLORE_CONCAVE]: true
+    [SETTING_ID.USE_HOLES]: false
 };
 
 const getSettingConfig = (
@@ -50,8 +49,7 @@ export const SETTINGS_CONFIG: SettingConfig[] = [
     getSettingConfig(SETTING_ID.ROTATIONS, INPUT_TYPE.NUMBER, 1, 16, 1),
     getSettingConfig(SETTING_ID.POPULATION_SIZE, INPUT_TYPE.NUMBER, 2, 64, 1),
     getSettingConfig(SETTING_ID.MUTATION_RATE, INPUT_TYPE.NUMBER, 2, 64, 1),
-    getSettingConfig(SETTING_ID.USE_HOLES, INPUT_TYPE.BOOLEAN),
-    getSettingConfig(SETTING_ID.EXPLORE_CONCAVE, INPUT_TYPE.BOOLEAN)
+    getSettingConfig(SETTING_ID.USE_HOLES, INPUT_TYPE.BOOLEAN)
 ];
 
 export const INITIAL_NESTING_STATISTICS: NestingStatistics = {

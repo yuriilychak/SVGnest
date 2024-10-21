@@ -5,7 +5,6 @@ export type NestConfig = {
     populationSize: number;
     mutationRate: number;
     useHoles: boolean;
-    exploreConcave: boolean;
 };
 
 export type BoundRect = {
