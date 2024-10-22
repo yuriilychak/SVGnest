@@ -223,7 +223,8 @@ function deserializeBuffer(buffer: ArrayBuffer): { rotations: number; area: numb
 export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
     const { pointPool, polygons } = config;
     const { rotations, area, nodes, nfpCache } = deserializeBuffer(buffer);
-    const polygon: Polygon = polygons[0];
+    const polygon1: Polygon = polygons[0];
+    const polygon2: Polygon = polygons[1];
     const emptyPath: PolygonNode = getPolygonNode(-1, new Float64Array(0));
     const pointIndices: number = pointPool.alloc(2);
     const tmpPoint: Point = pointPool.get(pointIndices, 0);
@@ -282,10 +283,10 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
             if (placed.length === 0) {
                 // first placement, put it on the left
                 for (j = 0; j < binNfpCount; ++j) {
-                    bindNFP(polygon, binNfp, j);
+                    bindNFP(polygon1, binNfp, j);
 
-                    for (k = 0; k < polygon.length; ++k) {
-                        tmpPoint.update(polygon.at(k)).sub(firstPoint);
+                    for (k = 0; k < polygon1.length; ++k) {
+                        tmpPoint.update(polygon1.at(k)).sub(firstPoint);
 
                         if (Number.isNaN(positionX) || tmpPoint.x < positionX) {
                             positionX = tmpPoint.x;
@@ -302,7 +303,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
                 continue;
             }
 
-            finalNfp = getFinalNfps(polygon, pointPool, nfpCache, rotations, placed, node, binNfp, placement);
+            finalNfp = getFinalNfps(polygon1, pointPool, nfpCache, rotations, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
@@ -320,9 +321,9 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
             for (j = 0; j < finalNfp.length; ++j) {
                 nfpSize = finalNfp[j].length;
                 ClipperWrapper.toMemSeg(finalNfp[j], nfpMemSeg);
-                polygon.bind(nfpMemSeg, 0, nfpSize);
+                polygon1.bind(nfpMemSeg, 0, nfpSize);
 
-                if (polygon.absArea < 2) {
+                if (polygon1.absArea < 2) {
                     continue;
                 }
 
@@ -334,15 +335,13 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
                         pointCount = fillPointMemSeg(pointPool, pntMemSeg, placed[m], tmpPoint, pointCount);
                     }
 
-                    polygon.bind(nfpMemSeg, 0, nfpSize);
-
-                    tmpPoint.update(polygon.at(k)).sub(firstPoint);
+                    tmpPoint.update(polygon1.at(k)).sub(firstPoint);
 
                     pointCount = fillPointMemSeg(pointPool, pntMemSeg, node, tmpPoint, pointCount);
 
-                    polygon.bind(pntMemSeg, 0, pointCount);
+                    polygon2.bind(pntMemSeg, 0, pointCount);
                     // weigh width more, to help compress in direction of gravity
-                    curArea = polygon.size.x * 2 + polygon.size.y;
+                    curArea = polygon2.size.x * 2 + polygon2.size.y;
 
                     if (
                         Number.isNaN(minArea) ||
@@ -350,7 +349,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
                         (almostEqual(minArea, curArea) && (Number.isNaN(minX) || tmpPoint.x < minX))
                     ) {
                         minArea = curArea;
-                        minWidth = polygon.size.x;
+                        minWidth = polygon2.size.x;
                         positionX = tmpPoint.x;
                         positionY = tmpPoint.y;
                         minX = tmpPoint.x;
