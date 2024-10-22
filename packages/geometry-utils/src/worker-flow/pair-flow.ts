@@ -1001,13 +1001,13 @@ function deserializeBuffer(buffer: ArrayBuffer): {
 }
 
 export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
-    const { pointPool, polygons } = config;
     const { key, nodes, useHoles, nfpContent } = deserializeBuffer(buffer);
 
     if (nodes.length === 0) {
         return new Float64Array(0);
     }
 
+    const { pointPool, polygons } = config;
     const polygonA: Polygon = polygons[0];
     const polygonB: Polygon = polygons[1];
 
@@ -1036,76 +1036,74 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
             // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
             console.log('NFP Warning: ', key);
         }
-    } else {
-        nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, false);
-        // sanity check
-        if (nfp.length === 0) {
-            console.log('NFP Error: ', key);
-            console.log('A: ', JSON.stringify(polygonA));
-            console.log('B: ', JSON.stringify(polygonB));
 
-            return new Float64Array(0);
+        return getResult(key, nfp);
+    }
+
+    nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, false);
+    // sanity check
+    if (nfp.length === 0) {
+        console.log('NFP Error: ', key);
+        console.log('A: ', JSON.stringify(polygonA));
+        console.log('B: ', JSON.stringify(polygonB));
+
+        return new Float64Array(0);
+    }
+
+    tmpPolygon.bind(nfp[0]);
+    // if searchedges is active, only the first NFP is guaranteed to pass sanity check
+    if (tmpPolygon.absArea < polygonA.absArea) {
+        console.log('NFP Area Error: ', tmpPolygon.absArea, key);
+        console.log('NFP:', JSON.stringify(tmpPolygon));
+        console.log('A: ', JSON.stringify(polygonA));
+        console.log('B: ', JSON.stringify(polygonB));
+        nfp.splice(i, 1);
+
+        return new Float64Array(0);
+    }
+
+    const firstNfp: Polygon = polygons[3];
+
+    firstNfp.bind(nfp[0]);
+
+    // for outer NFPs, the first is guaranteed to be the largest. Any subsequent NFPs that lie inside the first are holes
+    for (i = 0; i < nfp.length; ++i) {
+        tmpPolygon.bind(nfp[i]);
+
+        if (tmpPolygon.area > 0) {
+            tmpPolygon.reverse();
         }
 
-        if (nfp.length === 0) {
-            return new Float64Array(0);
+        if (i > 0 && firstNfp.pointIn(tmpPolygon.first) && tmpPolygon.area < 0) {
+            tmpPolygon.reverse();
         }
+    }
 
-        tmpPolygon.bind(nfp[0]);
-        // if searchedges is active, only the first NFP is guaranteed to pass sanity check
-        if (tmpPolygon.absArea < polygonA.absArea) {
-            console.log('NFP Area Error: ', tmpPolygon.absArea, key);
-            console.log('NFP:', JSON.stringify(tmpPolygon));
-            console.log('A: ', JSON.stringify(polygonA));
-            console.log('B: ', JSON.stringify(polygonB));
-            nfp.splice(i, 1);
+    // generate nfps for children (holes of parts) if any exist
+    if (useHoles && nodes[0].children.length !== 0) {
+        const childCount: number = nodes[0].children.length;
+        let node: PolygonNode = null;
+        const child: Polygon = polygons[4];
 
-            return new Float64Array(0);
-        }
+        for (i = 0; i < childCount; ++i) {
+            node = nodes[0].children[i];
+            child.bind(node.memSeg);
 
-        const firstNfp: Polygon = polygons[3];
+            // no need to find nfp if B's bounding box is too big
+            if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
+                const noFitPolygons: Float64Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, true);
+                const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
+                // ensure all interior NFPs have the same winding direction
+                if (noFitCount !== 0) {
+                    let j: number = 0;
 
-        firstNfp.bind(nfp[0]);
-
-        // for outer NFPs, the first is guaranteed to be the largest. Any subsequent NFPs that lie inside the first are holes
-        for (i = 0; i < nfp.length; ++i) {
-            tmpPolygon.bind(nfp[i]);
-
-            if (tmpPolygon.area > 0) {
-                tmpPolygon.reverse();
-            }
-
-            if (i > 0 && firstNfp.pointIn(tmpPolygon.first) && tmpPolygon.area < 0) {
-                tmpPolygon.reverse();
-            }
-        }
-
-        // generate nfps for children (holes of parts) if any exist
-        if (useHoles && nodes[0].children.length !== 0) {
-            const childCount: number = nodes[0].children.length;
-            let node: PolygonNode = null;
-            const child: Polygon = polygons[4];
-
-            for (i = 0; i < childCount; ++i) {
-                node = nodes[0].children[i];
-                child.bind(node.memSeg);
-
-                // no need to find nfp if B's bounding box is too big
-                if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
-                    const noFitPolygons: Float64Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, true);
-                    const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
-                    // ensure all interior NFPs have the same winding direction
-                    if (noFitCount !== 0) {
-                        let j: number = 0;
-
-                        for (j = 0; j < noFitCount; ++j) {
-                            tmpPolygon.bind(noFitPolygons[j]);
-                            if (tmpPolygon.area < 0) {
-                                tmpPolygon.reverse();
-                            }
-
-                            nfp.push(noFitPolygons[j]);
+                    for (j = 0; j < noFitCount; ++j) {
+                        tmpPolygon.bind(noFitPolygons[j]);
+                        if (tmpPolygon.area < 0) {
+                            tmpPolygon.reverse();
                         }
+
+                        nfp.push(noFitPolygons[j]);
                     }
                 }
             }
