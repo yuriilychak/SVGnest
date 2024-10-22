@@ -19,7 +19,7 @@ export default class Point implements IPoint {
         return this;
     }
 
-    public fromMemSeg(data: Float64Array | number[], index: number, offset: number = 0): Point {
+    public fromMemSeg(data: Float64Array | number[], index: number = 0, offset: number = 0): Point {
         this.x = data[offset + (index << 1)];
         this.y = data[offset + (index << 1) + 1];
 
@@ -189,8 +189,8 @@ export default class Point implements IPoint {
         return ((beginPoint.y - endPoint.y) * (this.x - endPoint.x)) / (beginPoint.x - endPoint.x) + endPoint.y;
     }
 
-    public export(): IPoint {
-        return { x: this.x, y: this.y };
+    public export(): Float64Array {
+        return this.memSeg.slice(this.offset, this.offset + 2);
     }
 
     public get x(): number {

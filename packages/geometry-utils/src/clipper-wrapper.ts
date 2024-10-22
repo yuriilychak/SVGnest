@@ -1,7 +1,7 @@
 // Import the library if needed for side effects
 import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
 
-import { BoundRect, IPoint, NestConfig, PolygonNode } from './types';
+import { BoundRect, NestConfig, PolygonNode } from './types';
 import Polygon from './polygon';
 import Point from './point';
 import { getPolygonNode } from './helpers';
@@ -91,7 +91,7 @@ export default class ClipperWrapper {
         for (i = 0; i < nodeCount; ++i) {
             outerNode = nodes[i];
             isChild = false;
-            point.fromMemSeg(outerNode.memSeg, 0);
+            point.fromMemSeg(outerNode.memSeg);
 
             for (j = 0; j < nodeCount; ++j) {
                 innerNode = nodes[j];
@@ -203,7 +203,7 @@ export default class ClipperWrapper {
     public static toClipper(
         polygon: Polygon,
         scale: number = 1,
-        offset: IPoint = { x: 0, y: 0 },
+        offset: Point = null,
         isRound: boolean = false,
         cleanTrashold: number = -1
     ): IntPoint[] {
@@ -211,15 +211,20 @@ export default class ClipperWrapper {
         const pointCount: number = polygon.length;
         const result = [];
         let i: number = 0;
-        let point: IPoint = null;
+        let point: Point = null;
         let x: number = 0;
         let y: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
             //@ts-ignore
             point = polygon.at(i);
-            x = (point.x + offset.x) * resultScale;
-            y = (point.y + offset.y) * resultScale;
+            if (offset === null) {
+                x = point.x * resultScale;
+                y = point.y * resultScale;
+            } else {
+                x = (point.x + offset.x) * resultScale;
+                y = (point.y + offset.y) * resultScale;
+            }
 
             if (isRound) {
                 x = Math.round(x);
@@ -247,14 +252,20 @@ export default class ClipperWrapper {
         return result;
     }
 
-    public static toMemSeg(polygon: IntPoint[], memSeg: Float64Array = null, offset: IPoint = { x: 0, y: 0 }): Float64Array {
+    public static toMemSeg(polygon: IntPoint[], memSeg: Float64Array = null, offset: Point = null): Float64Array {
         const pointCount: number = polygon.length;
         const result: Float64Array = memSeg ? memSeg : new Float64Array(pointCount << 1);
         const tempPoint: Point = Point.zero();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            tempPoint.fromClipper(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE).add(offset).fill(result, i);
+            tempPoint.fromClipper(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE);
+
+            if (offset !== null) {
+                tempPoint.add(offset);
+            }
+
+            tempPoint.fill(result, i);
         }
 
         return result;

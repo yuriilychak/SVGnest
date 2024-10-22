@@ -1,6 +1,6 @@
 import ClipperLib from 'js-clipper';
 
-import { IPoint, NFPCache, PolygonNode } from '../types';
+import { NFPCache, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import {
     almostEqual,
@@ -23,7 +23,7 @@ function fillPointMemSeg(
     pointPool: PointPool,
     memSeg: Float64Array,
     node: PolygonNode,
-    offset: IPoint,
+    offset: Point,
     prevValue: number
 ): number {
     const pointIndices: number = pointPool.alloc(1);
@@ -51,7 +51,7 @@ function bindNFP(polygon: Polygon, memSeg: Float64Array, index: number): void {
     polygon.bind(memSeg, offset, size);
 }
 
-function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpBuffer: ArrayBuffer, offset: IPoint): void {
+function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpBuffer: ArrayBuffer, offset: Point): void {
     const nfpMemSeg: Float64Array = new Float64Array(nfpBuffer);
     const nfpCount: number = nfpMemSeg[1];
     let clone: ClipperLib.IntPoint[] = null;
@@ -263,7 +263,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
 
         for (i = 0; i < nodes.length; ++i) {
             node = nodes[i];
-            firstPoint.fromMemSeg(node.memSeg, 0);
+            firstPoint.fromMemSeg(node.memSeg);
             pathKey = getPathKey(node.source, node.rotation, rotations);
 
             // inner NFP

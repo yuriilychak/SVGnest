@@ -10,7 +10,7 @@ import {
     deserializeConfig,
     deserializePolygonNodes
 } from '../helpers';
-import { IPoint, NFPContent, PolygonNode } from '../types';
+import { NFPContent, PolygonNode } from '../types';
 import Point from '../point';
 import Polygon from '../polygon';
 import { NFP_INFO_START_INDEX, TOL } from '../constants';
@@ -337,7 +337,7 @@ function polygonSlideDistance(
     pointPool: PointPool,
     polygonA: Polygon,
     polygonB: Polygon,
-    direction: IPoint,
+    direction: Point,
     offset: Point
 ): number {
     const pointIndices: number = pointPool.alloc(5);
@@ -517,7 +517,7 @@ function searchStartPoint(
     inside: boolean,
     markedIndices: number[],
     nfp: Float64Array[] = []
-): IPoint {
+): Float64Array {
     polygonA.close();
     polygonB.close();
     const sizeA: number = polygonA.length;
@@ -530,7 +530,7 @@ function searchStartPoint(
     let j: number = 0;
     let d: number = 0;
     let isInside: boolean = false;
-    let result: IPoint = null;
+    let result: Float64Array = null;
 
     for (i = 0; i < sizeA - 1; ++i) {
         if (markedIndices.indexOf(i) === -1) {
@@ -819,7 +819,7 @@ function noFitPolygon(
     const condition: number = 10 * (sizeA + sizeB);
     let counter: number = 0;
     let nfp: number[] = null;
-    let startPointRaw: IPoint = null;
+    let startPointRaw: Float64Array = null;
     let currVector: Vector = null;
     let prevVector: Vector = null;
     // maintain a list of touching points/edges
@@ -843,7 +843,7 @@ function noFitPolygon(
             return result;
         }
 
-        startPoint.update(startPointRaw);
+        startPoint.fromMemSeg(startPointRaw);
     }
 
     while (true) {
@@ -949,7 +949,7 @@ function noFitPolygon(
             break;
         }
 
-        startPoint.update(startPointRaw);
+        startPoint.fromMemSeg(startPointRaw);
     }
 
     pointPool.malloc(pointIndices);

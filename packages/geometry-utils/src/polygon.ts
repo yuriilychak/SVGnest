@@ -1,6 +1,6 @@
 import Point from './point';
 import { almostEqual, cycleIndex } from './helpers';
-import { BoundRect, IPoint } from './types';
+import { BoundRect } from './types';
 
 export default class Polygon {
     private memSeg: Float64Array;
@@ -73,7 +73,7 @@ export default class Polygon {
         return this.point.bind(this.memSeg, this.getPointOffset(pointIndex));
     }
 
-    public pointIn(point: IPoint, offset: Point = null): boolean {
+    public pointIn(point: Point, offset: Point = null): boolean {
         if (this.isBroken) {
             return null;
         }
