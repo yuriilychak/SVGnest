@@ -74,11 +74,11 @@ export default class GeneticAlgorithm {
         let i: number = 0;
 
         for (i = 0; i < size; ++i) {
-            if (this.isMutate) {
+            if (this.getMutate()) {
                 clone.swap(i);
             }
 
-            if (this.isMutate) {
+            if (this.getMutate()) {
                 clone.rotation[i] = this.randomAngle(polygon, clone.placement[i]);
             }
         }
@@ -202,7 +202,7 @@ export default class GeneticAlgorithm {
         return this.#population[1];
     }
 
-    private get isMutate(): boolean {
+    private getMutate(): boolean {
         return Math.random() < this.#trashold;
     }
 }

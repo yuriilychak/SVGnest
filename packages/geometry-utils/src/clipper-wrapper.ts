@@ -150,7 +150,7 @@ export default class ClipperWrapper {
             const clipper: ClipperOffset = new ClipperOffset(miterLimit, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
             const resultPath: Paths = new Paths();
 
-            clipper.AddPath(path, JoinType.jtRound, EndType.etClosedPolygon);
+            clipper.AddPath(path, JoinType.jtMiter, EndType.etClosedPolygon);
             clipper.Execute(resultPath, offset * ClipperWrapper.CLIPPER_SCALE);
 
             if (resultPath.length !== 1) {
@@ -158,6 +158,8 @@ export default class ClipperWrapper {
             }
 
             node.memSeg = ClipperWrapper.toMemSeg(resultPath[0]);
+
+            this.cleanNode(node);
         }
 
         this.polygon.bind(node.memSeg);
@@ -274,5 +276,6 @@ export default class ClipperWrapper {
     private static CLIPPER_SCALE: number = 10000000;
 
     public static AREA_TRASHOLD: number = 0.1 * ClipperWrapper.CLIPPER_SCALE * ClipperWrapper.CLIPPER_SCALE;
+
     public static CLEAN_TRASHOLD: number = 0.0001 * ClipperWrapper.CLIPPER_SCALE;
 }
