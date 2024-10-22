@@ -161,6 +161,8 @@ export default class Polygon {
         for (i = 0; i < binSize; ++i) {
             this.at(i).sub(position);
         }
+
+        this.calculateBounds();
     }
 
     // remove duplicate endpoints, ensure counterclockwise winding direction

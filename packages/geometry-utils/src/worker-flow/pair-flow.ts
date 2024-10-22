@@ -15,24 +15,8 @@ import Point from '../point';
 import Polygon from '../polygon';
 import { NFP_INFO_START_INDEX, TOL } from '../constants';
 import PointPool from '../point-pool';
-import { WorkerConfig } from './types';
+import { WorkerConfig, SegmentCheck, Vector } from './types';
 
-interface ISegmentCheck {
-    point: Point;
-    polygon: Polygon;
-    segmentStart: Point;
-    segmentEnd: Point;
-    checkStart: Point;
-    checkEnd: Point;
-    target: Point;
-    offset: Point;
-}
-
-interface IVector {
-    value: Point;
-    start: number;
-    end: number;
-}
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
@@ -85,7 +69,7 @@ function getSegmentCheck(
     checkEnd: Point,
     target: Point,
     offset: Point
-): ISegmentCheck {
+): SegmentCheck {
     return { point, polygon, segmentStart, segmentEnd, checkStart, checkEnd, target, offset };
 }
 
@@ -98,7 +82,7 @@ function getSegmentStats({
     checkStart,
     checkEnd,
     offset
-}: ISegmentCheck): boolean {
+}: SegmentCheck): boolean {
     if (point.onSegment(segmentStart, segmentEnd) || point.almostEqual(target)) {
         // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
         const pointIn1 = polygon.pointIn(checkStart, offset);
@@ -123,7 +107,7 @@ function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, o
     const offsetA: Point = pointPool.get(pointIndices, 8).set(0, 0);
     const pointCountA: number = polygonA.length;
     const pointCountB: number = polygonB.length;
-    const segmentChecks: ISegmentCheck[] = [
+    const segmentChecks: SegmentCheck[] = [
         getSegmentCheck(b1, polygonA, a1, a2, b0, b2, a1, offset),
         getSegmentCheck(b2, polygonA, a1, a2, b1, b3, a2, offset),
         getSegmentCheck(a1, polygonB, b1, b2, a0, a2, b2, offsetA),
@@ -244,6 +228,7 @@ function coincedentDistance(
     if (almostEqual(result)) {
         //  A currently touches EF, but AB is moving away from EF
         const distance = pointDistance(pointPool, point2, point3, point4, direction, true);
+
         if (distance < 0 || almostEqual(distance * overlap)) {
             return defaultValue;
         }
@@ -625,7 +610,7 @@ function searchStartPoint(
     return null;
 }
 
-function getVector(start: number, end: number, baseValue: Point, subValue: Point, offset: Point = null): IVector {
+function getVector(start: number, end: number, baseValue: Point, subValue: Point, offset: Point = null): Vector {
     const value = Point.from(baseValue).sub(subValue);
 
     if (offset !== null) {
@@ -690,12 +675,12 @@ function getVectors(
     pointPool: PointPool,
     offset: Point,
     markedIndices: number[]
-): IVector[] {
+): Vector[] {
     // generate translation vectors from touching vertices/edges\
 
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
-    const result: IVector[] = [];
+    const result: Vector[] = [];
     const touchingCount: number = touchings.length;
     const pointIndices = pointPool.alloc(6);
     const prevA: Point = pointPool.get(pointIndices, 0);
@@ -759,6 +744,33 @@ function getVectors(
 
     return result;
 }
+
+// if A and B start on a touching horizontal line, the end point may not be the start point
+function getNfpLooped(nfp: number[], reference: Point, pointPool: PointPool): boolean {
+    const pointCount: number = nfp.length >> 1;
+
+    if (pointCount === 0) {
+        return false;
+    }
+
+    const pointIndices: number = pointPool.alloc(1);
+    const point: Point = pointPool.get(pointIndices, 0);
+    let i: number = 0;
+
+    for (i = 0; i < pointCount - 1; ++i) {
+        point.fromMemSeg(nfp, i);
+
+        if (point.almostEqual(reference)) {
+            pointPool.malloc(pointIndices);
+            return true;
+        }
+    }
+
+    pointPool.malloc(pointIndices);
+
+    return false;
+}
+
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
@@ -808,17 +820,15 @@ function noFitPolygon(
     let counter: number = 0;
     let nfp: number[] = null;
     let startPointRaw: IPoint = null;
-    let currVector: IVector = null;
-    let prevVector: IVector = null;
+    let currVector: Vector = null;
+    let prevVector: Vector = null;
     // maintain a list of touching points/edges
     let touchings: number[] = null;
-    let isLooped: boolean = false;
-    let vectors: IVector[] = null;
-    let translate: IVector = null;
+    let vectors: Vector[] = null;
+    let translate: Vector = null;
     let maxDistance: number = 0;
     let distance: number = 0;
     let vecDistance: number = 0;
-    let nfpSize: number = 0;
     let vLength: number = 0;
 
     // shift B such that the bottom-most point of B is at the top-most
@@ -916,25 +926,7 @@ function noFitPolygon(
 
             reference.add(translate.value);
 
-            if (reference.almostEqual(start)) {
-                // we've made a full loop
-                break;
-            }
-
-            // if A and B start on a touching horizontal line, the end point may not be the start point
-            isLooped = false;
-            nfpSize = nfp.length >> 1;
-
-            if (nfpSize > 0) {
-                for (i = 0; i < nfpSize - 1; ++i) {
-                    if (almostEqual(nfp[i << 1], reference.x) && almostEqual(nfp[(i << 1) + 1], reference.y)) {
-                        isLooped = true;
-                        break;
-                    }
-                }
-            }
-
-            if (isLooped) {
+            if (reference.almostEqual(start) || getNfpLooped(nfp, reference, pointPool)) {
                 // we've made a full loop
                 break;
             }
@@ -1055,23 +1047,19 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
             return new Float64Array(0);
         }
 
-        for (i = 0; i < nfp.length; ++i) {
-            if (i === 0) {
-                tmpPolygon.bind(nfp[i]);
-                // if searchedges is active, only the first NFP is guaranteed to pass sanity check
-                if (tmpPolygon.absArea < polygonA.absArea) {
-                    console.log('NFP Area Error: ', tmpPolygon.absArea, key);
-                    console.log('NFP:', JSON.stringify(tmpPolygon));
-                    console.log('A: ', JSON.stringify(polygonA));
-                    console.log('B: ', JSON.stringify(polygonB));
-                    nfp.splice(i, 1);
-
-                    return new Float64Array(0);
-                }
-            }
+        if (nfp.length === 0) {
+            return new Float64Array(0);
         }
 
-        if (nfp.length === 0) {
+        tmpPolygon.bind(nfp[0]);
+        // if searchedges is active, only the first NFP is guaranteed to pass sanity check
+        if (tmpPolygon.absArea < polygonA.absArea) {
+            console.log('NFP Area Error: ', tmpPolygon.absArea, key);
+            console.log('NFP:', JSON.stringify(tmpPolygon));
+            console.log('A: ', JSON.stringify(polygonA));
+            console.log('B: ', JSON.stringify(polygonB));
+            nfp.splice(i, 1);
+
             return new Float64Array(0);
         }
 

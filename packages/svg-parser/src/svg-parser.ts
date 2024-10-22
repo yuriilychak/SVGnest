@@ -1,7 +1,7 @@
 import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
-import { FlattenedData, IPoint, NestConfig, PolygonNode, SVG_TAG } from './types';
+import { FlattenedData, NestConfig, PolygonNode, SVG_TAG } from './types';
 import { convertElement, flattenTree } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
 import PlacementWrapper from './placement-wrapper';
