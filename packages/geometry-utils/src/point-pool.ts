@@ -7,10 +7,10 @@ export default class PointPool {
 
     private memSeg: Float64Array;
 
-    constructor() {
+    constructor(buffer: ArrayBuffer) {
         this.items = new Array(PointPool.POOL_SIZE);
         this.used = 0;
-        this.memSeg = new Float64Array(PointPool.POOL_SIZE << 1);
+        this.memSeg = new Float64Array(buffer, 0, PointPool.POOL_SIZE << 1);
         this.memSeg.fill(0);
 
         for (let i = 0; i < PointPool.POOL_SIZE; ++i) {
@@ -62,6 +62,10 @@ export default class PointPool {
         }
 
         throw Error(`Can't find point with index ${index}`);
+    }
+
+    public get size(): number {
+        return this.memSeg.byteLength;
     }
 
     private static readonly MAX_BITS: number = 31;

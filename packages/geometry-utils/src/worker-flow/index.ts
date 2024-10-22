@@ -7,8 +7,10 @@ import { WorkerConfig } from './types';
 
 export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): ArrayBuffer {
     if (!config.isInit) {
+        config.buffer = new ArrayBuffer(8192 * Float64Array.BYTES_PER_ELEMENT);
+        config.pointPool = new PointPool(config.buffer);
+        config.memSeg = new Float64Array(config.buffer, config.pointPool.size);
         config.isInit = true;
-        config.pointPool = new PointPool();
         config.polygons = [Polygon.create(), Polygon.create(), Polygon.create(), Polygon.create(), Polygon.create()];
     }
 
