@@ -15,7 +15,7 @@ import Point from '../point';
 import Polygon from '../polygon';
 import { NFP_INFO_START_INDEX, TOL } from '../constants';
 import PointPool from '../point-pool';
-import { WorkerConfig, SegmentCheck, Vector } from './types';
+import { WorkerConfig, SegmentCheck } from './types';
 
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
@@ -610,17 +610,33 @@ function searchStartPoint(
     return null;
 }
 
-function getVector(start: number, end: number, baseValue: Point, subValue: Point, offset: Point = null): Vector {
-    const value = Point.from(baseValue).sub(subValue);
+function applyVector(
+    memSeg: Float64Array,
+    point: Point,
+    start: number,
+    end: number,
+    baseValue: Point,
+    subValue: Point,
+    offset: Point = null
+): void {
+    point.update(baseValue).sub(subValue);
 
     if (offset !== null) {
-        value.sub(offset);
+        point.sub(offset);
     }
 
-    return { value, start, end };
+    if (!point.isEmpty) {
+        const vectorCount = memSeg[0];
+        const offset: number = vectorCount * 4 + 3;
+
+        point.fill(memSeg, 0, offset);
+        memSeg[offset + 2] = start;
+        memSeg[offset + 3] = end;
+        memSeg[0] += 1;
+    }
 }
 
-function getTouch(type: number, firstIndex: number, secondIndex: number): number {
+function serializeTouch(type: number, firstIndex: number, secondIndex: number): number {
     let result: number = setBits(0, type, 0, 2);
 
     result = setBits(result, firstIndex, 2, 15);
@@ -628,8 +644,36 @@ function getTouch(type: number, firstIndex: number, secondIndex: number): number
     return setBits(result, secondIndex, 17, 15);
 }
 
-function fillTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool, offset: Point, memSeg: Float64Array): void {
-    let touchingCount: number = 0;
+function getTouch(
+    pointA: Point,
+    pointANext: Point,
+    pointB: Point,
+    pointBNext: Point,
+    indexA: number,
+    indexANext: number,
+    indexB: number,
+    indexBNext: number
+): number {
+    switch (true) {
+        case pointB.almostEqual(pointA):
+            return serializeTouch(0, indexA, indexB);
+        case pointB.onSegment(pointA, pointANext):
+            return serializeTouch(1, indexANext, indexB);
+        case pointA.onSegment(pointB, pointBNext):
+            return serializeTouch(2, indexA, indexBNext);
+        default:
+            return -1;
+    }
+}
+
+function fillVectors(
+    polygonA: Polygon,
+    polygonB: Polygon,
+    pointPool: PointPool,
+    offset: Point,
+    memSeg: Float64Array,
+    markedIndices: number[]
+): void {
     // sanity check, prevent infinite loop
     const pointIndices = pointPool.alloc(4);
     const pointA: Point = pointPool.get(pointIndices, 0);
@@ -642,6 +686,9 @@ function fillTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPoo
     let j: number = 0;
     let iNext: number = 0;
     let jNext: number = 0;
+    let touch: number = 0;
+
+    memSeg[0] = 0;
     // find touching vertices/edges
     for (i = 0; i < sizeA; ++i) {
         iNext = cycleIndex(i, sizeA, 1);
@@ -652,99 +699,72 @@ function fillTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPoo
             jNext = cycleIndex(j, sizeB, 1);
             pointB.update(polygonB.at(j)).add(offset);
             pointBNext.update(polygonB.at(jNext)).add(offset);
+            touch = getTouch(pointA, pointANext, pointB, pointBNext, i, iNext, j, jNext);
 
-            if (pointB.almostEqual(polygonA.at(i))) {
-                memSeg[touchingCount + 1] = getTouch(0, i, j);
-                ++touchingCount;
-            } else if (pointB.onSegment(pointA, pointANext)) {
-                memSeg[touchingCount + 1] = getTouch(1, iNext, j);
-                ++touchingCount;
-            } else if (pointA.onSegment(pointB, pointBNext)) {
-                memSeg[touchingCount + 1] = getTouch(2, i, jNext);
-                ++touchingCount;
+            if (touch !== -1) {
+                markedIndices.push(getBits(touch, 2, 15));
+                applyVectors(polygonA, polygonB, pointPool, offset, touch, memSeg);
             }
         }
     }
 
     pointPool.malloc(pointIndices);
-
-    memSeg[0] = touchingCount;
 }
 
-function getVectors(
+function applyVectors(
     polygonA: Polygon,
     polygonB: Polygon,
     pointPool: PointPool,
     offset: Point,
-    memSeg: Float64Array,
-    markedIndices: number[]
-): Vector[] {
-    // generate translation vectors from touching vertices/edges\
+    touch: number,
+    memSeg: Float64Array
+): void {
+    const type: number = getBits(touch, 0, 2);
+    const currIndexA: number = getBits(touch, 2, 15);
+    const currIndexB: number = getBits(touch, 17, 15);
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
-    const touchingCount = memSeg[0];
-    const result: Vector[] = [];
-    const pointIndices = pointPool.alloc(6);
+    const prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop
+    const nextIndexA = cycleIndex(currIndexA, sizeA, 1); // loop
+    const prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
+    const nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
+    const pointIndices = pointPool.alloc(7);
     const prevA: Point = pointPool.get(pointIndices, 0);
     const currA: Point = pointPool.get(pointIndices, 1);
     const nextA: Point = pointPool.get(pointIndices, 2);
     const prevB: Point = pointPool.get(pointIndices, 3);
     const currB: Point = pointPool.get(pointIndices, 4);
     const nextB: Point = pointPool.get(pointIndices, 5);
-    let currIndexA: number = 0;
-    let prevIndexA: number = 0;
-    let nextIndexA: number = 0;
-    let currIndexB: number = 0;
-    let prevIndexB: number = 0;
-    let nextIndexB: number = 0;
-    let type: number = 0;
-    let i: number = 0;
-    let touching: number = 0;
+    const point: Point = pointPool.get(pointIndices, 6);
 
-    for (i = 0; i < touchingCount; ++i) {
-        touching = memSeg[i + 1];
-        // adjacent A vertices
-        type = getBits(touching, 0, 2);
-        currIndexA = getBits(touching, 2, 15);
-        currIndexB = getBits(touching, 17, 15);
-        prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop
-        nextIndexA = cycleIndex(currIndexA, sizeA, 1); // loop
-        prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
-        nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
+    prevA.update(polygonA.at(prevIndexA));
+    currA.update(polygonA.at(currIndexA));
+    nextA.update(polygonA.at(nextIndexA));
+    prevB.update(polygonB.at(prevIndexB));
+    currB.update(polygonB.at(currIndexB));
+    nextB.update(polygonB.at(nextIndexB));
 
-        markedIndices.push(currIndexA);
-
-        prevA.update(polygonA.at(prevIndexA));
-        currA.update(polygonA.at(currIndexA));
-        nextA.update(polygonA.at(nextIndexA));
-        prevB.update(polygonB.at(prevIndexB));
-        currB.update(polygonB.at(currIndexB));
-        nextB.update(polygonB.at(nextIndexB));
-
-        switch (type) {
-            case 0: {
-                result.push(getVector(currIndexA, prevIndexA, prevA, currA));
-                result.push(getVector(currIndexA, nextIndexA, nextA, currA));
-                // B vectors need to be inverted
-                result.push(getVector(-1, -1, currB, prevB));
-                result.push(getVector(-1, -1, currB, nextB));
-                break;
-            }
-            case 1: {
-                result.push(getVector(prevIndexA, currIndexA, currA, currB, offset));
-                result.push(getVector(currIndexA, prevIndexA, prevA, currB, offset));
-                break;
-            }
-            default: {
-                result.push(getVector(-1, -1, currA, currB, offset));
-                result.push(getVector(-1, -1, currA, prevB, offset));
-            }
+    switch (type) {
+        case 0: {
+            applyVector(memSeg, point, currIndexA, prevIndexA, prevA, currA);
+            applyVector(memSeg, point, currIndexA, nextIndexA, nextA, currA);
+            // B vectors need to be inverted
+            applyVector(memSeg, point, -1, -1, currB, prevB);
+            applyVector(memSeg, point, -1, -1, currB, nextB);
+            break;
+        }
+        case 1: {
+            applyVector(memSeg, point, prevIndexA, currIndexA, currA, currB, offset);
+            applyVector(memSeg, point, currIndexA, prevIndexA, prevA, currB, offset);
+            break;
+        }
+        default: {
+            applyVector(memSeg, point, -1, -1, currA, currB, offset);
+            applyVector(memSeg, point, -1, -1, currA, prevB, offset);
         }
     }
 
     pointPool.malloc(pointIndices);
-
-    return result;
 }
 
 // if A and B start on a touching horizontal line, the end point may not be the start point
@@ -778,33 +798,30 @@ function findTranslate(
     polygonB: Polygon,
     pointPool: PointPool,
     offset: Point,
-    vectors: Vector[],
+    memSeg: Float64Array,
     prevTranslate: Point
-): { translate: number; maxDistance: number } {
+): void {
     // old-todo: there should be a faster way to reject vectors
     // that will cause immediate intersection. For now just check them all
-    const pointIndices = pointPool.alloc(2);
+    const vectorCount: number = memSeg[0];
+    const pointIndices = pointPool.alloc(3);
     const currUnitV: Point = pointPool.get(pointIndices, 0);
     const prevUnitV: Point = pointPool.get(pointIndices, 1);
+    const currVector: Point = pointPool.get(pointIndices, 2);
     let translate: number = -1;
     let maxDistance: number = 0;
     let distance: number = 0;
     let vecDistance: number = 0;
     let i: number = 0;
-    let currVector: Vector = null;
 
-    for (i = 0; i < vectors.length; ++i) {
-        currVector = vectors[i];
-
-        if (currVector.value.isEmpty) {
-            continue;
-        }
+    for (i = 0; i < vectorCount; ++i) {
+        currVector.fromMemSeg(memSeg, 0, 3 + i * 4);
 
         // if this vector points us back to where we came from, ignore it.
         // ie cross product = 0, dot product < 0
-        if (!prevTranslate.isEmpty && currVector.value.dot(prevTranslate) < 0) {
+        if (!prevTranslate.isEmpty && currVector.dot(prevTranslate) < 0) {
             // compare magnitude with unit vectors
-            currUnitV.update(currVector.value).normalize();
+            currUnitV.update(currVector).normalize();
             prevUnitV.update(prevTranslate).normalize();
 
             // we need to scale down to unit vectors to normalize vector length. Could also just do a tan here
@@ -813,8 +830,8 @@ function findTranslate(
             }
         }
 
-        distance = polygonSlideDistance(pointPool, polygonA, polygonB, currVector.value, offset);
-        vecDistance = currVector.value.length;
+        distance = polygonSlideDistance(pointPool, polygonA, polygonB, currVector, offset);
+        vecDistance = currVector.length;
 
         if (Number.isNaN(distance) || Math.abs(distance) > vecDistance) {
             distance = vecDistance;
@@ -826,9 +843,10 @@ function findTranslate(
         }
     }
 
-    pointPool.malloc(pointIndices);
+    memSeg[1] = translate;
+    memSeg[2] = maxDistance;
 
-    return { translate, maxDistance };
+    pointPool.malloc(pointIndices);
 }
 
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
@@ -867,12 +885,13 @@ function noFitPolygon(
         }
     }
 
-    const pointIndices = pointPool.alloc(5);
+    const pointIndices = pointPool.alloc(6);
     const reference: Point = pointPool.get(pointIndices, 0);
     const start: Point = pointPool.get(pointIndices, 1);
     const offset: Point = pointPool.get(pointIndices, 2);
     const startPoint: Point = pointPool.get(pointIndices, 3).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
     const prevTranslate: Point = pointPool.get(pointIndices, 4);
+    const translate: Point = pointPool.get(pointIndices, 5);
     const result: Float64Array[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
@@ -880,12 +899,11 @@ function noFitPolygon(
     let counter: number = 0;
     let nfp: number[] = null;
     let startPointRaw: Float64Array = null;
-    // maintain a list of touching points/edges
-    let vectors: Vector[] = null;
-    let translate: Vector = null;
+    let startIndex: number = 0;
+    let endIndex: number = 0;
     let maxDistance: number = 0;
     let vLength: number = 0;
-    let translateData: { translate: number; maxDistance: number } = null;
+    let translateIndex: number = -1;
 
     // shift B such that the bottom-most point of B is at the top-most
     // point of A. This guarantees an initial placement with no intersections
@@ -912,37 +930,41 @@ function noFitPolygon(
 
         while (counter < condition) {
             // sanity check, prevent infinite loop
-            fillTouchings(polygonA, polygonB, pointPool, offset, memSeg);
             // generate translation vectors from touching vertices/edges
-            vectors = getVectors(polygonA, polygonB, pointPool, offset, memSeg, markedIndices);
+            fillVectors(polygonA, polygonB, pointPool, offset, memSeg, markedIndices);
             // that will cause immediate intersection. For now just check them all
-            translateData = findTranslate(polygonA, polygonB, pointPool, offset, vectors, prevTranslate);
+            findTranslate(polygonA, polygonB, pointPool, offset, memSeg, prevTranslate);
 
-            if (translateData.translate === -1 || almostEqual(translateData.maxDistance)) {
+            translateIndex = memSeg[1];
+            maxDistance = memSeg[2];
+
+            if (translateIndex === -1 || almostEqual(maxDistance)) {
                 // didn't close the loop, something went wrong here
                 nfp = null;
                 break;
             }
 
-            translate = vectors[translateData.translate];
-            prevTranslate.update(translate.value);
-            maxDistance = Math.abs(translateData.maxDistance);
+            translate.fromMemSeg(memSeg, 0, 3 + translateIndex * 4);
+            prevTranslate.update(translate);
+            maxDistance = Math.abs(maxDistance);
             // trim
-            vLength = translate.value.length;
+            vLength = translate.length;
+            startIndex = memSeg[3 + translateIndex * 4 + 2];
+            endIndex = memSeg[3 + translateIndex * 4 + 3];
 
-            if (translate.start !== -1) {
-                markedIndices.push(translate.start);
+            if (startIndex !== -1) {
+                markedIndices.push(startIndex);
             }
 
-            if (translate.end !== -1) {
-                markedIndices.push(translate.end);
+            if (endIndex !== -1) {
+                markedIndices.push(endIndex);
             }
 
             if (maxDistance < vLength && !almostEqual(maxDistance, vLength)) {
-                translate.value.scaleUp(maxDistance / vLength);
+                translate.scaleUp(maxDistance / vLength);
             }
 
-            reference.add(translate.value);
+            reference.add(translate);
 
             if (reference.almostEqual(start) || getNfpLooped(nfp, reference, pointPool)) {
                 // we've made a full loop
@@ -952,7 +974,7 @@ function noFitPolygon(
             nfp.push(reference.x);
             nfp.push(reference.y);
 
-            offset.add(translate.value);
+            offset.add(translate);
 
             ++counter;
         }
