@@ -628,9 +628,9 @@ function getTouch(type: number, firstIndex: number, secondIndex: number): number
     return setBits(result, secondIndex, 17, 15);
 }
 
-function getTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool, offset: Point): number[] {
+function getTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool, memSeg: Float64Array, offset: Point): number {
+    let result: number = 0;
     // sanity check, prevent infinite loop
-    const result: number[] = [];
     const pointIndices = pointPool.alloc(4);
     const pointA: Point = pointPool.get(pointIndices, 0);
     const pointANext: Point = pointPool.get(pointIndices, 1);
@@ -654,11 +654,14 @@ function getTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool
             pointBNext.update(polygonB.at(jNext)).add(offset);
 
             if (pointB.almostEqual(polygonA.at(i))) {
-                result.push(getTouch(0, i, j));
+                memSeg[result] = getTouch(0, i, j);
+                ++result;
             } else if (pointB.onSegment(pointA, pointANext)) {
-                result.push(getTouch(1, iNext, j));
+                memSeg[result] = getTouch(1, iNext, j);
+                ++result;
             } else if (pointA.onSegment(pointB, pointBNext)) {
-                result.push(getTouch(2, i, jNext));
+                memSeg[result] = getTouch(2, i, jNext);
+                ++result;
             }
         }
     }
@@ -671,17 +674,16 @@ function getTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool
 function getVectors(
     polygonA: Polygon,
     polygonB: Polygon,
-    touchings: number[],
+    memSeg: Float64Array,
+    touchingCount: number,
     pointPool: PointPool,
     offset: Point,
     markedIndices: number[]
 ): Vector[] {
     // generate translation vectors from touching vertices/edges\
-
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const result: Vector[] = [];
-    const touchingCount: number = touchings.length;
     const pointIndices = pointPool.alloc(6);
     const prevA: Point = pointPool.get(pointIndices, 0);
     const currA: Point = pointPool.get(pointIndices, 1);
@@ -700,7 +702,7 @@ function getVectors(
     let touching: number = 0;
 
     for (i = 0; i < touchingCount; ++i) {
-        touching = touchings[i];
+        touching = memSeg[i];
         // adjacent A vertices
         type = getBits(touching, 0, 2);
         currIndexA = getBits(touching, 2, 15);
@@ -779,6 +781,7 @@ function noFitPolygon(
     polygon: Polygon,
     polygonA: Polygon,
     polygonB: Polygon,
+    memSeg: Float64Array,
     inside: boolean
 ): Float64Array[] {
     if (polygonA.isBroken || polygonB.isBroken) {
@@ -823,7 +826,7 @@ function noFitPolygon(
     let currVector: Vector = null;
     let prevVector: Vector = null;
     // maintain a list of touching points/edges
-    let touchings: number[] = null;
+    let touchingCount: number = 0;
     let vectors: Vector[] = null;
     let translate: Vector = null;
     let maxDistance: number = 0;
@@ -848,8 +851,6 @@ function noFitPolygon(
 
     while (true) {
         offset.update(startPoint);
-
-        touchings = [];
         prevVector = null; // keep track of previous vector
         reference.update(polygonB.first).add(startPoint);
         start.update(reference);
@@ -858,9 +859,9 @@ function noFitPolygon(
 
         while (counter < condition) {
             // sanity check, prevent infinite loop
-            touchings = getTouchings(polygonA, polygonB, pointPool, offset);
+            touchingCount = getTouchings(polygonA, polygonB, pointPool, memSeg, offset);
             // generate translation vectors from touching vertices/edges
-            vectors = getVectors(polygonA, polygonB, touchings, pointPool, offset, markedIndices);
+            vectors = getVectors(polygonA, polygonB, memSeg, touchingCount, pointPool, offset, markedIndices);
 
             // old-todo: there should be a faster way to reject vectors
             // that will cause immediate intersection. For now just check them all
@@ -1007,7 +1008,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
         return new Float64Array(0);
     }
 
-    const { pointPool, polygons } = config;
+    const { pointPool, polygons, memSeg } = config;
     const polygonA: Polygon = polygons[0];
     const polygonB: Polygon = polygons[1];
 
@@ -1020,7 +1021,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     if (nfpContent.inside) {
         nfp = polygonA.isRectangle
             ? noFitPolygonRectangle(pointPool, polygonA, polygonB)
-            : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, true);
+            : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, true);
 
         // ensure all interior NFPs have the same winding direction
         if (nfp.length > 0) {
@@ -1040,7 +1041,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
         return getResult(key, nfp);
     }
 
-    nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, false);
+    nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, false);
     // sanity check
     if (nfp.length === 0) {
         console.log('NFP Error: ', key);
@@ -1091,7 +1092,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
 
             // no need to find nfp if B's bounding box is too big
             if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
-                const noFitPolygons: Float64Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, true);
+                const noFitPolygons: Float64Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, memSeg, true);
                 const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                 // ensure all interior NFPs have the same winding direction
                 if (noFitCount !== 0) {
