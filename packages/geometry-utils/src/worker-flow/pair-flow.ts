@@ -628,8 +628,8 @@ function getTouch(type: number, firstIndex: number, secondIndex: number): number
     return setBits(result, secondIndex, 17, 15);
 }
 
-function getTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool, memSeg: Float64Array, offset: Point): number {
-    let result: number = 0;
+function fillTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool, offset: Point, memSeg: Float64Array): void {
+    let touchingCount: number = 0;
     // sanity check, prevent infinite loop
     const pointIndices = pointPool.alloc(4);
     const pointA: Point = pointPool.get(pointIndices, 0);
@@ -654,35 +654,35 @@ function getTouchings(polygonA: Polygon, polygonB: Polygon, pointPool: PointPool
             pointBNext.update(polygonB.at(jNext)).add(offset);
 
             if (pointB.almostEqual(polygonA.at(i))) {
-                memSeg[result] = getTouch(0, i, j);
-                ++result;
+                memSeg[touchingCount + 1] = getTouch(0, i, j);
+                ++touchingCount;
             } else if (pointB.onSegment(pointA, pointANext)) {
-                memSeg[result] = getTouch(1, iNext, j);
-                ++result;
+                memSeg[touchingCount + 1] = getTouch(1, iNext, j);
+                ++touchingCount;
             } else if (pointA.onSegment(pointB, pointBNext)) {
-                memSeg[result] = getTouch(2, i, jNext);
-                ++result;
+                memSeg[touchingCount + 1] = getTouch(2, i, jNext);
+                ++touchingCount;
             }
         }
     }
 
     pointPool.malloc(pointIndices);
 
-    return result;
+    memSeg[0] = touchingCount;
 }
 
 function getVectors(
     polygonA: Polygon,
     polygonB: Polygon,
-    memSeg: Float64Array,
-    touchingCount: number,
     pointPool: PointPool,
     offset: Point,
+    memSeg: Float64Array,
     markedIndices: number[]
 ): Vector[] {
     // generate translation vectors from touching vertices/edges\
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
+    const touchingCount = memSeg[0];
     const result: Vector[] = [];
     const pointIndices = pointPool.alloc(6);
     const prevA: Point = pointPool.get(pointIndices, 0);
@@ -702,7 +702,7 @@ function getVectors(
     let touching: number = 0;
 
     for (i = 0; i < touchingCount; ++i) {
-        touching = memSeg[i];
+        touching = memSeg[i + 1];
         // adjacent A vertices
         type = getBits(touching, 0, 2);
         currIndexA = getBits(touching, 2, 15);
@@ -773,6 +773,64 @@ function getNfpLooped(nfp: number[], reference: Point, pointPool: PointPool): bo
     return false;
 }
 
+function findTranslate(
+    polygonA: Polygon,
+    polygonB: Polygon,
+    pointPool: PointPool,
+    offset: Point,
+    vectors: Vector[],
+    prevTranslate: Point
+): { translate: number; maxDistance: number } {
+    // old-todo: there should be a faster way to reject vectors
+    // that will cause immediate intersection. For now just check them all
+    const pointIndices = pointPool.alloc(2);
+    const currUnitV: Point = pointPool.get(pointIndices, 0);
+    const prevUnitV: Point = pointPool.get(pointIndices, 1);
+    let translate: number = -1;
+    let maxDistance: number = 0;
+    let distance: number = 0;
+    let vecDistance: number = 0;
+    let i: number = 0;
+    let currVector: Vector = null;
+
+    for (i = 0; i < vectors.length; ++i) {
+        currVector = vectors[i];
+
+        if (currVector.value.isEmpty) {
+            continue;
+        }
+
+        // if this vector points us back to where we came from, ignore it.
+        // ie cross product = 0, dot product < 0
+        if (!prevTranslate.isEmpty && currVector.value.dot(prevTranslate) < 0) {
+            // compare magnitude with unit vectors
+            currUnitV.update(currVector.value).normalize();
+            prevUnitV.update(prevTranslate).normalize();
+
+            // we need to scale down to unit vectors to normalize vector length. Could also just do a tan here
+            if (Math.abs(currUnitV.cross(prevUnitV)) < 0.0001) {
+                continue;
+            }
+        }
+
+        distance = polygonSlideDistance(pointPool, polygonA, polygonB, currVector.value, offset);
+        vecDistance = currVector.value.length;
+
+        if (Number.isNaN(distance) || Math.abs(distance) > vecDistance) {
+            distance = vecDistance;
+        }
+
+        if (!Number.isNaN(distance) && distance > maxDistance) {
+            maxDistance = distance;
+            translate = i;
+        }
+    }
+
+    pointPool.malloc(pointIndices);
+
+    return { translate, maxDistance };
+}
+
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
@@ -809,13 +867,12 @@ function noFitPolygon(
         }
     }
 
-    const pointIndices = pointPool.alloc(6);
+    const pointIndices = pointPool.alloc(5);
     const reference: Point = pointPool.get(pointIndices, 0);
     const start: Point = pointPool.get(pointIndices, 1);
-    const currUnitV: Point = pointPool.get(pointIndices, 2);
-    const prevUnitV: Point = pointPool.get(pointIndices, 3);
-    const offset: Point = pointPool.get(pointIndices, 4);
-    const startPoint: Point = pointPool.get(pointIndices, 5).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
+    const offset: Point = pointPool.get(pointIndices, 2);
+    const startPoint: Point = pointPool.get(pointIndices, 3).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
+    const prevTranslate: Point = pointPool.get(pointIndices, 4);
     const result: Float64Array[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
@@ -823,16 +880,12 @@ function noFitPolygon(
     let counter: number = 0;
     let nfp: number[] = null;
     let startPointRaw: Float64Array = null;
-    let currVector: Vector = null;
-    let prevVector: Vector = null;
     // maintain a list of touching points/edges
-    let touchingCount: number = 0;
     let vectors: Vector[] = null;
     let translate: Vector = null;
     let maxDistance: number = 0;
-    let distance: number = 0;
-    let vecDistance: number = 0;
     let vLength: number = 0;
+    let translateData: { translate: number; maxDistance: number } = null;
 
     // shift B such that the bottom-most point of B is at the top-most
     // point of A. This guarantees an initial placement with no intersections
@@ -851,7 +904,7 @@ function noFitPolygon(
 
     while (true) {
         offset.update(startPoint);
-        prevVector = null; // keep track of previous vector
+        prevTranslate.set(0, 0); // keep track of previous vector
         reference.update(polygonB.first).add(startPoint);
         start.update(reference);
         nfp = [reference.x, reference.y];
@@ -859,53 +912,23 @@ function noFitPolygon(
 
         while (counter < condition) {
             // sanity check, prevent infinite loop
-            touchingCount = getTouchings(polygonA, polygonB, pointPool, memSeg, offset);
+            fillTouchings(polygonA, polygonB, pointPool, offset, memSeg);
             // generate translation vectors from touching vertices/edges
-            vectors = getVectors(polygonA, polygonB, memSeg, touchingCount, pointPool, offset, markedIndices);
-
-            // old-todo: there should be a faster way to reject vectors
+            vectors = getVectors(polygonA, polygonB, pointPool, offset, memSeg, markedIndices);
             // that will cause immediate intersection. For now just check them all
-            translate = null;
-            maxDistance = 0;
+            translateData = findTranslate(polygonA, polygonB, pointPool, offset, vectors, prevTranslate);
 
-            for (i = 0; i < vectors.length; ++i) {
-                currVector = vectors[i];
-
-                if (currVector.value.isEmpty) {
-                    continue;
-                }
-
-                // if this vector points us back to where we came from, ignore it.
-                // ie cross product = 0, dot product < 0
-                if (prevVector && currVector.value.dot(prevVector.value) < 0) {
-                    // compare magnitude with unit vectors
-                    currUnitV.update(currVector.value).normalize();
-                    prevUnitV.update(prevVector.value).normalize();
-
-                    // we need to scale down to unit vectors to normalize vector length. Could also just do a tan here
-                    if (Math.abs(currUnitV.cross(prevUnitV)) < 0.0001) {
-                        continue;
-                    }
-                }
-
-                distance = polygonSlideDistance(pointPool, polygonA, polygonB, currVector.value, offset);
-                vecDistance = currVector.value.length;
-
-                if (Number.isNaN(distance) || Math.abs(distance) > vecDistance) {
-                    distance = vecDistance;
-                }
-
-                if (!Number.isNaN(distance) && distance > maxDistance) {
-                    maxDistance = distance;
-                    translate = vectors[i];
-                }
-            }
-
-            if (translate === null || almostEqual(maxDistance)) {
+            if (translateData.translate === -1 || almostEqual(translateData.maxDistance)) {
                 // didn't close the loop, something went wrong here
                 nfp = null;
                 break;
             }
+
+            translate = vectors[translateData.translate];
+            prevTranslate.update(translate.value);
+            maxDistance = Math.abs(translateData.maxDistance);
+            // trim
+            vLength = translate.value.length;
 
             if (translate.start !== -1) {
                 markedIndices.push(translate.start);
@@ -914,12 +937,6 @@ function noFitPolygon(
             if (translate.end !== -1) {
                 markedIndices.push(translate.end);
             }
-
-            prevVector = translate;
-            maxDistance = Math.abs(maxDistance);
-
-            // trim
-            vLength = translate.value.length;
 
             if (maxDistance < vLength && !almostEqual(maxDistance, vLength)) {
                 translate.value.scaleUp(maxDistance / vLength);
