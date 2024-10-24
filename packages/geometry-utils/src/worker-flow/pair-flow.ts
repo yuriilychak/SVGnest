@@ -16,6 +16,7 @@ import Polygon from '../polygon';
 import { NFP_INFO_START_INDEX, TOL } from '../constants';
 import PointPool from '../point-pool';
 import { WorkerConfig, SegmentCheck } from './types';
+import { VECTOR_MEM_OFFSET } from './ constants';
 
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
@@ -626,12 +627,11 @@ function applyVector(
     }
 
     if (!point.isEmpty) {
-        const vectorCount = memSeg[0];
-        const offset: number = vectorCount * 4 + 3;
+        const index: number = memSeg[0] << 1;
 
-        point.fill(memSeg, 0, offset);
-        memSeg[offset + 2] = start;
-        memSeg[offset + 3] = end;
+        point.fill(memSeg, index, VECTOR_MEM_OFFSET);
+        point.set(start, end);
+        point.fill(memSeg, index + 1, VECTOR_MEM_OFFSET);
         memSeg[0] += 1;
     }
 }
@@ -815,7 +815,7 @@ function findTranslate(
     let i: number = 0;
 
     for (i = 0; i < vectorCount; ++i) {
-        currVector.fromMemSeg(memSeg, 0, 3 + i * 4);
+        currVector.fromMemSeg(memSeg, i << 1, VECTOR_MEM_OFFSET);
 
         // if this vector points us back to where we came from, ignore it.
         // ie cross product = 0, dot product < 0
@@ -839,7 +839,7 @@ function findTranslate(
 
         if (!Number.isNaN(distance) && distance > maxDistance) {
             maxDistance = distance;
-            translate = i;
+            translate = i << 1;
         }
     }
 
@@ -885,13 +885,14 @@ function noFitPolygon(
         }
     }
 
-    const pointIndices = pointPool.alloc(6);
+    const pointIndices = pointPool.alloc(7);
     const reference: Point = pointPool.get(pointIndices, 0);
     const start: Point = pointPool.get(pointIndices, 1);
     const offset: Point = pointPool.get(pointIndices, 2);
     const startPoint: Point = pointPool.get(pointIndices, 3).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
     const prevTranslate: Point = pointPool.get(pointIndices, 4);
     const translate: Point = pointPool.get(pointIndices, 5);
+    const indices: Point = pointPool.get(pointIndices, 6);
     const result: Float64Array[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
@@ -899,11 +900,9 @@ function noFitPolygon(
     let counter: number = 0;
     let nfp: number[] = null;
     let startPointRaw: Float64Array = null;
-    let startIndex: number = 0;
-    let endIndex: number = 0;
     let maxDistance: number = 0;
     let vLength: number = 0;
-    let translateIndex: number = -1;
+    let translateIndex: number = 0;
 
     // shift B such that the bottom-most point of B is at the top-most
     // point of A. This guarantees an initial placement with no intersections
@@ -944,20 +943,19 @@ function noFitPolygon(
                 break;
             }
 
-            translate.fromMemSeg(memSeg, 0, 3 + translateIndex * 4);
+            translate.fromMemSeg(memSeg, translateIndex, VECTOR_MEM_OFFSET);
+            indices.fromMemSeg(memSeg, translateIndex + 1, VECTOR_MEM_OFFSET);
             prevTranslate.update(translate);
             maxDistance = Math.abs(maxDistance);
             // trim
             vLength = translate.length;
-            startIndex = memSeg[3 + translateIndex * 4 + 2];
-            endIndex = memSeg[3 + translateIndex * 4 + 3];
 
-            if (startIndex !== -1) {
-                markedIndices.push(startIndex);
+            if (indices.x !== -1) {
+                markedIndices.push(indices.x);
             }
 
-            if (endIndex !== -1) {
-                markedIndices.push(endIndex);
+            if (indices.y !== -1) {
+                markedIndices.push(indices.y);
             }
 
             if (maxDistance < vLength && !almostEqual(maxDistance, vLength)) {
