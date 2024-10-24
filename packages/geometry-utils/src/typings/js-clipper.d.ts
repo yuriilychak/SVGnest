@@ -212,12 +212,12 @@ declare namespace ClipperLib {
         DoublePoint: DoublePoint;
         PolyOffsetBuilder: PolyOffsetBuilder;
 
-        AddPath(polygon: IntPoint[], type: PolyType, isClosed: boolean): void;
-        AddPaths(polygon: IntPoint[][], type: PolyType, isClosed: boolean): void;
+        AddPath(polygon: IntPoint[], type: number, isClosed: boolean): void;
+        AddPaths(polygon: IntPoint[][], type: number, isClosed: boolean): void;
         DisposeScanbeamList(): void;
         InsertScanbeam(Y: number): void;
         Execute(solution: Paths, trashold: number, joinType?: PolyFillType, lineType?: PolyFillType): boolean;
-        Execute(type: ClipType, path: Paths, joinType?: PolyFillType, ClineType?: PolyFillType): boolean;
+        Execute(type: number, path: Paths, joinType?: number, ClineType?: number): boolean;
         PolySort(or1: OutRec, or2: OutRec): number;
         FindAppendLinkEnd(outRec: OutRec): OutRec;
         FixHoleLinkage(outRec: OutRec): void;
@@ -315,7 +315,7 @@ declare namespace ClipperLib {
         static MinkowskiSum(pattern: IntPoint[], path: IntPoint[], isPathClosed: boolean): IntPoint[][];
         static CleanPolygons(poly: IntPoint[][], trashold: number): Paths;
         static CleanPolygon(poly: IntPoint[], trashold: number): IntPoint[];
-        static SimplifyPolygon(poly: Polygon, fillType: PolyFillType): Polygon[];
+        static SimplifyPolygon(poly: Polygon, fillType: number): Polygon[];
         SimplifyPolygons(polys: Polygons, fillType: PolyFillType): Polygons;
     }
 
@@ -323,7 +323,7 @@ declare namespace ClipperLib {
         constructor(mitterLimit: number, trashold: number);
 
         AddPath(polygon: IntPoint[], type: PolyType, isClosed: boolean): void;
-        AddPath(path: ArrayLike<IntPoint>, joinType: JoinType, endType: EndType): void;
+        AddPath(path: ArrayLike<IntPoint>, joinType: number, endType: number): void;
     }
 
     export function Error(message: string): void;

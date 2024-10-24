@@ -1,10 +1,12 @@
 // Import the library if needed for side effects
-import { Clipper, ClipperOffset, PolyFillType, Paths, EndType, JoinType, IntPoint } from 'js-clipper';
+import { Clipper, ClipperOffset, Paths } from 'js-clipper';
+import { PolyFillType, JoinType, EndType, IntPoint, PolyType, ClipType } from './clipper';
 
-import { BoundRect, NestConfig, PolygonNode } from './types';
+import { BoundRect, NestConfig, NFPCache, PolygonNode } from './types';
 import Polygon from './polygon';
 import Point from './point';
-import { getPolygonNode } from './helpers';
+import { generateNFPCacheKey, getPolygonNode } from './helpers';
+import PointPool from './point-pool';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -271,6 +273,99 @@ export default class ClipperWrapper {
         }
 
         return result;
+    }
+
+    public static applyNfps(polygon: Polygon, clipper: Clipper, nfpBuffer: ArrayBuffer, offset: Point): void {
+        const nfpMemSeg: Float64Array = new Float64Array(nfpBuffer);
+        const nfpCount: number = nfpMemSeg[1];
+        let clone: IntPoint[] = null;
+        let i: number = 0;
+
+        for (i = 0; i < nfpCount; ++i) {
+            polygon.bindNFP(nfpMemSeg, i);
+            clone = ClipperWrapper.toClipper(polygon, 1, offset, false, ClipperWrapper.CLEAN_TRASHOLD);
+
+            if (clone.length > 2 && Math.abs(Clipper.Area(clone)) > ClipperWrapper.AREA_TRASHOLD) {
+                clipper.AddPath(clone, PolyType.ptSubject, true);
+            }
+        }
+    }
+
+    public static nfpToClipper(polygon: Polygon, pointPool: PointPool, nfpMmSeg: Float64Array): IntPoint[][] {
+        const pointIndices = pointPool.alloc(1);
+        const offset: Point = pointPool.get(pointIndices, 0).set(0, 0);
+        const nfpCount: number = nfpMmSeg[1];
+        let i: number = 0;
+        const result = [];
+
+        for (i = 0; i < nfpCount; ++i) {
+            polygon.bindNFP(nfpMmSeg, i);
+            result.push(ClipperWrapper.toClipper(polygon, 1, offset, true));
+        }
+
+        pointPool.malloc(pointIndices);
+
+        return result;
+    }
+
+    public static getFinalNfps(
+        polygon: Polygon,
+        pointPool: PointPool,
+        nfpCache: NFPCache,
+        rotations: number,
+        placed: PolygonNode[],
+        path: PolygonNode,
+        binNfp: Float64Array,
+        placement: number[]
+    ) {
+        const pointIndices: number = pointPool.alloc(1);
+        const tmpPoint: Point = pointPool.get(pointIndices, 0);
+        let clipper = new Clipper();
+        let i: number = 0;
+        let key: number = 0;
+
+        for (i = 0; i < placed.length; ++i) {
+            key = generateNFPCacheKey(rotations, false, placed[i], path);
+
+            if (!nfpCache.has(key)) {
+                continue;
+            }
+
+            tmpPoint.fromMemSeg(placement, i);
+
+            ClipperWrapper.applyNfps(polygon, clipper, nfpCache.get(key), tmpPoint);
+        }
+
+        pointPool.malloc(pointIndices);
+
+        const combinedNfp = new Paths();
+
+        if (!clipper.Execute(ClipType.ctUnion, combinedNfp, PolyFillType.pftNonZero, PolyFillType.pftNonZero)) {
+            return null;
+        }
+
+        // difference with bin polygon
+        let finalNfp: Paths = new Paths();
+        const clipperBinNfp: IntPoint[][] = ClipperWrapper.nfpToClipper(polygon, pointPool, binNfp);
+
+        clipper = new Clipper();
+        clipper.AddPaths(combinedNfp, PolyType.ptClip, true);
+        clipper.AddPaths(clipperBinNfp, PolyType.ptSubject, true);
+
+        if (!clipper.Execute(ClipType.ctDifference, finalNfp, PolyFillType.pftNonZero, PolyFillType.pftNonZero)) {
+            return null;
+        }
+
+        finalNfp = Clipper.CleanPolygons(finalNfp, ClipperWrapper.CLEAN_TRASHOLD);
+
+        for (i = 0; i < finalNfp.length; ++i) {
+            if (finalNfp[i].length < 3 || Math.abs(Clipper.Area(finalNfp[i])) < ClipperWrapper.AREA_TRASHOLD) {
+                finalNfp.splice(i, 1);
+                --i;
+            }
+        }
+
+        return finalNfp.length === 0 ? null : finalNfp;
     }
 
     private static CLIPPER_SCALE: number = 10000000;
