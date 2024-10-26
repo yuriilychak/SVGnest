@@ -1,5 +1,4 @@
-import { Clipper } from 'js-clipper';
-import { ClipType, IntPoint, PolyFillType, PolyType } from './types';
+import { IntPoint } from './types';
 import OutPt from './out-pt';
 
 export function getArea(poly: IntPoint[]): number {
@@ -23,17 +22,6 @@ export function getArea(poly: IntPoint[]): number {
 
 export function absArea(poly: IntPoint[]): number {
     return Math.abs(getArea(poly));
-}
-
-export function simplifyPolygon(poly: IntPoint[], fillType: PolyFillType): IntPoint[][] {
-    const result: IntPoint[][] = [];
-    const clipper = new Clipper();
-
-    clipper.StrictlySimple = true;
-    clipper.AddPath(poly, PolyType.ptSubject, true);
-    clipper.Execute(ClipType.ctUnion, result, fillType, fillType);
-
-    return result;
 }
 
 export function pointsAreClose(pt1: IntPoint, pt2: IntPoint, distSqrd: number) {
