@@ -2,8 +2,6 @@
 import { Clipper } from 'js-clipper';
 import {
     PolyFillType,
-    JoinType,
-    EndType,
     IntPoint,
     PolyType,
     ClipType,
@@ -44,9 +42,10 @@ export default class ClipperWrapper {
 
         const binNode: PolygonNode = getPolygonNode(-1, memSeg);
         const bounds: BoundRect = this.polygon.exportBounds();
+        const clipperOffset: ClipperOffset = ClipperOffset.create();
 
         this.cleanNode(binNode);
-        this.offsetNode(binNode, -1);
+        this.offsetNode(clipperOffset, binNode, -1);
 
         this.polygon.bind(binNode.memSeg);
         this.polygon.resetPosition();
@@ -85,8 +84,11 @@ export default class ClipperWrapper {
 
         // turn the list into a tree
         this.nestPolygons(point, nodes);
+
         const start = performance.now();
-        this.offsetNodes(nodes, 1);
+        const clipperOffset: ClipperOffset = ClipperOffset.create();
+
+        this.offsetNodes(clipperOffset, nodes, 1);
         const end = performance.now();
 
         console.log(end - start);
@@ -147,25 +149,25 @@ export default class ClipperWrapper {
         }
     }
 
-    private offsetNodes(nodes: PolygonNode[], sign: number): void {
+    private offsetNodes(clipperOffset: ClipperOffset, nodes: PolygonNode[], sign: number): void {
         const nodeCont: number = nodes.length;
         let node: PolygonNode = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCont; ++i) {
             node = nodes[i];
-            this.offsetNode(node, sign);
-            this.offsetNodes(node.children, -sign);
+            this.offsetNode(clipperOffset, node, sign);
+            this.offsetNodes(clipperOffset, node.children, -sign);
         }
     }
 
-    private offsetNode(node: PolygonNode, sign: number): void {
+    private offsetNode(clipperOffset: ClipperOffset, node: PolygonNode, sign: number): void {
         if (this.configuration.spacing !== 0) {
             const { spacing } = this.configuration;
             const offset: number = 0.5 * spacing * sign;
             const path: IntPoint[] = ClipperWrapper.fromMemSeg(node.memSeg);
 
-            const resultPath: IntPoint[][] = ClipperOffset.create().execute(path, offset * ClipperWrapper.CLIPPER_SCALE);
+            const resultPath: IntPoint[][] = clipperOffset.execute(path, offset * ClipperWrapper.CLIPPER_SCALE);
 
             if (resultPath.length !== 1) {
                 throw new Error(`Error while offset ${JSON.stringify(node)}`);
