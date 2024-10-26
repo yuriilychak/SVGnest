@@ -210,14 +210,18 @@ declare namespace ClipperLib {
 
     export class Clipper extends ClipperBase {
         DoublePoint: DoublePoint;
+        ReverseSolution: boolean;
         PolyOffsetBuilder: PolyOffsetBuilder;
+        StrictlySimple: boolean;
+
+        constructor(data: number = 0);
 
         AddPath(polygon: IntPoint[], type: number, isClosed: boolean): void;
         AddPaths(polygon: IntPoint[][], type: number, isClosed: boolean): void;
         DisposeScanbeamList(): void;
         InsertScanbeam(Y: number): void;
-        Execute(solution: Paths, trashold: number, joinType?: PolyFillType, lineType?: PolyFillType): boolean;
-        Execute(type: number, path: Paths, joinType?: number, ClineType?: number): boolean;
+        Execute(solution: Paths | IntPoint[], trashold: number, joinType?: PolyFillType, lineType?: PolyFillType): boolean;
+        Execute(type: number, path: Paths | IntPoint[], joinType?: number, ClineType?: number): boolean;
         PolySort(or1: OutRec, or2: OutRec): number;
         FindAppendLinkEnd(outRec: OutRec): OutRec;
         FixHoleLinkage(outRec: OutRec): void;

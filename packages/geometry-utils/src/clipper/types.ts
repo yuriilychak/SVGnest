@@ -31,4 +31,14 @@ export enum ClipType {
     ctXor = 3
 }
 
+export enum EdgeSide {
+    esLeft = 0,
+    esRight = 1
+}
+
+export enum Direction {
+    dRightToLeft = 0,
+    dLeftToRight = 1
+}
+
 export type IntPoint = { X: number; Y: number };
