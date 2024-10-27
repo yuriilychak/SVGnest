@@ -1,5 +1,3 @@
-import ClipperLib from 'js-clipper';
-
 import { NFPCache, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import {
@@ -18,6 +16,7 @@ import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import { NFP_INFO_START_INDEX } from '../constants';
 import { WorkerConfig } from './types';
+import { IntPoint } from '../clipper';
 
 function fillPointMemSeg(
     pointPool: PointPool,
@@ -44,30 +43,6 @@ function fillPointMemSeg(
     return prevValue + pointCount;
 }
 
-function bindNFP(polygon: Polygon, memSeg: Float64Array, index: number): void {
-    const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
-    const offset: number = getUint16(compressedInfo, 1);
-    const size: number = getUint16(compressedInfo, 0) >>> 1;
-
-    polygon.bind(memSeg, offset, size);
-}
-
-function applyNfps(polygon: Polygon, clipper: ClipperLib.Clipper, nfpBuffer: ArrayBuffer, offset: Point): void {
-    const nfpMemSeg: Float64Array = new Float64Array(nfpBuffer);
-    const nfpCount: number = nfpMemSeg[1];
-    let clone: ClipperLib.IntPoint[] = null;
-    let i: number = 0;
-
-    for (i = 0; i < nfpCount; ++i) {
-        bindNFP(polygon, nfpMemSeg, i);
-        clone = ClipperWrapper.toClipper(polygon, 1, offset, false, ClipperWrapper.CLEAN_TRASHOLD);
-
-        if (clone.length > 2 && Math.abs(ClipperLib.Clipper.Area(clone)) > ClipperWrapper.AREA_TRASHOLD) {
-            clipper.AddPath(clone, ClipperLib.PolyType.ptSubject, true);
-        }
-    }
-}
-
 // ensure all necessary NFPs exist
 function getNfpError(nfpCache: NFPCache, rotations: number, placed: PolygonNode[], path: PolygonNode): boolean {
     let i: number = 0;
@@ -82,97 +57,6 @@ function getNfpError(nfpCache: NFPCache, rotations: number, placed: PolygonNode[
     }
 
     return false;
-}
-
-function nfpToClipper(polygon: Polygon, pointPool: PointPool, nfpMmSeg: Float64Array): ClipperLib.IntPoint[][] {
-    const pointIndices = pointPool.alloc(1);
-    const offset: Point = pointPool.get(pointIndices, 0).set(0, 0);
-    const nfpCount: number = nfpMmSeg[1];
-    let i: number = 0;
-    const result = [];
-
-    for (i = 0; i < nfpCount; ++i) {
-        bindNFP(polygon, nfpMmSeg, i);
-        result.push(ClipperWrapper.toClipper(polygon, 1, offset, true));
-    }
-
-    pointPool.malloc(pointIndices);
-
-    return result;
-}
-
-function getFinalNfps(
-    polygon: Polygon,
-    pointPool: PointPool,
-    nfpCache: NFPCache,
-    rotations: number,
-    placed: PolygonNode[],
-    path: PolygonNode,
-    binNfp: Float64Array,
-    placement: number[]
-) {
-    const pointIndices: number = pointPool.alloc(1);
-    const tmpPoint: Point = pointPool.get(pointIndices, 0);
-    let clipper = new ClipperLib.Clipper();
-    let i: number = 0;
-    let key: number = 0;
-
-    for (i = 0; i < placed.length; ++i) {
-        key = generateNFPCacheKey(rotations, false, placed[i], path);
-
-        if (!nfpCache.has(key)) {
-            continue;
-        }
-
-        tmpPoint.fromMemSeg(placement, i);
-
-        applyNfps(polygon, clipper, nfpCache.get(key), tmpPoint);
-    }
-
-    pointPool.malloc(pointIndices);
-
-    const combinedNfp = new ClipperLib.Paths();
-
-    if (
-        !clipper.Execute(
-            ClipperLib.ClipType.ctUnion,
-            combinedNfp,
-            ClipperLib.PolyFillType.pftNonZero,
-            ClipperLib.PolyFillType.pftNonZero
-        )
-    ) {
-        return null;
-    }
-
-    // difference with bin polygon
-    let finalNfp: ClipperLib.Paths = new ClipperLib.Paths();
-    const clipperBinNfp: ClipperLib.IntPoint[][] = nfpToClipper(polygon, pointPool, binNfp);
-
-    clipper = new ClipperLib.Clipper();
-    clipper.AddPaths(combinedNfp, ClipperLib.PolyType.ptClip, true);
-    clipper.AddPaths(clipperBinNfp, ClipperLib.PolyType.ptSubject, true);
-
-    if (
-        !clipper.Execute(
-            ClipperLib.ClipType.ctDifference,
-            finalNfp,
-            ClipperLib.PolyFillType.pftNonZero,
-            ClipperLib.PolyFillType.pftNonZero
-        )
-    ) {
-        return null;
-    }
-
-    finalNfp = ClipperLib.Clipper.CleanPolygons(finalNfp, ClipperWrapper.CLEAN_TRASHOLD);
-
-    for (i = 0; i < finalNfp.length; ++i) {
-        if (finalNfp[i].length < 3 || Math.abs(ClipperLib.Clipper.Area(finalNfp[i])) < ClipperWrapper.AREA_TRASHOLD) {
-            finalNfp.splice(i, 1);
-            --i;
-        }
-    }
-
-    return finalNfp.length === 0 ? null : finalNfp;
 }
 
 function getPathKey(id: number, rotation: number, rotations: number): number {
@@ -245,7 +129,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     let nfpOffset: number = 0;
     let placed: PolygonNode[] = [];
     let binNfp: Float64Array = null;
-    let finalNfp: ClipperLib.Paths = null;
+    let finalNfp: IntPoint[][] = null;
     let minArea: number = 0;
     let minX: number = 0;
     let nfpSize: number = 0;
@@ -283,7 +167,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
             if (placed.length === 0) {
                 // first placement, put it on the left
                 for (j = 0; j < binNfpCount; ++j) {
-                    bindNFP(polygon1, binNfp, j);
+                    polygon1.bindNFP(binNfp, j);
 
                     for (k = 0; k < polygon1.length; ++k) {
                         tmpPoint.update(polygon1.at(k)).sub(firstPoint);
@@ -303,7 +187,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
                 continue;
             }
 
-            finalNfp = getFinalNfps(polygon1, pointPool, nfpCache, rotations, placed, node, binNfp, placement);
+            finalNfp = ClipperWrapper.getFinalNfps(pointPool, nfpCache, rotations, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;

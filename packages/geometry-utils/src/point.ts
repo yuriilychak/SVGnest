@@ -126,6 +126,13 @@ export default class Point implements IPoint {
         return this;
     }
 
+    public round(): Point {
+        this.x = Math.round(this.x);
+        this.y = Math.round(this.y);
+
+        return this;
+    }
+
     public normal(): Point {
         return this.set(this.y, -this.x);
     }
