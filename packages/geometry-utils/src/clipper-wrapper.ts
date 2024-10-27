@@ -1,6 +1,14 @@
-// Import the library if needed for side effects
-import { Clipper } from 'js-clipper';
-import { PolyFillType, IntPoint, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset } from './clipper';
+import {
+    PolyFillType,
+    IntPoint,
+    PolyType,
+    ClipType,
+    absArea,
+    cleanPolygon,
+    cleanPolygons,
+    ClipperOffset,
+    Clipper
+} from './clipper';
 
 import { BoundRect, NestConfig, NFPCache, PolygonNode } from './types';
 import Polygon from './polygon';

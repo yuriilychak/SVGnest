@@ -1,5 +1,5 @@
-import { Clipper } from 'js-clipper';
-import { getArea, op_Equality } from './helpers';
+import Clipper from './clipper';
+import { clipperRound, getArea, op_Equality } from './helpers';
 import { ClipType, IntPoint, PolyFillType, PolyType } from './types';
 import { cycleIndex } from '../helpers';
 
@@ -73,8 +73,8 @@ export default class ClipperOffset {
 
             for (i = 0; i < 4; ++i) {
                 result.push({
-                    X: ClipperOffset.round(this.srcPolygon[0].X + X * delta),
-                    Y: ClipperOffset.round(this.srcPolygon[0].Y + Y * delta)
+                    X: clipperRound(this.srcPolygon[0].X + X * delta),
+                    Y: clipperRound(this.srcPolygon[0].Y + Y * delta)
                 });
                 if (X < 0) {
                     X = 1;
@@ -109,13 +109,13 @@ export default class ClipperOffset {
 
         if (sinA * delta < 0) {
             polygon.push({
-                X: ClipperOffset.round(this.srcPolygon[i].X + normals[k].X * delta),
-                Y: ClipperOffset.round(this.srcPolygon[i].Y + normals[k].Y * delta)
+                X: clipperRound(this.srcPolygon[i].X + normals[k].X * delta),
+                Y: clipperRound(this.srcPolygon[i].Y + normals[k].Y * delta)
             });
             polygon.push({ X: this.srcPolygon[i].X, Y: this.srcPolygon[i].Y });
             polygon.push({
-                X: ClipperOffset.round(this.srcPolygon[i].X + normals[i].X * delta),
-                Y: ClipperOffset.round(this.srcPolygon[i].Y + normals[i].Y * delta)
+                X: clipperRound(this.srcPolygon[i].X + normals[i].X * delta),
+                Y: clipperRound(this.srcPolygon[i].Y + normals[i].Y * delta)
             });
         } else {
             const r: number = 1 + (normals[i].X * normals[k].X + normals[i].Y * normals[k].Y);
@@ -125,19 +125,19 @@ export default class ClipperOffset {
                 const q: number = delta / r;
 
                 polygon.push({
-                    X: ClipperOffset.round(this.srcPolygon[i].X + (normals[k].X + normals[i].X) * q),
-                    Y: ClipperOffset.round(this.srcPolygon[i].Y + (normals[k].Y + normals[i].Y) * q)
+                    X: clipperRound(this.srcPolygon[i].X + (normals[k].X + normals[i].X) * q),
+                    Y: clipperRound(this.srcPolygon[i].Y + (normals[k].Y + normals[i].Y) * q)
                 });
                 // square
             } else {
                 const dx: number = Math.tan(Math.atan2(sinA, normals[k].X * normals[i].X + normals[k].Y * normals[i].Y) / 4);
                 polygon.push({
-                    X: ClipperOffset.round(this.srcPolygon[i].X + delta * (normals[k].X - normals[k].Y * dx)),
-                    Y: ClipperOffset.round(this.srcPolygon[i].Y + delta * (normals[k].Y + normals[k].X * dx))
+                    X: clipperRound(this.srcPolygon[i].X + delta * (normals[k].X - normals[k].Y * dx)),
+                    Y: clipperRound(this.srcPolygon[i].Y + delta * (normals[k].Y + normals[k].X * dx))
                 });
                 polygon.push({
-                    X: ClipperOffset.round(this.srcPolygon[i].X + delta * (normals[i].X + normals[i].Y * dx)),
-                    Y: ClipperOffset.round(this.srcPolygon[i].Y + delta * (normals[i].Y - normals[i].X * dx))
+                    X: clipperRound(this.srcPolygon[i].X + delta * (normals[i].X + normals[i].Y * dx)),
+                    Y: clipperRound(this.srcPolygon[i].Y + delta * (normals[i].Y - normals[i].X * dx))
                 });
             }
         }
@@ -186,10 +186,6 @@ export default class ClipperOffset {
             { X: right + 10, Y: top - 10 },
             { X: left - 10, Y: top - 10 }
         ];
-    }
-
-    private static round(a: number): number {
-        return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
     }
 
     public static create(): ClipperOffset {

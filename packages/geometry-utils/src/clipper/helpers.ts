@@ -1,5 +1,6 @@
 import { IntPoint } from './types';
 import OutPt from './out-pt';
+import { HORIZONTAL } from './constants';
 
 export function getArea(poly: IntPoint[]): number {
     const pointCount: number = poly.length;
@@ -182,3 +183,36 @@ export function op_EqualityInt128(left: Uint32Array, right: Uint32Array): boolea
 
     return true;
 }
+
+export function SlopesEqualPoints(pt1: IntPoint, pt2: IntPoint, pt3: IntPoint, useFullRange: boolean): boolean {
+    return useFullRange
+        ? op_EqualityInt128(mulInt128(pt1.Y - pt2.Y, pt2.X - pt3.X), mulInt128(pt1.X - pt2.X, pt2.Y - pt3.Y))
+        : Cast_Int64((pt1.Y - pt2.Y) * (pt2.X - pt3.X)) - Cast_Int64((pt1.X - pt2.X) * (pt2.Y - pt3.Y)) === 0;
+}
+
+export function clipperRound(a: number): number {
+    return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
+}
+
+export function showError(message: string): void {
+    try {
+        throw new Error(message);
+    } catch (err) {
+        console.warn(err.message);
+    }
+}
+
+export function GetDx(pt1: IntPoint, pt2: IntPoint): number {
+    return pt1.Y == pt2.Y ? HORIZONTAL : (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
+}
+
+export function HorzSegmentsOverlap(Pt1a: IntPoint, Pt1b: IntPoint, Pt2a: IntPoint, Pt2b: IntPoint): boolean {
+    //precondition: both segments are horizontal
+    if (Pt1a.X > Pt2a.X == Pt1a.X < Pt2b.X) return true;
+    else if (Pt1b.X > Pt2a.X == Pt1b.X < Pt2b.X) return true;
+    else if (Pt2a.X > Pt1a.X == Pt2a.X < Pt1b.X) return true;
+    else if (Pt2b.X > Pt1a.X == Pt2b.X < Pt1b.X) return true;
+    else if (Pt1a.X == Pt2a.X && Pt1b.X == Pt2b.X) return true;
+    else if (Pt1a.X == Pt2b.X && Pt1b.X == Pt2a.X) return true;
+    else return false;
+};

@@ -1,19 +1,19 @@
-import { Cast_Int64, mulInt128, op_EqualityInt128, op_Equality, Pt2IsBetweenPt1AndPt3 } from './helpers';
+import { op_Equality, Pt2IsBetweenPt1AndPt3, showError, SlopesEqualPoints } from './helpers';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { EdgeSide, IntPoint, PolyType } from './types';
 
 export default class ClipperBase {
-    private m_CurrentLM: LocalMinima = null;
     private m_edges: TEdge[][] = [];
-    private PreserveCollinear: boolean = false;
-    private m_MinimaList: LocalMinima = null;
-    private m_UseFullRange: boolean = false;
-    private m_HasOpenPaths: boolean = false;
+    protected m_MinimaList: LocalMinima = null;
+    protected m_UseFullRange: boolean = false;
+    protected m_CurrentLM: LocalMinima = null;
+    protected m_HasOpenPaths: boolean = false;
+    public PreserveCollinear: boolean = false;
 
     public AddPath(polygon: IntPoint[], polyType: PolyType, isClosed: boolean): boolean {
         if (!isClosed && polyType == PolyType.ptClip) {
-            ClipperBase.Error('AddPath: Open paths must be subject.');
+            showError('AddPath: Open paths must be subject.');
         }
 
         let lastIndex = polygon.length - 1;
@@ -85,7 +85,7 @@ export default class ClipperBase {
 
             if (
                 isClosed &&
-                ClipperBase.SlopesEqualPoints(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.m_UseFullRange) &&
+                SlopesEqualPoints(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.m_UseFullRange) &&
                 (!this.PreserveCollinear || !Pt2IsBetweenPt1AndPt3(edge.Prev.Curr, edge.Curr, edge.Next.Curr))
             ) {
                 //Collinear edges are allowed for open paths but in closed paths
@@ -158,7 +158,7 @@ export default class ClipperBase {
                 edge = edge.Next;
             }
 
-            this.InsertLocalMinima(locMin);
+            this.m_MinimaList = locMin.insert(this.m_MinimaList);
             this.m_edges.push(edges);
 
             return true;
@@ -209,7 +209,7 @@ export default class ClipperBase {
                 locMin.RightBound = null;
             }
 
-            this.InsertLocalMinima(locMin);
+            this.m_MinimaList = locMin.insert(this.m_MinimaList);
 
             if (!isClockwise) {
                 edge = edge2;
@@ -233,24 +233,6 @@ export default class ClipperBase {
         }
 
         return result;
-    }
-
-    private InsertLocalMinima(nextLocalMinima: LocalMinima): void {
-        if (this.m_MinimaList === null) {
-            this.m_MinimaList = nextLocalMinima;
-        } else if (nextLocalMinima.Y >= this.m_MinimaList.Y) {
-            nextLocalMinima.Next = this.m_MinimaList;
-            this.m_MinimaList = nextLocalMinima;
-        } else {
-            let localMinima: LocalMinima = this.m_MinimaList;
-
-            while (localMinima.Next !== null && nextLocalMinima.Y < localMinima.Next.Y) {
-                localMinima = localMinima.Next;
-            }
-
-            nextLocalMinima.Next = localMinima.Next;
-            localMinima.Next = nextLocalMinima;
-        }
     }
 
     private ProcessBound(edge: TEdge, isClockwise: boolean) {
@@ -350,6 +332,7 @@ export default class ClipperBase {
             //if edges still remain in the current bound beyond the skip edge then
             //create another LocMin and call ProcessBound once more
             edge = result;
+
             if (isClockwise) {
                 while (edge.Top.Y == edge.Next.Bot.Y) {
                     edge = edge.Next;
@@ -379,23 +362,26 @@ export default class ClipperBase {
 
                 locMin.RightBound.WindDelta = 0;
                 result = this.ProcessBound(locMin.RightBound, isClockwise);
-
-                this.InsertLocalMinima(locMin);
+                this.m_MinimaList = locMin.insert(this.m_MinimaList);
             }
         }
 
         return result;
     }
 
-    public static Error(message: string): void {
-        try {
-            throw new Error(message);
-        } catch (err) {
-            console.warn(err.message);
+    protected Reset(): void {
+        this.m_CurrentLM = this.m_MinimaList;
+
+        if (this.m_CurrentLM !== null) {
+            //ie nothing to process
+            //reset all edges ...
+            this.m_MinimaList.reset();
         }
     }
 
-    public static RangeTest(point: IntPoint, useFullRange: boolean): boolean {
+    
+
+    protected static RangeTest(point: IntPoint, useFullRange: boolean): boolean {
         if (useFullRange) {
             if (
                 point.X > ClipperBase.hiRange ||
@@ -403,7 +389,7 @@ export default class ClipperBase {
                 -point.X > ClipperBase.hiRange ||
                 -point.Y > ClipperBase.hiRange
             ) {
-                ClipperBase.Error('Coordinate outside allowed range in RangeTest().');
+                showError('Coordinate outside allowed range in RangeTest().');
             }
         } else if (
             point.X > ClipperBase.loRange ||
@@ -415,12 +401,6 @@ export default class ClipperBase {
         }
 
         return useFullRange;
-    }
-
-    public static SlopesEqualPoints(pt1: IntPoint, pt2: IntPoint, pt3: IntPoint, useFullRange: boolean) {
-        return useFullRange
-            ? op_EqualityInt128(mulInt128(pt1.Y - pt2.Y, pt2.X - pt3.X), mulInt128(pt1.X - pt2.X, pt2.Y - pt3.Y))
-            : Cast_Int64((pt1.Y - pt2.Y) * (pt2.X - pt3.X)) - Cast_Int64((pt1.X - pt2.X) * (pt2.Y - pt3.Y)) === 0;
     }
 
     public static horizontal = -9007199254740992; //-2^53
