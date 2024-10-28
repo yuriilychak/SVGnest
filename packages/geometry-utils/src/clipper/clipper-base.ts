@@ -1,15 +1,13 @@
-import { op_Equality, Pt2IsBetweenPt1AndPt3, showError, SlopesEqualPoints } from './helpers';
+import { op_Equality, showError, SlopesEqualPoints } from './helpers';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { EdgeSide, IntPoint, PolyType } from './types';
 
 export default class ClipperBase {
-    private m_edges: TEdge[][] = [];
-    protected m_MinimaList: LocalMinima = null;
-    protected m_UseFullRange: boolean = false;
-    protected m_CurrentLM: LocalMinima = null;
-    protected m_HasOpenPaths: boolean = false;
-    public PreserveCollinear: boolean = false;
+    protected minimaList: LocalMinima = null;
+    protected isUseFullRange: boolean = false;
+    protected currentLM: LocalMinima = null;
+    protected hasOpenPaths: boolean = false;
 
     public AddPath(polygon: IntPoint[], polyType: PolyType, isClosed: boolean): boolean {
         if (!isClosed && polyType == PolyType.ptClip) {
@@ -46,14 +44,14 @@ export default class ClipperBase {
         edges[1].Curr.X = polygon[1].X;
         edges[1].Curr.Y = polygon[1].Y;
 
-        this.m_UseFullRange = ClipperBase.RangeTest(polygon[0], this.m_UseFullRange);
-        this.m_UseFullRange = ClipperBase.RangeTest(polygon[lastIndex], this.m_UseFullRange);
+        this.isUseFullRange = ClipperBase.RangeTest(polygon[0], this.isUseFullRange);
+        this.isUseFullRange = ClipperBase.RangeTest(polygon[lastIndex], this.isUseFullRange);
 
         edges[0].init(edges[1], edges[lastIndex], polygon[0]);
         edges[lastIndex].init(edges[0], edges[lastIndex - 1], polygon[lastIndex]);
 
         for (i = lastIndex - 1; i >= 1; --i) {
-            this.m_UseFullRange = ClipperBase.RangeTest(polygon[i], this.m_UseFullRange);
+            this.isUseFullRange = ClipperBase.RangeTest(polygon[i], this.isUseFullRange);
 
             edges[i].init(edges[i + 1], edges[i - 1], polygon[i]);
         }
@@ -83,11 +81,7 @@ export default class ClipperBase {
                 break;
             }
 
-            if (
-                isClosed &&
-                SlopesEqualPoints(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.m_UseFullRange) &&
-                (!this.PreserveCollinear || !Pt2IsBetweenPt1AndPt3(edge.Prev.Curr, edge.Curr, edge.Next.Curr))
-            ) {
+            if (isClosed && SlopesEqualPoints(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
                 //Collinear edges are allowed for open paths but in closed paths
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
@@ -115,7 +109,7 @@ export default class ClipperBase {
         }
 
         if (!isClosed) {
-            this.m_HasOpenPaths = true;
+            this.hasOpenPaths = true;
             startEdge.Prev.OutIdx = ClipperBase.Skip;
         }
         //3. Do second stage of edge initialization ...
@@ -158,13 +152,10 @@ export default class ClipperBase {
                 edge = edge.Next;
             }
 
-            this.m_MinimaList = locMin.insert(this.m_MinimaList);
-            this.m_edges.push(edges);
+            this.minimaList = locMin.insert(this.minimaList);
 
             return true;
         }
-
-        this.m_edges.push(edges);
 
         let isClockwise: boolean = false;
         let minEdge: TEdge = null;
@@ -209,7 +200,7 @@ export default class ClipperBase {
                 locMin.RightBound = null;
             }
 
-            this.m_MinimaList = locMin.insert(this.m_MinimaList);
+            this.minimaList = locMin.insert(this.minimaList);
 
             if (!isClockwise) {
                 edge = edge2;
@@ -362,7 +353,7 @@ export default class ClipperBase {
 
                 locMin.RightBound.WindDelta = 0;
                 result = this.ProcessBound(locMin.RightBound, isClockwise);
-                this.m_MinimaList = locMin.insert(this.m_MinimaList);
+                this.minimaList = locMin.insert(this.minimaList);
             }
         }
 
@@ -370,16 +361,14 @@ export default class ClipperBase {
     }
 
     protected Reset(): void {
-        this.m_CurrentLM = this.m_MinimaList;
+        this.currentLM = this.minimaList;
 
-        if (this.m_CurrentLM !== null) {
+        if (this.currentLM !== null) {
             //ie nothing to process
             //reset all edges ...
-            this.m_MinimaList.reset();
+            this.minimaList.reset();
         }
     }
-
-    
 
     protected static RangeTest(point: IntPoint, useFullRange: boolean): boolean {
         if (useFullRange) {
@@ -405,8 +394,6 @@ export default class ClipperBase {
 
     public static horizontal = -9007199254740992; //-2^53
     public static Skip = -2;
-    public static Unassigned = -1;
-    public static tolerance = 1e-20;
     public static loRange = 47453132; // sqrt(2^53 -1)/2
     public static hiRange = 4503599627370495; // sqrt(2^106 -1)/2
 }

@@ -34,7 +34,7 @@ export default class Clipper extends ClipperBase {
             return false;
         }
 
-        if (this.m_HasOpenPaths) {
+        if (this.hasOpenPaths) {
             showError('Error: PolyTree struct is need for open path clipping.');
         }
 
@@ -66,7 +66,7 @@ export default class Clipper extends ClipperBase {
         try {
             this.Reset();
 
-            if (this.m_CurrentLM === null) {
+            if (this.currentLM === null) {
                 return false;
             }
 
@@ -94,7 +94,7 @@ export default class Clipper extends ClipperBase {
                 this.ProcessEdgesAtTopOfScanbeam(topY);
 
                 botY = topY;
-            } while (this.m_Scanbeam !== null || this.m_CurrentLM !== null);
+            } while (this.m_Scanbeam !== null || this.currentLM !== null);
             //fix orientations ...
             outRecCount = this.m_PolyOuts.length;
 
@@ -118,7 +118,7 @@ export default class Clipper extends ClipperBase {
                 outRec = this.m_PolyOuts[i];
 
                 if (!outRec.isEmpty) {
-                    outRec.fixupOutPolygon(this.PreserveCollinear, this.m_UseFullRange);
+                    outRec.fixupOutPolygon(false, this.isUseFullRange);
                 }
             }
 
@@ -200,7 +200,7 @@ export default class Clipper extends ClipperBase {
                     op !== null &&
                     ePrev.OutIdx >= 0 &&
                     ePrev.Curr.Y > ePrev.Top.Y &&
-                    TEdge.slopesEqual(e, ePrev, this.m_UseFullRange) &&
+                    TEdge.slopesEqual(e, ePrev, this.isUseFullRange) &&
                     e.WindDelta !== 0 &&
                     ePrev.WindDelta !== 0
                 ) {
@@ -213,7 +213,7 @@ export default class Clipper extends ClipperBase {
                     op !== null &&
                     eNext.OutIdx >= 0 &&
                     eNext.Curr.Y > eNext.Top.Y &&
-                    TEdge.slopesEqual(e, eNext, this.m_UseFullRange) &&
+                    TEdge.slopesEqual(e, eNext, this.isUseFullRange) &&
                     e.WindDelta !== 0 &&
                     eNext.WindDelta !== 0
                 ) {
@@ -384,19 +384,19 @@ export default class Clipper extends ClipperBase {
             //make sure the polygons are correctly oriented ...
             op1b = op1.Next;
             while (op_Equality(op1b.Pt, op1.Pt) && op1b != op1) op1b = op1b.Next;
-            var Reverse1 = op1b.Pt.Y > op1.Pt.Y || !SlopesEqualPoints(op1.Pt, op1b.Pt, j.OffPt, this.m_UseFullRange);
+            var Reverse1 = op1b.Pt.Y > op1.Pt.Y || !SlopesEqualPoints(op1.Pt, op1b.Pt, j.OffPt, this.isUseFullRange);
             if (Reverse1) {
                 op1b = op1.Prev;
                 while (op_Equality(op1b.Pt, op1.Pt) && op1b != op1) op1b = op1b.Prev;
-                if (op1b.Pt.Y > op1.Pt.Y || !SlopesEqualPoints(op1.Pt, op1b.Pt, j.OffPt, this.m_UseFullRange)) return false;
+                if (op1b.Pt.Y > op1.Pt.Y || !SlopesEqualPoints(op1.Pt, op1b.Pt, j.OffPt, this.isUseFullRange)) return false;
             }
             op2b = op2.Next;
             while (op_Equality(op2b.Pt, op2.Pt) && op2b != op2) op2b = op2b.Next;
-            var Reverse2 = op2b.Pt.Y > op2.Pt.Y || !SlopesEqualPoints(op2.Pt, op2b.Pt, j.OffPt, this.m_UseFullRange);
+            var Reverse2 = op2b.Pt.Y > op2.Pt.Y || !SlopesEqualPoints(op2.Pt, op2b.Pt, j.OffPt, this.isUseFullRange);
             if (Reverse2) {
                 op2b = op2.Prev;
                 while (op_Equality(op2b.Pt, op2.Pt) && op2b != op2) op2b = op2b.Prev;
-                if (op2b.Pt.Y > op2.Pt.Y || !SlopesEqualPoints(op2.Pt, op2b.Pt, j.OffPt, this.m_UseFullRange)) return false;
+                if (op2b.Pt.Y > op2.Pt.Y || !SlopesEqualPoints(op2.Pt, op2b.Pt, j.OffPt, this.isUseFullRange)) return false;
             }
             if (op1b == op1 || op2b == op2 || op1b == op2b || (outRec1 == outRec2 && Reverse1 == Reverse2)) return false;
             if (Reverse1) {
@@ -631,9 +631,9 @@ export default class Clipper extends ClipperBase {
         let lb: TEdge = null;
         let rb: TEdge = null;
         let Op1: OutPt = null;
-        while (this.m_CurrentLM !== null && this.m_CurrentLM.Y == botY) {
-            lb = this.m_CurrentLM.LeftBound;
-            rb = this.m_CurrentLM.RightBound;
+        while (this.currentLM !== null && this.currentLM.Y == botY) {
+            lb = this.currentLM.LeftBound;
+            rb = this.currentLM.RightBound;
             Op1 = null;
 
             this.PopLocalMinima();
@@ -689,7 +689,7 @@ export default class Clipper extends ClipperBase {
                 lb.PrevInAEL !== null &&
                 lb.PrevInAEL.Curr.X == lb.Bot.X &&
                 lb.PrevInAEL.OutIdx >= 0 &&
-                TEdge.slopesEqual(lb.PrevInAEL, lb, this.m_UseFullRange) &&
+                TEdge.slopesEqual(lb.PrevInAEL, lb, this.isUseFullRange) &&
                 lb.WindDelta !== 0 &&
                 lb.PrevInAEL.WindDelta !== 0
             ) {
@@ -700,7 +700,7 @@ export default class Clipper extends ClipperBase {
                 if (
                     rb.OutIdx >= 0 &&
                     rb.PrevInAEL.OutIdx >= 0 &&
-                    TEdge.slopesEqual(rb.PrevInAEL, rb, this.m_UseFullRange) &&
+                    TEdge.slopesEqual(rb.PrevInAEL, rb, this.isUseFullRange) &&
                     rb.WindDelta !== 0 &&
                     rb.PrevInAEL.WindDelta !== 0
                 ) {
@@ -762,8 +762,8 @@ export default class Clipper extends ClipperBase {
     }
 
     private PopLocalMinima(): void {
-        if (this.m_CurrentLM !== null) {
-            this.m_CurrentLM = this.m_CurrentLM.Next;
+        if (this.currentLM !== null) {
+            this.currentLM = this.currentLM.Next;
         }
     }
 
@@ -1308,7 +1308,7 @@ export default class Clipper extends ClipperBase {
             prevE !== null &&
             prevE.OutIdx >= 0 &&
             prevE.topX(pt.Y) == e.topX(pt.Y) &&
-            TEdge.slopesEqual(e, prevE, this.m_UseFullRange) &&
+            TEdge.slopesEqual(e, prevE, this.isUseFullRange) &&
             e.WindDelta !== 0 &&
             prevE.WindDelta !== 0
         ) {
@@ -1399,7 +1399,7 @@ export default class Clipper extends ClipperBase {
     protected Reset(): void {
         super.Reset();
 
-        this.m_Scanbeam = this.m_MinimaList !== null ? this.m_MinimaList.getScanbeam() : null;
+        this.m_Scanbeam = this.minimaList !== null ? this.minimaList.getScanbeam() : null;
         this.m_ActiveEdges = null;
         this.m_SortedEdges = null;
     }
@@ -1531,7 +1531,7 @@ export default class Clipper extends ClipperBase {
                     ePrev.WindDelta !== 0 &&
                     ePrev.OutIdx >= 0 &&
                     ePrev.Curr.Y > ePrev.Top.Y &&
-                    TEdge.slopesEqual(horzEdge, ePrev, this.m_UseFullRange)
+                    TEdge.slopesEqual(horzEdge, ePrev, this.isUseFullRange)
                 ) {
                     var op2 = this.AddOutPt(ePrev, horzEdge.Bot);
                     this.AddJoin(op1, op2, horzEdge.Top);
@@ -1542,7 +1542,7 @@ export default class Clipper extends ClipperBase {
                     eNext.WindDelta !== 0 &&
                     eNext.OutIdx >= 0 &&
                     eNext.Curr.Y > eNext.Top.Y &&
-                    TEdge.slopesEqual(horzEdge, eNext, this.m_UseFullRange)
+                    TEdge.slopesEqual(horzEdge, eNext, this.isUseFullRange)
                 ) {
                     var op2 = this.AddOutPt(eNext, horzEdge.Bot);
                     this.AddJoin(op1, op2, horzEdge.Top);
