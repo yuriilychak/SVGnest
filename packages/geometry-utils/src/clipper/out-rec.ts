@@ -1,6 +1,5 @@
 import { op_Equality, Pt2IsBetweenPt1AndPt3, SlopesEqualPoints } from './helpers';
 import OutPt from './out-pt';
-import PolyNode from './poly-node';
 import TEdge from './t-edge';
 import { IntPoint } from './types';
 
@@ -11,7 +10,6 @@ export default class OutRec {
     public FirstLeft: OutRec;
     public Pts: OutPt | null;
     public BottomPt: OutPt;
-    public PolyNode: PolyNode;
 
     constructor(index: number = 0, isOpen: boolean = false, pointer: OutPt | null = null) {
         this.Idx = index;
@@ -20,7 +18,6 @@ export default class OutRec {
         this.FirstLeft = null;
         this.Pts = pointer;
         this.BottomPt = null;
-        this.PolyNode = null;
     }
 
     public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): void {

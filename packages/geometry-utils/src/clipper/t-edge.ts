@@ -89,7 +89,7 @@ export default class TEdge {
         //swap horizontal edges' top and bottom x's so they follow the natural
         //progression of the bounds - ie so their xbots will align with the
         //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
-        var tmp = this.Top.X;
+        const tmp: number = this.Top.X;
         this.Top.X = this.Bot.X;
         this.Bot.X = tmp;
     }
@@ -215,7 +215,9 @@ export default class TEdge {
     }
 
     public getContributing(clipType: ClipType, clipFillType: PolyFillType, subjectFillType: PolyFillType): boolean {
-        var pft, pft2;
+        let pft: PolyFillType = PolyFillType.pftEvenOdd;
+        let pft2: PolyFillType = PolyFillType.pftEvenOdd;
+
         if (this.PolyTyp == PolyType.ptSubject) {
             pft = subjectFillType;
             pft2 = clipFillType;

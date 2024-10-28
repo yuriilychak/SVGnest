@@ -39,10 +39,12 @@ export function distanceFromLineSqrd(pt: IntPoint, ln1: IntPoint, ln2: IntPoint)
     //A = (y� - y�); B = (x� - x�); C = (y� - y�)x� - (x� - x�)y�
     //perpendicular distance of point (x�,y�) = (Ax� + By� + C)/Sqrt(A� + B�)
     //see http://en.wikipedia.org/wiki/Perpendicular_distance
-    var A = ln1.Y - ln2.Y;
-    var B = ln2.X - ln1.X;
-    var C = A * ln1.X + B * ln1.Y;
+    const A: number = ln1.Y - ln2.Y;
+    const B: number = ln2.X - ln1.X;
+    let C: number = A * ln1.X + B * ln1.Y;
+
     C = A * pt.X + B * pt.Y - C;
+
     return (C * C) / (A * A + B * B);
 }
 
@@ -215,4 +217,4 @@ export function HorzSegmentsOverlap(Pt1a: IntPoint, Pt1b: IntPoint, Pt2a: IntPoi
     else if (Pt1a.X == Pt2a.X && Pt1b.X == Pt2b.X) return true;
     else if (Pt1a.X == Pt2b.X && Pt1b.X == Pt2a.X) return true;
     else return false;
-};
+}
