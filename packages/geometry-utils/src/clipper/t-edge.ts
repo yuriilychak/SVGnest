@@ -1,12 +1,13 @@
 import { HORIZONTAL } from './constants';
 import { Cast_Int64, clipperRound, mulInt128, op_Equality, op_EqualityInt128 } from './helpers';
-import { IntPoint, PolyType, EdgeSide, PolyFillType, ClipType } from './types';
+import Point from './point';
+import { IClipperPoint, PolyType, EdgeSide, PolyFillType, ClipType } from './types';
 
 export default class TEdge {
-    public Bot: IntPoint;
-    public Curr: IntPoint;
-    public Top: IntPoint;
-    public Delta: IntPoint;
+    public Bot: IClipperPoint;
+    public Curr: IClipperPoint;
+    public Top: IClipperPoint;
+    public Delta: IClipperPoint;
     public Dx: number;
     public PolyTyp: PolyType;
     public Side: EdgeSide;
@@ -23,10 +24,10 @@ export default class TEdge {
     public PrevInSEL: TEdge;
 
     constructor() {
-        this.Bot = { X: 0, Y: 0 };
-        this.Curr = { X: 0, Y: 0 };
-        this.Top = { X: 0, Y: 0 };
-        this.Delta = { X: 0, Y: 0 };
+        this.Bot = Point.zero();
+        this.Curr = Point.zero();
+        this.Top = Point.zero();
+        this.Delta = Point.zero();
         this.Dx = 0;
         this.PolyTyp = PolyType.ptSubject;
         this.Side = EdgeSide.esLeft;
@@ -43,7 +44,7 @@ export default class TEdge {
         this.PrevInSEL = null;
     }
 
-    public init(nextEdge: TEdge, prevEdge: TEdge, point: IntPoint): void {
+    public init(nextEdge: TEdge, prevEdge: TEdge, point: IClipperPoint): void {
         this.Next = nextEdge;
         this.Prev = prevEdge;
         //e.Curr = pt;
@@ -316,7 +317,7 @@ export default class TEdge {
         } else return this.Curr.X < edge.Curr.X;
     }
 
-    public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: IntPoint, useFullRange: boolean): boolean {
+    public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: IClipperPoint, useFullRange: boolean): boolean {
         ip.X = 0;
         ip.Y = 0;
         let b1: number = 0;

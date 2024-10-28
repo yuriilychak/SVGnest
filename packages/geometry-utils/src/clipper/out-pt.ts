@@ -1,10 +1,11 @@
 import { GetDx, op_Equality } from './helpers';
-import { IntPoint } from './types';
+import Point from './point';
+import { IClipperPoint } from './types';
 
 export default class OutPt {
     public Idx: number;
 
-    public Pt: IntPoint;
+    public Pt: IClipperPoint;
 
     public Next: OutPt | null;
 
@@ -12,7 +13,7 @@ export default class OutPt {
 
     constructor() {
         this.Idx = 0;
-        this.Pt = { X: 0, Y: 0 };
+        this.Pt = Point.zero();
         this.Next = null;
         this.Prev = null;
     }
@@ -61,7 +62,7 @@ export default class OutPt {
         } while (pp1 !== outPt);
     }
 
-    public pointIn(pt: IntPoint): number {
+    public pointIn(pt: IClipperPoint): number {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
         let outPt: OutPt = this;

@@ -1,8 +1,9 @@
-import { IntPoint } from './types';
+import { IClipperPoint } from './types';
 import OutPt from './out-pt';
 import { HORIZONTAL } from './constants';
+import Point from './point';
 
-export function getArea(poly: IntPoint[]): number {
+export function getArea(poly: IClipperPoint[]): number {
     const pointCount: number = poly.length;
 
     if (pointCount < 3) {
@@ -21,18 +22,18 @@ export function getArea(poly: IntPoint[]): number {
     return -result * 0.5;
 }
 
-export function absArea(poly: IntPoint[]): number {
+export function absArea(poly: IClipperPoint[]): number {
     return Math.abs(getArea(poly));
 }
 
-export function pointsAreClose(pt1: IntPoint, pt2: IntPoint, distSqrd: number) {
+export function pointsAreClose(pt1: IClipperPoint, pt2: IClipperPoint, distSqrd: number) {
     const dx = pt1.X - pt2.X;
     const dy = pt1.Y - pt2.Y;
 
     return dx * dx + dy * dy <= distSqrd;
 }
 
-export function distanceFromLineSqrd(pt: IntPoint, ln1: IntPoint, ln2: IntPoint): number {
+export function distanceFromLineSqrd(pt: IClipperPoint, ln1: IClipperPoint, ln2: IClipperPoint): number {
     //The equation of a line in general form (Ax + By + C = 0)
     //given 2 points (x�,y�) & (x�,y�) is ...
     //(y� - y�)x + (x� - x�)y + (y� - y�)x� - (x� - x�)y� = 0
@@ -48,11 +49,11 @@ export function distanceFromLineSqrd(pt: IntPoint, ln1: IntPoint, ln2: IntPoint)
     return (C * C) / (A * A + B * B);
 }
 
-export function slopesNearCollinear(pt1: IntPoint, pt2: IntPoint, pt3: IntPoint, distSqrd: number) {
+export function slopesNearCollinear(pt1: IClipperPoint, pt2: IClipperPoint, pt3: IClipperPoint, distSqrd: number) {
     return distanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
 }
 
-export function cleanPolygon(path: IntPoint[], distance: number): IntPoint[] {
+export function cleanPolygon(path: IClipperPoint[], distance: number): IClipperPoint[] {
     //distance = proximity in units/pixels below which vertices will be stripped.
     //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have
     //both x & y coords within 1 unit, then the second vertex will be stripped.
@@ -65,7 +66,7 @@ export function cleanPolygon(path: IntPoint[], distance: number): IntPoint[] {
     }
 
     for (i = 0; i < pointCount; ++i) {
-        outPts[i].Pt = path[i] as IntPoint;
+        outPts[i].Pt = path[i] as IClipperPoint;
         outPts[i].Next = outPts[(i + 1) % pointCount];
         outPts[i].Next.Prev = outPts[i];
         outPts[i].Idx = 0;
@@ -98,16 +99,16 @@ export function cleanPolygon(path: IntPoint[], distance: number): IntPoint[] {
     const result = new Array(pointCount);
 
     for (i = 0; i < pointCount; ++i) {
-        result[i] = { X: op.Pt.X, Y: op.Pt.Y };
+        result[i] = Point.from(op.Pt);
         op = op.Next;
     }
 
     return result;
 }
 
-export function cleanPolygons(polys: IntPoint[][], distance: number): IntPoint[][] {
+export function cleanPolygons(polys: IClipperPoint[][], distance: number): IClipperPoint[][] {
     const polygonCount: number = polys.length;
-    const result: IntPoint[][] = new Array(polygonCount);
+    const result: IClipperPoint[][] = new Array(polygonCount);
     let i: number = 0;
 
     for (i = 0; i < polygonCount; ++i) {
@@ -117,7 +118,7 @@ export function cleanPolygons(polys: IntPoint[][], distance: number): IntPoint[]
     return result;
 }
 
-export function op_Equality(a: IntPoint, b: IntPoint): boolean {
+export function op_Equality(a: IClipperPoint, b: IClipperPoint): boolean {
     //return a == b;
     return a.X == b.X && a.Y == b.Y;
 }
@@ -126,7 +127,7 @@ export function Cast_Int64(a: number): number {
     return a < 0 ? Math.ceil(a) : Math.floor(a);
 }
 
-export function Pt2IsBetweenPt1AndPt3(point1: IntPoint, point2: IntPoint, point3: IntPoint): boolean {
+export function Pt2IsBetweenPt1AndPt3(point1: IClipperPoint, point2: IClipperPoint, point3: IClipperPoint): boolean {
     if (op_Equality(point1, point3) || op_Equality(point1, point2) || op_Equality(point3, point2)) {
         return false;
     } else if (point1.X != point3.X) {
@@ -186,7 +187,7 @@ export function op_EqualityInt128(left: Uint32Array, right: Uint32Array): boolea
     return true;
 }
 
-export function SlopesEqualPoints(pt1: IntPoint, pt2: IntPoint, pt3: IntPoint, useFullRange: boolean): boolean {
+export function SlopesEqualPoints(pt1: IClipperPoint, pt2: IClipperPoint, pt3: IClipperPoint, useFullRange: boolean): boolean {
     return useFullRange
         ? op_EqualityInt128(mulInt128(pt1.Y - pt2.Y, pt2.X - pt3.X), mulInt128(pt1.X - pt2.X, pt2.Y - pt3.Y))
         : Cast_Int64((pt1.Y - pt2.Y) * (pt2.X - pt3.X)) - Cast_Int64((pt1.X - pt2.X) * (pt2.Y - pt3.Y)) === 0;
@@ -204,11 +205,16 @@ export function showError(message: string): void {
     }
 }
 
-export function GetDx(pt1: IntPoint, pt2: IntPoint): number {
+export function GetDx(pt1: IClipperPoint, pt2: IClipperPoint): number {
     return pt1.Y == pt2.Y ? HORIZONTAL : (pt2.X - pt1.X) / (pt2.Y - pt1.Y);
 }
 
-export function HorzSegmentsOverlap(Pt1a: IntPoint, Pt1b: IntPoint, Pt2a: IntPoint, Pt2b: IntPoint): boolean {
+export function HorzSegmentsOverlap(
+    Pt1a: IClipperPoint,
+    Pt1b: IClipperPoint,
+    Pt2a: IClipperPoint,
+    Pt2b: IClipperPoint
+): boolean {
     //precondition: both segments are horizontal
     if (Pt1a.X > Pt2a.X == Pt1a.X < Pt2b.X) return true;
     else if (Pt1b.X > Pt2a.X == Pt1b.X < Pt2b.X) return true;

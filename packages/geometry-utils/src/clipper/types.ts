@@ -41,4 +41,4 @@ export enum Direction {
     dLeftToRight = 1
 }
 
-export type IntPoint = { X: number; Y: number };
+export type IClipperPoint = { X: number; Y: number };

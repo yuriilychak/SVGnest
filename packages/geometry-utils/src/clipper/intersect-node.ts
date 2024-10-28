@@ -1,15 +1,16 @@
+import Point from './point';
 import TEdge from './t-edge';
-import { IntPoint } from './types';
+import { IClipperPoint } from './types';
 
 export default class IntersectNode {
     public Edge1: TEdge;
     public Edge2: TEdge;
-    public Pt: IntPoint;
+    public Pt: IClipperPoint;
 
-    constructor(edge1: TEdge | null = null, edge2: TEdge | null = null, point: IntPoint | null = null) {
+    constructor(edge1: TEdge | null = null, edge2: TEdge | null = null, point: IClipperPoint | null = null) {
         this.Edge1 = edge1;
         this.Edge2 = edge2;
-        this.Pt = point === null ? { X: 0, Y: 0 } : { X: point.X, Y: point.Y };
+        this.Pt = point === null ? Point.zero() : Point.from(point);
     }
 
     public get edgesAdjacent(): boolean {

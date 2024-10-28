@@ -4,9 +4,10 @@ import IntersectNode from './intersect-node';
 import Join from './join';
 import OutPt from './out-pt';
 import OutRec from './out-rec';
+import Point from './point';
 import Scanbeam from './scanbeam';
 import TEdge from './t-edge';
-import { ClipType, Direction, EdgeSide, IntPoint, PolyFillType, PolyType } from './types';
+import { ClipType, Direction, EdgeSide, IClipperPoint, PolyFillType, PolyType } from './types';
 
 export default class Clipper extends ClipperBase {
     private m_ClipType: ClipType = ClipType.ctIntersection;
@@ -25,7 +26,7 @@ export default class Clipper extends ClipperBase {
 
     public Execute(
         clipType: ClipType,
-        solution: IntPoint[][],
+        solution: IClipperPoint[][],
         subjFillType: PolyFillType,
         clipFillType: PolyFillType
     ): boolean {
@@ -361,7 +362,7 @@ export default class Clipper extends ClipperBase {
             //a flat 'polygon'
             //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
-            const value: IntPoint = { X: 0, Y: 0 };
+            const value: IClipperPoint = Point.zero();
 
             if (!this.GetOverlap(op1.Pt.X, op1b.Pt.X, op2.Pt.X, op2b.Pt.X, value)) {
                 return false;
@@ -373,7 +374,7 @@ export default class Clipper extends ClipperBase {
             //DiscardLeftSide: when overlapping edges are joined, a spike will created
             //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
             //on the discard Side as either may still be needed for other joins ...
-            const Pt: IntPoint = { X: 0, Y: 0 };
+            const Pt: IClipperPoint = Point.zero();
             let DiscardLeftSide: boolean = false;
             if (op1.Pt.X >= left && op1.Pt.X <= right) {
                 //Pt = op1.Pt;
@@ -472,7 +473,7 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private GetOverlap(a1: number, a2: number, b1: number, b2: number, value: IntPoint) {
+    private GetOverlap(a1: number, a2: number, b1: number, b2: number, value: IClipperPoint) {
         if (a1 < a2) {
             if (b1 < b2) {
                 value.X = Math.max(a1, b1);
@@ -493,7 +494,7 @@ export default class Clipper extends ClipperBase {
         return value.X < value.Y;
     }
 
-    private JoinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: IntPoint, DiscardLeft: boolean) {
+    private JoinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: IClipperPoint, DiscardLeft: boolean) {
         const direction1: Direction = op1.Pt.X > op1b.Pt.X ? Direction.dRightToLeft : Direction.dLeftToRight;
         const direction2: Direction = op2.Pt.X > op2b.Pt.X ? Direction.dRightToLeft : Direction.dLeftToRight;
 
@@ -951,7 +952,7 @@ export default class Clipper extends ClipperBase {
         this.m_IntersectList = [];
     }
 
-    private IntersectEdges(edge1: TEdge, edge2: TEdge, point: IntPoint, isProtect: boolean) {
+    private IntersectEdges(edge1: TEdge, edge2: TEdge, point: IClipperPoint, isProtect: boolean) {
         //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
         //e2 in AEL except when e1 is being inserted at the intersection point ...
         let edge1Stops: boolean = !isProtect && edge1.NextInLML === null && edge1.Top.X === point.X && edge1.Top.Y === point.Y;
@@ -1210,7 +1211,7 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private AddLocalMaxPoly(e1: TEdge, e2: TEdge, pt: IntPoint): void {
+    private AddLocalMaxPoly(e1: TEdge, e2: TEdge, pt: IClipperPoint): void {
         this.AddOutPt(e1, pt);
 
         if (e2.WindDelta === 0) {
@@ -1346,7 +1347,7 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private AddLocalMinPoly(e1: TEdge, e2: TEdge, pt: IntPoint) {
+    private AddLocalMinPoly(e1: TEdge, e2: TEdge, pt: IClipperPoint) {
         let result: OutPt = null;
         let e: TEdge = null;
         let prevE: TEdge;
@@ -1390,14 +1391,14 @@ export default class Clipper extends ClipperBase {
         return result;
     }
 
-    private AddJoin(outPt1: OutPt, outPt2: OutPt, offPoint: IntPoint): void {
+    private AddJoin(outPt1: OutPt, outPt2: OutPt, offPoint: IClipperPoint): void {
         this.m_Joins.push(new Join(outPt1, outPt2, offPoint));
     }
 
-    private BuildResult(polygons: IntPoint[][]): void {
+    private BuildResult(polygons: IClipperPoint[][]): void {
         const polygonCount = this.m_PolyOuts.length;
         let outRec: OutRec = null;
-        let polygon: IntPoint[] | null = null;
+        let polygon: IClipperPoint[] | null = null;
         let i: number = 0;
 
         for (i = 0; i < polygonCount; ++i) {
@@ -1410,7 +1411,7 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private AddOutPt(edge: TEdge, point: IntPoint) {
+    private AddOutPt(edge: TEdge, point: IClipperPoint) {
         const isToFront: boolean = edge.Side === EdgeSide.esLeft;
         let outRec: OutRec = null;
         let newOp: OutPt = null;
@@ -1575,10 +1576,10 @@ export default class Clipper extends ClipperBase {
 
                         return;
                     } else if (dir === Direction.dLeftToRight) {
-                        const Pt: IntPoint = { X: e.Curr.X, Y: horzEdge.Curr.Y };
+                        const Pt: IClipperPoint = Point.create(e.Curr.X, horzEdge.Curr.Y);
                         this.IntersectEdges(horzEdge, e, Pt, true);
                     } else {
-                        const Pt: IntPoint = { X: e.Curr.X, Y: horzEdge.Curr.Y };
+                        const Pt: IClipperPoint = Point.create(e.Curr.X, horzEdge.Curr.Y);
                         this.IntersectEdges(e, horzEdge, Pt, true);
                     }
                     this.SwapPositionsInAEL(horzEdge, e);
@@ -1694,7 +1695,7 @@ export default class Clipper extends ClipperBase {
             else this.AddGhostJoin(outPt, horzEdge.Top);
     }
 
-    private AddGhostJoin(Op: OutPt, OffPt: IntPoint) {
+    private AddGhostJoin(Op: OutPt, OffPt: IClipperPoint) {
         this.m_GhostJoins.push(new Join(Op, null, OffPt));
     }
 
@@ -1840,7 +1841,7 @@ export default class Clipper extends ClipperBase {
         //bubblesort ...
         let isModified: boolean = true;
         let nextEdge: TEdge = null;
-        let point: IntPoint = null;
+        let point: IClipperPoint = null;
 
         while (isModified && this.m_SortedEdges !== null) {
             isModified = false;
@@ -1848,7 +1849,7 @@ export default class Clipper extends ClipperBase {
 
             while (edge.NextInSEL !== null) {
                 nextEdge = edge.NextInSEL;
-                point = { X: 0, Y: 0 };
+                point = Point.zero();
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.Curr.X > nextEdge.Curr.X) {
                     if (

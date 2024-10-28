@@ -1,14 +1,14 @@
 import { op_Equality, showError, SlopesEqualPoints } from './helpers';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
-import { EdgeSide, IntPoint, PolyType } from './types';
+import { EdgeSide, IClipperPoint, PolyType } from './types';
 
 export default class ClipperBase {
     protected minimaList: LocalMinima = null;
     protected isUseFullRange: boolean = false;
     protected currentLM: LocalMinima = null;
 
-    public AddPath(polygon: IntPoint[], polyType: PolyType): boolean {
+    public AddPath(polygon: IClipperPoint[], polyType: PolyType): boolean {
         let lastIndex = polygon.length - 1;
 
         while (lastIndex > 0 && op_Equality(polygon[lastIndex], polygon[0])) {
@@ -171,7 +171,7 @@ export default class ClipperBase {
         return true;
     }
 
-    public AddPaths(polygons: IntPoint[][], polyType: PolyType): boolean {
+    public AddPaths(polygons: IClipperPoint[][], polyType: PolyType): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;
@@ -331,7 +331,7 @@ export default class ClipperBase {
         }
     }
 
-    protected static RangeTest(point: IntPoint, useFullRange: boolean): boolean {
+    protected static RangeTest(point: IClipperPoint, useFullRange: boolean): boolean {
         if (useFullRange) {
             if (
                 point.X > ClipperBase.hiRange ||

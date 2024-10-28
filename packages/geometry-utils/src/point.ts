@@ -1,7 +1,7 @@
 import { IPoint } from './types';
 import { TOL } from './constants';
 import { almostEqual, midValue } from './helpers';
-import { IntPoint } from './clipper/types';
+import { IClipperPoint } from './clipper/types';
 
 export default class Point implements IPoint {
     private memSeg: Float64Array;
@@ -43,7 +43,7 @@ export default class Point implements IPoint {
         return this.set(point.x, point.y);
     }
 
-    public fromClipper(point: IntPoint): Point {
+    public fromClipper(point: IClipperPoint): Point {
         return this.set(point.X, point.Y);
     }
 

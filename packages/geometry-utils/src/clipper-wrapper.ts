@@ -7,7 +7,8 @@ import {
     cleanPolygon,
     cleanPolygons,
     ClipperOffset,
-    Clipper
+    Clipper,
+    ClipPoint
 } from './clipper';
 
 import { BoundRect, NestConfig, NFPCache, PolygonNode } from './types';
@@ -259,7 +260,7 @@ export default class ClipperWrapper {
                 point.round();
             }
 
-            result.push({ X: point.x, Y: point.y });
+            result.push(ClipPoint.create(point.x, point.y));
         }
 
         return cleanTrashold !== -1 ? cleanPolygon(result, cleanTrashold) : result;
