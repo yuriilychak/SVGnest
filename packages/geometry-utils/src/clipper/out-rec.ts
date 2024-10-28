@@ -1,5 +1,5 @@
 import Point from '../point';
-import { op_Equality, Pt2IsBetweenPt1AndPt3, SlopesEqualPoints } from './helpers';
+import { Pt2IsBetweenPt1AndPt3, SlopesEqualPoints } from './helpers';
 import OutPt from './out-pt';
 import TEdge from './t-edge';
 
@@ -36,8 +36,8 @@ export default class OutRec {
             }
             //test for duplicate points and collinear edges ...
             if (
-                op_Equality(outPt.Pt, outPt.Next.Pt) ||
-                op_Equality(outPt.Pt, outPt.Prev.Pt) ||
+                outPt.Pt.almostEqual(outPt.Next.Pt) ||
+                outPt.Pt.almostEqual(outPt.Prev.Pt) ||
                 (SlopesEqualPoints(outPt.Prev.Pt, outPt.Pt, outPt.Next.Pt, useFullRange) &&
                     (!preserveCollinear || !Pt2IsBetweenPt1AndPt3(outPt.Prev.Pt, outPt.Pt, outPt.Next.Pt)))
             ) {
@@ -176,7 +176,7 @@ export default class OutRec {
             op2 = outPt.Next;
 
             while (op2 !== this.Pts) {
-                if (op_Equality(outPt.Pt, op2.Pt) && op2.Next != outPt && op2.Prev != outPt) {
+                if (outPt.Pt.almostEqual(op2.Pt) && op2.Next != outPt && op2.Prev != outPt) {
                     //split the polygon into two ...
                     op3 = outPt.Prev;
                     op4 = op2.Prev;

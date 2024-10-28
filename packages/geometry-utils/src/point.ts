@@ -1,6 +1,6 @@
 import { IPoint } from './types';
 import { TOL } from './constants';
-import { almostEqual, midValue } from './helpers';
+import { almostEqual, clipperRound, midValue } from './helpers';
 
 export default class Point implements IPoint {
     private memSeg: Float64Array;
@@ -118,7 +118,7 @@ export default class Point implements IPoint {
     public normalize(): Point {
         const length: number = this.length;
 
-        if (!almostEqual(length, 1)) {
+        if (!almostEqual(length, 1) && !this.isEmpty) {
             this.x = this.x / length;
             this.y = this.y / length;
         }
@@ -129,6 +129,13 @@ export default class Point implements IPoint {
     public round(): Point {
         this.x = Math.round(this.x);
         this.y = Math.round(this.y);
+
+        return this;
+    }
+
+    public clipperRound(): Point {
+        this.x = clipperRound(this.x);
+        this.y = clipperRound(this.y);
 
         return this;
     }

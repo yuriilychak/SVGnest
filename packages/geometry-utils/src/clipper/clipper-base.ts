@@ -1,5 +1,5 @@
 import Point from '../point';
-import { op_Equality, showError, SlopesEqualPoints } from './helpers';
+import { showError, SlopesEqualPoints } from './helpers';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { EdgeSide, PolyType } from './types';
@@ -9,14 +9,14 @@ export default class ClipperBase {
     protected isUseFullRange: boolean = false;
     protected currentLM: LocalMinima = null;
 
-    public AddPath(polygon: Point[], polyType: PolyType): boolean {
+    public addPath(polygon: Point[], polyType: PolyType): boolean {
         let lastIndex = polygon.length - 1;
 
-        while (lastIndex > 0 && op_Equality(polygon[lastIndex], polygon[0])) {
+        while (lastIndex > 0 && polygon[lastIndex].almostEqual(polygon[0])) {
             --lastIndex;
         }
 
-        while (lastIndex > 0 && op_Equality(polygon[lastIndex], polygon[lastIndex - 1])) {
+        while (lastIndex > 0 && polygon[lastIndex].almostEqual(polygon[lastIndex - 1])) {
             --lastIndex;
         }
 
@@ -34,8 +34,7 @@ export default class ClipperBase {
         //1. Basic (first) edge initialization ...
 
         //edges[1].Curr = pg[1];
-        edges[1].Curr.x = polygon[1].x;
-        edges[1].Curr.y = polygon[1].y;
+        edges[1].Curr.update(polygon[1]);
 
         this.isUseFullRange = ClipperBase.RangeTest(polygon[0], this.isUseFullRange);
         this.isUseFullRange = ClipperBase.RangeTest(polygon[lastIndex], this.isUseFullRange);
@@ -55,7 +54,7 @@ export default class ClipperBase {
         let loopStopEdge: TEdge = startEdge;
 
         while (true) {
-            if (op_Equality(edge.Curr, edge.Next.Curr)) {
+            if (edge.Curr.almostEqual(edge.Next.Curr)) {
                 if (edge === edge.Next) {
                     break;
                 }
@@ -110,7 +109,7 @@ export default class ClipperBase {
             edge.initFromPolyType(polyType);
             edge = edge.Next;
 
-            if (isFlat && edge.Curr.y != startEdge.Curr.y) {
+            if (isFlat && edge.Curr.y !== startEdge.Curr.y) {
                 isFlat = false;
             }
         } while (edge !== startEdge);
@@ -172,7 +171,7 @@ export default class ClipperBase {
         return true;
     }
 
-    public AddPaths(polygons: Point[][], polyType: PolyType): boolean {
+    public addPaths(polygons: Point[][], polyType: PolyType): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;
@@ -180,7 +179,7 @@ export default class ClipperBase {
         let i: number = 0;
 
         for (i = 0; i < polygonCount; ++i) {
-            if (this.AddPath(polygons[i], polyType)) {
+            if (this.addPath(polygons[i], polyType)) {
                 result = true;
             }
         }
@@ -198,18 +197,18 @@ export default class ClipperBase {
             //before finishing right, so ...
             const startX: number = isClockwise ? edge.Prev.Bot.x : edge.Next.Bot.x;
 
-            if (edge.Bot.x != startX) {
+            if (edge.Bot.x !== startX) {
                 edge.reverseHorizontal();
             }
         }
 
-        if (result.OutIdx != ClipperBase.Skip) {
+        if (result.OutIdx !== ClipperBase.Skip) {
             if (isClockwise) {
-                while (result.Top.y == result.Next.Bot.y && result.Next.OutIdx != ClipperBase.Skip) {
+                while (result.Top.y == result.Next.Bot.y && result.Next.OutIdx !== ClipperBase.Skip) {
                     result = result.Next;
                 }
 
-                if (result.Dx == ClipperBase.horizontal && result.Next.OutIdx != ClipperBase.Skip) {
+                if (result.Dx == ClipperBase.horizontal && result.Next.OutIdx !== ClipperBase.Skip) {
                     //nb: at the top of a bound, horizontals are added to the bound
                     //only when the preceding edge attaches to the horizontal's left vertex
                     //unless a Skip edge is encountered when that becomes the top divide
@@ -228,25 +227,25 @@ export default class ClipperBase {
                     }
                 }
 
-                while (edge != result) {
+                while (edge !== result) {
                     edge.NextInLML = edge.Next;
 
-                    if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Prev.Top.x) {
+                    if (edge.Dx == ClipperBase.horizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
                         edge.reverseHorizontal();
                     }
 
                     edge = edge.Next;
                 }
 
-                if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Prev.Top.x) {
+                if (edge.Dx == ClipperBase.horizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
                     edge.reverseHorizontal();
                 }
 
                 result = result.Next;
                 //move to the edge just beyond current bound
             } else {
-                while (result.Top.y == result.Prev.Bot.y && result.Prev.OutIdx != ClipperBase.Skip) result = result.Prev;
-                if (result.Dx == ClipperBase.horizontal && result.Prev.OutIdx != ClipperBase.Skip) {
+                while (result.Top.y == result.Prev.Bot.y && result.Prev.OutIdx !== ClipperBase.Skip) result = result.Prev;
+                if (result.Dx == ClipperBase.horizontal && result.Prev.OutIdx !== ClipperBase.Skip) {
                     horzEdge = result;
 
                     while (horzEdge.Next.Dx == ClipperBase.horizontal) {
@@ -262,17 +261,17 @@ export default class ClipperBase {
                     }
                 }
 
-                while (edge != result) {
+                while (edge !== result) {
                     edge.NextInLML = edge.Prev;
 
-                    if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Next.Top.x) {
+                    if (edge.Dx == ClipperBase.horizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
                         edge.reverseHorizontal();
                     }
 
                     edge = edge.Prev;
                 }
 
-                if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Next.Top.x) {
+                if (edge.Dx == ClipperBase.horizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
                     edge.reverseHorizontal();
                 }
 
@@ -292,7 +291,7 @@ export default class ClipperBase {
                 }
                 //don't include top horizontals when parsing a bound a second time,
                 //they will be contained in the opposite bound ...
-                while (edge != result && edge.Dx == ClipperBase.horizontal) {
+                while (edge !== result && edge.Dx == ClipperBase.horizontal) {
                     edge = edge.Prev;
                 }
             } else {
@@ -300,7 +299,7 @@ export default class ClipperBase {
                     edge = edge.Prev;
                 }
 
-                while (edge != result && edge.Dx == ClipperBase.horizontal) {
+                while (edge !== result && edge.Dx == ClipperBase.horizontal) {
                     edge = edge.Next;
                 }
             }

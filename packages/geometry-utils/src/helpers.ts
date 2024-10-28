@@ -245,3 +245,6 @@ export function deserializeBufferToMap(buffer: ArrayBuffer, initialOffset: numbe
 
     return map;
 }
+export function clipperRound(a: number): number {
+    return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
+}

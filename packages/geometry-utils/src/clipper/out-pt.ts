@@ -1,5 +1,5 @@
 import Point from '../point';
-import { GetDx, op_Equality } from './helpers';
+import { GetDx } from './helpers';
 
 export default class OutPt {
     public Idx: number;
@@ -10,11 +10,11 @@ export default class OutPt {
 
     public Prev: OutPt | null;
 
-    constructor() {
-        this.Idx = 0;
-        this.Pt = Point.zero();
-        this.Next = null;
-        this.Prev = null;
+    constructor(index: number = 0, point: Point | null = null, next: OutPt | null = null, prev: OutPt | null = null) {
+        this.Idx = index;
+        this.Pt = point === null ? Point.zero() : Point.from(point);
+        this.Next = next;
+        this.Prev = prev;
     }
 
     public exclude(): OutPt {
@@ -34,6 +34,24 @@ export default class OutPt {
         while (outPt !== null) {
             outPt = outPt.Next;
         }
+    }
+
+    public duplicate(isInsertAfter: boolean): OutPt {
+        const result: OutPt = new OutPt(this.Idx, this.Pt);
+
+        if (isInsertAfter) {
+            result.Next = this.Next;
+            result.Prev = this;
+            this.Next.Prev = result;
+            this.Next = result;
+        } else {
+            result.Prev = this.Prev;
+            result.Next = this;
+            this.Prev.Next = result;
+            this.Prev = result;
+        }
+
+        return result;
     }
 
     public get pointCount(): number {
@@ -153,7 +171,7 @@ export default class OutPt {
                     outPt1 = dups;
                 }
                 dups = dups.Next;
-                while (!op_Equality(dups.Pt, outPt1.Pt)) {
+                while (!dups.Pt.almostEqual(outPt1.Pt)) {
                     dups = dups.Next;
                 }
             }
@@ -163,13 +181,15 @@ export default class OutPt {
 
     public static firstIsBottomPt(btmPt1: OutPt, btmPt2: OutPt): boolean {
         let p: OutPt = btmPt1.Prev;
-        while (op_Equality(p.Pt, btmPt1.Pt) && p != btmPt1) {
+
+        while (p.Pt.almostEqual(btmPt1.Pt) && p != btmPt1) {
             p = p.Prev;
         }
 
         let dx1p: number = Math.abs(GetDx(btmPt1.Pt, p.Pt));
         p = btmPt1.Next;
-        while (op_Equality(p.Pt, btmPt1.Pt) && p != btmPt1) {
+
+        while (p.Pt.almostEqual(btmPt1.Pt) && p != btmPt1) {
             p = p.Next;
         }
 
@@ -177,7 +197,7 @@ export default class OutPt {
 
         p = btmPt2.Prev;
 
-        while (op_Equality(p.Pt, btmPt2.Pt) && p != btmPt2) {
+        while (p.Pt.almostEqual(btmPt2.Pt) && p != btmPt2) {
             p = p.Prev;
         }
 
@@ -185,9 +205,10 @@ export default class OutPt {
 
         p = btmPt2.Next;
 
-        while (op_Equality(p.Pt, btmPt2.Pt) && p != btmPt2) {
+        while (p.Pt.almostEqual(btmPt2.Pt) && p != btmPt2) {
             p = p.Next;
         }
+
         let dx2n: number = Math.abs(GetDx(btmPt2.Pt, p.Pt));
 
         return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);

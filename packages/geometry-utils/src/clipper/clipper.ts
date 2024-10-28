@@ -1,6 +1,6 @@
 import Point from '../point';
 import ClipperBase from './clipper-base';
-import { HorzSegmentsOverlap, op_Equality, showError, SlopesEqualPoints } from './helpers';
+import { HorzSegmentsOverlap, showError, SlopesEqualPoints } from './helpers';
 import IntersectNode from './intersect-node';
 import Join from './join';
 import OutPt from './out-pt';
@@ -24,7 +24,7 @@ export default class Clipper extends ClipperBase {
     public ReverseSolution: boolean = false;
     public StrictlySimple: boolean = false;
 
-    public Execute(clipType: ClipType, solution: Point[][], subjFillType: PolyFillType, clipFillType: PolyFillType): boolean {
+    public execute(clipType: ClipType, solution: Point[][], fillType: PolyFillType): boolean {
         if (this.m_ExecuteLocked) {
             return false;
         }
@@ -32,8 +32,8 @@ export default class Clipper extends ClipperBase {
         solution.length = 0;
 
         this.m_ExecuteLocked = true;
-        this.m_SubjFillType = subjFillType;
-        this.m_ClipFillType = clipFillType;
+        this.m_SubjFillType = fillType;
+        this.m_ClipFillType = fillType;
         this.m_ClipType = clipType;
 
         let succeeded: boolean = false;
@@ -154,8 +154,7 @@ export default class Clipper extends ClipperBase {
 
                     this.AddEdgeToSEL(e);
                 } else {
-                    e.Curr.x = e.topX(topY);
-                    e.Curr.y = topY;
+                    e.Curr.set(e.topX(topY), topY);
                 }
                 if (this.StrictlySimple) {
                     const ePrev: TEdge | null = e.PrevInAEL;
@@ -265,26 +264,6 @@ export default class Clipper extends ClipperBase {
         return result;
     }
 
-    private DupOutPt(outPt: OutPt, InsertAfter: boolean) {
-        const result: OutPt = new OutPt();
-        //result.Pt = outPt.Pt;
-        result.Pt.x = outPt.Pt.x;
-        result.Pt.y = outPt.Pt.y;
-        result.Idx = outPt.Idx;
-        if (InsertAfter) {
-            result.Next = outPt.Next;
-            result.Prev = outPt;
-            outPt.Next.Prev = result;
-            outPt.Next = result;
-        } else {
-            result.Prev = outPt.Prev;
-            result.Next = outPt;
-            outPt.Prev.Next = result;
-            outPt.Prev = result;
-        }
-        return result;
-    }
-
     private JoinPoints(j: Join, outRec1: OutRec, outRec2: OutRec) {
         let op1: OutPt = j.OutPt1;
         let op2: OutPt = j.OutPt2;
@@ -299,18 +278,18 @@ export default class Clipper extends ClipperBase {
         //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
         const isHorizontal: boolean = j.OutPt1.Pt.y === j.OffPt.y;
 
-        if (isHorizontal && op_Equality(j.OffPt, j.OutPt1.Pt) && op_Equality(j.OffPt, j.OutPt2.Pt)) {
+        if (isHorizontal && j.OffPt.almostEqual(j.OutPt1.Pt) && j.OffPt.almostEqual(j.OutPt2.Pt)) {
             //Strictly Simple join ...
             op1b = j.OutPt1.Next;
 
-            while (op1b !== op1 && op_Equality(op1b.Pt, j.OffPt)) {
+            while (op1b !== op1 && op1b.Pt.almostEqual(j.OffPt)) {
                 op1b = op1b.Next;
             }
 
             const reverse1: boolean = op1b.Pt.y > j.OffPt.y;
             op2b = j.OutPt2.Next;
 
-            while (op2b !== op2 && op_Equality(op2b.Pt, j.OffPt)) {
+            while (op2b !== op2 && op2b.Pt.almostEqual(j.OffPt)) {
                 op2b = op2b.Next;
             }
 
@@ -321,8 +300,8 @@ export default class Clipper extends ClipperBase {
             }
 
             if (reverse1) {
-                op1b = this.DupOutPt(op1, false);
-                op2b = this.DupOutPt(op2, true);
+                op1b = op1.duplicate(false);
+                op2b = op2.duplicate(true);
                 op1.Prev = op2;
                 op2.Next = op1;
                 op1b.Next = op2b;
@@ -330,8 +309,8 @@ export default class Clipper extends ClipperBase {
                 j.OutPt1 = op1;
                 j.OutPt2 = op1b;
             } else {
-                op1b = this.DupOutPt(op1, true);
-                op2b = this.DupOutPt(op2, false);
+                op1b = op1.duplicate(true);
+                op2b = op2.duplicate(false);
                 op1.Next = op2;
                 op2.Prev = op1;
                 op1b.Prev = op2b;
@@ -363,33 +342,26 @@ export default class Clipper extends ClipperBase {
                 return false;
             }
 
-            const left: number = value.x;
-            const right: number = value.y;
-
             //DiscardLeftSide: when overlapping edges are joined, a spike will created
             //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
             //on the discard Side as either may still be needed for other joins ...
             const Pt: Point = Point.zero();
             let DiscardLeftSide: boolean = false;
-            if (op1.Pt.x >= left && op1.Pt.x <= right) {
+            if (op1.Pt.x >= value.x && op1.Pt.x <= value.y) {
                 //Pt = op1.Pt;
-                Pt.x = op1.Pt.x;
-                Pt.y = op1.Pt.y;
+                Pt.update(op1.Pt);
                 DiscardLeftSide = op1.Pt.x > op1b.Pt.x;
-            } else if (op2.Pt.x >= left && op2.Pt.x <= right) {
+            } else if (op2.Pt.x >= value.x && op2.Pt.x <= value.y) {
                 //Pt = op2.Pt;
-                Pt.x = op2.Pt.x;
-                Pt.y = op2.Pt.y;
+                Pt.update(op2.Pt);
                 DiscardLeftSide = op2.Pt.x > op2b.Pt.x;
-            } else if (op1b.Pt.x >= left && op1b.Pt.x <= right) {
+            } else if (op1b.Pt.x >= value.x && op1b.Pt.x <= value.y) {
                 //Pt = op1b.Pt;
-                Pt.x = op1b.Pt.x;
-                Pt.y = op1b.Pt.y;
+                Pt.update(op1b.Pt);
                 DiscardLeftSide = op1b.Pt.x > op1.Pt.x;
             } else {
                 //Pt = op2b.Pt;
-                Pt.x = op2b.Pt.x;
-                Pt.y = op2b.Pt.y;
+                Pt.update(op2b.Pt);
                 DiscardLeftSide = op2b.Pt.x > op2.Pt.x;
             }
             j.OutPt1 = op1;
@@ -402,7 +374,7 @@ export default class Clipper extends ClipperBase {
             //make sure the polygons are correctly oriented ...
             op1b = op1.Next;
 
-            while (op_Equality(op1b.Pt, op1.Pt) && op1b !== op1) {
+            while (op1b.Pt.almostEqual(op1.Pt) && op1b !== op1) {
                 op1b = op1b.Next;
             }
 
@@ -411,7 +383,7 @@ export default class Clipper extends ClipperBase {
             if (reverse1) {
                 op1b = op1.Prev;
 
-                while (op_Equality(op1b.Pt, op1.Pt) && op1b !== op1) {
+                while (op1b.Pt.almostEqual(op1.Pt) && op1b !== op1) {
                     op1b = op1b.Prev;
                 }
 
@@ -422,7 +394,7 @@ export default class Clipper extends ClipperBase {
 
             op2b = op2.Next;
 
-            while (op_Equality(op2b.Pt, op2.Pt) && op2b !== op2) {
+            while (op2b.Pt.almostEqual(op2.Pt) && op2b !== op2) {
                 op2b = op2b.Next;
             }
 
@@ -431,7 +403,7 @@ export default class Clipper extends ClipperBase {
             if (reverse2) {
                 op2b = op2.Prev;
 
-                while (op_Equality(op2b.Pt, op2.Pt) && op2b !== op2) {
+                while (op2b.Pt.almostEqual(op2.Pt) && op2b !== op2) {
                     op2b = op2b.Prev;
                 }
 
@@ -445,8 +417,8 @@ export default class Clipper extends ClipperBase {
             }
 
             if (reverse1) {
-                op1b = this.DupOutPt(op1, false);
-                op2b = this.DupOutPt(op2, true);
+                op1b = op1.duplicate(false);
+                op2b = op2.duplicate(true);
                 op1.Prev = op2;
                 op2.Next = op1;
                 op1b.Next = op2b;
@@ -454,8 +426,8 @@ export default class Clipper extends ClipperBase {
                 j.OutPt1 = op1;
                 j.OutPt2 = op1b;
             } else {
-                op1b = this.DupOutPt(op1, true);
-                op2b = this.DupOutPt(op2, false);
+                op1b = op1.duplicate(true);
+                op2b = op2.duplicate(false);
                 op1.Next = op2;
                 op2.Prev = op1;
                 op1b.Prev = op2b;
@@ -471,25 +443,21 @@ export default class Clipper extends ClipperBase {
     private GetOverlap(a1: number, a2: number, b1: number, b2: number, value: Point) {
         if (a1 < a2) {
             if (b1 < b2) {
-                value.x = Math.max(a1, b1);
-                value.y = Math.min(a2, b2);
+                value.set(Math.max(a1, b1), Math.min(a2, b2));
             } else {
-                value.x = Math.max(a1, b2);
-                value.y = Math.min(a2, b1);
+                value.set(Math.max(a1, b2), Math.min(a2, b1));
             }
         } else {
             if (b1 < b2) {
-                value.x = Math.max(a2, b1);
-                value.y = Math.min(a1, b2);
+                value.set(Math.max(a2, b1), Math.min(a1, b2));
             } else {
-                value.x = Math.max(a2, b2);
-                value.y = Math.min(a1, b1);
+                value.set(Math.max(a2, b2), Math.min(a1, b1));
             }
         }
         return value.x < value.y;
     }
 
-    private JoinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: Point, DiscardLeft: boolean) {
+    private JoinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: Point, isDiscardLeft: boolean) {
         const direction1: Direction = op1.Pt.x > op1b.Pt.x ? Direction.dRightToLeft : Direction.dLeftToRight;
         const direction2: Direction = op2.Pt.x > op2b.Pt.x ? Direction.dRightToLeft : Direction.dLeftToRight;
 
@@ -506,36 +474,34 @@ export default class Clipper extends ClipperBase {
                 op1 = op1.Next;
             }
 
-            if (DiscardLeft && op1.Pt.x !== Pt.x) {
+            if (isDiscardLeft && op1.Pt.x !== Pt.x) {
                 op1 = op1.Next;
             }
 
-            op1b = this.DupOutPt(op1, !DiscardLeft);
+            op1b = op1.duplicate(!isDiscardLeft);
 
-            if (!op_Equality(op1b.Pt, Pt)) {
+            if (!op1b.Pt.almostEqual(Pt)) {
                 op1 = op1b;
                 //op1.Pt = Pt;
-                op1.Pt.x = Pt.x;
-                op1.Pt.y = Pt.y;
-                op1b = this.DupOutPt(op1, !DiscardLeft);
+                op1.Pt.update(Pt);
+                op1b = op1.duplicate(!isDiscardLeft);
             }
         } else {
             while (op1.Next.Pt.x >= Pt.x && op1.Next.Pt.x <= op1.Pt.x && op1.Next.Pt.y === Pt.y) {
                 op1 = op1.Next;
             }
 
-            if (!DiscardLeft && op1.Pt.x !== Pt.x) {
+            if (!isDiscardLeft && op1.Pt.x !== Pt.x) {
                 op1 = op1.Next;
             }
 
-            op1b = this.DupOutPt(op1, DiscardLeft);
+            op1b = op1.duplicate(isDiscardLeft);
 
-            if (!op_Equality(op1b.Pt, Pt)) {
+            if (!op1b.Pt.almostEqual(Pt)) {
                 op1 = op1b;
                 //op1.Pt = Pt;
-                op1.Pt.x = Pt.x;
-                op1.Pt.y = Pt.y;
-                op1b = this.DupOutPt(op1, DiscardLeft);
+                op1.Pt.update(Pt);
+                op1b = op1.duplicate(isDiscardLeft);
             }
         }
         if (direction2 === Direction.dLeftToRight) {
@@ -543,38 +509,37 @@ export default class Clipper extends ClipperBase {
                 op2 = op2.Next;
             }
 
-            if (DiscardLeft && op2.Pt.x !== Pt.x) {
+            if (isDiscardLeft && op2.Pt.x !== Pt.x) {
                 op2 = op2.Next;
             }
 
-            op2b = this.DupOutPt(op2, !DiscardLeft);
+            op2b = op2.duplicate(!isDiscardLeft);
 
-            if (!op_Equality(op2b.Pt, Pt)) {
+            if (!op2b.Pt.almostEqual(Pt)) {
                 op2 = op2b;
                 //op2.Pt = Pt;
-                op2.Pt.x = Pt.x;
-                op2.Pt.y = Pt.y;
-                op2b = this.DupOutPt(op2, !DiscardLeft);
+                op2.Pt.update(Pt);
+                op2b = op2.duplicate(!isDiscardLeft);
             }
         } else {
             while (op2.Next.Pt.x >= Pt.x && op2.Next.Pt.x <= op2.Pt.x && op2.Next.Pt.y === Pt.y) {
                 op2 = op2.Next;
             }
 
-            if (!DiscardLeft && op2.Pt.x !== Pt.x) {
+            if (!isDiscardLeft && op2.Pt.x !== Pt.x) {
                 op2 = op2.Next;
             }
 
-            op2b = this.DupOutPt(op2, DiscardLeft);
-            if (!op_Equality(op2b.Pt, Pt)) {
+            op2b = op2.duplicate(isDiscardLeft);
+            if (!op2b.Pt.almostEqual(Pt)) {
                 op2 = op2b;
                 //op2.Pt = Pt;
-                op2.Pt.x = Pt.x;
-                op2.Pt.y = Pt.y;
-                op2b = this.DupOutPt(op2, DiscardLeft);
+                op2.Pt.update(Pt);
+                op2b = op2.duplicate(isDiscardLeft);
             }
         }
-        if ((direction1 === Direction.dLeftToRight) === DiscardLeft) {
+
+        if ((direction1 === Direction.dLeftToRight) === isDiscardLeft) {
             op1.Prev = op2;
             op2.Next = op1;
             op1b.Next = op2b;
@@ -1412,13 +1377,9 @@ export default class Clipper extends ClipperBase {
         let newOp: OutPt = null;
 
         if (edge.OutIdx < 0) {
-            newOp = new OutPt();
+            newOp = new OutPt(0, point);
             outRec = OutRec.create(this.m_PolyOuts, edge.WindDelta === 0, newOp);
-            outRec.Pts = newOp;
             newOp.Idx = outRec.Idx;
-            //newOp.Pt = pt;
-            newOp.Pt.x = point.x;
-            newOp.Pt.y = point.y;
             newOp.Next = newOp;
             newOp.Prev = newOp;
 
@@ -1434,19 +1395,13 @@ export default class Clipper extends ClipperBase {
             //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
             const op: OutPt = outRec.Pts;
 
-            if (isToFront && op_Equality(point, op.Pt)) {
+            if (isToFront && point.almostEqual(op.Pt)) {
                 return op;
-            } else if (!isToFront && op_Equality(point, op.Prev.Pt)) {
+            } else if (!isToFront && point.almostEqual(op.Prev.Pt)) {
                 return op.Prev;
             }
 
-            newOp = new OutPt();
-            newOp.Idx = outRec.Idx;
-            //newOp.Pt = pt;
-            newOp.Pt.x = point.x;
-            newOp.Pt.y = point.y;
-            newOp.Next = op;
-            newOp.Prev = op.Prev;
+            newOp = new OutPt(outRec.Idx, point, op, op.Prev);
             newOp.Prev.Next = newOp;
             op.Prev = newOp;
 
@@ -1662,9 +1617,9 @@ export default class Clipper extends ClipperBase {
     GetMaximaPair(e: TEdge): TEdge | null {
         let result: TEdge | null = null;
 
-        if (op_Equality(e.Next.Top, e.Top) && e.Next.NextInLML === null) {
+        if (e.Next.Top.almostEqual(e.Top) && e.Next.NextInLML === null) {
             result = e.Next;
-        } else if (op_Equality(e.Prev.Top, e.Top) && e.Prev.NextInLML === null) {
+        } else if (e.Prev.Top.almostEqual(e.Top) && e.Prev.NextInLML === null) {
             result = e.Prev;
         }
 
@@ -1686,7 +1641,7 @@ export default class Clipper extends ClipperBase {
         //we need to create 'ghost' Join records of 'contrubuting' horizontals that
         //we can compare with horizontals at the bottom of the next SB.
         if (isTopOfScanbeam)
-            if (op_Equality(outPt.Pt, horzEdge.Top)) this.AddGhostJoin(outPt, horzEdge.Bot);
+            if (outPt.Pt.almostEqual(horzEdge.Top)) this.AddGhostJoin(outPt, horzEdge.Bot);
             else this.AddGhostJoin(outPt, horzEdge.Top);
     }
 
@@ -1723,8 +1678,7 @@ export default class Clipper extends ClipperBase {
         e.NextInLML.WindCnt2 = e.WindCnt2;
         e = e.NextInLML;
         //    e.Curr = e.Bot;
-        e.Curr.x = e.Bot.x;
-        e.Curr.y = e.Bot.y;
+        e.Curr.update(e.Bot);
         e.PrevInAEL = AelPrev;
         e.NextInAEL = AelNext;
 
@@ -1857,8 +1811,7 @@ export default class Clipper extends ClipperBase {
                     }
 
                     if (point.y > botY) {
-                        point.y = botY;
-                        point.x = Math.abs(edge.Dx) > Math.abs(nextEdge.Dx) ? nextEdge.topX(botY) : edge.topX(botY);
+                        point.set(Math.abs(edge.Dx) > Math.abs(nextEdge.Dx) ? nextEdge.topX(botY) : edge.topX(botY), botY);
                     }
 
                     this.m_IntersectList.push(new IntersectNode(edge, nextEdge, point));

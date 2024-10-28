@@ -1,6 +1,7 @@
 import OutPt from './out-pt';
 import { HORIZONTAL } from './constants';
 import Point from '../point';
+import { cycleIndex } from '../helpers';
 
 export function getArea(poly: Point[]): number {
     const pointCount: number = poly.length;
@@ -26,10 +27,7 @@ export function absArea(poly: Point[]): number {
 }
 
 export function pointsAreClose(pt1: Point, pt2: Point, distSqrd: number) {
-    const dx = pt1.x - pt2.x;
-    const dy = pt1.y - pt2.y;
-
-    return dx * dx + dy * dy <= distSqrd;
+    return Point.from(pt1).len2(pt2) <= distSqrd;
 }
 
 export function distanceFromLineSqrd(pt: Point, ln1: Point, ln2: Point): number {
@@ -61,14 +59,12 @@ export function cleanPolygon(path: Point[], distance: number): Point[] {
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-        outPts[i] = new OutPt();
+        outPts[i] = new OutPt(0, path[i]);
     }
 
     for (i = 0; i < pointCount; ++i) {
-        outPts[i].Pt = path[i] as Point;
-        outPts[i].Next = outPts[(i + 1) % pointCount];
+        outPts[i].Next = outPts[cycleIndex(i, pointCount, 1)];
         outPts[i].Next.Prev = outPts[i];
-        outPts[i].Idx = 0;
     }
 
     const distSqrd = distance * distance;
@@ -77,14 +73,14 @@ export function cleanPolygon(path: Point[], distance: number): Point[] {
     while (op.Idx === 0 && op.Next != op.Prev) {
         if (pointsAreClose(op.Pt, op.Prev.Pt, distSqrd)) {
             op = op.exclude();
-            pointCount--;
+            --pointCount;
         } else if (pointsAreClose(op.Prev.Pt, op.Next.Pt, distSqrd)) {
             op.Next.exclude();
             op = op.exclude();
             pointCount -= 2;
         } else if (slopesNearCollinear(op.Prev.Pt, op.Pt, op.Next.Pt, distSqrd)) {
             op = op.exclude();
-            pointCount--;
+            --pointCount;
         } else {
             op.Idx = 1;
             op = op.Next;
@@ -117,23 +113,20 @@ export function cleanPolygons(polys: Point[][], distance: number): Point[][] {
     return result;
 }
 
-export function op_Equality(a: Point, b: Point): boolean {
-    //return a == b;
-    return a.x == b.x && a.y == b.y;
-}
-
 export function Cast_Int64(a: number): number {
     return a < 0 ? Math.ceil(a) : Math.floor(a);
 }
 
 export function Pt2IsBetweenPt1AndPt3(point1: Point, point2: Point, point3: Point): boolean {
-    if (op_Equality(point1, point3) || op_Equality(point1, point2) || op_Equality(point3, point2)) {
+    if (point1.almostEqual(point3) || point1.almostEqual(point2) || point2.almostEqual(point3)) {
         return false;
-    } else if (point1.x != point3.x) {
-        return point2.x > point1.x === point2.x < point3.x;
-    } else {
-        return point2.y > point1.y == point2.y < point3.y;
     }
+
+    if (point1.x !== point3.x) {
+        return point2.x > point1.x === point2.x < point3.x;
+    }
+
+    return point2.y > point1.y === point2.y < point3.y;
 }
 
 function splitTo16Bits(value: number): Uint16Array {
@@ -192,10 +185,6 @@ export function SlopesEqualPoints(pt1: Point, pt2: Point, pt3: Point, useFullRan
         : Cast_Int64((pt1.y - pt2.y) * (pt2.x - pt3.x)) - Cast_Int64((pt1.x - pt2.x) * (pt2.y - pt3.y)) === 0;
 }
 
-export function clipperRound(a: number): number {
-    return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
-}
-
 export function showError(message: string): void {
     try {
         throw new Error(message);
@@ -205,16 +194,17 @@ export function showError(message: string): void {
 }
 
 export function GetDx(pt1: Point, pt2: Point): number {
-    return pt1.y == pt2.y ? HORIZONTAL : (pt2.x - pt1.x) / (pt2.y - pt1.y);
+    return pt1.y === pt2.y ? HORIZONTAL : (pt2.x - pt1.x) / (pt2.y - pt1.y);
 }
 
 export function HorzSegmentsOverlap(Pt1a: Point, Pt1b: Point, Pt2a: Point, Pt2b: Point): boolean {
     //precondition: both segments are horizontal
-    if (Pt1a.x > Pt2a.x == Pt1a.x < Pt2b.x) return true;
-    else if (Pt1b.x > Pt2a.x == Pt1b.x < Pt2b.x) return true;
-    else if (Pt2a.x > Pt1a.x == Pt2a.x < Pt1b.x) return true;
-    else if (Pt2b.x > Pt1a.x == Pt2b.x < Pt1b.x) return true;
-    else if (Pt1a.x == Pt2a.x && Pt1b.x == Pt2b.x) return true;
-    else if (Pt1a.x == Pt2b.x && Pt1b.x == Pt2a.x) return true;
-    else return false;
+    return (
+        Pt1a.x > Pt2a.x === Pt1a.x < Pt2b.x ||
+        Pt1b.x > Pt2a.x === Pt1b.x < Pt2b.x ||
+        Pt2a.x > Pt1a.x === Pt2a.x < Pt1b.x ||
+        Pt2b.x > Pt1a.x === Pt2b.x < Pt1b.x ||
+        (Pt1a.x === Pt2a.x && Pt1b.x === Pt2b.x) ||
+        (Pt1a.x === Pt2b.x && Pt1b.x === Pt2a.x)
+    );
 }
