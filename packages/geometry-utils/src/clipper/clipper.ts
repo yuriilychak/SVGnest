@@ -17,7 +17,6 @@ export default class Clipper extends ClipperBase {
     private m_SortedEdges: TEdge = null;
     private m_IntersectList: IntersectNode[] = [];
     private m_ExecuteLocked: boolean = false;
-    private m_UsingPolyTree: boolean = false;
     private m_PolyOuts: OutRec[] = [];
     private m_Joins: Join[] = [];
     private m_GhostJoins: Join[] = [];
@@ -40,7 +39,6 @@ export default class Clipper extends ClipperBase {
         this.m_SubjFillType = subjFillType;
         this.m_ClipFillType = clipFillType;
         this.m_ClipType = clipType;
-        this.m_UsingPolyTree = false;
 
         let succeeded: boolean = false;
 
@@ -645,38 +643,11 @@ export default class Clipper extends ClipperBase {
                 outRec2.Pts = join.OutPt2;
                 //update all OutRec2.Pts Idx's ...
                 this.UpdateOutPtIdxs(outRec2);
-                //We now need to check every OutRec.FirstLeft pointer. If it points
-                //to OutRec1 it may need to point to OutRec2 instead ...
-                if (this.m_UsingPolyTree) {
-                    const jlen: number = this.m_PolyOuts.length;
-                    let j: number = 0;
-                    let oRec: OutRec | null = null;
-
-                    for (j = 0; j < jlen - 1; +j) {
-                        oRec = this.m_PolyOuts[j];
-
-                        if (
-                            oRec.Pts === null ||
-                            OutRec.parseFirstLeft(oRec.FirstLeft) !== outRec1 ||
-                            oRec.IsHole === outRec1.IsHole
-                        ) {
-                            continue;
-                        }
-
-                        if (this.Poly2ContainsPoly1(oRec.Pts, join.OutPt2)) {
-                            oRec.FirstLeft = outRec2;
-                        }
-                    }
-                }
 
                 if (outRec1.containsPoly(outRec2)) {
                     //outRec2 is contained by outRec1 ...
                     outRec2.IsHole = !outRec1.IsHole;
                     outRec2.FirstLeft = outRec1;
-                    //fixup FirstLeft pointers that may need reassigning to OutRec1
-                    if (this.m_UsingPolyTree) {
-                        this.FixupFirstLefts2(outRec2, outRec1);
-                    }
 
                     if ((outRec2.IsHole !== this.ReverseSolution) === outRec2.area > 0) {
                         outRec2.Pts.reverse();
@@ -687,10 +658,6 @@ export default class Clipper extends ClipperBase {
                     outRec1.IsHole = !outRec2.IsHole;
                     outRec2.FirstLeft = outRec1.FirstLeft;
                     outRec1.FirstLeft = outRec2;
-                    //fixup FirstLeft pointers that may need reassigning to OutRec1
-                    if (this.m_UsingPolyTree) {
-                        this.FixupFirstLefts2(outRec1, outRec2);
-                    }
 
                     if ((outRec1.IsHole !== this.ReverseSolution) === outRec1.area > 0) {
                         outRec1.Pts.reverse();
@@ -699,10 +666,6 @@ export default class Clipper extends ClipperBase {
                     //the 2 polygons are completely separate ...
                     outRec2.IsHole = outRec1.IsHole;
                     outRec2.FirstLeft = outRec1.FirstLeft;
-                    //fixup FirstLeft pointers that may need reassigning to OutRec2
-                    if (this.m_UsingPolyTree) {
-                        this.FixupFirstLefts1(outRec1, outRec2);
-                    }
                 }
             } else {
                 //joined 2 polygons together ...
@@ -716,49 +679,6 @@ export default class Clipper extends ClipperBase {
                 }
 
                 outRec2.FirstLeft = outRec1;
-                //fixup FirstLeft pointers that may need reassigning to OutRec1
-                if (this.m_UsingPolyTree) {
-                    this.FixupFirstLefts2(outRec2, outRec1);
-                }
-            }
-        }
-    }
-
-    private Poly2ContainsPoly1(outPt1: OutPt, outPt2: OutPt): boolean {
-        let op: OutPt = outPt1;
-        let res: number = 0;
-
-        do {
-            res = outPt2.pointIn(op.Pt);
-
-            if (res >= 0) {
-                return res !== 0;
-            }
-
-            op = op.Next;
-        } while (op !== outPt1);
-
-        return true;
-    }
-
-    private FixupFirstLefts1(oldOutRec: OutRec, newOutRec: OutRec): void {
-        const recCount: number = this.m_PolyOuts.length;
-        let i: number = 0;
-        let outRec: OutRec | null = null;
-
-        for (i = 0; i < recCount; ++i) {
-            outRec = this.m_PolyOuts[i];
-
-            if (outRec.Pts !== null && outRec.FirstLeft === oldOutRec && newOutRec.containsPoly(outRec)) {
-                outRec.FirstLeft = newOutRec;
-            }
-        }
-    }
-
-    private FixupFirstLefts2(OldOutRec: OutRec, NewOutRec: OutRec): void {
-        for (var $i2 = 0, $t2 = this.m_PolyOuts, $l2 = $t2.length, outRec = $t2[$i2]; $i2 < $l2; $i2++, outRec = $t2[$i2]) {
-            if (outRec.FirstLeft === OldOutRec) {
-                outRec.FirstLeft = NewOutRec;
             }
         }
     }
@@ -1967,8 +1887,4 @@ export default class Clipper extends ClipperBase {
         //be limited to the height of the scanbeam.
         return node2.Pt.Y - node1.Pt.Y;
     }
-
-    public static ioReverseSolution = 1;
-    public static ioStrictlySimple = 2;
-    public static ioPreserveCollinear = 4;
 }
