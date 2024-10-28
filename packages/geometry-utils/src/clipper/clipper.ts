@@ -34,10 +34,6 @@ export default class Clipper extends ClipperBase {
             return false;
         }
 
-        if (this.hasOpenPaths) {
-            showError('Error: PolyTree struct is need for open path clipping.');
-        }
-
         solution.length = 0;
 
         this.m_ExecuteLocked = true;

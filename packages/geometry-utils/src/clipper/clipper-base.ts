@@ -7,7 +7,6 @@ export default class ClipperBase {
     protected minimaList: LocalMinima = null;
     protected isUseFullRange: boolean = false;
     protected currentLM: LocalMinima = null;
-    protected hasOpenPaths: boolean = false;
 
     public AddPath(polygon: IntPoint[], polyType: PolyType): boolean {
         let lastIndex = polygon.length - 1;
@@ -31,7 +30,6 @@ export default class ClipperBase {
             edges.push(new TEdge());
         }
 
-        let isFlat: boolean = true;
         //1. Basic (first) edge initialization ...
 
         //edges[1].Curr = pg[1];
@@ -104,6 +102,8 @@ export default class ClipperBase {
 
         //3. Do second stage of edge initialization ...
         edge = startEdge;
+
+        let isFlat: boolean = true;
 
         do {
             edge.initFromPolyType(polyType);
