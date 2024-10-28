@@ -149,7 +149,7 @@ export default class ClipperOffset {
     private getUnitNormal(index: number): IntPoint {
         const point1: IntPoint = this.srcPolygon[index];
         const point2: IntPoint = this.srcPolygon[cycleIndex(index, this.srcPolygon.length, 1)];
-        const result = { X: point2.Y - point1.Y, Y: point1.X - point2.X };
+        const result: IntPoint = { X: point2.Y - point1.Y, Y: point1.X - point2.X };
 
         if (result.X === 0 && result.Y === 0) {
             return result;
