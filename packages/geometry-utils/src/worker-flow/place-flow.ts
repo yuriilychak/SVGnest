@@ -16,7 +16,6 @@ import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import { NFP_INFO_START_INDEX } from '../constants';
 import { WorkerConfig } from './types';
-import { IntPoint } from '../clipper';
 
 function fillPointMemSeg(
     pointPool: PointPool,
@@ -129,7 +128,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     let nfpOffset: number = 0;
     let placed: PolygonNode[] = [];
     let binNfp: Float64Array = null;
-    let finalNfp: IntPoint[][] = null;
+    let finalNfp: Point[][] = null;
     let minArea: number = 0;
     let minX: number = 0;
     let nfpSize: number = 0;

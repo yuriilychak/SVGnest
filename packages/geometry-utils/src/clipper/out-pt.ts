@@ -1,11 +1,10 @@
+import Point from '../point';
 import { GetDx, op_Equality } from './helpers';
-import Point from './point';
-import { IClipperPoint } from './types';
 
 export default class OutPt {
     public Idx: number;
 
-    public Pt: IClipperPoint;
+    public Pt: Point;
 
     public Next: OutPt | null;
 
@@ -62,7 +61,7 @@ export default class OutPt {
         } while (pp1 !== outPt);
     }
 
-    public pointIn(pt: IClipperPoint): number {
+    public pointIn(pt: Point): number {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
         let outPt: OutPt = this;
@@ -75,23 +74,23 @@ export default class OutPt {
         let d: number = 0;
 
         while (true) {
-            poly0x = outPt.Pt.X;
-            poly0y = outPt.Pt.Y;
-            poly1x = outPt.Next.Pt.X;
-            poly1y = outPt.Next.Pt.Y;
+            poly0x = outPt.Pt.x;
+            poly0y = outPt.Pt.y;
+            poly1x = outPt.Next.Pt.x;
+            poly1y = outPt.Next.Pt.y;
 
-            if (poly1y === pt.Y) {
-                if (poly1x === pt.X || (poly0y === pt.Y && poly1x > pt.X === poly0x < pt.X)) {
+            if (poly1y === pt.y) {
+                if (poly1x === pt.x || (poly0y === pt.y && poly1x > pt.x === poly0x < pt.x)) {
                     return -1;
                 }
             }
 
-            if (poly0y < pt.Y !== poly1y < pt.Y) {
-                if (poly0x >= pt.X) {
-                    if (poly1x > pt.X) {
+            if (poly0y < pt.y !== poly1y < pt.y) {
+                if (poly0x >= pt.x) {
+                    if (poly1x > pt.x) {
                         result = 1 - result;
                     } else {
-                        d = (poly0x - pt.X) * (poly1y - pt.Y) - (poly1x - pt.X) * (poly0y - pt.Y);
+                        d = (poly0x - pt.x) * (poly1y - pt.y) - (poly1x - pt.x) * (poly0y - pt.y);
 
                         if (d == 0) {
                             return -1;
@@ -102,8 +101,8 @@ export default class OutPt {
                         }
                     }
                 } else {
-                    if (poly1x > pt.X) {
-                        d = (poly0x - pt.X) * (poly1y - pt.Y) - (poly1x - pt.X) * (poly0y - pt.Y);
+                    if (poly1x > pt.x) {
+                        d = (poly0x - pt.x) * (poly1y - pt.y) - (poly1x - pt.x) * (poly0y - pt.y);
 
                         if (d === 0) {
                             return -1;
@@ -132,11 +131,11 @@ export default class OutPt {
         let dups: OutPt | null = null;
 
         while (outPt2 != outPt1) {
-            if (outPt2.Pt.Y > outPt1.Pt.Y) {
+            if (outPt2.Pt.y > outPt1.Pt.y) {
                 outPt1 = outPt2;
                 dups = null;
-            } else if (outPt2.Pt.Y == outPt1.Pt.Y && outPt2.Pt.X <= outPt1.Pt.X) {
-                if (outPt2.Pt.X < outPt1.Pt.X) {
+            } else if (outPt2.Pt.y == outPt1.Pt.y && outPt2.Pt.x <= outPt1.Pt.x) {
+                if (outPt2.Pt.x < outPt1.Pt.x) {
                     dups = null;
                     outPt1 = outPt2;
                 } else {

@@ -1,13 +1,13 @@
+import Point from '../point';
 import { HORIZONTAL } from './constants';
 import { Cast_Int64, clipperRound, mulInt128, op_Equality, op_EqualityInt128 } from './helpers';
-import Point from './point';
-import { IClipperPoint, PolyType, EdgeSide, PolyFillType, ClipType } from './types';
+import { PolyType, EdgeSide, PolyFillType, ClipType } from './types';
 
 export default class TEdge {
-    public Bot: IClipperPoint;
-    public Curr: IClipperPoint;
-    public Top: IClipperPoint;
-    public Delta: IClipperPoint;
+    public Bot: Point;
+    public Curr: Point;
+    public Top: Point;
+    public Delta: Point;
     public Dx: number;
     public PolyTyp: PolyType;
     public Side: EdgeSide;
@@ -44,30 +44,30 @@ export default class TEdge {
         this.PrevInSEL = null;
     }
 
-    public init(nextEdge: TEdge, prevEdge: TEdge, point: IClipperPoint): void {
+    public init(nextEdge: TEdge, prevEdge: TEdge, point: Point): void {
         this.Next = nextEdge;
         this.Prev = prevEdge;
         //e.Curr = pt;
-        this.Curr.X = point.X;
-        this.Curr.Y = point.Y;
+        this.Curr.x = point.x;
+        this.Curr.y = point.y;
         this.OutIdx = -1;
     }
 
     public initFromPolyType(polyType: PolyType): void {
-        if (this.Curr.Y >= this.Next.Curr.Y) {
+        if (this.Curr.y >= this.Next.Curr.y) {
             //e.Bot = e.Curr;
-            this.Bot.X = this.Curr.X;
-            this.Bot.Y = this.Curr.Y;
+            this.Bot.x = this.Curr.x;
+            this.Bot.y = this.Curr.y;
             //e.Top = e.Next.Curr;
-            this.Top.X = this.Next.Curr.X;
-            this.Top.Y = this.Next.Curr.Y;
+            this.Top.x = this.Next.Curr.x;
+            this.Top.y = this.Next.Curr.y;
         } else {
             //e.Top = e.Curr;
-            this.Top.X = this.Curr.X;
-            this.Top.Y = this.Curr.Y;
+            this.Top.x = this.Curr.x;
+            this.Top.y = this.Curr.y;
             //e.Bot = e.Next.Curr;
-            this.Bot.X = this.Next.Curr.X;
-            this.Bot.Y = this.Next.Curr.Y;
+            this.Bot.x = this.Next.Curr.x;
+            this.Bot.y = this.Next.Curr.y;
         }
 
         this.setDx();
@@ -90,9 +90,9 @@ export default class TEdge {
         //swap horizontal edges' top and bottom x's so they follow the natural
         //progression of the bounds - ie so their xbots will align with the
         //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
-        const tmp: number = this.Top.X;
-        this.Top.X = this.Bot.X;
-        this.Bot.X = tmp;
+        const tmp: number = this.Top.x;
+        this.Top.x = this.Bot.x;
+        this.Bot.x = tmp;
     }
 
     public findNextLocMin(): TEdge {
@@ -117,11 +117,11 @@ export default class TEdge {
             while (result.Dx === HORIZONTAL) {
                 result = result.Next;
             }
-            if (result.Top.Y == result.Prev.Bot.Y) {
+            if (result.Top.y == result.Prev.Bot.y) {
                 continue;
             }
             //ie just an intermediate horz.
-            if (edge.Prev.Bot.X < result.Bot.X) {
+            if (edge.Prev.Bot.x < result.Bot.x) {
                 result = edge;
             }
 
@@ -132,19 +132,19 @@ export default class TEdge {
     }
 
     public setDx(): void {
-        this.Delta.X = this.Top.X - this.Bot.X;
-        this.Delta.Y = this.Top.Y - this.Bot.Y;
+        this.Delta.x = this.Top.x - this.Bot.x;
+        this.Delta.y = this.Top.y - this.Bot.y;
 
-        if (this.Delta.Y === 0) {
+        if (this.Delta.y === 0) {
             this.Dx = HORIZONTAL;
         } else {
-            this.Dx = this.Delta.X / this.Delta.Y;
+            this.Dx = this.Delta.x / this.Delta.y;
         }
     }
 
     public reset(side: EdgeSide): void {
-        this.Curr.X = this.Bot.X;
-        this.Curr.Y = this.Bot.Y;
+        this.Curr.x = this.Bot.x;
+        this.Curr.y = this.Bot.y;
         this.Side = side;
         this.OutIdx = TEdge.Unassigned;
     }
@@ -159,7 +159,7 @@ export default class TEdge {
     public topX(currentY: number): number {
         //if (edge.Bot == edge.Curr) alert ("edge.Bot = edge.Curr");
         //if (edge.Bot == edge.Top) alert ("edge.Bot = edge.Top");
-        return currentY === this.Top.Y ? this.Top.X : this.Bot.X + clipperRound(this.Dx * (currentY - this.Bot.Y));
+        return currentY === this.Top.y ? this.Top.x : this.Bot.x + clipperRound(this.Dx * (currentY - this.Bot.y));
     }
 
     public deleteFromSEL(inputEdge: TEdge): TEdge | null {
@@ -208,11 +208,11 @@ export default class TEdge {
     }
 
     public getIntermediate(y: number): boolean {
-        return this.Top.Y == y && this.NextInLML !== null;
+        return this.Top.y == y && this.NextInLML !== null;
     }
 
     public get isHorizontal(): boolean {
-        return this.Delta.Y === 0;
+        return this.Delta.y === 0;
     }
 
     public getContributing(clipType: ClipType, clipFillType: PolyFillType, subjectFillType: PolyFillType): boolean {
@@ -311,67 +311,67 @@ export default class TEdge {
     }
 
     public insertsBefore(edge: TEdge): boolean {
-        if (this.Curr.X == edge.Curr.X) {
-            if (this.Top.Y > edge.Top.Y) return this.Top.X < edge.topX(this.Top.Y);
-            else return edge.Top.X > this.topX(edge.Top.Y);
-        } else return this.Curr.X < edge.Curr.X;
+        if (this.Curr.x == edge.Curr.x) {
+            if (this.Top.y > edge.Top.y) return this.Top.x < edge.topX(this.Top.y);
+            else return edge.Top.x > this.topX(edge.Top.y);
+        } else return this.Curr.x < edge.Curr.x;
     }
 
-    public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: IClipperPoint, useFullRange: boolean): boolean {
-        ip.X = 0;
-        ip.Y = 0;
+    public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: Point, useFullRange: boolean): boolean {
+        ip.x = 0;
+        ip.y = 0;
         let b1: number = 0;
         let b2: number = 0;
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
         if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.Dx == edge2.Dx) {
-            if (edge2.Bot.Y > edge1.Bot.Y) {
-                ip.X = edge2.Bot.X;
-                ip.Y = edge2.Bot.Y;
+            if (edge2.Bot.y > edge1.Bot.y) {
+                ip.x = edge2.Bot.x;
+                ip.y = edge2.Bot.y;
             } else {
-                ip.X = edge1.Bot.X;
-                ip.Y = edge1.Bot.Y;
+                ip.x = edge1.Bot.x;
+                ip.y = edge1.Bot.y;
             }
 
             return false;
         }
 
-        if (edge1.Delta.X === 0) {
-            ip.X = edge1.Bot.X;
+        if (edge1.Delta.x === 0) {
+            ip.x = edge1.Bot.x;
             if (edge2.isHorizontal) {
-                ip.Y = edge2.Bot.Y;
+                ip.y = edge2.Bot.y;
             } else {
-                b2 = edge2.Bot.Y - edge2.Bot.X / edge2.Dx;
-                ip.Y = clipperRound(ip.X / edge2.Dx + b2);
+                b2 = edge2.Bot.y - edge2.Bot.x / edge2.Dx;
+                ip.y = clipperRound(ip.x / edge2.Dx + b2);
             }
-        } else if (edge2.Delta.X === 0) {
-            ip.X = edge2.Bot.X;
+        } else if (edge2.Delta.x === 0) {
+            ip.x = edge2.Bot.x;
 
             if (edge1.isHorizontal) {
-                ip.Y = edge1.Bot.Y;
+                ip.y = edge1.Bot.y;
             } else {
-                b1 = edge1.Bot.Y - edge1.Bot.X / edge1.Dx;
-                ip.Y = clipperRound(ip.X / edge1.Dx + b1);
+                b1 = edge1.Bot.y - edge1.Bot.x / edge1.Dx;
+                ip.y = clipperRound(ip.x / edge1.Dx + b1);
             }
         } else {
-            b1 = edge1.Bot.X - edge1.Bot.Y * edge1.Dx;
-            b2 = edge2.Bot.X - edge2.Bot.Y * edge2.Dx;
+            b1 = edge1.Bot.x - edge1.Bot.y * edge1.Dx;
+            b2 = edge2.Bot.x - edge2.Bot.y * edge2.Dx;
             const q: number = (b2 - b1) / (edge1.Dx - edge2.Dx);
 
-            ip.Y = clipperRound(q);
-            ip.X = Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? clipperRound(edge1.Dx * q + b1) : clipperRound(edge2.Dx * q + b2);
+            ip.y = clipperRound(q);
+            ip.x = Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? clipperRound(edge1.Dx * q + b1) : clipperRound(edge2.Dx * q + b2);
         }
 
-        if (ip.Y < edge1.Top.Y || ip.Y < edge2.Top.Y) {
-            if (edge1.Top.Y > edge2.Top.Y) {
-                ip.Y = edge1.Top.Y;
-                ip.X = edge2.topX(edge1.Top.Y);
+        if (ip.y < edge1.Top.y || ip.y < edge2.Top.y) {
+            if (edge1.Top.y > edge2.Top.y) {
+                ip.y = edge1.Top.y;
+                ip.x = edge2.topX(edge1.Top.y);
 
-                return ip.X < edge1.Top.X;
+                return ip.x < edge1.Top.x;
             }
 
-            ip.Y = edge2.Top.Y;
-            ip.X = Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? edge1.topX(ip.Y) : edge2.topX(ip.Y);
+            ip.y = edge2.Top.y;
+            ip.x = Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? edge1.topX(ip.y) : edge2.topX(ip.y);
         }
 
         return true;
@@ -379,8 +379,8 @@ export default class TEdge {
 
     public static slopesEqual(e1: TEdge, e2: TEdge, useFullRange: boolean): boolean {
         return useFullRange
-            ? op_EqualityInt128(mulInt128(e1.Delta.Y, e2.Delta.X), mulInt128(e1.Delta.X, e2.Delta.Y))
-            : Cast_Int64(e1.Delta.Y * e2.Delta.X) == Cast_Int64(e1.Delta.X * e2.Delta.Y);
+            ? op_EqualityInt128(mulInt128(e1.Delta.y, e2.Delta.x), mulInt128(e1.Delta.x, e2.Delta.y))
+            : Cast_Int64(e1.Delta.y * e2.Delta.x) == Cast_Int64(e1.Delta.x * e2.Delta.y);
     }
 
     public static swapPositionsInAEL(edge1: TEdge, edge2: TEdge): boolean {

@@ -1,7 +1,7 @@
+import Point from '../point';
 import { op_Equality, Pt2IsBetweenPt1AndPt3, SlopesEqualPoints } from './helpers';
 import OutPt from './out-pt';
 import TEdge from './t-edge';
-import { IClipperPoint } from './types';
 
 export default class OutRec {
     public Idx: number;
@@ -75,14 +75,14 @@ export default class OutRec {
         }
     }
 
-    public export(): IClipperPoint[] | null {
+    public export(): Point[] | null {
         const pointCount = this.pointCount;
 
         if (pointCount < 2) {
             return null;
         }
 
-        const result: IClipperPoint[] = new Array(pointCount);
+        const result: Point[] = new Array(pointCount);
         let outPt: OutPt = this.Pts.Prev as OutPt;
         let i: number = 0;
 
@@ -137,7 +137,7 @@ export default class OutRec {
         let result: number = 0;
 
         do {
-            result = result + (outPt.Prev.Pt.X + outPt.Pt.X) * (outPt.Prev.Pt.Y - outPt.Pt.Y);
+            result = result + (outPt.Prev.Pt.x + outPt.Pt.x) * (outPt.Prev.Pt.y - outPt.Pt.y);
             outPt = outPt.Next;
         } while (outPt != this.Pts);
 

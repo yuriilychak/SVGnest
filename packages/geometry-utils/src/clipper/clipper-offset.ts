@@ -1,16 +1,16 @@
 import Clipper from './clipper';
 import { clipperRound, getArea, op_Equality } from './helpers';
-import { ClipType, IClipperPoint, PolyFillType, PolyType } from './types';
+import { ClipType, PolyFillType, PolyType } from './types';
 import { cycleIndex } from '../helpers';
-import Point from './point';
+import Point from '../point';
 
 export default class ClipperOffset {
-    private srcPolygon: IClipperPoint[] = [];
+    private srcPolygon: Point[] = [];
 
-    public execute(polygon: IClipperPoint[], delta: number): IClipperPoint[][] {
+    public execute(polygon: Point[], delta: number): Point[][] {
         this.srcPolygon = this.formatPath(polygon);
 
-        const result: IClipperPoint[][] = [];
+        const result: Point[][] = [];
         const destPolygon = this.doOffset(delta);
         const clipper: Clipper = new Clipper();
 
@@ -19,7 +19,7 @@ export default class ClipperOffset {
         if (delta > 0) {
             clipper.Execute(ClipType.ctUnion, result, PolyFillType.pftPositive, PolyFillType.pftPositive);
         } else {
-            const outer: IClipperPoint[] = ClipperOffset.getOuterBounds(destPolygon);
+            const outer: Point[] = ClipperOffset.getOuterBounds(destPolygon);
 
             clipper.AddPath(outer, PolyType.ptSubject);
             clipper.ReverseSolution = true;
@@ -33,7 +33,7 @@ export default class ClipperOffset {
         return result;
     }
 
-    private formatPath(polygon: IClipperPoint[]): IClipperPoint[] {
+    private formatPath(polygon: Point[]): Point[] {
         let highIndex: number = polygon.length - 1;
         let i: number = 0;
         let j: number = 0;
@@ -43,7 +43,7 @@ export default class ClipperOffset {
             --highIndex;
         }
 
-        const result: IClipperPoint[] = [];
+        const result: Point[] = [];
         //newNode.m_polygon.set_Capacity(highI + 1);
         result.push(polygon[0]);
 
@@ -61,22 +61,21 @@ export default class ClipperOffset {
         return result;
     }
 
-    private doOffset(delta: number): IClipperPoint[] {
+    private doOffset(delta: number): Point[] {
         //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount * 2);
         const pointCount: number = this.srcPolygon.length;
         let i: number = 0;
 
-        const result: IClipperPoint[] = [];
+        const result: Point[] = [];
 
         if (pointCount == 1) {
             let X: number = -1;
             let Y: number = -1;
 
             for (i = 0; i < 4; ++i) {
-                result.push({
-                    X: clipperRound(this.srcPolygon[0].X + X * delta),
-                    Y: clipperRound(this.srcPolygon[0].Y + Y * delta)
-                });
+                result.push(
+                    Point.create(clipperRound(this.srcPolygon[0].x + X * delta), clipperRound(this.srcPolygon[0].y + Y * delta))
+                );
                 if (X < 0) {
                     X = 1;
                 } else if (Y < 0) {
@@ -86,7 +85,7 @@ export default class ClipperOffset {
                 }
             }
         } else {
-            const normals: IClipperPoint[] = [];
+            const normals: Point[] = [];
             //this.m_normals.set_Capacity(len);
             for (i = 0; i < pointCount; ++i) {
                 normals.push(this.getUnitNormal(i));
@@ -102,8 +101,8 @@ export default class ClipperOffset {
         return result;
     }
 
-    private offsetPoint(polygon: IClipperPoint[], normals: IClipperPoint[], delta: number, i: number, k: number): number {
-        let sinA: number = normals[k].X * normals[i].Y - normals[i].X * normals[k].Y;
+    private offsetPoint(polygon: Point[], normals: Point[], delta: number, i: number, k: number): number {
+        let sinA: number = normals[k].x * normals[i].y - normals[i].x * normals[k].y;
         if (sinA < 0.00005 && sinA > -0.00005) return k;
         else if (sinA > 1) sinA = 1;
         else if (sinA < -1) sinA = -1;
@@ -111,39 +110,45 @@ export default class ClipperOffset {
         if (sinA * delta < 0) {
             polygon.push(
                 Point.create(
-                    clipperRound(this.srcPolygon[i].X + normals[k].X * delta),
-                    clipperRound(this.srcPolygon[i].Y + normals[k].Y * delta)
+                    clipperRound(this.srcPolygon[i].x + normals[k].x * delta),
+                    clipperRound(this.srcPolygon[i].y + normals[k].y * delta)
                 )
             );
             polygon.push(Point.from(this.srcPolygon[i]));
             polygon.push(
                 Point.create(
-                    clipperRound(this.srcPolygon[i].X + normals[i].X * delta),
-                    clipperRound(this.srcPolygon[i].Y + normals[i].Y * delta)
+                    clipperRound(this.srcPolygon[i].x + normals[i].x * delta),
+                    clipperRound(this.srcPolygon[i].y + normals[i].y * delta)
                 )
             );
         } else {
-            const r: number = 1 + (normals[i].X * normals[k].X + normals[i].Y * normals[k].Y);
+            const r: number = 1 + (normals[i].x * normals[k].x + normals[i].y * normals[k].y);
 
             // mitter
             if (r >= 1.8) {
                 const q: number = delta / r;
 
-                polygon.push({
-                    X: clipperRound(this.srcPolygon[i].X + (normals[k].X + normals[i].X) * q),
-                    Y: clipperRound(this.srcPolygon[i].Y + (normals[k].Y + normals[i].Y) * q)
-                });
+                polygon.push(
+                    Point.create(
+                        clipperRound(this.srcPolygon[i].x + (normals[k].x + normals[i].x) * q),
+                        clipperRound(this.srcPolygon[i].y + (normals[k].y + normals[i].y) * q)
+                    )
+                );
                 // square
             } else {
-                const dx: number = Math.tan(Math.atan2(sinA, normals[k].X * normals[i].X + normals[k].Y * normals[i].Y) / 4);
-                polygon.push({
-                    X: clipperRound(this.srcPolygon[i].X + delta * (normals[k].X - normals[k].Y * dx)),
-                    Y: clipperRound(this.srcPolygon[i].Y + delta * (normals[k].Y + normals[k].X * dx))
-                });
-                polygon.push({
-                    X: clipperRound(this.srcPolygon[i].X + delta * (normals[i].X + normals[i].Y * dx)),
-                    Y: clipperRound(this.srcPolygon[i].Y + delta * (normals[i].Y - normals[i].X * dx))
-                });
+                const dx: number = Math.tan(Math.atan2(sinA, normals[k].x * normals[i].x + normals[k].y * normals[i].y) / 4);
+                polygon.push(
+                    Point.create(
+                        clipperRound(this.srcPolygon[i].x + delta * (normals[k].x - normals[k].y * dx)),
+                        clipperRound(this.srcPolygon[i].y + delta * (normals[k].y + normals[k].x * dx))
+                    )
+                );
+                polygon.push(
+                    Point.create(
+                        clipperRound(this.srcPolygon[i].x + delta * (normals[i].x + normals[i].y * dx)),
+                        clipperRound(this.srcPolygon[i].y + delta * (normals[i].y - normals[i].x * dx))
+                    )
+                );
             }
         }
 
@@ -151,38 +156,38 @@ export default class ClipperOffset {
         return k;
     }
 
-    private getUnitNormal(index: number): IClipperPoint {
-        const point1: IClipperPoint = this.srcPolygon[index];
-        const point2: IClipperPoint = this.srcPolygon[cycleIndex(index, this.srcPolygon.length, 1)];
-        const result: IClipperPoint = Point.create(point2.Y - point1.Y, point1.X - point2.X);
+    private getUnitNormal(index: number): Point {
+        const point1: Point = this.srcPolygon[index];
+        const point2: Point = this.srcPolygon[cycleIndex(index, this.srcPolygon.length, 1)];
+        const result: Point = Point.create(point2.y - point1.y, point1.x - point2.x);
 
-        if (result.X === 0 && result.Y === 0) {
+        if (result.x === 0 && result.y === 0) {
             return result;
         }
 
-        const distance: number = Math.sqrt(result.X * result.X + result.Y * result.Y);
+        const distance: number = Math.sqrt(result.x * result.x + result.y * result.y);
 
-        result.X /= distance;
-        result.Y /= distance;
+        result.x /= distance;
+        result.y /= distance;
 
         return result;
     }
 
-    private static getOuterBounds(path: IClipperPoint[]): IClipperPoint[] {
+    private static getOuterBounds(path: Point[]): Point[] {
         const pointCount: number = path.length;
-        let left: number = path[0].X;
+        let left: number = path[0].x;
         let right: number = left;
-        let top: number = path[0].Y;
-        let bottom: number = path[0].Y;
-        let point: IClipperPoint = null;
+        let top: number = path[0].y;
+        let bottom: number = path[0].y;
+        let point: Point = null;
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
             point = path[i];
-            left = Math.min(point.X, left);
-            right = Math.max(point.X, right);
-            top = Math.min(point.Y, top);
-            bottom = Math.max(point.Y, bottom);
+            left = Math.min(point.x, left);
+            right = Math.max(point.x, right);
+            top = Math.min(point.y, top);
+            bottom = Math.max(point.y, bottom);
         }
 
         return [

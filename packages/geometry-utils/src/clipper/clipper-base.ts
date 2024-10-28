@@ -1,14 +1,15 @@
+import Point from '../point';
 import { op_Equality, showError, SlopesEqualPoints } from './helpers';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
-import { EdgeSide, IClipperPoint, PolyType } from './types';
+import { EdgeSide, PolyType } from './types';
 
 export default class ClipperBase {
     protected minimaList: LocalMinima = null;
     protected isUseFullRange: boolean = false;
     protected currentLM: LocalMinima = null;
 
-    public AddPath(polygon: IClipperPoint[], polyType: PolyType): boolean {
+    public AddPath(polygon: Point[], polyType: PolyType): boolean {
         let lastIndex = polygon.length - 1;
 
         while (lastIndex > 0 && op_Equality(polygon[lastIndex], polygon[0])) {
@@ -33,8 +34,8 @@ export default class ClipperBase {
         //1. Basic (first) edge initialization ...
 
         //edges[1].Curr = pg[1];
-        edges[1].Curr.X = polygon[1].X;
-        edges[1].Curr.Y = polygon[1].Y;
+        edges[1].Curr.x = polygon[1].x;
+        edges[1].Curr.y = polygon[1].y;
 
         this.isUseFullRange = ClipperBase.RangeTest(polygon[0], this.isUseFullRange);
         this.isUseFullRange = ClipperBase.RangeTest(polygon[lastIndex], this.isUseFullRange);
@@ -109,7 +110,7 @@ export default class ClipperBase {
             edge.initFromPolyType(polyType);
             edge = edge.Next;
 
-            if (isFlat && edge.Curr.Y != startEdge.Curr.Y) {
+            if (isFlat && edge.Curr.y != startEdge.Curr.y) {
                 isFlat = false;
             }
         } while (edge !== startEdge);
@@ -138,9 +139,9 @@ export default class ClipperBase {
             isClockwise = edge.Dx >= edge.Prev.Dx;
             const locMin: LocalMinima = isClockwise
                 ? //Q.nextInLML = Q.next
-                  new LocalMinima(edge.Bot.Y, edge, edge.Prev)
+                  new LocalMinima(edge.Bot.y, edge, edge.Prev)
                 : //Q.nextInLML = Q.prev
-                  new LocalMinima(edge.Bot.Y, edge.Prev, edge);
+                  new LocalMinima(edge.Bot.y, edge.Prev, edge);
 
             locMin.LeftBound.Side = EdgeSide.esLeft;
             locMin.RightBound.Side = EdgeSide.esRight;
@@ -171,7 +172,7 @@ export default class ClipperBase {
         return true;
     }
 
-    public AddPaths(polygons: IClipperPoint[][], polyType: PolyType): boolean {
+    public AddPaths(polygons: Point[][], polyType: PolyType): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;
@@ -195,16 +196,16 @@ export default class ClipperBase {
         if (edge.Dx == ClipperBase.horizontal) {
             //it's possible for adjacent overlapping horz edges to start heading left
             //before finishing right, so ...
-            const startX: number = isClockwise ? edge.Prev.Bot.X : edge.Next.Bot.X;
+            const startX: number = isClockwise ? edge.Prev.Bot.x : edge.Next.Bot.x;
 
-            if (edge.Bot.X != startX) {
+            if (edge.Bot.x != startX) {
                 edge.reverseHorizontal();
             }
         }
 
         if (result.OutIdx != ClipperBase.Skip) {
             if (isClockwise) {
-                while (result.Top.Y == result.Next.Bot.Y && result.Next.OutIdx != ClipperBase.Skip) {
+                while (result.Top.y == result.Next.Bot.y && result.Next.OutIdx != ClipperBase.Skip) {
                     result = result.Next;
                 }
 
@@ -218,11 +219,11 @@ export default class ClipperBase {
                         horzEdge = horzEdge.Prev;
                     }
 
-                    if (horzEdge.Prev.Top.X == result.Next.Top.X) {
+                    if (horzEdge.Prev.Top.x == result.Next.Top.x) {
                         if (!isClockwise) {
                             result = horzEdge.Prev;
                         }
-                    } else if (horzEdge.Prev.Top.X > result.Next.Top.X) {
+                    } else if (horzEdge.Prev.Top.x > result.Next.Top.x) {
                         result = horzEdge.Prev;
                     }
                 }
@@ -230,21 +231,21 @@ export default class ClipperBase {
                 while (edge != result) {
                     edge.NextInLML = edge.Next;
 
-                    if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.X != edge.Prev.Top.X) {
+                    if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Prev.Top.x) {
                         edge.reverseHorizontal();
                     }
 
                     edge = edge.Next;
                 }
 
-                if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.X != edge.Prev.Top.X) {
+                if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Prev.Top.x) {
                     edge.reverseHorizontal();
                 }
 
                 result = result.Next;
                 //move to the edge just beyond current bound
             } else {
-                while (result.Top.Y == result.Prev.Bot.Y && result.Prev.OutIdx != ClipperBase.Skip) result = result.Prev;
+                while (result.Top.y == result.Prev.Bot.y && result.Prev.OutIdx != ClipperBase.Skip) result = result.Prev;
                 if (result.Dx == ClipperBase.horizontal && result.Prev.OutIdx != ClipperBase.Skip) {
                     horzEdge = result;
 
@@ -252,11 +253,11 @@ export default class ClipperBase {
                         horzEdge = horzEdge.Next;
                     }
 
-                    if (horzEdge.Next.Top.X == result.Prev.Top.X) {
+                    if (horzEdge.Next.Top.x == result.Prev.Top.x) {
                         if (!isClockwise) {
                             result = horzEdge.Next;
                         }
-                    } else if (horzEdge.Next.Top.X > result.Prev.Top.X) {
+                    } else if (horzEdge.Next.Top.x > result.Prev.Top.x) {
                         result = horzEdge.Next;
                     }
                 }
@@ -264,14 +265,14 @@ export default class ClipperBase {
                 while (edge != result) {
                     edge.NextInLML = edge.Prev;
 
-                    if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.X != edge.Next.Top.X) {
+                    if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Next.Top.x) {
                         edge.reverseHorizontal();
                     }
 
                     edge = edge.Prev;
                 }
 
-                if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.X != edge.Next.Top.X) {
+                if (edge.Dx == ClipperBase.horizontal && edge != startEdge && edge.Bot.x != edge.Next.Top.x) {
                     edge.reverseHorizontal();
                 }
 
@@ -286,7 +287,7 @@ export default class ClipperBase {
             edge = result;
 
             if (isClockwise) {
-                while (edge.Top.Y == edge.Next.Bot.Y) {
+                while (edge.Top.y == edge.Next.Bot.y) {
                     edge = edge.Next;
                 }
                 //don't include top horizontals when parsing a bound a second time,
@@ -295,7 +296,7 @@ export default class ClipperBase {
                     edge = edge.Prev;
                 }
             } else {
-                while (edge.Top.Y == edge.Prev.Bot.Y) {
+                while (edge.Top.y == edge.Prev.Bot.y) {
                     edge = edge.Prev;
                 }
 
@@ -310,7 +311,7 @@ export default class ClipperBase {
                 //there are more edges in the bound beyond result starting with E
                 edge = isClockwise ? result.Next : result.Prev;
 
-                const locMin: LocalMinima = new LocalMinima(edge.Bot.Y, null, edge);
+                const locMin: LocalMinima = new LocalMinima(edge.Bot.y, null, edge);
 
                 locMin.RightBound.WindDelta = 0;
                 result = this.ProcessBound(locMin.RightBound, isClockwise);
@@ -331,21 +332,21 @@ export default class ClipperBase {
         }
     }
 
-    protected static RangeTest(point: IClipperPoint, useFullRange: boolean): boolean {
+    protected static RangeTest(point: Point, useFullRange: boolean): boolean {
         if (useFullRange) {
             if (
-                point.X > ClipperBase.hiRange ||
-                point.Y > ClipperBase.hiRange ||
-                -point.X > ClipperBase.hiRange ||
-                -point.Y > ClipperBase.hiRange
+                point.x > ClipperBase.hiRange ||
+                point.y > ClipperBase.hiRange ||
+                -point.x > ClipperBase.hiRange ||
+                -point.y > ClipperBase.hiRange
             ) {
                 showError('Coordinate outside allowed range in RangeTest().');
             }
         } else if (
-            point.X > ClipperBase.loRange ||
-            point.Y > ClipperBase.loRange ||
-            -point.X > ClipperBase.loRange ||
-            -point.Y > ClipperBase.loRange
+            point.x > ClipperBase.loRange ||
+            point.y > ClipperBase.loRange ||
+            -point.x > ClipperBase.loRange ||
+            -point.y > ClipperBase.loRange
         ) {
             return this.RangeTest(point, true);
         }
