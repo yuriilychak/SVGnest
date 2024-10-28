@@ -9,24 +9,18 @@ export default class ClipperBase {
     protected currentLM: LocalMinima = null;
     protected hasOpenPaths: boolean = false;
 
-    public AddPath(polygon: IntPoint[], polyType: PolyType, isClosed: boolean): boolean {
-        if (!isClosed && polyType == PolyType.ptClip) {
-            showError('AddPath: Open paths must be subject.');
-        }
-
+    public AddPath(polygon: IntPoint[], polyType: PolyType): boolean {
         let lastIndex = polygon.length - 1;
 
-        if (isClosed) {
-            while (lastIndex > 0 && op_Equality(polygon[lastIndex], polygon[0])) {
-                --lastIndex;
-            }
+        while (lastIndex > 0 && op_Equality(polygon[lastIndex], polygon[0])) {
+            --lastIndex;
         }
 
         while (lastIndex > 0 && op_Equality(polygon[lastIndex], polygon[lastIndex - 1])) {
             --lastIndex;
         }
 
-        if ((isClosed && lastIndex < 2) || (!isClosed && lastIndex < 1)) {
+        if (lastIndex < 2) {
             return false;
         }
         //create a new edge array ...
@@ -81,7 +75,7 @@ export default class ClipperBase {
                 break;
             }
 
-            if (isClosed && SlopesEqualPoints(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
+            if (SlopesEqualPoints(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
                 //Collinear edges are allowed for open paths but in closed paths
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
@@ -104,14 +98,10 @@ export default class ClipperBase {
             }
         }
 
-        if ((!isClosed && edge === edge.Next) || (isClosed && edge.Prev === edge.Next)) {
+        if (edge.Prev === edge.Next) {
             return false;
         }
 
-        if (!isClosed) {
-            this.hasOpenPaths = true;
-            startEdge.Prev.OutIdx = ClipperBase.Skip;
-        }
         //3. Do second stage of edge initialization ...
         edge = startEdge;
 
@@ -127,34 +117,7 @@ export default class ClipperBase {
         //Totally flat paths must be handled differently when adding them
         //to LocalMinima list to avoid endless loops etc ...
         if (isFlat) {
-            if (isClosed) {
-                return false;
-            }
-
-            edge.Prev.OutIdx = ClipperBase.Skip;
-
-            if (edge.Prev.Bot.X < edge.Prev.Top.X) {
-                edge.Prev.reverseHorizontal();
-            }
-
-            const locMin: LocalMinima = new LocalMinima(edge.Bot.Y, null, edge);
-
-            locMin.RightBound.Side = EdgeSide.esRight;
-            locMin.RightBound.WindDelta = 0;
-
-            while (edge.Next.OutIdx !== ClipperBase.Skip) {
-                edge.NextInLML = edge.Next;
-
-                if (edge.Bot.X !== edge.Prev.Top.X) {
-                    edge.reverseHorizontal();
-                }
-
-                edge = edge.Next;
-            }
-
-            this.minimaList = locMin.insert(this.minimaList);
-
-            return true;
+            return false;
         }
 
         let isClockwise: boolean = false;
@@ -182,9 +145,7 @@ export default class ClipperBase {
             locMin.LeftBound.Side = EdgeSide.esLeft;
             locMin.RightBound.Side = EdgeSide.esRight;
 
-            if (!isClosed) {
-                locMin.LeftBound.WindDelta = 0;
-            } else if (locMin.LeftBound.Next == locMin.RightBound) {
+            if (locMin.LeftBound.Next == locMin.RightBound) {
                 locMin.LeftBound.WindDelta = -1;
             } else {
                 locMin.LeftBound.WindDelta = 1;
@@ -210,7 +171,7 @@ export default class ClipperBase {
         return true;
     }
 
-    public AddPaths(polygons: IntPoint[][], polyType: PolyType, isClosed: boolean): boolean {
+    public AddPaths(polygons: IntPoint[][], polyType: PolyType): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;
@@ -218,7 +179,7 @@ export default class ClipperBase {
         let i: number = 0;
 
         for (i = 0; i < polygonCount; ++i) {
-            if (this.AddPath(polygons[i], polyType, isClosed)) {
+            if (this.AddPath(polygons[i], polyType)) {
                 result = true;
             }
         }

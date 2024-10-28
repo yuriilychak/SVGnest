@@ -189,7 +189,7 @@ export default class ClipperWrapper {
         const clipper = new Clipper();
 
         clipper.StrictlySimple = true;
-        clipper.AddPath(clipperPolygon, PolyType.ptSubject, true);
+        clipper.AddPath(clipperPolygon, PolyType.ptSubject);
         clipper.Execute(ClipType.ctUnion, simple, PolyFillType.pftNonZero, PolyFillType.pftNonZero);
 
         if (!simple || simple.length === 0) {
@@ -294,7 +294,7 @@ export default class ClipperWrapper {
             clone = ClipperWrapper.fromNfp(nfpMemSeg, i, offset);
 
             if (absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
-                clipper.AddPath(clone, PolyType.ptSubject, true);
+                clipper.AddPath(clone, PolyType.ptSubject);
             }
         }
     }
@@ -354,8 +354,8 @@ export default class ClipperWrapper {
         const clipperBinNfp: IntPoint[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
 
         clipper = new Clipper();
-        clipper.AddPaths(combinedNfp, PolyType.ptClip, true);
-        clipper.AddPaths(clipperBinNfp, PolyType.ptSubject, true);
+        clipper.AddPaths(combinedNfp, PolyType.ptClip);
+        clipper.AddPaths(clipperBinNfp, PolyType.ptSubject);
 
         if (!clipper.Execute(ClipType.ctDifference, finalNfp, PolyFillType.pftNonZero, PolyFillType.pftNonZero)) {
             return null;

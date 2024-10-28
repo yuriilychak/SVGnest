@@ -13,14 +13,14 @@ export default class ClipperOffset {
         const destPolygon = this.doOffset(delta);
         const clipper: Clipper = new Clipper();
 
-        clipper.AddPath(destPolygon, PolyType.ptSubject, true);
+        clipper.AddPath(destPolygon, PolyType.ptSubject);
 
         if (delta > 0) {
             clipper.Execute(ClipType.ctUnion, result, PolyFillType.pftPositive, PolyFillType.pftPositive);
         } else {
             const outer: IntPoint[] = ClipperOffset.getOuterBounds(destPolygon);
 
-            clipper.AddPath(outer, PolyType.ptSubject, true);
+            clipper.AddPath(outer, PolyType.ptSubject);
             clipper.ReverseSolution = true;
             clipper.Execute(ClipType.ctUnion, result, PolyFillType.pftNegative, PolyFillType.pftNegative);
 
