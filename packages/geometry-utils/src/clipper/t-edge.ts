@@ -202,19 +202,8 @@ export default class TEdge {
         return this.Delta.y === 0;
     }
 
-    public getContributing(clipType: ClipType, clipFillType: PolyFillType, subjectFillType: PolyFillType): boolean {
-        let pft: PolyFillType = PolyFillType.pftEvenOdd;
-        let pft2: PolyFillType = PolyFillType.pftEvenOdd;
-
-        if (this.PolyTyp == PolyType.ptSubject) {
-            pft = subjectFillType;
-            pft2 = clipFillType;
-        } else {
-            pft = clipFillType;
-            pft2 = subjectFillType;
-        }
-
-        switch (pft) {
+    public getContributing(clipType: ClipType, fillType: PolyFillType): boolean {
+        switch (fillType) {
             case PolyFillType.pftEvenOdd:
                 if (this.WindDelta === 0 && this.WindCnt != 1) {
                     return false;
@@ -239,7 +228,7 @@ export default class TEdge {
 
         switch (clipType) {
             case ClipType.ctIntersection:
-                switch (pft2) {
+                switch (fillType) {
                     case PolyFillType.pftEvenOdd:
                     case PolyFillType.pftNonZero:
                         return this.WindCnt2 !== 0;
@@ -249,7 +238,7 @@ export default class TEdge {
                         return this.WindCnt2 < 0;
                 }
             case ClipType.ctUnion:
-                switch (pft2) {
+                switch (fillType) {
                     case PolyFillType.pftEvenOdd:
                     case PolyFillType.pftNonZero:
                         return this.WindCnt2 === 0;
@@ -260,7 +249,7 @@ export default class TEdge {
                 }
             case ClipType.ctDifference:
                 if (this.PolyTyp == PolyType.ptSubject) {
-                    switch (pft2) {
+                    switch (fillType) {
                         case PolyFillType.pftEvenOdd:
                         case PolyFillType.pftNonZero:
                             return this.WindCnt2 === 0;
@@ -270,7 +259,7 @@ export default class TEdge {
                             return this.WindCnt2 >= 0;
                     }
                 } else {
-                    switch (pft2) {
+                    switch (fillType) {
                         case PolyFillType.pftEvenOdd:
                         case PolyFillType.pftNonZero:
                             return this.WindCnt2 !== 0;
@@ -282,7 +271,7 @@ export default class TEdge {
                 }
             case ClipType.ctXor:
                 if (this.WindDelta === 0)
-                    switch (pft2) {
+                    switch (fillType) {
                         case PolyFillType.pftEvenOdd:
                         case PolyFillType.pftNonZero:
                             return this.WindCnt2 === 0;

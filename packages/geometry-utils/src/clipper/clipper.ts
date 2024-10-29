@@ -11,8 +11,7 @@ import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from './types';
 
 export default class Clipper extends ClipperBase {
     private m_ClipType: ClipType = ClipType.ctIntersection;
-    private m_ClipFillType: PolyFillType = PolyFillType.pftEvenOdd;
-    private m_SubjFillType: PolyFillType = PolyFillType.pftEvenOdd;
+    private fillType: PolyFillType = PolyFillType.pftEvenOdd;
     private m_Scanbeam: Scanbeam | null = null;
     private m_ActiveEdges: TEdge = null;
     private m_SortedEdges: TEdge = null;
@@ -32,8 +31,7 @@ export default class Clipper extends ClipperBase {
         solution.length = 0;
 
         this.m_ExecuteLocked = true;
-        this.m_SubjFillType = fillType;
-        this.m_ClipFillType = fillType;
+        this.fillType = fillType;
         this.m_ClipType = clipType;
 
         let succeeded: boolean = false;
@@ -786,7 +784,7 @@ export default class Clipper extends ClipperBase {
     }
 
     private IsContributing(edge: TEdge): boolean {
-        return edge.getContributing(this.m_ClipType, this.m_ClipFillType, this.m_SubjFillType);
+        return edge.getContributing(this.m_ClipType, this.fillType);
     }
 
     private PopLocalMinima(): void {
@@ -838,7 +836,7 @@ export default class Clipper extends ClipperBase {
             edge.WindCnt2 = e.WindCnt2;
             e = e.NextInAEL;
             //ie get ready to calc WindCnt2
-        } else if (this.IsEvenOddFillType(edge)) {
+        } else if (this.isEvenOddFillType()) {
             //EvenOdd filling ...
             if (edge.WindDelta === 0) {
                 //are we inside a subj polygon ...
@@ -878,7 +876,7 @@ export default class Clipper extends ClipperBase {
             //ie get ready to calc WindCnt2
         }
         //update WindCnt2 ...
-        if (this.IsEvenOddAltFillType(edge)) {
+        if (this.isEvenOddFillType()) {
             //EvenOdd filling ...
             while (e !== edge) {
                 if (e.WindDelta !== 0) edge.WindCnt2 = edge.WindCnt2 === 0 ? 1 : 0;
@@ -893,9 +891,8 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private IsEvenOddAltFillType(edge: TEdge) {
-        if (edge.PolyTyp === PolyType.ptSubject) return this.m_ClipFillType === PolyFillType.pftEvenOdd;
-        else return this.m_SubjFillType === PolyFillType.pftEvenOdd;
+    private isEvenOddFillType(): boolean {
+        return this.fillType === PolyFillType.pftEvenOdd;
     }
 
     private ProcessIntersectList(): void {
@@ -994,7 +991,7 @@ export default class Clipper extends ClipperBase {
         //update winding counts...
         //assumes that e1 will be to the Right of e2 ABOVE the intersection
         if (edge1.PolyTyp === edge2.PolyTyp) {
-            if (this.IsEvenOddFillType(edge1)) {
+            if (this.isEvenOddFillType()) {
                 const oldE1WindCnt: number = edge1.WindCnt;
                 edge1.WindCnt = edge2.WindCnt;
                 edge2.WindCnt = oldE1WindCnt;
@@ -1012,43 +1009,23 @@ export default class Clipper extends ClipperBase {
                 }
             }
         } else {
-            if (!this.IsEvenOddFillType(edge2)) {
+            if (!this.isEvenOddFillType()) {
                 edge1.WindCnt2 += edge2.WindDelta;
             } else {
                 edge1.WindCnt2 = edge1.WindCnt2 === 0 ? 1 : 0;
             }
 
-            if (!this.IsEvenOddFillType(edge1)) {
+            if (!this.isEvenOddFillType()) {
                 edge2.WindCnt2 -= edge1.WindDelta;
             } else {
                 edge2.WindCnt2 = edge2.WindCnt2 === 0 ? 1 : 0;
             }
         }
-        let e1FillType: PolyFillType;
-        let e2FillType: PolyFillType;
-        let e1FillType2: PolyFillType;
-        let e2FillType2: PolyFillType;
-
-        if (edge1.PolyTyp === PolyType.ptSubject) {
-            e1FillType = this.m_SubjFillType;
-            e1FillType2 = this.m_ClipFillType;
-        } else {
-            e1FillType = this.m_ClipFillType;
-            e1FillType2 = this.m_SubjFillType;
-        }
-
-        if (edge2.PolyTyp === PolyType.ptSubject) {
-            e2FillType = this.m_SubjFillType;
-            e2FillType2 = this.m_ClipFillType;
-        } else {
-            e2FillType = this.m_ClipFillType;
-            e2FillType2 = this.m_SubjFillType;
-        }
 
         let e1Wc: number = 0;
         let e2Wc: number = 0;
 
-        switch (e1FillType) {
+        switch (this.fillType) {
             case PolyFillType.pftPositive:
                 e1Wc = edge1.WindCnt;
                 break;
@@ -1060,7 +1037,7 @@ export default class Clipper extends ClipperBase {
                 break;
         }
 
-        switch (e2FillType) {
+        switch (this.fillType) {
             case PolyFillType.pftPositive:
                 e2Wc = edge2.WindCnt;
                 break;
@@ -1104,7 +1081,7 @@ export default class Clipper extends ClipperBase {
             let e1Wc2: number = 0;
             let e2Wc2: number = 0;
 
-            switch (e1FillType2) {
+            switch (this.fillType) {
                 case PolyFillType.pftPositive:
                     e1Wc2 = edge1.WindCnt2;
                     break;
@@ -1116,7 +1093,7 @@ export default class Clipper extends ClipperBase {
                     break;
             }
 
-            switch (e2FillType2) {
+            switch (this.fillType) {
                 case PolyFillType.pftPositive:
                     e2Wc2 = edge2.WindCnt2;
                     break;
@@ -1411,12 +1388,6 @@ export default class Clipper extends ClipperBase {
 
             return newOp;
         }
-    }
-
-    private IsEvenOddFillType(edge: TEdge): boolean {
-        return edge.PolyTyp === PolyType.ptSubject
-            ? this.m_SubjFillType === PolyFillType.pftEvenOdd
-            : this.m_ClipFillType === PolyFillType.pftEvenOdd;
     }
 
     protected Reset(): void {
