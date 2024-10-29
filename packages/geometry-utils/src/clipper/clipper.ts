@@ -10,29 +10,29 @@ import TEdge from './t-edge';
 import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from './types';
 
 export default class Clipper extends ClipperBase {
-    private m_ClipType: ClipType = ClipType.ctIntersection;
+    private clipType: ClipType = ClipType.ctIntersection;
     private fillType: PolyFillType = PolyFillType.pftEvenOdd;
-    private m_Scanbeam: Scanbeam | null = null;
+    private scanbeam: Scanbeam | null = null;
     private m_ActiveEdges: TEdge = null;
     private m_SortedEdges: TEdge = null;
     private m_IntersectList: IntersectNode[] = [];
-    private m_ExecuteLocked: boolean = false;
+    private isExecuteLocked: boolean = false;
     private m_PolyOuts: OutRec[] = [];
-    private m_Joins: Join[] = [];
-    private m_GhostJoins: Join[] = [];
+    private joins: Join[] = [];
+    private ghostJoins: Join[] = [];
     public ReverseSolution: boolean = false;
     public StrictlySimple: boolean = false;
 
     public execute(clipType: ClipType, solution: Point[][], fillType: PolyFillType): boolean {
-        if (this.m_ExecuteLocked) {
+        if (this.isExecuteLocked) {
             return false;
         }
 
         solution.length = 0;
 
-        this.m_ExecuteLocked = true;
+        this.isExecuteLocked = true;
         this.fillType = fillType;
-        this.m_ClipType = clipType;
+        this.clipType = clipType;
 
         let succeeded: boolean = false;
 
@@ -44,7 +44,7 @@ export default class Clipper extends ClipperBase {
             }
         } finally {
             this.DisposeAllPolyPts();
-            this.m_ExecuteLocked = false;
+            this.isExecuteLocked = false;
         }
 
         return succeeded;
@@ -66,10 +66,10 @@ export default class Clipper extends ClipperBase {
 
             do {
                 this.InsertLocalMinimaIntoAEL(botY);
-                this.m_GhostJoins = [];
+                this.ghostJoins = [];
                 this.ProcessHorizontals(false);
 
-                if (this.m_Scanbeam === null) {
+                if (this.scanbeam === null) {
                     break;
                 }
 
@@ -82,7 +82,7 @@ export default class Clipper extends ClipperBase {
                 this.ProcessEdgesAtTopOfScanbeam(topY);
 
                 botY = topY;
-            } while (this.m_Scanbeam !== null || this.currentLM !== null);
+            } while (this.scanbeam !== null || this.currentLM !== null);
             //fix orientations ...
             outRecCount = this.m_PolyOuts.length;
 
@@ -116,8 +116,8 @@ export default class Clipper extends ClipperBase {
 
             return true;
         } finally {
-            this.m_Joins = [];
-            this.m_GhostJoins = [];
+            this.joins = [];
+            this.ghostJoins = [];
         }
     }
 
@@ -562,7 +562,7 @@ export default class Clipper extends ClipperBase {
     }
 
     private JoinCommonEdges() {
-        const joinCount: number = this.m_Joins.length;
+        const joinCount: number = this.joins.length;
         let i: number = 0;
         let join: Join = null;
         let outRec1: OutRec | null = null;
@@ -570,7 +570,7 @@ export default class Clipper extends ClipperBase {
         let holeStateRec: OutRec | null = null;
 
         for (i = 0; i < joinCount; ++i) {
-            join = this.m_Joins[i];
+            join = this.joins[i];
             outRec1 = this.GetOutRec(join.OutPt1.Idx);
             outRec2 = this.GetOutRec(join.OutPt2.Idx);
 
@@ -669,7 +669,7 @@ export default class Clipper extends ClipperBase {
                     Op1 = this.AddOutPt(lb, lb.Bot);
                 }
 
-                this.m_Scanbeam = Scanbeam.insert(lb.Top.y, this.m_Scanbeam);
+                this.scanbeam = Scanbeam.insert(lb.Top.y, this.scanbeam);
             } else {
                 this.InsertEdgeIntoAEL(lb, null);
                 this.InsertEdgeIntoAEL(rb, lb);
@@ -681,13 +681,13 @@ export default class Clipper extends ClipperBase {
                     Op1 = this.AddLocalMinPoly(lb, rb, lb.Bot);
                 }
 
-                this.m_Scanbeam = Scanbeam.insert(lb.Top.y, this.m_Scanbeam);
+                this.scanbeam = Scanbeam.insert(lb.Top.y, this.scanbeam);
             }
             if (rb !== null) {
                 if (rb.isHorizontal) {
                     this.AddEdgeToSEL(rb);
                 } else {
-                    this.m_Scanbeam = Scanbeam.insert(rb.Top.y, this.m_Scanbeam);
+                    this.scanbeam = Scanbeam.insert(rb.Top.y, this.scanbeam);
                 }
             }
 
@@ -695,15 +695,15 @@ export default class Clipper extends ClipperBase {
                 continue;
             }
             //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            if (Op1 !== null && rb.isHorizontal && this.m_GhostJoins.length > 0 && rb.WindDelta !== 0) {
-                const joinCount: number = this.m_GhostJoins.length;
+            if (Op1 !== null && rb.isHorizontal && this.ghostJoins.length > 0 && rb.WindDelta !== 0) {
+                const joinCount: number = this.ghostJoins.length;
                 let i: number = 0;
                 let j: Join = null;
 
                 for (i = 0; i < joinCount; ++i) {
                     //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
                     //the 'ghost' join to a real join ready for later ...
-                    j = this.m_GhostJoins[i];
+                    j = this.ghostJoins[i];
 
                     if (HorzSegmentsOverlap(j.OutPt1.Pt, j.OffPt, rb.Bot, rb.Top)) {
                         this.AddJoin(j.OutPt1, Op1, j.OffPt);
@@ -784,7 +784,7 @@ export default class Clipper extends ClipperBase {
     }
 
     private IsContributing(edge: TEdge): boolean {
-        return edge.getContributing(this.m_ClipType, this.fillType);
+        return edge.getContributing(this.clipType, this.fillType);
     }
 
     private PopLocalMinima(): void {
@@ -831,7 +831,7 @@ export default class Clipper extends ClipperBase {
             edge.WindCnt2 = 0;
             e = this.m_ActiveEdges;
             //ie get ready to calc WindCnt2
-        } else if (edge.WindDelta === 0 && this.m_ClipType !== ClipType.ctUnion) {
+        } else if (edge.WindDelta === 0 && this.clipType !== ClipType.ctUnion) {
             edge.WindCnt = 1;
             edge.WindCnt2 = e.WindCnt2;
             e = e.NextInAEL;
@@ -930,7 +930,7 @@ export default class Clipper extends ClipperBase {
             else if (
                 edge1.PolyTyp === edge2.PolyTyp &&
                 edge1.WindDelta !== edge2.WindDelta &&
-                this.m_ClipType === ClipType.ctUnion
+                this.clipType === ClipType.ctUnion
             ) {
                 if (edge1.WindDelta === 0) {
                     if (edge2Contributing) {
@@ -953,7 +953,7 @@ export default class Clipper extends ClipperBase {
                 if (
                     edge1.WindDelta === 0 &&
                     Math.abs(edge2.WindCnt) === 1 &&
-                    (this.m_ClipType !== ClipType.ctUnion || edge2.WindCnt2 === 0)
+                    (this.clipType !== ClipType.ctUnion || edge2.WindCnt2 === 0)
                 ) {
                     this.AddOutPt(edge1, point);
 
@@ -963,7 +963,7 @@ export default class Clipper extends ClipperBase {
                 } else if (
                     edge2.WindDelta === 0 &&
                     Math.abs(edge1.WindCnt) === 1 &&
-                    (this.m_ClipType !== ClipType.ctUnion || edge1.WindCnt2 === 0)
+                    (this.clipType !== ClipType.ctUnion || edge1.WindCnt2 === 0)
                 ) {
                     this.AddOutPt(edge2, point);
                     if (edge2Contributing) {
@@ -1055,7 +1055,7 @@ export default class Clipper extends ClipperBase {
                 edge2Stops ||
                 (e1Wc !== 0 && e1Wc !== 1) ||
                 (e2Wc !== 0 && e2Wc !== 1) ||
-                (edge1.PolyTyp !== edge2.PolyTyp && this.m_ClipType !== ClipType.ctXor)
+                (edge1.PolyTyp !== edge2.PolyTyp && this.clipType !== ClipType.ctXor)
             ) {
                 this.AddLocalMaxPoly(edge1, edge2, point);
             } else {
@@ -1108,7 +1108,7 @@ export default class Clipper extends ClipperBase {
             if (edge1.PolyTyp !== edge2.PolyTyp) {
                 this.AddLocalMinPoly(edge1, edge2, point);
             } else if (e1Wc === 1 && e2Wc === 1) {
-                switch (this.m_ClipType) {
+                switch (this.clipType) {
                     case ClipType.ctIntersection:
                         if (e1Wc2 > 0 && e2Wc2 > 0) {
                             this.AddLocalMinPoly(edge1, edge2, point);
@@ -1329,7 +1329,7 @@ export default class Clipper extends ClipperBase {
     }
 
     private AddJoin(outPt1: OutPt, outPt2: OutPt, offPoint: Point): void {
-        this.m_Joins.push(new Join(outPt1, outPt2, offPoint));
+        this.joins.push(new Join(outPt1, outPt2, offPoint));
     }
 
     private BuildResult(polygons: Point[][]): void {
@@ -1393,15 +1393,15 @@ export default class Clipper extends ClipperBase {
     protected Reset(): void {
         super.Reset();
 
-        this.m_Scanbeam = this.minimaList !== null ? this.minimaList.getScanbeam() : null;
+        this.scanbeam = this.minimaList !== null ? this.minimaList.getScanbeam() : null;
         this.m_ActiveEdges = null;
         this.m_SortedEdges = null;
     }
 
     private PopScanbeam(): number {
-        const result: number = this.m_Scanbeam.Y;
+        const result: number = this.scanbeam.Y;
 
-        this.m_Scanbeam = this.m_Scanbeam.Next;
+        this.scanbeam = this.scanbeam.Next;
 
         return result;
     }
@@ -1617,7 +1617,7 @@ export default class Clipper extends ClipperBase {
     }
 
     private AddGhostJoin(Op: OutPt, OffPt: Point) {
-        this.m_GhostJoins.push(new Join(Op, null, OffPt));
+        this.ghostJoins.push(new Join(Op, null, OffPt));
     }
 
     private GetNextInAEL(e: TEdge, direction: Direction): TEdge {
@@ -1654,7 +1654,7 @@ export default class Clipper extends ClipperBase {
         e.NextInAEL = AelNext;
 
         if (!e.isHorizontal) {
-            this.m_Scanbeam = Scanbeam.insert(e.Top.y, this.m_Scanbeam);
+            this.scanbeam = Scanbeam.insert(e.Top.y, this.scanbeam);
         }
 
         return e;
