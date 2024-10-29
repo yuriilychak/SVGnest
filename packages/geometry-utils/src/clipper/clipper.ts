@@ -28,11 +28,11 @@ export default class Clipper extends ClipperBase {
             return false;
         }
 
-        solution.length = 0;
-
         this.isExecuteLocked = true;
         this.fillType = fillType;
         this.clipType = clipType;
+
+        solution.length = 0;
 
         let succeeded: boolean = false;
 
@@ -40,10 +40,10 @@ export default class Clipper extends ClipperBase {
             succeeded = this.executeInternal();
             //build the return polygons ...
             if (succeeded) {
-                this.BuildResult(solution);
+                this.buildResult(solution);
             }
         } finally {
-            this.DisposeAllPolyPts();
+            this.disposeAllPolyPts();
             this.isExecuteLocked = false;
         }
 
@@ -61,25 +61,25 @@ export default class Clipper extends ClipperBase {
             let i: number = 0;
             let outRec: OutRec = null;
             let outRecCount: number = 0;
-            let botY: number = this.PopScanbeam();
+            let botY: number = this.popScanbeam();
             let topY: number = 0;
 
             do {
-                this.InsertLocalMinimaIntoAEL(botY);
+                this.insertLocalMinimaIntoAEL(botY);
                 this.ghostJoins = [];
-                this.ProcessHorizontals(false);
+                this.processHorizontals(false);
 
                 if (this.scanbeam === null) {
                     break;
                 }
 
-                topY = this.PopScanbeam();
+                topY = this.popScanbeam();
                 //console.log("botY:" + botY + ", topY:" + topY);
-                if (!this.ProcessIntersections(botY, topY)) {
+                if (!this.processIntersections(botY, topY)) {
                     return false;
                 }
 
-                this.ProcessEdgesAtTopOfScanbeam(topY);
+                this.processEdgesAtTopOfScanbeam(topY);
 
                 botY = topY;
             } while (this.scanbeam !== null || this.currentLM !== null);
@@ -98,7 +98,11 @@ export default class Clipper extends ClipperBase {
                 }
             }
 
-            this.JoinCommonEdges();
+            const joinCount: number = this.joins.length;
+
+            for (i = 0; i < joinCount; ++i) {
+                this.joins[i].joinCommonEdges(this.m_PolyOuts, this.isUseFullRange, this.ReverseSolution);
+            }
 
             outRecCount = this.m_PolyOuts.length;
 
@@ -111,7 +115,7 @@ export default class Clipper extends ClipperBase {
             }
 
             if (this.StrictlySimple) {
-                this.DoSimplePolygons();
+                this.doSimplePolygons();
             }
 
             return true;
@@ -121,364 +125,277 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private ProcessEdgesAtTopOfScanbeam(topY: number) {
-        let e: TEdge = this.m_ActiveEdges;
+    private processEdgesAtTopOfScanbeam(topY: number): void {
+        let edge1: TEdge = this.m_ActiveEdges;
+        let edge2: TEdge | null = null;
         let isMaximaEdge: boolean = false;
+        let outPt1: OutPt = null;
+        let outPt2: OutPt = null;
 
-        while (e !== null) {
+        while (edge1 !== null) {
             //1. process maxima, treating them as if they're 'bent' horizontal edges,
             //   but exclude maxima with horizontal edges. nb: e can't be a horizontal.
-            isMaximaEdge = e.getMaxima(topY);
+            isMaximaEdge = edge1.getMaxima(topY);
 
             if (isMaximaEdge) {
-                const eMaxPair: TEdge | null = e.maximaPair;
-                isMaximaEdge = eMaxPair === null || !eMaxPair.isHorizontal;
+                edge2 = edge1.maximaPair;
+                isMaximaEdge = edge2 === null || !edge2.isHorizontal;
             }
 
             if (isMaximaEdge) {
-                const ePrev: TEdge | null = e.PrevInAEL;
-                this.DoMaxima(e);
+                edge2 = edge1.PrevInAEL;
+                this.DoMaxima(edge1);
 
-                e = ePrev === null ? this.m_ActiveEdges : ePrev.NextInAEL;
+                edge1 = edge2 === null ? this.m_ActiveEdges : edge2.NextInAEL;
             } else {
                 //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-                if (e.getIntermediate(topY) && e.NextInLML.isHorizontal) {
-                    e = this.UpdateEdgeIntoAEL(e);
+                if (edge1.getIntermediate(topY) && edge1.NextInLML.isHorizontal) {
+                    edge1 = this.updateEdgeIntoAEL(edge1);
 
-                    if (e.OutIdx >= 0) {
-                        this.AddOutPt(e, e.Bot);
+                    if (edge1.OutIdx >= 0) {
+                        OutRec.addOutPt(this.m_PolyOuts, edge1, edge1.Bot);
                     }
 
-                    this.AddEdgeToSEL(e);
+                    this.m_SortedEdges = edge1.addEdgeToSEL(this.m_SortedEdges);
                 } else {
-                    e.Curr.set(e.topX(topY), topY);
+                    edge1.Curr.set(edge1.topX(topY), topY);
                 }
+
                 if (this.StrictlySimple) {
-                    const ePrev: TEdge | null = e.PrevInAEL;
+                    edge2 = edge1.PrevInAEL;
+
                     if (
-                        e.OutIdx >= 0 &&
-                        e.WindDelta !== 0 &&
-                        ePrev !== null &&
-                        ePrev.OutIdx >= 0 &&
-                        ePrev.Curr.x === e.Curr.x &&
-                        ePrev.WindDelta !== 0
+                        edge1.OutIdx >= 0 &&
+                        edge1.WindDelta !== 0 &&
+                        edge2 !== null &&
+                        edge2.OutIdx >= 0 &&
+                        edge2.Curr.x === edge1.Curr.x &&
+                        edge2.WindDelta !== 0
                     ) {
-                        const op: OutPt = this.AddOutPt(ePrev, e.Curr);
-                        const op2: OutPt = this.AddOutPt(e, e.Curr);
-                        this.joins.push(new Join(op, op2, e.Curr));
+                        outPt1 = OutRec.addOutPt(this.m_PolyOuts, edge2, edge1.Curr);
+                        outPt2 = OutRec.addOutPt(this.m_PolyOuts, edge1, edge1.Curr);
+
+                        this.joins.push(new Join(outPt1, outPt2, edge1.Curr));
                         //StrictlySimple (type-3) join
                     }
                 }
-                e = e.NextInAEL;
+                edge1 = edge1.NextInAEL;
             }
         }
         //3. Process horizontals at the Top of the scanbeam ...
-        this.ProcessHorizontals(true);
+        this.processHorizontals(true);
         //4. Promote intermediate vertices ...
-        e = this.m_ActiveEdges;
-        while (e !== null) {
-            if (e.getIntermediate(topY)) {
-                let op: OutPt = null;
-                if (e.OutIdx >= 0) op = this.AddOutPt(e, e.Top);
-                e = this.UpdateEdgeIntoAEL(e);
+        edge1 = this.m_ActiveEdges;
+
+        while (edge1 !== null) {
+            if (edge1.getIntermediate(topY)) {
+                outPt1 = edge1.OutIdx >= 0 ? OutRec.addOutPt(this.m_PolyOuts, edge1, edge1.Top) : null;
+                edge1 = this.updateEdgeIntoAEL(edge1);
                 //if output polygons share an edge, they'll need joining later ...
-                const ePrev: TEdge = e.PrevInAEL;
-                const eNext: TEdge = e.NextInAEL;
+                const ePrev: TEdge = edge1.PrevInAEL;
+                const eNext: TEdge = edge1.NextInAEL;
 
                 if (
                     ePrev !== null &&
-                    ePrev.Curr.x === e.Bot.x &&
-                    ePrev.Curr.y === e.Bot.y &&
-                    op !== null &&
+                    ePrev.Curr.almostEqual(edge1.Bot) &&
+                    outPt1 !== null &&
                     ePrev.OutIdx >= 0 &&
                     ePrev.Curr.y > ePrev.Top.y &&
-                    TEdge.slopesEqual(e, ePrev, this.isUseFullRange) &&
-                    e.WindDelta !== 0 &&
+                    TEdge.slopesEqual(edge1, ePrev, this.isUseFullRange) &&
+                    edge1.WindDelta !== 0 &&
                     ePrev.WindDelta !== 0
                 ) {
-                    const op2: OutPt = this.AddOutPt(ePrev, e.Bot);
-                    this.joins.push(new Join(op, op2, e.Top));
+                    outPt2 = OutRec.addOutPt(this.m_PolyOuts, ePrev, edge1.Bot);
+                    this.joins.push(new Join(outPt1, outPt2, edge1.Top));
                 } else if (
                     eNext !== null &&
-                    eNext.Curr.x === e.Bot.x &&
-                    eNext.Curr.y === e.Bot.y &&
-                    op !== null &&
+                    eNext.Curr.almostEqual(edge1.Bot) &&
+                    outPt1 !== null &&
                     eNext.OutIdx >= 0 &&
                     eNext.Curr.y > eNext.Top.y &&
-                    TEdge.slopesEqual(e, eNext, this.isUseFullRange) &&
-                    e.WindDelta !== 0 &&
+                    TEdge.slopesEqual(edge1, eNext, this.isUseFullRange) &&
+                    edge1.WindDelta !== 0 &&
                     eNext.WindDelta !== 0
                 ) {
-                    const op2: OutPt = this.AddOutPt(eNext, e.Bot);
-                    this.joins.push(new Join(op, op2, e.Top));
+                    outPt2 = OutRec.addOutPt(this.m_PolyOuts, eNext, edge1.Bot);
+                    this.joins.push(new Join(outPt1, outPt2, edge1.Top));
                 }
             }
-            e = e.NextInAEL;
+
+            edge1 = edge1.NextInAEL;
         }
     }
 
-    private DoMaxima(e: TEdge) {
-        const eMaxPair: TEdge | null = e.maximaPair;
+    private DoMaxima(edge: TEdge): void {
+        const maxPairEdge: TEdge | null = edge.maximaPair;
 
-        if (eMaxPair === null) {
-            if (e.OutIdx >= 0) this.AddOutPt(e, e.Top);
-            this.m_ActiveEdges = e.deleteFromAEL(this.m_ActiveEdges);
+        if (maxPairEdge === null) {
+            if (edge.OutIdx >= 0) {
+                OutRec.addOutPt(this.m_PolyOuts, edge, edge.Top);
+            }
+
+            this.m_ActiveEdges = edge.deleteFromAEL(this.m_ActiveEdges);
+
             return;
         }
 
-        let eNext: TEdge | null = e.NextInAEL;
-        const use_lines = true;
+        let nextEdge: TEdge | null = edge.NextInAEL;
 
-        while (eNext !== null && eNext !== eMaxPair) {
-            this.IntersectEdges(e, eNext, e.Top, true);
-            this.SwapPositionsInAEL(e, eNext);
-            eNext = e.NextInAEL;
+        while (nextEdge !== null && nextEdge !== maxPairEdge) {
+            this.IntersectEdges(edge, nextEdge, edge.Top, true);
+            this.SwapPositionsInAEL(edge, nextEdge);
+            nextEdge = edge.NextInAEL;
         }
-        if (e.OutIdx === -1 && eMaxPair.OutIdx === -1) {
-            this.m_ActiveEdges = e.deleteFromAEL(this.m_ActiveEdges);
-            this.m_ActiveEdges = eMaxPair.deleteFromAEL(this.m_ActiveEdges);
-        } else if (e.OutIdx >= 0 && eMaxPair.OutIdx >= 0) {
-            this.IntersectEdges(e, eMaxPair, e.Top, false);
-        } else if (use_lines && e.WindDelta === 0) {
-            if (e.OutIdx >= 0) {
-                this.AddOutPt(e, e.Top);
-                e.OutIdx = -1;
-            }
-            this.m_ActiveEdges = e.deleteFromAEL(this.m_ActiveEdges);
-            if (eMaxPair.OutIdx >= 0) {
-                this.AddOutPt(eMaxPair, e.Top);
-                eMaxPair.OutIdx = -1;
-            }
-            this.m_ActiveEdges = eMaxPair.deleteFromAEL(this.m_ActiveEdges);
-        } else showError('DoMaxima error');
-    }
 
-    private GetOutRec(idx: number): OutRec {
-        let result: OutRec = this.m_PolyOuts[idx];
-
-        while (result !== this.m_PolyOuts[result.Idx]) {
-            result = this.m_PolyOuts[result.Idx];
-        }
-        return result;
-    }
-
-    private JoinCommonEdges() {
-        const joinCount: number = this.joins.length;
-        let i: number = 0;
-        let join: Join = null;
-        let outRec1: OutRec | null = null;
-        let outRec2: OutRec | null = null;
-        let holeStateRec: OutRec | null = null;
-
-        for (i = 0; i < joinCount; ++i) {
-            join = this.joins[i];
-            outRec1 = this.GetOutRec(join.OutPt1.Idx);
-            outRec2 = this.GetOutRec(join.OutPt2.Idx);
-
-            if (outRec1.Pts === null || outRec2.Pts === null) {
-                continue;
-            }
-            //get the polygon fragment with the correct hole state (FirstLeft)
-            //before calling JoinPoints() ...
-            if (outRec1 === outRec2) {
-                holeStateRec = outRec1;
-            } else if (OutRec.param1RightOfParam2(outRec1, outRec2)) {
-                holeStateRec = outRec2;
-            } else if (OutRec.param1RightOfParam2(outRec2, outRec1)) {
-                holeStateRec = outRec1;
-            } else {
-                holeStateRec = OutRec.getLowermostRec(outRec1, outRec2);
+        if (edge.OutIdx === -1 && maxPairEdge.OutIdx === -1) {
+            this.m_ActiveEdges = edge.deleteFromAEL(this.m_ActiveEdges);
+            this.m_ActiveEdges = maxPairEdge.deleteFromAEL(this.m_ActiveEdges);
+        } else if (edge.OutIdx >= 0 && maxPairEdge.OutIdx >= 0) {
+            this.IntersectEdges(edge, maxPairEdge, edge.Top, false);
+        } else if (edge.WindDelta === 0) {
+            if (edge.OutIdx >= 0) {
+                OutRec.addOutPt(this.m_PolyOuts, edge, edge.Top);
+                edge.OutIdx = -1;
             }
 
-            if (!join.joinPoints(outRec1, outRec2, this.isUseFullRange)) {
-                continue;
+            this.m_ActiveEdges = edge.deleteFromAEL(this.m_ActiveEdges);
+
+            if (maxPairEdge.OutIdx >= 0) {
+                OutRec.addOutPt(this.m_PolyOuts, maxPairEdge, edge.Top);
+                maxPairEdge.OutIdx = -1;
             }
 
-            if (outRec1 === outRec2) {
-                //instead of joining two polygons, we've just created a new one by
-                //splitting one polygon into two.
-                outRec1.Pts = join.OutPt1;
-                outRec1.BottomPt = null;
-                outRec2 = OutRec.create(this.m_PolyOuts);
-                outRec2.Pts = join.OutPt2;
-                //update all OutRec2.Pts Idx's ...
-                outRec2.updateOutPtIdxs();
-
-                if (outRec1.containsPoly(outRec2)) {
-                    //outRec2 is contained by outRec1 ...
-                    outRec2.IsHole = !outRec1.IsHole;
-                    outRec2.FirstLeft = outRec1;
-
-                    if ((outRec2.IsHole !== this.ReverseSolution) === outRec2.area > 0) {
-                        outRec2.Pts.reverse();
-                    }
-                } else if (outRec2.containsPoly(outRec1)) {
-                    //outRec1 is contained by outRec2 ...
-                    outRec2.IsHole = outRec1.IsHole;
-                    outRec1.IsHole = !outRec2.IsHole;
-                    outRec2.FirstLeft = outRec1.FirstLeft;
-                    outRec1.FirstLeft = outRec2;
-
-                    if ((outRec1.IsHole !== this.ReverseSolution) === outRec1.area > 0) {
-                        outRec1.Pts.reverse();
-                    }
-                } else {
-                    //the 2 polygons are completely separate ...
-                    outRec2.IsHole = outRec1.IsHole;
-                    outRec2.FirstLeft = outRec1.FirstLeft;
-                }
-            } else {
-                //joined 2 polygons together ...
-                outRec2.Pts = null;
-                outRec2.BottomPt = null;
-                outRec2.Idx = outRec1.Idx;
-                outRec1.IsHole = holeStateRec.IsHole;
-
-                if (holeStateRec === outRec2) {
-                    outRec1.FirstLeft = outRec2.FirstLeft;
-                }
-
-                outRec2.FirstLeft = outRec1;
-            }
+            this.m_ActiveEdges = maxPairEdge.deleteFromAEL(this.m_ActiveEdges);
+        } else {
+            showError('DoMaxima error');
         }
     }
 
-    private InsertLocalMinimaIntoAEL(botY: number) {
-        let lb: TEdge = null;
-        let rb: TEdge = null;
-        let Op1: OutPt = null;
+    private insertLocalMinimaIntoAEL(botY: number): void {
+        let leftBound: TEdge = null;
+        let rightBound: TEdge = null;
+        let outPt: OutPt = null;
 
         while (this.currentLM !== null && this.currentLM.Y === botY) {
-            lb = this.currentLM.LeftBound;
-            rb = this.currentLM.RightBound;
-            Op1 = null;
+            leftBound = this.currentLM.LeftBound;
+            rightBound = this.currentLM.RightBound;
+            outPt = null;
 
-            this.PopLocalMinima();
+            if (this.currentLM !== null) {
+                this.currentLM = this.currentLM.Next;
+            }
 
-            if (lb === null) {
-                this.InsertEdgeIntoAEL(rb, null);
-                rb.setWindingCount(this.m_ActiveEdges, this.clipType, this.fillType);
+            if (leftBound === null) {
+                this.m_ActiveEdges = rightBound.insertEdgeIntoAEL(this.m_ActiveEdges);
+                rightBound.setWindingCount(this.m_ActiveEdges, this.clipType, this.fillType);
 
-                if (this.IsContributing(rb)) {
-                    Op1 = this.AddOutPt(rb, rb.Bot);
+                if (rightBound.getContributing(this.clipType, this.fillType)) {
+                    outPt = OutRec.addOutPt(this.m_PolyOuts, rightBound, rightBound.Bot);
                 }
-            } else if (rb === null) {
-                this.InsertEdgeIntoAEL(lb, null);
-                lb.setWindingCount(this.m_ActiveEdges, this.clipType, this.fillType);
+            } else if (rightBound === null) {
+                this.m_ActiveEdges = leftBound.insertEdgeIntoAEL(this.m_ActiveEdges);
+                leftBound.setWindingCount(this.m_ActiveEdges, this.clipType, this.fillType);
 
-                if (this.IsContributing(lb)) {
-                    Op1 = this.AddOutPt(lb, lb.Bot);
+                if (leftBound.getContributing(this.clipType, this.fillType)) {
+                    outPt = OutRec.addOutPt(this.m_PolyOuts, leftBound, leftBound.Bot);
                 }
 
-                this.scanbeam = Scanbeam.insert(lb.Top.y, this.scanbeam);
+                this.scanbeam = Scanbeam.insert(leftBound.Top.y, this.scanbeam);
             } else {
-                this.InsertEdgeIntoAEL(lb, null);
-                this.InsertEdgeIntoAEL(rb, lb);
-                lb.setWindingCount(this.m_ActiveEdges, this.clipType, this.fillType);
-                rb.WindCnt = lb.WindCnt;
-                rb.WindCnt2 = lb.WindCnt2;
+                this.m_ActiveEdges = leftBound.insertEdgeIntoAEL(this.m_ActiveEdges);
+                this.m_ActiveEdges = rightBound.insertEdgeIntoAEL(this.m_ActiveEdges, leftBound);
+                leftBound.setWindingCount(this.m_ActiveEdges, this.clipType, this.fillType);
+                rightBound.WindCnt = leftBound.WindCnt;
+                rightBound.WindCnt2 = leftBound.WindCnt2;
 
-                if (this.IsContributing(lb)) {
-                    Op1 = this.AddLocalMinPoly(lb, rb, lb.Bot);
+                if (leftBound.getContributing(this.clipType, this.fillType)) {
+                    outPt = this.AddLocalMinPoly(leftBound, rightBound, leftBound.Bot);
                 }
 
-                this.scanbeam = Scanbeam.insert(lb.Top.y, this.scanbeam);
+                this.scanbeam = Scanbeam.insert(leftBound.Top.y, this.scanbeam);
             }
-            if (rb !== null) {
-                if (rb.isHorizontal) {
-                    this.AddEdgeToSEL(rb);
+
+            if (rightBound !== null) {
+                if (rightBound.isHorizontal) {
+                    this.m_SortedEdges = rightBound.addEdgeToSEL(this.m_SortedEdges);
                 } else {
-                    this.scanbeam = Scanbeam.insert(rb.Top.y, this.scanbeam);
+                    this.scanbeam = Scanbeam.insert(rightBound.Top.y, this.scanbeam);
                 }
             }
 
-            if (lb === null || rb === null) {
+            if (leftBound === null || rightBound === null) {
                 continue;
             }
             //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            if (Op1 !== null && rb.isHorizontal && this.ghostJoins.length > 0 && rb.WindDelta !== 0) {
+            if (outPt !== null && rightBound.isHorizontal && this.ghostJoins.length > 0 && rightBound.WindDelta !== 0) {
                 const joinCount: number = this.ghostJoins.length;
                 let i: number = 0;
-                let j: Join = null;
+                let join: Join = null;
 
                 for (i = 0; i < joinCount; ++i) {
                     //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
                     //the 'ghost' join to a real join ready for later ...
-                    j = this.ghostJoins[i];
+                    join = this.ghostJoins[i];
 
-                    if (Point.horzSegmentsOverlap(j.OutPt1.Pt, j.OffPt, rb.Bot, rb.Top)) {
-                        this.joins.push(new Join(j.OutPt1, Op1, j.OffPt));
+                    if (Point.horzSegmentsOverlap(join.OutPt1.Pt, join.OffPt, rightBound.Bot, rightBound.Top)) {
+                        this.joins.push(new Join(join.OutPt1, outPt, join.OffPt));
                     }
                 }
             }
+
             if (
-                lb.OutIdx >= 0 &&
-                lb.PrevInAEL !== null &&
-                lb.PrevInAEL.Curr.x === lb.Bot.x &&
-                lb.PrevInAEL.OutIdx >= 0 &&
-                TEdge.slopesEqual(lb.PrevInAEL, lb, this.isUseFullRange) &&
-                lb.WindDelta !== 0 &&
-                lb.PrevInAEL.WindDelta !== 0
+                leftBound.OutIdx >= 0 &&
+                leftBound.PrevInAEL !== null &&
+                leftBound.PrevInAEL.Curr.x === leftBound.Bot.x &&
+                leftBound.PrevInAEL.OutIdx >= 0 &&
+                TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, this.isUseFullRange) &&
+                leftBound.WindDelta !== 0 &&
+                leftBound.PrevInAEL.WindDelta !== 0
             ) {
-                const Op2: OutPt | null = this.AddOutPt(lb.PrevInAEL, lb.Bot);
-                this.joins.push(new Join(Op1, Op2, lb.Top));
+                const Op2: OutPt | null = OutRec.addOutPt(this.m_PolyOuts, leftBound.PrevInAEL, leftBound.Bot);
+                this.joins.push(new Join(outPt, Op2, leftBound.Top));
             }
-            if (lb.NextInAEL !== rb) {
+
+            if (leftBound.NextInAEL !== rightBound) {
                 if (
-                    rb.OutIdx >= 0 &&
-                    rb.PrevInAEL.OutIdx >= 0 &&
-                    TEdge.slopesEqual(rb.PrevInAEL, rb, this.isUseFullRange) &&
-                    rb.WindDelta !== 0 &&
-                    rb.PrevInAEL.WindDelta !== 0
+                    rightBound.OutIdx >= 0 &&
+                    rightBound.PrevInAEL.OutIdx >= 0 &&
+                    TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange) &&
+                    rightBound.WindDelta !== 0 &&
+                    rightBound.PrevInAEL.WindDelta !== 0
                 ) {
-                    const Op2: OutPt | null = this.AddOutPt(rb.PrevInAEL, rb.Bot);
-                    this.joins.push(new Join(Op1, Op2, rb.Top));
+                    const Op2: OutPt | null = OutRec.addOutPt(this.m_PolyOuts, rightBound.PrevInAEL, rightBound.Bot);
+                    this.joins.push(new Join(outPt, Op2, rightBound.Top));
                 }
-                let e: TEdge | null = lb.NextInAEL;
-                if (e !== null)
-                    while (e !== rb) {
+
+                let edge: TEdge | null = leftBound.NextInAEL;
+
+                if (edge !== null)
+                    while (edge !== rightBound) {
                         //nb: For calculating winding counts etc, IntersectEdges() assumes
                         //that param1 will be to the right of param2 ABOVE the intersection ...
-                        this.IntersectEdges(rb, e, lb.Curr, false);
+                        this.IntersectEdges(rightBound, edge, leftBound.Curr, false);
                         //order important here
-                        e = e.NextInAEL;
+                        edge = edge.NextInAEL;
                     }
             }
         }
     }
 
-    private AddEdgeToSEL(edge: TEdge): void {
-        this.m_SortedEdges = edge.addEdgeToSEL(this.m_SortedEdges);
-    }
-
-    private InsertEdgeIntoAEL(edge: TEdge, startEdge: TEdge | null): void {
-        this.m_ActiveEdges = edge.insertEdgeIntoAEL(startEdge, this.m_ActiveEdges);
-    }
-
-    private IsContributing(edge: TEdge): boolean {
-        return edge.getContributing(this.clipType, this.fillType);
-    }
-
-    private PopLocalMinima(): void {
-        if (this.currentLM !== null) {
-            this.currentLM = this.currentLM.Next;
-        }
-    }
-
-    private ProcessIntersections(botY: number, topY: number): boolean {
+    private processIntersections(botY: number, topY: number): boolean {
         if (this.m_ActiveEdges === null) {
             return true;
         }
 
         try {
-            this.BuildIntersectList(botY, topY);
+            this.buildIntersectList(botY, topY);
 
             if (this.m_IntersectList.length === 0) {
                 return true;
             }
 
-            if (this.m_IntersectList.length === 1 || this.FixupIntersectionOrder()) {
-                this.ProcessIntersectList();
+            if (this.m_IntersectList.length === 1 || this.fixupIntersectionOrder()) {
+                this.processIntersectList();
             } else {
                 return false;
             }
@@ -494,7 +411,7 @@ export default class Clipper extends ClipperBase {
         return true;
     }
 
-    private ProcessIntersectList(): void {
+    private processIntersectList(): void {
         const intersectCount: number = this.m_IntersectList.length;
         let i: number = 0;
         let node: IntersectNode = null;
@@ -508,7 +425,7 @@ export default class Clipper extends ClipperBase {
         this.m_IntersectList = [];
     }
 
-    private IntersectEdges(edge1: TEdge, edge2: TEdge, point: Point, isProtect: boolean) {
+    private IntersectEdges(edge1: TEdge, edge2: TEdge, point: Point, isProtect: boolean): void {
         //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
         //e2 in AEL except when e1 is being inserted at the intersection point ...
         let edge1Stops: boolean = !isProtect && edge1.NextInLML === null && edge1.Top.x === point.x && edge1.Top.y === point.y;
@@ -522,7 +439,7 @@ export default class Clipper extends ClipperBase {
             //are both open paths, AND they are both 'contributing maximas' ...
             if (edge1.WindDelta === 0 && edge2.WindDelta === 0) {
                 if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
-                    this.AddLocalMaxPoly(edge1, edge2, point);
+                    this.addLocalMaxPoly(edge1, edge2, point);
                 }
             }
             //if intersecting a subj line with a subj poly ...
@@ -533,7 +450,7 @@ export default class Clipper extends ClipperBase {
             ) {
                 if (edge1.WindDelta === 0) {
                     if (edge2Contributing) {
-                        this.AddOutPt(edge1, point);
+                        OutRec.addOutPt(this.m_PolyOuts, edge1, point);
 
                         if (edge1Contributing) {
                             edge1.OutIdx = -1;
@@ -541,7 +458,7 @@ export default class Clipper extends ClipperBase {
                     }
                 } else {
                     if (edge1Contributing) {
-                        this.AddOutPt(edge2, point);
+                        OutRec.addOutPt(this.m_PolyOuts, edge2, point);
 
                         if (edge2Contributing) {
                             edge2.OutIdx = -1;
@@ -554,7 +471,7 @@ export default class Clipper extends ClipperBase {
                     Math.abs(edge2.WindCnt) === 1 &&
                     (this.clipType !== ClipType.ctUnion || edge2.WindCnt2 === 0)
                 ) {
-                    this.AddOutPt(edge1, point);
+                    OutRec.addOutPt(this.m_PolyOuts, edge1, point);
 
                     if (edge1Contributing) {
                         edge1.OutIdx = -1;
@@ -564,7 +481,7 @@ export default class Clipper extends ClipperBase {
                     Math.abs(edge1.WindCnt) === 1 &&
                     (this.clipType !== ClipType.ctUnion || edge1.WindCnt2 === 0)
                 ) {
-                    this.AddOutPt(edge2, point);
+                    OutRec.addOutPt(this.m_PolyOuts, edge2, point);
                     if (edge2Contributing) {
                         edge2.OutIdx = -1;
                     }
@@ -584,6 +501,7 @@ export default class Clipper extends ClipperBase {
                     showError('Error intersecting polylines');
                 }
             }
+
             return;
         }
 
@@ -595,13 +513,13 @@ export default class Clipper extends ClipperBase {
                 edge1.WindCnt = edge2.WindCnt;
                 edge2.WindCnt = oldE1WindCnt;
             } else {
-                if (edge1.WindCnt + edge2.WindDelta === 0) {
+                if (edge1.WindCnt === -edge2.WindDelta) {
                     edge1.WindCnt = -edge1.WindCnt;
                 } else {
                     edge1.WindCnt += edge2.WindDelta;
                 }
 
-                if (edge2.WindCnt - edge1.WindDelta === 0) {
+                if (edge2.WindCnt === edge1.WindDelta) {
                     edge2.WindCnt = -edge2.WindCnt;
                 } else {
                     edge2.WindCnt -= edge1.WindDelta;
@@ -643,22 +561,22 @@ export default class Clipper extends ClipperBase {
                 (e2Wc !== 0 && e2Wc !== 1) ||
                 (edge1.PolyTyp !== edge2.PolyTyp && this.clipType !== ClipType.ctXor)
             ) {
-                this.AddLocalMaxPoly(edge1, edge2, point);
+                this.addLocalMaxPoly(edge1, edge2, point);
             } else {
-                this.AddOutPt(edge1, point);
-                this.AddOutPt(edge2, point);
+                OutRec.addOutPt(this.m_PolyOuts, edge1, point);
+                OutRec.addOutPt(this.m_PolyOuts, edge2, point);
                 TEdge.swapSides(edge1, edge2);
                 TEdge.swapPolyIndexes(edge1, edge2);
             }
         } else if (edge1Contributing) {
             if (e2Wc === 0 || e2Wc === 1) {
-                this.AddOutPt(edge1, point);
+                OutRec.addOutPt(this.m_PolyOuts, edge1, point);
                 TEdge.swapSides(edge1, edge2);
                 TEdge.swapPolyIndexes(edge1, edge2);
             }
         } else if (edge2Contributing) {
             if (e1Wc === 0 || e1Wc === 1) {
-                this.AddOutPt(edge2, point);
+                OutRec.addOutPt(this.m_PolyOuts, edge2, point);
                 TEdge.swapSides(edge1, edge2);
                 TEdge.swapPolyIndexes(edge1, edge2);
             }
@@ -726,11 +644,11 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private AddLocalMaxPoly(e1: TEdge, e2: TEdge, pt: Point): void {
-        this.AddOutPt(e1, pt);
+    private addLocalMaxPoly(e1: TEdge, e2: TEdge, pt: Point): void {
+        OutRec.addOutPt(this.m_PolyOuts, e1, pt);
 
         if (e2.WindDelta === 0) {
-            this.AddOutPt(e2, pt);
+            OutRec.addOutPt(this.m_PolyOuts, e2, pt);
         }
 
         if (e1.OutIdx === e2.OutIdx) {
@@ -743,41 +661,43 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private AddLocalMinPoly(e1: TEdge, e2: TEdge, pt: Point) {
+    private AddLocalMinPoly(edge1: TEdge, edge2: TEdge, point: Point) {
         let result: OutPt = null;
-        let e: TEdge = null;
-        let prevE: TEdge;
+        let edge: TEdge = null;
+        let edgePrev: TEdge;
 
-        if (e2.isHorizontal || e1.Dx > e2.Dx) {
-            result = this.AddOutPt(e1, pt);
-            e2.OutIdx = e1.OutIdx;
-            e1.Side = EdgeSide.esLeft;
-            e2.Side = EdgeSide.esRight;
-            e = e1;
-            prevE = e.PrevInAEL === e2 ? e2.PrevInAEL : e.PrevInAEL;
+        if (edge2.isHorizontal || edge1.Dx > edge2.Dx) {
+            result = OutRec.addOutPt(this.m_PolyOuts, edge1, point);
+            edge2.OutIdx = edge1.OutIdx;
+            edge1.Side = EdgeSide.esLeft;
+            edge2.Side = EdgeSide.esRight;
+            edge = edge1;
+            edgePrev = edge.PrevInAEL === edge2 ? edge2.PrevInAEL : edge.PrevInAEL;
         } else {
-            result = this.AddOutPt(e2, pt);
-            e1.OutIdx = e2.OutIdx;
-            e1.Side = EdgeSide.esRight;
-            e2.Side = EdgeSide.esLeft;
-            e = e2;
-            prevE = e.PrevInAEL === e1 ? e1.PrevInAEL : e.PrevInAEL;
+            result = OutRec.addOutPt(this.m_PolyOuts, edge2, point);
+            edge1.OutIdx = edge2.OutIdx;
+            edge1.Side = EdgeSide.esRight;
+            edge2.Side = EdgeSide.esLeft;
+            edge = edge2;
+            edgePrev = edge.PrevInAEL === edge1 ? edge1.PrevInAEL : edge.PrevInAEL;
         }
+
         if (
-            prevE !== null &&
-            prevE.OutIdx >= 0 &&
-            prevE.topX(pt.y) === e.topX(pt.y) &&
-            TEdge.slopesEqual(e, prevE, this.isUseFullRange) &&
-            e.WindDelta !== 0 &&
-            prevE.WindDelta !== 0
+            edgePrev !== null &&
+            edgePrev.OutIdx >= 0 &&
+            edgePrev.topX(point.y) === edge.topX(point.y) &&
+            TEdge.slopesEqual(edge, edgePrev, this.isUseFullRange) &&
+            edge.WindDelta !== 0 &&
+            edgePrev.WindDelta !== 0
         ) {
-            const outPt: OutPt | null = this.AddOutPt(prevE, pt);
-            this.joins.push(new Join(result, outPt, e.Top));
+            const outPt: OutPt | null = OutRec.addOutPt(this.m_PolyOuts, edgePrev, point);
+            this.joins.push(new Join(result, outPt, edge.Top));
         }
+
         return result;
     }
 
-    private BuildResult(polygons: Point[][]): void {
+    private buildResult(polygons: Point[][]): void {
         const polygonCount = this.m_PolyOuts.length;
         let outRec: OutRec = null;
         let polygon: Point[] | null = null;
@@ -793,48 +713,6 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private AddOutPt(edge: TEdge, point: Point) {
-        const isToFront: boolean = edge.Side === EdgeSide.esLeft;
-        let outRec: OutRec = null;
-        let newOp: OutPt = null;
-
-        if (edge.OutIdx < 0) {
-            newOp = new OutPt(0, point);
-            outRec = OutRec.create(this.m_PolyOuts, edge.WindDelta === 0, newOp);
-            newOp.Idx = outRec.Idx;
-            newOp.Next = newOp;
-            newOp.Prev = newOp;
-
-            if (!outRec.IsOpen) {
-                outRec.setHoleState(edge, this.m_PolyOuts);
-            }
-
-            edge.OutIdx = outRec.Idx;
-            //nb: do this after SetZ !
-            return newOp;
-        } else {
-            outRec = this.m_PolyOuts[edge.OutIdx];
-            //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-            const op: OutPt = outRec.Pts;
-
-            if (isToFront && point.almostEqual(op.Pt)) {
-                return op;
-            } else if (!isToFront && point.almostEqual(op.Prev.Pt)) {
-                return op.Prev;
-            }
-
-            newOp = new OutPt(outRec.Idx, point, op, op.Prev);
-            newOp.Prev.Next = newOp;
-            op.Prev = newOp;
-
-            if (isToFront) {
-                outRec.Pts = newOp;
-            }
-
-            return newOp;
-        }
-    }
-
     protected reset(): void {
         super.reset();
 
@@ -843,7 +721,7 @@ export default class Clipper extends ClipperBase {
         this.m_SortedEdges = null;
     }
 
-    private PopScanbeam(): number {
+    private popScanbeam(): number {
         const result: number = this.scanbeam.Y;
 
         this.scanbeam = this.scanbeam.Next;
@@ -851,7 +729,7 @@ export default class Clipper extends ClipperBase {
         return result;
     }
 
-    private DisposeAllPolyPts(): void {
+    private disposeAllPolyPts(): void {
         const polyCount: number = this.m_PolyOuts.length;
         let outRec: OutRec = null;
         let i: number = 0;
@@ -864,36 +742,23 @@ export default class Clipper extends ClipperBase {
         this.m_PolyOuts = [];
     }
 
-    private ProcessHorizontals(isTopOfScanbeam: boolean): void {
+    private processHorizontals(isTopOfScanbeam: boolean): void {
         let horzEdge: TEdge = this.m_SortedEdges;
 
         while (horzEdge !== null) {
             this.m_SortedEdges = horzEdge.deleteFromSEL(this.m_SortedEdges);
 
-            this.ProcessHorizontal(horzEdge, isTopOfScanbeam);
+            this.processHorizontal(horzEdge, isTopOfScanbeam);
 
             horzEdge = this.m_SortedEdges;
         }
     }
 
-    GetHorzDirection(HorzEdge: TEdge, $var: { Dir: Direction; Left: number; Right: number }) {
-        if (HorzEdge.Bot.x < HorzEdge.Top.x) {
-            $var.Left = HorzEdge.Bot.x;
-            $var.Right = HorzEdge.Top.x;
-            $var.Dir = Direction.dLeftToRight;
-        } else {
-            $var.Left = HorzEdge.Top.x;
-            $var.Right = HorzEdge.Bot.x;
-            $var.Dir = Direction.dRightToLeft;
-        }
-    }
-
-    private ProcessHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
-        let dirValue: { Dir: Direction; Left: number; Right: number } = { Dir: null, Left: null, Right: null };
-        this.GetHorzDirection(horzEdge, dirValue);
-        let dir: Direction = dirValue.Dir;
-        let horzLeft: number = dirValue.Left;
-        let horzRight: number = dirValue.Right;
+    private processHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
+        let dirValue: Float64Array = horzEdge.horzDirection;
+        let dir: Direction = dirValue[0] as Direction;
+        let horzLeft: number = dirValue[1];
+        let horzRight: number = dirValue[2];
 
         let eLastHorz: TEdge | null = horzEdge;
         let eMaxPair: TEdge | null = null;
@@ -925,7 +790,7 @@ export default class Clipper extends ClipperBase {
                     (dir === Direction.dRightToLeft && e.Curr.x >= horzLeft)
                 ) {
                     if (horzEdge.OutIdx >= 0 && horzEdge.WindDelta !== 0) {
-                        this.PrepareHorzJoins(horzEdge, isTopOfScanbeam);
+                        this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
                     }
 
                     //so far we're still in range of the horizontal Edge  but make sure
@@ -941,35 +806,42 @@ export default class Clipper extends ClipperBase {
                         }
 
                         return;
-                    } else if (dir === Direction.dLeftToRight) {
-                        const Pt: Point = Point.create(e.Curr.x, horzEdge.Curr.y);
+                    }
+
+                    const Pt: Point = Point.create(e.Curr.x, horzEdge.Curr.y);
+
+                    if (dir === Direction.dLeftToRight) {
                         this.IntersectEdges(horzEdge, e, Pt, true);
                     } else {
-                        const Pt: Point = Point.create(e.Curr.x, horzEdge.Curr.y);
                         this.IntersectEdges(e, horzEdge, Pt, true);
                     }
+
                     this.SwapPositionsInAEL(horzEdge, e);
                 } else if (
                     (dir === Direction.dLeftToRight && e.Curr.x >= horzRight) ||
                     (dir === Direction.dRightToLeft && e.Curr.x <= horzLeft)
-                )
+                ) {
                     break;
+                }
+
                 e = eNext;
             }
             //end while
             if (horzEdge.OutIdx >= 0 && horzEdge.WindDelta !== 0) {
-                this.PrepareHorzJoins(horzEdge, isTopOfScanbeam);
+                this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
             }
 
             if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
-                horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
-                if (horzEdge.OutIdx >= 0) this.AddOutPt(horzEdge, horzEdge.Bot);
+                horzEdge = this.updateEdgeIntoAEL(horzEdge);
 
-                dirValue = { Dir: dir, Left: horzLeft, Right: horzRight };
-                this.GetHorzDirection(horzEdge, dirValue);
-                dir = dirValue.Dir;
-                horzLeft = dirValue.Left;
-                horzRight = dirValue.Right;
+                if (horzEdge.OutIdx >= 0) {
+                    OutRec.addOutPt(this.m_PolyOuts, horzEdge, horzEdge.Bot);
+                }
+
+                dirValue = horzEdge.horzDirection;
+                dir = dirValue[0] as Direction;
+                horzLeft = dirValue[1];
+                horzRight = dirValue[2];
             } else {
                 break;
             }
@@ -977,8 +849,8 @@ export default class Clipper extends ClipperBase {
         //end for (;;)
         if (horzEdge.NextInLML !== null) {
             if (horzEdge.OutIdx >= 0) {
-                const op1: OutPt | null = this.AddOutPt(horzEdge, horzEdge.Top);
-                horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
+                const op1: OutPt | null = OutRec.addOutPt(this.m_PolyOuts, horzEdge, horzEdge.Top);
+                horzEdge = this.updateEdgeIntoAEL(horzEdge);
 
                 if (horzEdge.WindDelta === 0) {
                     return;
@@ -996,7 +868,7 @@ export default class Clipper extends ClipperBase {
                     ePrev.Curr.y > ePrev.Top.y &&
                     TEdge.slopesEqual(horzEdge, ePrev, this.isUseFullRange)
                 ) {
-                    const op2: OutPt = this.AddOutPt(ePrev, horzEdge.Bot);
+                    const op2: OutPt = OutRec.addOutPt(this.m_PolyOuts, ePrev, horzEdge.Bot);
                     this.joins.push(new Join(op1, op2, horzEdge.Top));
                 } else if (
                     eNext !== null &&
@@ -1007,11 +879,11 @@ export default class Clipper extends ClipperBase {
                     eNext.Curr.y > eNext.Top.y &&
                     TEdge.slopesEqual(horzEdge, eNext, this.isUseFullRange)
                 ) {
-                    const op2: OutPt | null = this.AddOutPt(eNext, horzEdge.Bot);
+                    const op2: OutPt | null = OutRec.addOutPt(this.m_PolyOuts, eNext, horzEdge.Bot);
                     this.joins.push(new Join(op1, op2, horzEdge.Top));
                 }
             } else {
-                horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
+                horzEdge = this.updateEdgeIntoAEL(horzEdge);
             }
         } else if (eMaxPair !== null) {
             if (eMaxPair.OutIdx >= 0) {
@@ -1024,13 +896,13 @@ export default class Clipper extends ClipperBase {
             }
         } else {
             if (horzEdge.OutIdx >= 0) {
-                this.AddOutPt(horzEdge, horzEdge.Top);
+                OutRec.addOutPt(this.m_PolyOuts, horzEdge, horzEdge.Top);
             }
             this.m_ActiveEdges = horzEdge.deleteFromAEL(this.m_ActiveEdges);
         }
     }
 
-    private PrepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean) {
+    private prepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean) {
         //Also, since horizontal edges at the top of one SB are often removed from
         //the AEL before we process the horizontal edges at the bottom of the next,
         //we need to create 'ghost' Join records of 'contrubuting' horizontals that
@@ -1049,43 +921,42 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private UpdateEdgeIntoAEL(e: TEdge) {
-        if (e.NextInLML === null) {
+    private updateEdgeIntoAEL(edge: TEdge): TEdge | null {
+        if (edge.NextInLML === null) {
             showError('UpdateEdgeIntoAEL: invalid call');
         }
 
-        const AelPrev: TEdge | null = e.PrevInAEL;
-        const AelNext: TEdge | null = e.NextInAEL;
-        e.NextInLML.OutIdx = e.OutIdx;
+        const AelPrev: TEdge | null = edge.PrevInAEL;
+        const AelNext: TEdge | null = edge.NextInAEL;
+        edge.NextInLML.OutIdx = edge.OutIdx;
 
         if (AelPrev !== null) {
-            AelPrev.NextInAEL = e.NextInLML;
+            AelPrev.NextInAEL = edge.NextInLML;
         } else {
-            this.m_ActiveEdges = e.NextInLML;
+            this.m_ActiveEdges = edge.NextInLML;
         }
 
         if (AelNext !== null) {
-            AelNext.PrevInAEL = e.NextInLML;
+            AelNext.PrevInAEL = edge.NextInLML;
         }
 
-        e.NextInLML.Side = e.Side;
-        e.NextInLML.WindDelta = e.WindDelta;
-        e.NextInLML.WindCnt = e.WindCnt;
-        e.NextInLML.WindCnt2 = e.WindCnt2;
-        e = e.NextInLML;
-        //    e.Curr = e.Bot;
-        e.Curr.update(e.Bot);
-        e.PrevInAEL = AelPrev;
-        e.NextInAEL = AelNext;
+        edge.NextInLML.Side = edge.Side;
+        edge.NextInLML.WindDelta = edge.WindDelta;
+        edge.NextInLML.WindCnt = edge.WindCnt;
+        edge.NextInLML.WindCnt2 = edge.WindCnt2;
+        edge = edge.NextInLML;
+        edge.Curr.update(edge.Bot);
+        edge.PrevInAEL = AelPrev;
+        edge.NextInAEL = AelNext;
 
-        if (!e.isHorizontal) {
-            this.scanbeam = Scanbeam.insert(e.Top.y, this.scanbeam);
+        if (!edge.isHorizontal) {
+            this.scanbeam = Scanbeam.insert(edge.Top.y, this.scanbeam);
         }
 
-        return e;
+        return edge;
     }
 
-    private DoSimplePolygons(): void {
+    private doSimplePolygons(): void {
         let i: number = 0;
         let outPt: OutPt = null;
         let outRec: OutRec = null;
@@ -1100,13 +971,13 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private FixupIntersectionOrder(): boolean {
+    private fixupIntersectionOrder(): boolean {
         //pre-condition: intersections are sorted bottom-most first.
         //Now it's crucial that intersections are made only between adjacent edges,
         //so to ensure this the order of intersections may need adjusting ...
         this.m_IntersectList.sort(Clipper.IntersectNodeSort);
 
-        this.CopyAELToSEL();
+        this.copyAELToSEL();
 
         const intersectCount: number = this.m_IntersectList.length;
         let i: number = 0;
@@ -1160,7 +1031,7 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private CopyAELToSEL(): void {
+    private copyAELToSEL(): void {
         let edge: TEdge = this.m_ActiveEdges;
         this.m_SortedEdges = edge;
 
@@ -1169,7 +1040,7 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private BuildIntersectList = function (botY: number, topY: number): void {
+    private buildIntersectList(botY: number, topY: number): void {
         if (this.m_ActiveEdges === null) {
             return;
         }
@@ -1177,6 +1048,7 @@ export default class Clipper extends ClipperBase {
         let edge: TEdge = this.m_ActiveEdges;
         //console.log(JSON.stringify(JSON.decycle( e )));
         this.m_SortedEdges = edge;
+
         while (edge !== null) {
             edge.PrevInSEL = edge.PrevInAEL;
             edge.NextInSEL = edge.NextInAEL;
@@ -1198,7 +1070,7 @@ export default class Clipper extends ClipperBase {
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.Curr.x > nextEdge.Curr.x) {
                     if (
-                        !TEdge.intersectPoint(edge, nextEdge, point, this.m_UseFullRange) &&
+                        !TEdge.intersectPoint(edge, nextEdge, point, this.isUseFullRange) &&
                         edge.Curr.x > nextEdge.Curr.x + 1
                     ) {
                         //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
@@ -1224,8 +1096,9 @@ export default class Clipper extends ClipperBase {
                 break;
             }
         }
+
         this.m_SortedEdges = null;
-    };
+    }
 
     private static IntersectNodeSort(node1: IntersectNode, node2: IntersectNode): number {
         //the following typecast is safe because the differences in Pt.Y will

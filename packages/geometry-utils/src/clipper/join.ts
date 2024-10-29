@@ -190,6 +190,78 @@ export default class Join {
         }
     }
 
+    public joinCommonEdges(records: OutRec[], isUseFullRange: boolean, isReverseSolution: boolean) {
+        let outRec1: OutRec | null = OutRec.getOutRec(records, this.OutPt1.Idx);
+        let outRec2: OutRec | null = OutRec.getOutRec(records, this.OutPt2.Idx);
+        let holeStateRec: OutRec | null = null;
+
+        if (outRec1.Pts === null || outRec2.Pts === null) {
+            return;
+        }
+        //get the polygon fragment with the correct hole state (FirstLeft)
+        //before calling JoinPoints() ...
+        if (outRec1 === outRec2) {
+            holeStateRec = outRec1;
+        } else if (OutRec.param1RightOfParam2(outRec1, outRec2)) {
+            holeStateRec = outRec2;
+        } else if (OutRec.param1RightOfParam2(outRec2, outRec1)) {
+            holeStateRec = outRec1;
+        } else {
+            holeStateRec = OutRec.getLowermostRec(outRec1, outRec2);
+        }
+
+        if (!this.joinPoints(outRec1, outRec2, isUseFullRange)) {
+            return;
+        }
+
+        if (outRec1 === outRec2) {
+            //instead of joining two polygons, we've just created a new one by
+            //splitting one polygon into two.
+            outRec1.Pts = this.OutPt1;
+            outRec1.BottomPt = null;
+            outRec2 = OutRec.create(records);
+            outRec2.Pts = this.OutPt2;
+            //update all OutRec2.Pts Idx's ...
+            outRec2.updateOutPtIdxs();
+
+            if (outRec1.containsPoly(outRec2)) {
+                //outRec2 is contained by outRec1 ...
+                outRec2.IsHole = !outRec1.IsHole;
+                outRec2.FirstLeft = outRec1;
+
+                if ((outRec2.IsHole !== isReverseSolution) === outRec2.area > 0) {
+                    outRec2.Pts.reverse();
+                }
+            } else if (outRec2.containsPoly(outRec1)) {
+                //outRec1 is contained by outRec2 ...
+                outRec2.IsHole = outRec1.IsHole;
+                outRec1.IsHole = !outRec2.IsHole;
+                outRec2.FirstLeft = outRec1.FirstLeft;
+                outRec1.FirstLeft = outRec2;
+
+                if ((outRec1.IsHole !== isReverseSolution) === outRec1.area > 0) {
+                    outRec1.Pts.reverse();
+                }
+            } else {
+                //the 2 polygons are completely separate ...
+                outRec2.IsHole = outRec1.IsHole;
+                outRec2.FirstLeft = outRec1.FirstLeft;
+            }
+        } else {
+            //joined 2 polygons together ...
+            outRec2.Pts = null;
+            outRec2.BottomPt = null;
+            outRec2.Idx = outRec1.Idx;
+            outRec1.IsHole = holeStateRec.IsHole;
+
+            if (holeStateRec === outRec2) {
+                outRec1.FirstLeft = outRec2.FirstLeft;
+            }
+
+            outRec2.FirstLeft = outRec1;
+        }
+    }
+
     public static getOverlap(a1: number, a2: number, b1: number, b2: number): Point {
         if (a1 < a2) {
             return b1 < b2

@@ -351,6 +351,60 @@ export default class OutRec {
         outRec2.Idx = outRec1.Idx;
     }
 
+    public static addOutPt(records: OutRec[], edge: TEdge, point: Point): OutPt {
+        const isToFront: boolean = edge.Side === EdgeSide.esLeft;
+        let outRec: OutRec = null;
+        let newOp: OutPt = null;
+
+        if (edge.OutIdx < 0) {
+            newOp = new OutPt(0, point);
+            outRec = OutRec.create(records, edge.WindDelta === 0, newOp);
+            newOp.Idx = outRec.Idx;
+            newOp.Next = newOp;
+            newOp.Prev = newOp;
+
+            if (!outRec.IsOpen) {
+                outRec.setHoleState(edge, records);
+            }
+
+            edge.OutIdx = outRec.Idx;
+            //nb: do this after SetZ !
+            return newOp;
+        }
+
+        outRec = records[edge.OutIdx];
+        //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
+        const op: OutPt = outRec.Pts;
+
+        if (isToFront && point.almostEqual(op.Pt)) {
+            return op;
+        }
+
+        if (!isToFront && point.almostEqual(op.Prev.Pt)) {
+            return op.Prev;
+        }
+
+        newOp = new OutPt(outRec.Idx, point, op, op.Prev);
+        newOp.Prev.Next = newOp;
+        op.Prev = newOp;
+
+        if (isToFront) {
+            outRec.Pts = newOp;
+        }
+
+        return newOp;
+    }
+
+    public static getOutRec(records: OutRec[], idx: number): OutRec {
+        let result: OutRec = records[idx];
+
+        while (result !== records[result.Idx]) {
+            result = records[result.Idx];
+        }
+        
+        return result;
+    }
+
     public static create(output: OutRec[], isOpen: boolean = false, pointer: OutPt | null = null): OutRec {
         const result: OutRec = new OutRec(output.length, isOpen, pointer);
 

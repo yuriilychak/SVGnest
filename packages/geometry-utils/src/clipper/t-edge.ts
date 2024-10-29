@@ -327,7 +327,7 @@ export default class TEdge {
         return this;
     }
 
-    public insertEdgeIntoAEL(startEdge: TEdge | null, activeEdge: TEdge | null): TEdge {
+    public insertEdgeIntoAEL(activeEdge: TEdge | null, startEdge: TEdge | null = null): TEdge {
         if (activeEdge === null) {
             this.PrevInAEL = null;
             this.NextInAEL = null;
@@ -363,6 +363,14 @@ export default class TEdge {
 
     public getNextInAEL(direction: Direction): TEdge | null {
         return direction === Direction.dLeftToRight ? this.NextInAEL : this.PrevInAEL;
+    }
+
+    public get horzDirection(): Float64Array {
+        return new Float64Array(
+            this.Bot.x < this.Top.x
+                ? [Direction.dLeftToRight, this.Bot.x, this.Top.x]
+                : [Direction.dRightToLeft, this.Top.x, this.Bot.x]
+        );
     }
 
     public setWindingCount(activeEdge: TEdge, clipType: ClipType, fillType: PolyFillType): void {
