@@ -1,8 +1,8 @@
 import Point from '../point';
 import { HORIZONTAL } from './constants';
-import { Cast_Int64, mulInt128, op_EqualityInt128 } from './helpers';
+import { Cast_Int64, mulInt128, op_EqualityInt128 } from '../helpers';
 import { clipperRound } from '../helpers';
-import { PolyType, EdgeSide, PolyFillType, ClipType } from './types';
+import { PolyType, EdgeSide, PolyFillType, ClipType, Direction } from './types';
 
 export default class TEdge {
     public Bot: Point;
@@ -359,6 +359,10 @@ export default class TEdge {
         edge.NextInAEL = this;
 
         return activeEdge;
+    }
+
+    public getNextInAEL(direction: Direction): TEdge | null {
+        return direction === Direction.dLeftToRight ? this.NextInAEL : this.PrevInAEL;
     }
 
     public setWindingCount(activeEdge: TEdge, clipType: ClipType, fillType: PolyFillType): void {

@@ -1,6 +1,6 @@
 import Point from '../point';
 import ClipperBase from './clipper-base';
-import { HorzSegmentsOverlap, showError, SlopesEqualPoints } from './helpers';
+import { showError } from './helpers';
 import IntersectNode from './intersect-node';
 import Join from './join';
 import OutPt from './out-pt';
@@ -37,7 +37,7 @@ export default class Clipper extends ClipperBase {
         let succeeded: boolean = false;
 
         try {
-            succeeded = this.ExecuteInternal();
+            succeeded = this.executeInternal();
             //build the return polygons ...
             if (succeeded) {
                 this.BuildResult(solution);
@@ -50,9 +50,9 @@ export default class Clipper extends ClipperBase {
         return succeeded;
     }
 
-    private ExecuteInternal(): boolean {
+    private executeInternal(): boolean {
         try {
-            this.Reset();
+            this.reset();
 
             if (this.currentLM === null) {
                 return false;
@@ -165,7 +165,7 @@ export default class Clipper extends ClipperBase {
                     ) {
                         const op: OutPt = this.AddOutPt(ePrev, e.Curr);
                         const op2: OutPt = this.AddOutPt(e, e.Curr);
-                        this.AddJoin(op, op2, e.Curr);
+                        this.joins.push(new Join(op, op2, e.Curr));
                         //StrictlySimple (type-3) join
                     }
                 }
@@ -197,7 +197,7 @@ export default class Clipper extends ClipperBase {
                     ePrev.WindDelta !== 0
                 ) {
                     const op2: OutPt = this.AddOutPt(ePrev, e.Bot);
-                    this.AddJoin(op, op2, e.Top);
+                    this.joins.push(new Join(op, op2, e.Top));
                 } else if (
                     eNext !== null &&
                     eNext.Curr.x === e.Bot.x &&
@@ -210,7 +210,7 @@ export default class Clipper extends ClipperBase {
                     eNext.WindDelta !== 0
                 ) {
                     const op2: OutPt = this.AddOutPt(eNext, e.Bot);
-                    this.AddJoin(op, op2, e.Top);
+                    this.joins.push(new Join(op, op2, e.Top));
                 }
             }
             e = e.NextInAEL;
@@ -262,199 +262,6 @@ export default class Clipper extends ClipperBase {
         return result;
     }
 
-    private JoinPoints(j: Join, outRec1: OutRec, outRec2: OutRec) {
-        let op1: OutPt = j.OutPt1;
-        let op2: OutPt = j.OutPt2;
-        let op1b: OutPt = new OutPt();
-        let op2b: OutPt = new OutPt();
-        //There are 3 kinds of joins for output polygons ...
-        //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
-        //along (horizontal) collinear edges (& Join.OffPt is on the same horizontal).
-        //2. Non-horizontal joins where Join.OutPt1 & Join.OutPt2 are at the same
-        //location at the Bottom of the overlapping segment (& Join.OffPt is above).
-        //3. StrictlySimple joins where edges touch but are not collinear and where
-        //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
-        const isHorizontal: boolean = j.OutPt1.Pt.y === j.OffPt.y;
-
-        if (isHorizontal && j.OffPt.almostEqual(j.OutPt1.Pt) && j.OffPt.almostEqual(j.OutPt2.Pt)) {
-            //Strictly Simple join ...
-            op1b = j.OutPt1.Next;
-
-            while (op1b !== op1 && op1b.Pt.almostEqual(j.OffPt)) {
-                op1b = op1b.Next;
-            }
-
-            const reverse1: boolean = op1b.Pt.y > j.OffPt.y;
-            op2b = j.OutPt2.Next;
-
-            while (op2b !== op2 && op2b.Pt.almostEqual(j.OffPt)) {
-                op2b = op2b.Next;
-            }
-
-            const reverse2: boolean = op2b.Pt.y > j.OffPt.y;
-
-            if (reverse1 === reverse2) {
-                return false;
-            }
-
-            if (reverse1) {
-                op1b = op1.duplicate(false);
-                op2b = op2.duplicate(true);
-                op1.Prev = op2;
-                op2.Next = op1;
-                op1b.Next = op2b;
-                op2b.Prev = op1b;
-                j.OutPt1 = op1;
-                j.OutPt2 = op1b;
-            } else {
-                op1b = op1.duplicate(true);
-                op2b = op2.duplicate(false);
-                op1.Next = op2;
-                op2.Prev = op1;
-                op1b.Prev = op2b;
-                op2b.Next = op1b;
-                j.OutPt1 = op1;
-                j.OutPt2 = op1b;
-            }
-
-            return true;
-        } else if (isHorizontal) {
-            //treat horizontal joins differently to non-horizontal joins since with
-            //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
-            //may be anywhere along the horizontal edge.
-            op1b = op1;
-            while (op1.Prev.Pt.y === op1.Pt.y && op1.Prev !== op1b && op1.Prev !== op2) op1 = op1.Prev;
-            while (op1b.Next.Pt.y === op1b.Pt.y && op1b.Next !== op1 && op1b.Next !== op2) op1b = op1b.Next;
-            if (op1b.Next === op1 || op1b.Next === op2) return false;
-            //a flat 'polygon'
-            op2b = op2;
-            while (op2.Prev.Pt.y === op2.Pt.y && op2.Prev !== op2b && op2.Prev !== op1b) op2 = op2.Prev;
-            while (op2b.Next.Pt.y === op2b.Pt.y && op2b.Next !== op2 && op2b.Next !== op1) op2b = op2b.Next;
-            if (op2b.Next === op2 || op2b.Next === op1) return false;
-            //a flat 'polygon'
-            //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
-
-            const value: Point = Point.zero();
-
-            if (!this.GetOverlap(op1.Pt.x, op1b.Pt.x, op2.Pt.x, op2b.Pt.x, value)) {
-                return false;
-            }
-
-            //DiscardLeftSide: when overlapping edges are joined, a spike will created
-            //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
-            //on the discard Side as either may still be needed for other joins ...
-            const Pt: Point = Point.zero();
-            let DiscardLeftSide: boolean = false;
-            if (op1.Pt.x >= value.x && op1.Pt.x <= value.y) {
-                //Pt = op1.Pt;
-                Pt.update(op1.Pt);
-                DiscardLeftSide = op1.Pt.x > op1b.Pt.x;
-            } else if (op2.Pt.x >= value.x && op2.Pt.x <= value.y) {
-                //Pt = op2.Pt;
-                Pt.update(op2.Pt);
-                DiscardLeftSide = op2.Pt.x > op2b.Pt.x;
-            } else if (op1b.Pt.x >= value.x && op1b.Pt.x <= value.y) {
-                //Pt = op1b.Pt;
-                Pt.update(op1b.Pt);
-                DiscardLeftSide = op1b.Pt.x > op1.Pt.x;
-            } else {
-                //Pt = op2b.Pt;
-                Pt.update(op2b.Pt);
-                DiscardLeftSide = op2b.Pt.x > op2.Pt.x;
-            }
-            j.OutPt1 = op1;
-            j.OutPt2 = op2;
-            return OutPt.joinHorz(op1, op1b, op2, op2b, Pt, DiscardLeftSide);
-        } else {
-            //nb: For non-horizontal joins ...
-            //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
-            //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
-            //make sure the polygons are correctly oriented ...
-            op1b = op1.Next;
-
-            while (op1b.Pt.almostEqual(op1.Pt) && op1b !== op1) {
-                op1b = op1b.Next;
-            }
-
-            const reverse1: boolean = op1b.Pt.y > op1.Pt.y || !SlopesEqualPoints(op1.Pt, op1b.Pt, j.OffPt, this.isUseFullRange);
-
-            if (reverse1) {
-                op1b = op1.Prev;
-
-                while (op1b.Pt.almostEqual(op1.Pt) && op1b !== op1) {
-                    op1b = op1b.Prev;
-                }
-
-                if (op1b.Pt.y > op1.Pt.y || !SlopesEqualPoints(op1.Pt, op1b.Pt, j.OffPt, this.isUseFullRange)) {
-                    return false;
-                }
-            }
-
-            op2b = op2.Next;
-
-            while (op2b.Pt.almostEqual(op2.Pt) && op2b !== op2) {
-                op2b = op2b.Next;
-            }
-
-            const reverse2: boolean = op2b.Pt.y > op2.Pt.y || !SlopesEqualPoints(op2.Pt, op2b.Pt, j.OffPt, this.isUseFullRange);
-
-            if (reverse2) {
-                op2b = op2.Prev;
-
-                while (op2b.Pt.almostEqual(op2.Pt) && op2b !== op2) {
-                    op2b = op2b.Prev;
-                }
-
-                if (op2b.Pt.y > op2.Pt.y || !SlopesEqualPoints(op2.Pt, op2b.Pt, j.OffPt, this.isUseFullRange)) {
-                    return false;
-                }
-            }
-
-            if (op1b === op1 || op2b === op2 || op1b === op2b || (outRec1 === outRec2 && reverse1 === reverse2)) {
-                return false;
-            }
-
-            if (reverse1) {
-                op1b = op1.duplicate(false);
-                op2b = op2.duplicate(true);
-                op1.Prev = op2;
-                op2.Next = op1;
-                op1b.Next = op2b;
-                op2b.Prev = op1b;
-                j.OutPt1 = op1;
-                j.OutPt2 = op1b;
-            } else {
-                op1b = op1.duplicate(true);
-                op2b = op2.duplicate(false);
-                op1.Next = op2;
-                op2.Prev = op1;
-                op1b.Prev = op2b;
-                op2b.Next = op1b;
-                j.OutPt1 = op1;
-                j.OutPt2 = op1b;
-            }
-
-            return true;
-        }
-    }
-
-    private GetOverlap(a1: number, a2: number, b1: number, b2: number, value: Point) {
-        if (a1 < a2) {
-            if (b1 < b2) {
-                value.set(Math.max(a1, b1), Math.min(a2, b2));
-            } else {
-                value.set(Math.max(a1, b2), Math.min(a2, b1));
-            }
-        } else {
-            if (b1 < b2) {
-                value.set(Math.max(a2, b1), Math.min(a1, b2));
-            } else {
-                value.set(Math.max(a2, b2), Math.min(a1, b1));
-            }
-        }
-        return value.x < value.y;
-    }
-
     private JoinCommonEdges() {
         const joinCount: number = this.joins.length;
         let i: number = 0;
@@ -483,7 +290,7 @@ export default class Clipper extends ClipperBase {
                 holeStateRec = OutRec.getLowermostRec(outRec1, outRec2);
             }
 
-            if (!this.JoinPoints(join, outRec1, outRec2)) {
+            if (!join.joinPoints(outRec1, outRec2, this.isUseFullRange)) {
                 continue;
             }
 
@@ -599,8 +406,8 @@ export default class Clipper extends ClipperBase {
                     //the 'ghost' join to a real join ready for later ...
                     j = this.ghostJoins[i];
 
-                    if (HorzSegmentsOverlap(j.OutPt1.Pt, j.OffPt, rb.Bot, rb.Top)) {
-                        this.AddJoin(j.OutPt1, Op1, j.OffPt);
+                    if (Point.horzSegmentsOverlap(j.OutPt1.Pt, j.OffPt, rb.Bot, rb.Top)) {
+                        this.joins.push(new Join(j.OutPt1, Op1, j.OffPt));
                     }
                 }
             }
@@ -614,7 +421,7 @@ export default class Clipper extends ClipperBase {
                 lb.PrevInAEL.WindDelta !== 0
             ) {
                 const Op2: OutPt | null = this.AddOutPt(lb.PrevInAEL, lb.Bot);
-                this.AddJoin(Op1, Op2, lb.Top);
+                this.joins.push(new Join(Op1, Op2, lb.Top));
             }
             if (lb.NextInAEL !== rb) {
                 if (
@@ -625,7 +432,7 @@ export default class Clipper extends ClipperBase {
                     rb.PrevInAEL.WindDelta !== 0
                 ) {
                     const Op2: OutPt | null = this.AddOutPt(rb.PrevInAEL, rb.Bot);
-                    this.AddJoin(Op1, Op2, rb.Top);
+                    this.joins.push(new Join(Op1, Op2, rb.Top));
                 }
                 let e: TEdge | null = lb.NextInAEL;
                 if (e !== null)
@@ -863,23 +670,14 @@ export default class Clipper extends ClipperBase {
             switch (this.fillType) {
                 case PolyFillType.pftPositive:
                     e1Wc2 = edge1.WindCnt2;
-                    break;
-                case PolyFillType.pftNegative:
-                    e1Wc2 = -edge1.WindCnt2;
-                    break;
-                default:
-                    e1Wc2 = Math.abs(edge1.WindCnt2);
-                    break;
-            }
-
-            switch (this.fillType) {
-                case PolyFillType.pftPositive:
                     e2Wc2 = edge2.WindCnt2;
                     break;
                 case PolyFillType.pftNegative:
+                    e1Wc2 = -edge1.WindCnt2;
                     e2Wc2 = -edge2.WindCnt2;
                     break;
                 default:
+                    e1Wc2 = Math.abs(edge1.WindCnt2);
                     e2Wc2 = Math.abs(edge2.WindCnt2);
                     break;
             }
@@ -956,24 +754,14 @@ export default class Clipper extends ClipperBase {
             e1.Side = EdgeSide.esLeft;
             e2.Side = EdgeSide.esRight;
             e = e1;
-
-            if (e.PrevInAEL === e2) {
-                prevE = e2.PrevInAEL;
-            } else {
-                prevE = e.PrevInAEL;
-            }
+            prevE = e.PrevInAEL === e2 ? e2.PrevInAEL : e.PrevInAEL;
         } else {
             result = this.AddOutPt(e2, pt);
             e1.OutIdx = e2.OutIdx;
             e1.Side = EdgeSide.esRight;
             e2.Side = EdgeSide.esLeft;
             e = e2;
-
-            if (e.PrevInAEL === e1) {
-                prevE = e1.PrevInAEL;
-            } else {
-                prevE = e.PrevInAEL;
-            }
+            prevE = e.PrevInAEL === e1 ? e1.PrevInAEL : e.PrevInAEL;
         }
         if (
             prevE !== null &&
@@ -984,13 +772,9 @@ export default class Clipper extends ClipperBase {
             prevE.WindDelta !== 0
         ) {
             const outPt: OutPt | null = this.AddOutPt(prevE, pt);
-            this.AddJoin(result, outPt, e.Top);
+            this.joins.push(new Join(result, outPt, e.Top));
         }
         return result;
-    }
-
-    private AddJoin(outPt1: OutPt, outPt2: OutPt, offPoint: Point): void {
-        this.joins.push(new Join(outPt1, outPt2, offPoint));
     }
 
     private BuildResult(polygons: Point[][]): void {
@@ -1051,8 +835,8 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    protected Reset(): void {
-        super.Reset();
+    protected reset(): void {
+        super.reset();
 
         this.scanbeam = this.minimaList !== null ? this.minimaList.getScanbeam() : null;
         this.m_ActiveEdges = null;
@@ -1124,7 +908,7 @@ export default class Clipper extends ClipperBase {
 
         while (true) {
             const isLastHorz: boolean = horzEdge === eLastHorz;
-            let e: TEdge | null = this.GetNextInAEL(horzEdge, dir);
+            let e: TEdge | null = horzEdge.getNextInAEL(dir);
             let eNext: TEdge | null = null;
 
             while (e !== null) {
@@ -1134,7 +918,7 @@ export default class Clipper extends ClipperBase {
                     break;
                 }
 
-                eNext = this.GetNextInAEL(e, dir);
+                eNext = e.getNextInAEL(dir);
                 //saves eNext for later
                 if (
                     (dir === Direction.dLeftToRight && e.Curr.x <= horzRight) ||
@@ -1213,7 +997,7 @@ export default class Clipper extends ClipperBase {
                     TEdge.slopesEqual(horzEdge, ePrev, this.isUseFullRange)
                 ) {
                     const op2: OutPt = this.AddOutPt(ePrev, horzEdge.Bot);
-                    this.AddJoin(op1, op2, horzEdge.Top);
+                    this.joins.push(new Join(op1, op2, horzEdge.Top));
                 } else if (
                     eNext !== null &&
                     eNext.Curr.x === horzEdge.Bot.x &&
@@ -1224,7 +1008,7 @@ export default class Clipper extends ClipperBase {
                     TEdge.slopesEqual(horzEdge, eNext, this.isUseFullRange)
                 ) {
                     const op2: OutPt | null = this.AddOutPt(eNext, horzEdge.Bot);
-                    this.AddJoin(op1, op2, horzEdge.Top);
+                    this.joins.push(new Join(op1, op2, horzEdge.Top));
                 }
             } else {
                 horzEdge = this.UpdateEdgeIntoAEL(horzEdge);
@@ -1247,28 +1031,22 @@ export default class Clipper extends ClipperBase {
     }
 
     private PrepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean) {
-        //get the last Op for this horizontal edge
-        //the point may be anywhere along the horizontal ...
-        let outPt: OutPt | null = this.m_PolyOuts[horzEdge.OutIdx].Pts;
-        if (horzEdge.Side !== EdgeSide.esLeft) {
-            outPt = outPt.Prev;
-        }
-
         //Also, since horizontal edges at the top of one SB are often removed from
         //the AEL before we process the horizontal edges at the bottom of the next,
         //we need to create 'ghost' Join records of 'contrubuting' horizontals that
         //we can compare with horizontals at the bottom of the next SB.
-        if (isTopOfScanbeam)
-            if (outPt.Pt.almostEqual(horzEdge.Top)) this.AddGhostJoin(outPt, horzEdge.Bot);
-            else this.AddGhostJoin(outPt, horzEdge.Top);
-    }
+        if (isTopOfScanbeam) {
+            //get the last Op for this horizontal edge
+            //the point may be anywhere along the horizontal ...
+            let outPt: OutPt | null = this.m_PolyOuts[horzEdge.OutIdx].Pts;
+            if (horzEdge.Side !== EdgeSide.esLeft) {
+                outPt = outPt.Prev;
+            }
 
-    private AddGhostJoin(Op: OutPt, OffPt: Point) {
-        this.ghostJoins.push(new Join(Op, null, OffPt));
-    }
+            const offPoint: Point = outPt.Pt.almostEqual(horzEdge.Top) ? horzEdge.Bot : horzEdge.Top;
 
-    private GetNextInAEL(e: TEdge, direction: Direction): TEdge {
-        return direction === Direction.dLeftToRight ? e.NextInAEL : e.PrevInAEL;
+            this.ghostJoins.push(new Join(outPt, null, offPoint));
+        }
     }
 
     private UpdateEdgeIntoAEL(e: TEdge) {

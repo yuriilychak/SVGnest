@@ -1,5 +1,5 @@
 import Point from '../point';
-import { showError, SlopesEqualPoints } from './helpers';
+import { showError } from './helpers';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { EdgeSide, PolyType } from './types';
@@ -73,7 +73,7 @@ export default class ClipperBase {
                 break;
             }
 
-            if (SlopesEqualPoints(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
+            if (Point.slopesEqual(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
                 //Collinear edges are allowed for open paths but in closed paths
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
@@ -321,7 +321,7 @@ export default class ClipperBase {
         return result;
     }
 
-    protected Reset(): void {
+    protected reset(): void {
         this.currentLM = this.minimaList;
 
         if (this.currentLM !== null) {

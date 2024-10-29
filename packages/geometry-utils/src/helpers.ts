@@ -248,3 +248,57 @@ export function deserializeBufferToMap(buffer: ArrayBuffer, initialOffset: numbe
 export function clipperRound(a: number): number {
     return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
 }
+
+export function Cast_Int64(a: number): number {
+    return a < 0 ? Math.ceil(a) : Math.floor(a);
+}
+
+function splitTo16Bits(value: number): Uint16Array {
+    const mask: number = 0xffff;
+    const splitSize: number = 4;
+    const result = new Uint16Array(splitSize);
+    let currentValue: number = Math.abs(value << 0);
+    let i: number = 0;
+
+    for (i = 0; i < splitSize; ++i) {
+        result[i] = currentValue & mask;
+        currentValue = currentValue >>> 16;
+    }
+
+    return result;
+}
+
+export function mulInt128(x: number, y: number): Uint32Array {
+    const xParts: Uint16Array = splitTo16Bits(x);
+    const yParts: Uint16Array = splitTo16Bits(y);
+    const result = new Uint32Array(5);
+    const mask: number = 0xffffffff;
+    let i: number = 0;
+
+    result[0] = 0;
+    result[1] = (xParts[0] * yParts[0]) & mask;
+    result[2] = (xParts[1] * yParts[0] + xParts[0] * yParts[1]) & mask;
+    result[3] = (xParts[2] * yParts[0] + xParts[0] * yParts[2] + xParts[1] * yParts[1]) & mask;
+    result[4] = (xParts[3] * yParts[3] + xParts[3] * yParts[0] + xParts[2] * yParts[1]) & mask;
+
+    for (i = 4; i > 0; --i) {
+        result[i] += result[i - 1] >>> 16;
+    }
+
+    result[0] = 1 + Math.sign(x) * Math.sign(y);
+
+    return result;
+}
+
+export function op_EqualityInt128(left: Uint32Array, right: Uint32Array): boolean {
+    const iterationCount: number = left.length;
+    let i: number = 0;
+
+    for (i = 0; i < iterationCount; ++i) {
+        if (left[i] !== right[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}

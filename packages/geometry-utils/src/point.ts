@@ -1,6 +1,6 @@
 import { IPoint } from './types';
 import { TOL } from './constants';
-import { almostEqual, clipperRound, midValue } from './helpers';
+import { almostEqual, Cast_Int64, clipperRound, midValue, mulInt128, op_EqualityInt128 } from './helpers';
 
 export default class Point implements IPoint {
     private memSeg: Float64Array;
@@ -102,6 +102,18 @@ export default class Point implements IPoint {
 
     public dot(point: IPoint): number {
         return this.x * point.x + this.y * point.y;
+    }
+
+    public getBetween(point1: Point, point2: Point): boolean {
+        if (point1.almostEqual(point2) || point1.almostEqual(this) || this.almostEqual(point2)) {
+            return false;
+        }
+
+        if (point1.x !== point2.x) {
+            return this.x > point1.x === this.x < point2.x;
+        }
+
+        return this.y > point1.y === this.y < point2.y;
     }
 
     public len2(point: IPoint): number {
@@ -233,6 +245,24 @@ export default class Point implements IPoint {
 
     public get isEmpty(): boolean {
         return this.x === 0 && this.y === 0;
+    }
+
+    public static horzSegmentsOverlap(Pt1a: Point, Pt1b: Point, Pt2a: Point, Pt2b: Point): boolean {
+        //precondition: both segments are horizontal
+        return (
+            Pt1a.x > Pt2a.x === Pt1a.x < Pt2b.x ||
+            Pt1b.x > Pt2a.x === Pt1b.x < Pt2b.x ||
+            Pt2a.x > Pt1a.x === Pt2a.x < Pt1b.x ||
+            Pt2b.x > Pt1a.x === Pt2b.x < Pt1b.x ||
+            (Pt1a.x === Pt2a.x && Pt1b.x === Pt2b.x) ||
+            (Pt1a.x === Pt2b.x && Pt1b.x === Pt2a.x)
+        );
+    }
+
+    public static slopesEqual(pt1: Point, pt2: Point, pt3: Point, useFullRange: boolean): boolean {
+        return useFullRange
+            ? op_EqualityInt128(mulInt128(pt1.y - pt2.y, pt2.x - pt3.x), mulInt128(pt1.x - pt2.x, pt2.y - pt3.y))
+            : Cast_Int64((pt1.y - pt2.y) * (pt2.x - pt3.x)) - Cast_Int64((pt1.x - pt2.x) * (pt2.y - pt3.y)) === 0;
     }
 
     public static create(x: number, y: number): Point {

@@ -1,5 +1,4 @@
 import Point from '../point';
-import { Pt2IsBetweenPt1AndPt3, SlopesEqualPoints } from './helpers';
 import OutPt from './out-pt';
 import TEdge from './t-edge';
 import { EdgeSide } from './types';
@@ -39,8 +38,8 @@ export default class OutRec {
             if (
                 outPt.Pt.almostEqual(outPt.Next.Pt) ||
                 outPt.Pt.almostEqual(outPt.Prev.Pt) ||
-                (SlopesEqualPoints(outPt.Prev.Pt, outPt.Pt, outPt.Next.Pt, useFullRange) &&
-                    (!preserveCollinear || !Pt2IsBetweenPt1AndPt3(outPt.Prev.Pt, outPt.Pt, outPt.Next.Pt)))
+                (Point.slopesEqual(outPt.Prev.Pt, outPt.Pt, outPt.Next.Pt, useFullRange) &&
+                    (!preserveCollinear || !outPt.Pt.getBetween(outPt.Prev.Pt, outPt.Next.Pt)))
             ) {
                 lastOutPt = null;
                 outPt.Prev.Next = outPt.Next;
