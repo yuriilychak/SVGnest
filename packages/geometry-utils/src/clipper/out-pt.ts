@@ -1,5 +1,6 @@
 import Point from '../point';
 import { GetDx } from './helpers';
+import { Direction } from './types';
 
 export default class OutPt {
     public Idx: number;
@@ -212,5 +213,102 @@ export default class OutPt {
         let dx2n: number = Math.abs(GetDx(btmPt2.Pt, p.Pt));
 
         return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
+    }
+
+    public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: Point, isDiscardLeft: boolean) {
+        const direction1: Direction = op1.Pt.x > op1b.Pt.x ? Direction.dRightToLeft : Direction.dLeftToRight;
+        const direction2: Direction = op2.Pt.x > op2b.Pt.x ? Direction.dRightToLeft : Direction.dLeftToRight;
+
+        if (direction1 === direction2) {
+            return false;
+        }
+        //When DiscardLeft, we want Op1b to be on the Left of Op1, otherwise we
+        //want Op1b to be on the Right. (And likewise with Op2 and Op2b.)
+        //So, to facilitate this while inserting Op1b and Op2b ...
+        //when DiscardLeft, make sure we're AT or RIGHT of Pt before adding Op1b,
+        //otherwise make sure we're AT or LEFT of Pt. (Likewise with Op2b.)
+        if (direction1 === Direction.dLeftToRight) {
+            while (op1.Next.Pt.x <= Pt.x && op1.Next.Pt.x >= op1.Pt.x && op1.Next.Pt.y === Pt.y) {
+                op1 = op1.Next;
+            }
+
+            if (isDiscardLeft && op1.Pt.x !== Pt.x) {
+                op1 = op1.Next;
+            }
+
+            op1b = op1.duplicate(!isDiscardLeft);
+
+            if (!op1b.Pt.almostEqual(Pt)) {
+                op1 = op1b;
+                //op1.Pt = Pt;
+                op1.Pt.update(Pt);
+                op1b = op1.duplicate(!isDiscardLeft);
+            }
+        } else {
+            while (op1.Next.Pt.x >= Pt.x && op1.Next.Pt.x <= op1.Pt.x && op1.Next.Pt.y === Pt.y) {
+                op1 = op1.Next;
+            }
+
+            if (!isDiscardLeft && op1.Pt.x !== Pt.x) {
+                op1 = op1.Next;
+            }
+
+            op1b = op1.duplicate(isDiscardLeft);
+
+            if (!op1b.Pt.almostEqual(Pt)) {
+                op1 = op1b;
+                //op1.Pt = Pt;
+                op1.Pt.update(Pt);
+                op1b = op1.duplicate(isDiscardLeft);
+            }
+        }
+        if (direction2 === Direction.dLeftToRight) {
+            while (op2.Next.Pt.x <= Pt.x && op2.Next.Pt.x >= op2.Pt.x && op2.Next.Pt.y === Pt.y) {
+                op2 = op2.Next;
+            }
+
+            if (isDiscardLeft && op2.Pt.x !== Pt.x) {
+                op2 = op2.Next;
+            }
+
+            op2b = op2.duplicate(!isDiscardLeft);
+
+            if (!op2b.Pt.almostEqual(Pt)) {
+                op2 = op2b;
+                //op2.Pt = Pt;
+                op2.Pt.update(Pt);
+                op2b = op2.duplicate(!isDiscardLeft);
+            }
+        } else {
+            while (op2.Next.Pt.x >= Pt.x && op2.Next.Pt.x <= op2.Pt.x && op2.Next.Pt.y === Pt.y) {
+                op2 = op2.Next;
+            }
+
+            if (!isDiscardLeft && op2.Pt.x !== Pt.x) {
+                op2 = op2.Next;
+            }
+
+            op2b = op2.duplicate(isDiscardLeft);
+            if (!op2b.Pt.almostEqual(Pt)) {
+                op2 = op2b;
+                //op2.Pt = Pt;
+                op2.Pt.update(Pt);
+                op2b = op2.duplicate(isDiscardLeft);
+            }
+        }
+
+        if ((direction1 === Direction.dLeftToRight) === isDiscardLeft) {
+            op1.Prev = op2;
+            op2.Next = op1;
+            op1b.Next = op2b;
+            op2b.Prev = op1b;
+        } else {
+            op1.Next = op2;
+            op2.Prev = op1;
+            op1b.Prev = op2b;
+            op2b.Next = op1b;
+        }
+
+        return true;
     }
 }

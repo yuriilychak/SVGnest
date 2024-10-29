@@ -2,6 +2,7 @@ import Point from '../point';
 import { Pt2IsBetweenPt1AndPt3, SlopesEqualPoints } from './helpers';
 import OutPt from './out-pt';
 import TEdge from './t-edge';
+import { EdgeSide } from './types';
 
 export default class OutRec {
     public Idx: number;
@@ -144,7 +145,7 @@ export default class OutRec {
         return result * 0.5;
     }
 
-    public setHoleState = function (inputEdge: TEdge, outs: OutRec[]): void {
+    public setHoleState(inputEdge: TEdge, outs: OutRec[]): void {
         let isHole: boolean = false;
         let edge: TEdge | null = inputEdge.PrevInAEL;
 
@@ -163,7 +164,7 @@ export default class OutRec {
         if (isHole) {
             this.IsHole = true;
         }
-    };
+    }
 
     public simplify(outPt: OutPt, output: OutRec[]): void {
         let outRec: OutRec = null;
@@ -228,6 +229,127 @@ export default class OutRec {
     public static parseFirstLeft(FirstLeft: OutRec): OutRec | null {
         while (FirstLeft != null && FirstLeft.Pts == null) FirstLeft = FirstLeft.FirstLeft;
         return FirstLeft;
+    }
+
+    public static getLowermostRec(outRec1: OutRec, outRec2: OutRec): OutRec {
+        //work out which polygon fragment has the correct hole state ...
+        if (outRec1.BottomPt === null) {
+            outRec1.BottomPt = outRec1.Pts.getBottomPt();
+        }
+        if (outRec2.BottomPt === null) {
+            outRec2.BottomPt = outRec2.Pts.getBottomPt();
+        }
+
+        const bPt1: OutPt | null = outRec1.BottomPt;
+        const bPt2: OutPt | null = outRec2.BottomPt;
+
+        switch (true) {
+            case bPt1.Pt.y > bPt2.Pt.y:
+                return outRec1;
+            case bPt1.Pt.y < bPt2.Pt.y:
+                return outRec2;
+            case bPt1.Pt.x < bPt2.Pt.x:
+                return outRec1;
+            case bPt1.Pt.x > bPt2.Pt.x:
+                return outRec2;
+            case bPt1.Next === bPt1:
+                return outRec2;
+            case bPt2.Next === bPt2:
+                return outRec1;
+            case OutPt.firstIsBottomPt(bPt1, bPt2):
+                return outRec1;
+            default:
+                return outRec2;
+        }
+    }
+
+    public static appendPolygon(records: OutRec[], edge1: TEdge, edge2: TEdge, activeEdge: TEdge): void {
+        //get the start and ends of both output polygons ...
+        const outRec1: OutRec = records[edge1.OutIdx];
+        const outRec2: OutRec = records[edge2.OutIdx];
+        let holeStateRec: OutRec | null = null;
+
+        if (OutRec.param1RightOfParam2(outRec1, outRec2)) {
+            holeStateRec = outRec2;
+        } else if (OutRec.param1RightOfParam2(outRec2, outRec1)) {
+            holeStateRec = outRec1;
+        } else {
+            holeStateRec = OutRec.getLowermostRec(outRec1, outRec2);
+        }
+
+        const p1_lft: OutPt = outRec1.Pts;
+        const p1_rt: OutPt = p1_lft.Prev;
+        const p2_lft: OutPt = outRec2.Pts;
+        const p2_rt: OutPt = p2_lft.Prev;
+        let side: EdgeSide;
+        //join e2 poly onto e1 poly and delete pointers to e2 ...
+        if (edge1.Side === EdgeSide.esLeft) {
+            if (edge2.Side === EdgeSide.esLeft) {
+                //z y x a b c
+                p2_lft.reverse();
+                p2_lft.Next = p1_lft;
+                p1_lft.Prev = p2_lft;
+                p1_rt.Next = p2_rt;
+                p2_rt.Prev = p1_rt;
+                outRec1.Pts = p2_rt;
+            } else {
+                //x y z a b c
+                p2_rt.Next = p1_lft;
+                p1_lft.Prev = p2_rt;
+                p2_lft.Prev = p1_rt;
+                p1_rt.Next = p2_lft;
+                outRec1.Pts = p2_lft;
+            }
+            side = EdgeSide.esLeft;
+        } else {
+            if (edge2.Side === EdgeSide.esRight) {
+                //a b c z y x
+                p2_lft.reverse();
+                p1_rt.Next = p2_rt;
+                p2_rt.Prev = p1_rt;
+                p2_lft.Next = p1_lft;
+                p1_lft.Prev = p2_lft;
+            } else {
+                //a b c x y z
+                p1_rt.Next = p2_lft;
+                p2_lft.Prev = p1_rt;
+                p1_lft.Prev = p2_rt;
+                p2_rt.Next = p1_lft;
+            }
+            side = EdgeSide.esRight;
+        }
+
+        outRec1.BottomPt = null;
+
+        if (holeStateRec === outRec2) {
+            if (outRec2.FirstLeft !== outRec1) {
+                outRec1.FirstLeft = outRec2.FirstLeft;
+            }
+
+            outRec1.IsHole = outRec2.IsHole;
+        }
+
+        outRec2.Pts = null;
+        outRec2.BottomPt = null;
+        outRec2.FirstLeft = outRec1;
+        const OKIdx: number = edge1.OutIdx;
+        const ObsoleteIdx: number = edge2.OutIdx;
+        edge1.OutIdx = -1;
+        //nb: safe because we only get here via AddLocalMaxPoly
+        edge2.OutIdx = -1;
+
+        let e: TEdge = activeEdge;
+
+        while (e !== null) {
+            if (e.OutIdx === ObsoleteIdx) {
+                e.OutIdx = OKIdx;
+                e.Side = side;
+                break;
+            }
+            e = e.NextInAEL;
+        }
+
+        outRec2.Idx = outRec1.Idx;
     }
 
     public static create(output: OutRec[], isOpen: boolean = false, pointer: OutPt | null = null): OutRec {

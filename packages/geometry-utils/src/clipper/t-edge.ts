@@ -202,6 +202,24 @@ export default class TEdge {
         return this.Delta.y === 0;
     }
 
+    public get maximaPair(): TEdge | null {
+        let result: TEdge | null = null;
+
+        if (this.Next !== null && this.Next.Top.almostEqual(this.Top) && this.Next.NextInLML === null) {
+            result = this.Next;
+        } else if (this.Prev !== null && this.Prev.Top.almostEqual(this.Top) && this.Prev.NextInLML === null) {
+            result = this.Prev;
+        }
+
+        return result !== null && (result.OutIdx === -2 || (result.NextInAEL === result.PrevInAEL && !result.isHorizontal))
+            ? null
+            : result;
+    }
+
+    public getMaxima(y: number): boolean {
+        return this.Top.y === y && this.NextInLML === null;
+    }
+
     public getContributing(clipType: ClipType, fillType: PolyFillType): boolean {
         switch (fillType) {
             case PolyFillType.pftEvenOdd:
@@ -292,6 +310,138 @@ export default class TEdge {
         }
 
         return this.Curr.x < edge.Curr.x;
+    }
+
+    public addEdgeToSEL(sortedEdge: TEdge | null): TEdge | null {
+        //SEL pointers in PEdge are reused to build a list of horizontal edges.
+        //However, we don't need to worry about order with horizontal edge processing.
+        if (sortedEdge === null) {
+            this.PrevInSEL = null;
+            this.NextInSEL = null;
+        } else {
+            this.NextInSEL = sortedEdge;
+            this.PrevInSEL = null;
+            sortedEdge.PrevInSEL = this;
+        }
+
+        return this;
+    }
+
+    public insertEdgeIntoAEL(startEdge: TEdge | null, activeEdge: TEdge | null): TEdge {
+        if (activeEdge === null) {
+            this.PrevInAEL = null;
+            this.NextInAEL = null;
+
+            return this;
+        }
+
+        if (startEdge === null && this.insertsBefore(activeEdge)) {
+            this.PrevInAEL = null;
+            this.NextInAEL = activeEdge;
+            activeEdge.PrevInAEL = this;
+
+            return this;
+        }
+
+        let edge: TEdge = startEdge === null ? activeEdge : startEdge;
+
+        while (edge.NextInAEL !== null && !this.insertsBefore(edge.NextInAEL)) {
+            edge = edge.NextInAEL;
+        }
+
+        this.NextInAEL = edge.NextInAEL;
+
+        if (edge.NextInAEL !== null) {
+            edge.NextInAEL.PrevInAEL = this;
+        }
+
+        this.PrevInAEL = edge;
+        edge.NextInAEL = this;
+
+        return activeEdge;
+    }
+
+    public setWindingCount(activeEdge: TEdge, clipType: ClipType, fillType: PolyFillType): void {
+        let e: TEdge | null = this.PrevInAEL;
+        //find the edge of the same polytype that immediately preceeds 'edge' in AEL
+        while (e !== null && (e.PolyTyp !== this.PolyTyp || e.WindDelta === 0)) {
+            e = e.PrevInAEL;
+        }
+
+        if (e === null) {
+            this.WindCnt = this.WindDelta === 0 ? 1 : this.WindDelta;
+            this.WindCnt2 = 0;
+            e = activeEdge;
+            //ie get ready to calc WindCnt2
+        } else if (this.WindDelta === 0 && clipType !== ClipType.ctUnion) {
+            this.WindCnt = 1;
+            this.WindCnt2 = e.WindCnt2;
+            e = e.NextInAEL;
+            //ie get ready to calc WindCnt2
+        } else if (fillType === PolyFillType.pftEvenOdd) {
+            //EvenOdd filling ...
+            if (this.WindDelta === 0) {
+                //are we inside a subj polygon ...
+                let Inside: boolean = true;
+                let e2: TEdge | null = e.PrevInAEL;
+
+                while (e2 !== null) {
+                    if (e2.PolyTyp === e.PolyTyp && e2.WindDelta !== 0) {
+                        Inside = !Inside;
+                    }
+
+                    e2 = e2.PrevInAEL;
+                }
+
+                this.WindCnt = Inside ? 0 : 1;
+            } else {
+                this.WindCnt = this.WindDelta;
+            }
+            this.WindCnt2 = e.WindCnt2;
+            e = e.NextInAEL;
+            //ie get ready to calc WindCnt2
+        } else {
+            //nonZero, Positive or Negative filling ...
+            if (e.WindCnt * e.WindDelta < 0) {
+                //prev edge is 'decreasing' WindCount (WC) toward zero
+                //so we're outside the previous polygon ...
+                if (Math.abs(e.WindCnt) > 1) {
+                    //outside prev poly but still inside another.
+                    //when reversing direction of prev poly use the same WC
+                    this.WindCnt = e.WindDelta * this.WindDelta < 0 ? e.WindCnt : e.WindCnt + this.WindDelta;
+                } else {
+                    this.WindCnt = this.WindDelta === 0 ? 1 : this.WindDelta;
+                }
+            } else {
+                //prev edge is 'increasing' WindCount (WC) away from zero
+                //so we're inside the previous polygon ...
+                if (this.WindDelta === 0) {
+                    this.WindCnt = e.WindCnt < 0 ? e.WindCnt - 1 : e.WindCnt + 1;
+                } else {
+                    this.WindCnt = e.WindDelta * this.WindDelta < 0 ? e.WindCnt : e.WindCnt + this.WindDelta;
+                }
+            }
+            this.WindCnt2 = e.WindCnt2;
+            e = e.NextInAEL;
+            //ie get ready to calc WindCnt2
+        }
+        //update WindCnt2 ...
+        if (fillType === PolyFillType.pftEvenOdd) {
+            //EvenOdd filling ...
+            while (e !== this) {
+                if (e.WindDelta !== 0) {
+                    this.WindCnt2 = this.WindCnt2 === 0 ? 1 : 0;
+                }
+
+                e = e.NextInAEL;
+            }
+        } else {
+            //nonZero, Positive or Negative filling ...
+            while (e !== this) {
+                this.WindCnt2 += e.WindDelta;
+                e = e.NextInAEL;
+            }
+        }
     }
 
     public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: Point, useFullRange: boolean): boolean {
