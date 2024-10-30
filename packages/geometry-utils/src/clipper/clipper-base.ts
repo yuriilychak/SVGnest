@@ -1,14 +1,14 @@
 import Point from '../point';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
-import { EdgeSide, PolyType } from './types';
+import { DIRECTION, POLY_TYPE } from './types';
 
 export default class ClipperBase {
     protected minimaList: LocalMinima = null;
     protected isUseFullRange: boolean = false;
     protected currentLM: LocalMinima = null;
 
-    public addPath(polygon: Point[], polyType: PolyType): boolean {
+    public addPath(polygon: Point[], polyType: POLY_TYPE): boolean {
         let lastIndex = polygon.length - 1;
 
         while (
@@ -140,20 +140,14 @@ export default class ClipperBase {
                 : //Q.nextInLML = Q.prev
                   new LocalMinima(edge.Bot.y, edge.Prev, edge);
 
-            locMin.LeftBound.Side = EdgeSide.esLeft;
-            locMin.RightBound.Side = EdgeSide.esRight;
+            locMin.LeftBound.Side = DIRECTION.LEFT;
+            locMin.RightBound.Side = DIRECTION.RIGHT;
             locMin.LeftBound.WindDelta = locMin.LeftBound.Next === locMin.RightBound ? -1 : 1;
             locMin.RightBound.WindDelta = -locMin.LeftBound.WindDelta;
 
             edge = this.ProcessBound(locMin.LeftBound, isClockwise);
 
             const edge2: TEdge = this.ProcessBound(locMin.RightBound, !isClockwise);
-
-            if (locMin.LeftBound.isSkipped) {
-                locMin.LeftBound = null;
-            } else if (locMin.RightBound.isSkipped) {
-                locMin.RightBound = null;
-            }
 
             this.minimaList = locMin.insert(this.minimaList);
 
@@ -165,7 +159,7 @@ export default class ClipperBase {
         return true;
     }
 
-    public addPaths(polygons: Point[][], polyType: PolyType): boolean {
+    public addPaths(polygons: Point[][], polyType: POLY_TYPE): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;
@@ -196,120 +190,83 @@ export default class ClipperBase {
             }
         }
 
-        if (!result.isSkipped) {
-            if (isClockwise) {
-                while (result.Top.y === result.Next.Bot.y && !result.Next.isSkipped) {
-                    result = result.Next;
+        if (isClockwise) {
+            while (result.Top.y === result.Next.Bot.y) {
+                result = result.Next;
+            }
+
+            if (result.isDxHorizontal) {
+                //nb: at the top of a bound, horizontals are added to the bound
+                //only when the preceding edge attaches to the horizontal's left vertex
+                //unless a Skip edge is encountered when that becomes the top divide
+                horzEdge = result;
+
+                while (horzEdge.Prev.isDxHorizontal) {
+                    horzEdge = horzEdge.Prev;
                 }
 
-                if (result.isDxHorizontal && !result.Next.isSkipped) {
-                    //nb: at the top of a bound, horizontals are added to the bound
-                    //only when the preceding edge attaches to the horizontal's left vertex
-                    //unless a Skip edge is encountered when that becomes the top divide
-                    horzEdge = result;
-
-                    while (horzEdge.Prev.isDxHorizontal) {
-                        horzEdge = horzEdge.Prev;
-                    }
-
-                    if (horzEdge.Prev.Top.x === result.Next.Top.x) {
-                        if (!isClockwise) {
-                            result = horzEdge.Prev;
-                        }
-                    } else if (horzEdge.Prev.Top.x > result.Next.Top.x) {
+                if (horzEdge.Prev.Top.x === result.Next.Top.x) {
+                    if (!isClockwise) {
                         result = horzEdge.Prev;
                     }
+                } else if (horzEdge.Prev.Top.x > result.Next.Top.x) {
+                    result = horzEdge.Prev;
                 }
+            }
 
-                while (edge !== result) {
-                    edge.NextInLML = edge.Next;
-
-                    if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
-                        edge.reverseHorizontal();
-                    }
-
-                    edge = edge.Next;
-                }
+            while (edge !== result) {
+                edge.NextInLML = edge.Next;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
                     edge.reverseHorizontal();
                 }
 
-                result = result.Next;
-                //move to the edge just beyond current bound
-            } else {
-                while (result.Top.y === result.Prev.Bot.y && !result.Prev.isSkipped) result = result.Prev;
-                if (result.isDxHorizontal && !result.Prev.isSkipped) {
-                    horzEdge = result;
+                edge = edge.Next;
+            }
 
-                    while (horzEdge.Next.isDxHorizontal) {
-                        horzEdge = horzEdge.Next;
-                    }
+            if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
+                edge.reverseHorizontal();
+            }
 
-                    if (horzEdge.Next.Top.x === result.Prev.Top.x) {
-                        if (!isClockwise) {
-                            result = horzEdge.Next;
-                        }
-                    } else if (horzEdge.Next.Top.x > result.Prev.Top.x) {
+            result = result.Next;
+            //move to the edge just beyond current bound
+        } else {
+            while (result.Top.y === result.Prev.Bot.y) {
+                result = result.Prev;
+            }
+
+            if (result.isDxHorizontal) {
+                horzEdge = result;
+
+                while (horzEdge.Next.isDxHorizontal) {
+                    horzEdge = horzEdge.Next;
+                }
+
+                if (horzEdge.Next.Top.x === result.Prev.Top.x) {
+                    if (!isClockwise) {
                         result = horzEdge.Next;
                     }
+                } else if (horzEdge.Next.Top.x > result.Prev.Top.x) {
+                    result = horzEdge.Next;
                 }
+            }
 
-                while (edge !== result) {
-                    edge.NextInLML = edge.Prev;
-
-                    if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
-                        edge.reverseHorizontal();
-                    }
-
-                    edge = edge.Prev;
-                }
+            while (edge !== result) {
+                edge.NextInLML = edge.Prev;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
                     edge.reverseHorizontal();
                 }
 
-                result = result.Prev;
-                //move to the edge just beyond current bound
-            }
-        }
-
-        if (result.isSkipped) {
-            //if edges still remain in the current bound beyond the skip edge then
-            //create another LocMin and call ProcessBound once more
-            edge = result;
-
-            if (isClockwise) {
-                while (edge.Top.y === edge.Next.Bot.y) {
-                    edge = edge.Next;
-                }
-                //don't include top horizontals when parsing a bound a second time,
-                //they will be contained in the opposite bound ...
-                while (edge !== result && edge.isDxHorizontal) {
-                    edge = edge.Prev;
-                }
-            } else {
-                while (edge.Top.y === edge.Prev.Bot.y) {
-                    edge = edge.Prev;
-                }
-
-                while (edge !== result && edge.isDxHorizontal) {
-                    edge = edge.Next;
-                }
+                edge = edge.Prev;
             }
 
-            if (edge === result) {
-                result = isClockwise ? edge.Next : edge.Prev;
-            } else {
-                //there are more edges in the bound beyond result starting with E
-                edge = isClockwise ? result.Next : result.Prev;
-
-                const locMin: LocalMinima = new LocalMinima(edge.Bot.y, null, edge);
-
-                locMin.RightBound.WindDelta = 0;
-                result = this.ProcessBound(locMin.RightBound, isClockwise);
-                this.minimaList = locMin.insert(this.minimaList);
+            if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
+                edge.reverseHorizontal();
             }
+
+            result = result.Prev;
+            //move to the edge just beyond current bound
         }
 
         return result;

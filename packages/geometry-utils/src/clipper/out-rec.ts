@@ -1,7 +1,7 @@
 import Point from '../point';
 import OutPt from './out-pt';
 import TEdge from './t-edge';
-import { EdgeSide } from './types';
+import { DIRECTION } from './types';
 
 export default class OutRec {
     public Idx: number;
@@ -280,10 +280,10 @@ export default class OutRec {
         const p1_rt: OutPt = p1_lft.Prev;
         const p2_lft: OutPt = outRec2.Pts;
         const p2_rt: OutPt = p2_lft.Prev;
-        let side: EdgeSide;
+        let side: DIRECTION;
         //join e2 poly onto e1 poly and delete pointers to e2 ...
-        if (edge1.Side === EdgeSide.esLeft) {
-            if (edge2.Side === EdgeSide.esLeft) {
+        if (edge1.Side === DIRECTION.LEFT) {
+            if (edge2.Side === DIRECTION.LEFT) {
                 //z y x a b c
                 p2_lft.reverse();
                 p2_lft.Next = p1_lft;
@@ -299,9 +299,9 @@ export default class OutRec {
                 p1_rt.Next = p2_lft;
                 outRec1.Pts = p2_lft;
             }
-            side = EdgeSide.esLeft;
+            side = DIRECTION.LEFT;
         } else {
-            if (edge2.Side === EdgeSide.esRight) {
+            if (edge2.Side === DIRECTION.RIGHT) {
                 //a b c z y x
                 p2_lft.reverse();
                 p1_rt.Next = p2_rt;
@@ -315,7 +315,7 @@ export default class OutRec {
                 p1_lft.Prev = p2_rt;
                 p2_rt.Next = p1_lft;
             }
-            side = EdgeSide.esRight;
+            side = DIRECTION.RIGHT;
         }
 
         outRec1.BottomPt = null;
@@ -352,7 +352,7 @@ export default class OutRec {
     }
 
     public static addOutPt(records: OutRec[], edge: TEdge, point: Point): OutPt {
-        const isToFront: boolean = edge.Side === EdgeSide.esLeft;
+        const isToFront: boolean = edge.Side === DIRECTION.LEFT;
         let outRec: OutRec = null;
         let newOp: OutPt = null;
 

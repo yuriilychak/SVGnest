@@ -1,6 +1,6 @@
 import Point from '../point';
 import { HORIZONTAL } from './constants';
-import { Direction } from './types';
+import { DIRECTION } from './types';
 
 export default class OutPt {
     public Idx: number;
@@ -218,8 +218,8 @@ export default class OutPt {
     }
 
     public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: Point, isDiscardLeft: boolean) {
-        const direction1: Direction = op1.Pt.x > op1b.Pt.x ? Direction.dRightToLeft : Direction.dLeftToRight;
-        const direction2: Direction = op2.Pt.x > op2b.Pt.x ? Direction.dRightToLeft : Direction.dLeftToRight;
+        const direction1: DIRECTION = op1.Pt.x > op1b.Pt.x ? DIRECTION.LEFT : DIRECTION.RIGHT;
+        const direction2: DIRECTION = op2.Pt.x > op2b.Pt.x ? DIRECTION.LEFT : DIRECTION.RIGHT;
 
         if (direction1 === direction2) {
             return false;
@@ -229,7 +229,7 @@ export default class OutPt {
         //So, to facilitate this while inserting Op1b and Op2b ...
         //when DiscardLeft, make sure we're AT or RIGHT of Pt before adding Op1b,
         //otherwise make sure we're AT or LEFT of Pt. (Likewise with Op2b.)
-        if (direction1 === Direction.dLeftToRight) {
+        if (direction1 === DIRECTION.RIGHT) {
             while (op1.Next.Pt.x <= Pt.x && op1.Next.Pt.x >= op1.Pt.x && op1.Next.Pt.y === Pt.y) {
                 op1 = op1.Next;
             }
@@ -264,7 +264,7 @@ export default class OutPt {
                 op1b = op1.duplicate(isDiscardLeft);
             }
         }
-        if (direction2 === Direction.dLeftToRight) {
+        if (direction2 === DIRECTION.RIGHT) {
             while (op2.Next.Pt.x <= Pt.x && op2.Next.Pt.x >= op2.Pt.x && op2.Next.Pt.y === Pt.y) {
                 op2 = op2.Next;
             }
@@ -299,7 +299,7 @@ export default class OutPt {
             }
         }
 
-        if ((direction1 === Direction.dLeftToRight) === isDiscardLeft) {
+        if ((direction1 === DIRECTION.RIGHT) === isDiscardLeft) {
             op1.Prev = op2;
             op2.Next = op1;
             op1b.Next = op2b;

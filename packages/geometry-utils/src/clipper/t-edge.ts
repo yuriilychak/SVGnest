@@ -2,7 +2,7 @@ import Point from '../point';
 import { HORIZONTAL } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
-import { PolyType, EdgeSide, PolyFillType, ClipType, Direction } from './types';
+import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION } from './types';
 
 export default class TEdge {
     public Bot: Point;
@@ -10,8 +10,8 @@ export default class TEdge {
     public Top: Point;
     public Delta: Point;
     public Dx: number;
-    public PolyTyp: PolyType;
-    public Side: EdgeSide;
+    public PolyTyp: POLY_TYPE;
+    public Side: DIRECTION;
     public WindDelta: number;
     public WindCnt: number;
     public WindCnt2: number;
@@ -30,8 +30,8 @@ export default class TEdge {
         this.Top = Point.zero();
         this.Delta = Point.zero();
         this.Dx = 0;
-        this.PolyTyp = PolyType.ptSubject;
-        this.Side = EdgeSide.esLeft;
+        this.PolyTyp = POLY_TYPE.SUBJECT;
+        this.Side = DIRECTION.LEFT;
         this.WindDelta = 0;
         this.WindCnt = 0;
         this.WindCnt2 = 0;
@@ -53,7 +53,7 @@ export default class TEdge {
         this.unassign();
     }
 
-    public initFromPolyType(polyType: PolyType): void {
+    public initFromPolyType(polyType: POLY_TYPE): void {
         if (this.Curr.y >= this.Next.Curr.y) {
             this.Bot.update(this.Curr);
             this.Top.update(this.Next.Curr);
@@ -128,7 +128,7 @@ export default class TEdge {
         this.Dx = this.Delta.y === 0 ? HORIZONTAL : this.Delta.x / this.Delta.y;
     }
 
-    public reset(side: EdgeSide): void {
+    public reset(side: DIRECTION): void {
         this.Curr.update(this.Bot);
         this.Side = side;
         this.unassign();
@@ -213,23 +213,21 @@ export default class TEdge {
             result = this.Prev;
         }
 
-        return result !== null && (result.isSkipped || (result.NextInAEL === result.PrevInAEL && !result.isHorizontal))
-            ? null
-            : result;
+        return result !== null && result.NextInAEL === result.PrevInAEL && !result.isHorizontal ? null : result;
     }
 
     public getMaxima(y: number): boolean {
         return this.Top.y === y && this.NextInLML === null;
     }
 
-    public getContributing(clipType: ClipType, fillType: PolyFillType): boolean {
+    public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
         switch (fillType) {
-            case PolyFillType.pftNonZero:
+            case POLY_FILL_TYPE.NON_ZERO:
                 if (Math.abs(this.WindCnt) !== 1) {
                     return false;
                 }
                 break;
-            case PolyFillType.pftPositive:
+            case POLY_FILL_TYPE.POSITIVE:
                 if (this.WindCnt !== 1) {
                     return false;
                 }
@@ -242,30 +240,30 @@ export default class TEdge {
         }
 
         switch (clipType) {
-            case ClipType.ctUnion:
+            case CLIP_TYPE.UNION:
                 switch (fillType) {
-                    case PolyFillType.pftNonZero:
+                    case POLY_FILL_TYPE.NON_ZERO:
                         return this.WindCnt2 === 0;
-                    case PolyFillType.pftPositive:
+                    case POLY_FILL_TYPE.POSITIVE:
                         return this.WindCnt2 <= 0;
                     default:
                         return this.WindCnt2 >= 0;
                 }
-            case ClipType.ctDifference:
-                if (this.PolyTyp === PolyType.ptSubject) {
+            case CLIP_TYPE.DIFFERENCE:
+                if (this.PolyTyp === POLY_TYPE.SUBJECT) {
                     switch (fillType) {
-                        case PolyFillType.pftNonZero:
+                        case POLY_FILL_TYPE.NON_ZERO:
                             return this.WindCnt2 === 0;
-                        case PolyFillType.pftPositive:
+                        case POLY_FILL_TYPE.POSITIVE:
                             return this.WindCnt2 <= 0;
                         default:
                             return this.WindCnt2 >= 0;
                     }
                 } else {
                     switch (fillType) {
-                        case PolyFillType.pftNonZero:
+                        case POLY_FILL_TYPE.NON_ZERO:
                             return this.WindCnt2 !== 0;
-                        case PolyFillType.pftPositive:
+                        case POLY_FILL_TYPE.POSITIVE:
                             return this.WindCnt2 > 0;
                         default:
                             return this.WindCnt2 < 0;
@@ -331,8 +329,8 @@ export default class TEdge {
         return activeEdge;
     }
 
-    public getNextInAEL(direction: Direction): TEdge | null {
-        return direction === Direction.dLeftToRight ? this.NextInAEL : this.PrevInAEL;
+    public getNextInAEL(direction: DIRECTION): TEdge | null {
+        return direction === DIRECTION.RIGHT ? this.NextInAEL : this.PrevInAEL;
     }
 
     public unassign(): void {
@@ -341,25 +339,15 @@ export default class TEdge {
 
     public get horzDirection(): Float64Array {
         return new Float64Array(
-            this.Bot.x < this.Top.x
-                ? [Direction.dLeftToRight, this.Bot.x, this.Top.x]
-                : [Direction.dRightToLeft, this.Top.x, this.Bot.x]
+            this.Bot.x < this.Top.x ? [DIRECTION.RIGHT, this.Bot.x, this.Top.x] : [DIRECTION.LEFT, this.Top.x, this.Bot.x]
         );
     }
 
-    public get isSkipped(): boolean {
-        return this.OutIdx === TEdge.SKIP;
-    }
-
-    public get isUnassigned(): boolean {
-        return this.OutIdx === TEdge.UNASSIGNED;
-    }
-
     public get isAssigned(): boolean {
-        return this.OutIdx >= 0;
+        return this.OutIdx !== TEdge.UNASSIGNED;
     }
 
-    public setWindingCount(activeEdge: TEdge, clipType: ClipType, fillType: PolyFillType): void {
+    public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
         let e: TEdge | null = this.PrevInAEL;
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
         while (e !== null && (e.PolyTyp !== this.PolyTyp || e.WindDelta === 0)) {
@@ -371,7 +359,7 @@ export default class TEdge {
             this.WindCnt2 = 0;
             e = activeEdge;
             //ie get ready to calc WindCnt2
-        } else if (this.WindDelta === 0 && clipType !== ClipType.ctUnion) {
+        } else if (this.WindDelta === 0 && clipType !== CLIP_TYPE.UNION) {
             this.WindCnt = 1;
             this.WindCnt2 = e.WindCnt2;
             e = e.NextInAEL;
@@ -629,7 +617,7 @@ export default class TEdge {
     }
 
     public static swapSides(edge1: TEdge, edge2: TEdge): void {
-        const side: EdgeSide = edge1.Side;
+        const side: DIRECTION = edge1.Side;
         edge1.Side = edge2.Side;
         edge2.Side = side;
     }
@@ -640,6 +628,5 @@ export default class TEdge {
         edge2.OutIdx = outIdx;
     }
 
-    private static SKIP = -2;
     private static UNASSIGNED = -1;
 }

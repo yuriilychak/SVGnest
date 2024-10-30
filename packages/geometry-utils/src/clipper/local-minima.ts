@@ -1,6 +1,6 @@
 import Scanbeam from './scanbeam';
 import TEdge from './t-edge';
-import { EdgeSide } from './types';
+import { DIRECTION } from './types';
 
 export default class LocalMinima {
     public y: number = 0;
@@ -43,11 +43,11 @@ export default class LocalMinima {
 
         while (localMinima != null) {
             if (localMinima.LeftBound !== null) {
-                localMinima.LeftBound.reset(EdgeSide.esLeft);
+                localMinima.LeftBound.reset(DIRECTION.LEFT);
             }
 
             if (localMinima.RightBound !== null) {
-                localMinima.RightBound.reset(EdgeSide.esRight);
+                localMinima.RightBound.reset(DIRECTION.RIGHT);
             }
 
             localMinima = localMinima.Next;

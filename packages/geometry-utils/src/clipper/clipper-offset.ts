@@ -1,6 +1,6 @@
 import Clipper from './clipper';
 import { getArea } from './helpers';
-import { ClipType, PolyFillType, PolyType } from './types';
+import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './types';
 import { cycleIndex } from '../helpers';
 import Point from '../point';
 
@@ -14,16 +14,16 @@ export default class ClipperOffset {
         const destPolygon = this.doOffset(delta);
         const clipper: Clipper = new Clipper();
 
-        clipper.addPath(destPolygon, PolyType.ptSubject);
+        clipper.addPath(destPolygon, POLY_TYPE.SUBJECT);
 
         if (delta > 0) {
-            clipper.execute(ClipType.ctUnion, result, PolyFillType.pftPositive);
+            clipper.execute(CLIP_TYPE.UNION, result, POLY_FILL_TYPE.POSITIVE);
         } else {
             const outer: Point[] = ClipperOffset.getOuterBounds(destPolygon);
 
-            clipper.addPath(outer, PolyType.ptSubject);
+            clipper.addPath(outer, POLY_TYPE.SUBJECT);
             clipper.ReverseSolution = true;
-            clipper.execute(ClipType.ctUnion, result, PolyFillType.pftNegative);
+            clipper.execute(CLIP_TYPE.UNION, result, POLY_FILL_TYPE.NEGATIVE);
 
             if (result.length > 0) {
                 result.splice(0, 1);
