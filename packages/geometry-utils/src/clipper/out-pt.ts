@@ -1,5 +1,5 @@
 import Point from '../point';
-import { GetDx } from './helpers';
+import { HORIZONTAL } from './constants';
 import { Direction } from './types';
 
 export default class OutPt {
@@ -62,7 +62,7 @@ export default class OutPt {
         do {
             ++result;
             outPt = outPt.Next;
-        } while (outPt != this);
+        } while (outPt !== this);
 
         return result;
     }
@@ -149,7 +149,7 @@ export default class OutPt {
         let outPt2: OutPt = this.Next;
         let dups: OutPt | null = null;
 
-        while (outPt2 != outPt1) {
+        while (outPt2 !== outPt1) {
             if (outPt2.Pt.y > outPt1.Pt.y) {
                 outPt1 = outPt2;
                 dups = null;
@@ -158,7 +158,7 @@ export default class OutPt {
                     dups = null;
                     outPt1 = outPt2;
                 } else {
-                    if (outPt2.Next != outPt1 && outPt2.Prev != outPt1) {
+                    if (outPt2.Next !== outPt1 && outPt2.Prev !== outPt1) {
                         dups = outPt2;
                     }
                 }
@@ -167,7 +167,7 @@ export default class OutPt {
         }
         if (dups !== null) {
             //there appears to be at least 2 vertices at bottomPt so ...
-            while (dups != outPt2) {
+            while (dups !== outPt2) {
                 if (!OutPt.firstIsBottomPt(outPt2, dups)) {
                     outPt1 = dups;
                 }
@@ -183,36 +183,38 @@ export default class OutPt {
     public static firstIsBottomPt(btmPt1: OutPt, btmPt2: OutPt): boolean {
         let p: OutPt = btmPt1.Prev;
 
-        while (p.Pt.almostEqual(btmPt1.Pt) && p != btmPt1) {
+        while (p.Pt.almostEqual(btmPt1.Pt) && p !== btmPt1) {
             p = p.Prev;
         }
 
-        let dx1p: number = Math.abs(GetDx(btmPt1.Pt, p.Pt));
+        const dx1p: number = OutPt.getDx(btmPt1, p);
+
         p = btmPt1.Next;
 
-        while (p.Pt.almostEqual(btmPt1.Pt) && p != btmPt1) {
+        while (p.Pt.almostEqual(btmPt1.Pt) && p !== btmPt1) {
             p = p.Next;
         }
 
-        let dx1n: number = Math.abs(GetDx(btmPt1.Pt, p.Pt));
+        const dx1n: number = OutPt.getDx(btmPt1, p);
 
         p = btmPt2.Prev;
 
-        while (p.Pt.almostEqual(btmPt2.Pt) && p != btmPt2) {
+        while (p.Pt.almostEqual(btmPt2.Pt) && p !== btmPt2) {
             p = p.Prev;
         }
 
-        let dx2p: number = Math.abs(GetDx(btmPt2.Pt, p.Pt));
+        const dx2p: number = OutPt.getDx(btmPt2, p);
 
         p = btmPt2.Next;
 
-        while (p.Pt.almostEqual(btmPt2.Pt) && p != btmPt2) {
+        while (p.Pt.almostEqual(btmPt2.Pt) && p !== btmPt2) {
             p = p.Next;
         }
 
-        let dx2n: number = Math.abs(GetDx(btmPt2.Pt, p.Pt));
+        const dx2n: number = OutPt.getDx(btmPt2, p);
+        const maxDx: number = Math.max(dx2p, dx2n);
 
-        return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
+        return dx1p >= maxDx || dx1n >= maxDx;
     }
 
     public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: Point, isDiscardLeft: boolean) {
@@ -310,5 +312,13 @@ export default class OutPt {
         }
 
         return true;
+    }
+
+    public static getDx(outPt1: OutPt, outPt2: OutPt): number {
+        const offsetY: number = outPt2.Pt.y - outPt1.Pt.y;
+        const offsetX: number = outPt2.Pt.x - outPt1.Pt.x;
+        const result = offsetY === 0 ? HORIZONTAL : offsetX / offsetY;
+
+        return Math.abs(result);
     }
 }

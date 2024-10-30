@@ -1,5 +1,4 @@
 import OutPt from './out-pt';
-import { HORIZONTAL } from './constants';
 import Point from '../point';
 import { cycleIndex } from '../helpers';
 
@@ -26,24 +25,11 @@ export function absArea(poly: Point[]): number {
     return Math.abs(getArea(poly));
 }
 
-export function pointsAreClose(pt1: Point, pt2: Point, distSqrd: number): boolean {
-    return Point.from(pt1).len2(pt2) <= distSqrd;
-}
+export function distanceFromLineSqrd(point: Point, line1: Point, line2: Point): number {
+    const equation: number[] = Point.lineEquation(line2, line1);
+    const c: number = equation[0] * point.x + equation[1] * point.y - equation[2];
 
-export function distanceFromLineSqrd(pt: Point, ln1: Point, ln2: Point): number {
-    //The equation of a line in general form (Ax + By + C = 0)
-    //given 2 points (x�,y�) & (x�,y�) is ...
-    //(y� - y�)x + (x� - x�)y + (y� - y�)x� - (x� - x�)y� = 0
-    //A = (y� - y�); B = (x� - x�); C = (y� - y�)x� - (x� - x�)y�
-    //perpendicular distance of point (x�,y�) = (Ax� + By� + C)/Sqrt(A� + B�)
-    //see http://en.wikipedia.org/wiki/Perpendicular_distance
-    const A: number = ln1.y - ln2.y;
-    const B: number = ln2.x - ln1.x;
-    let C: number = A * ln1.x + B * ln1.y;
-
-    C = A * pt.x + B * pt.y - C;
-
-    return (C * C) / (A * A + B * B);
+    return (c * c) / (equation[0] * equation[0] + equation[1] * equation[1]);
 }
 
 export function slopesNearCollinear(pt1: Point, pt2: Point, pt3: Point, distSqrd: number) {
@@ -71,10 +57,10 @@ export function cleanPolygon(path: Point[], distance: number): Point[] {
     let op: OutPt = outPts[0];
 
     while (op.Idx === 0 && op.Next != op.Prev) {
-        if (pointsAreClose(op.Pt, op.Prev.Pt, distSqrd)) {
+        if (Point.pointsAreClose(op.Pt, op.Prev.Pt, distSqrd)) {
             op = op.exclude();
             --pointCount;
-        } else if (pointsAreClose(op.Prev.Pt, op.Next.Pt, distSqrd)) {
+        } else if (Point.pointsAreClose(op.Prev.Pt, op.Next.Pt, distSqrd)) {
             op.Next.exclude();
             op = op.exclude();
             pointCount -= 2;
@@ -119,8 +105,4 @@ export function showError(message: string): void {
     } catch (err) {
         console.warn(err.message);
     }
-}
-
-export function GetDx(pt1: Point, pt2: Point): number {
-    return pt1.y === pt2.y ? HORIZONTAL : (pt2.x - pt1.x) / (pt2.y - pt1.y);
 }

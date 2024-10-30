@@ -294,6 +294,10 @@ export default class Point {
         return useFullRange;
     }
 
+    public static pointsAreClose(point1: Point, point2: Point, distSqrd: number): boolean {
+        return Point.from(point1).len2(point2) <= distSqrd;
+    }
+
     private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2
     private static HIGH_RANGE = 4503599627370495; // sqrt(2^106 -1)/2
 }
