@@ -20,11 +20,8 @@ export default class Polygon {
 
     private bounds: BoundRect;
 
-    private rectMemSeg: Float64Array;
-
     private constructor() {
         this.point = Point.zero();
-        this.rectMemSeg = new Float64Array(4);
         this.closed = false;
         this.pointCount = 0;
         this.offset = 0;
@@ -294,11 +291,11 @@ export default class Polygon {
     }
 
     public get position(): Point {
-        return this.point.bind(this.rectMemSeg, 0);
+        return this.bounds.position;
     }
 
     public get size(): Point {
-        return this.point.bind(this.rectMemSeg, 2);
+        return this.bounds.size;
     }
 
     public static create(): Polygon {
