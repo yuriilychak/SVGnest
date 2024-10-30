@@ -12,13 +12,6 @@ export type NestConfig = {
     useHoles: boolean;
 };
 
-export type BoundRect = {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-};
-
 export type NFPContent = {
     A: number;
     B: number;

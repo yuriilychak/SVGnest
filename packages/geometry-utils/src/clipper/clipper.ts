@@ -276,7 +276,7 @@ export default class Clipper extends ClipperBase {
         let rightBound: TEdge = null;
         let outPt: OutPt = null;
 
-        while (this.currentLM !== null && this.currentLM.Y === botY) {
+        while (this.currentLM !== null && this.currentLM.y === botY) {
             leftBound = this.currentLM.LeftBound;
             rightBound = this.currentLM.RightBound;
             outPt = null;
@@ -887,9 +887,14 @@ export default class Clipper extends ClipperBase {
             }
         } else if (eMaxPair !== null) {
             if (eMaxPair.OutIdx >= 0) {
-                if (dir === Direction.dLeftToRight) this.IntersectEdges(horzEdge, eMaxPair, horzEdge.Top, false);
-                else this.IntersectEdges(eMaxPair, horzEdge, horzEdge.Top, false);
-                if (eMaxPair.OutIdx >= 0) showError('ProcessHorizontal error');
+                if (dir === Direction.dLeftToRight) {
+                    this.IntersectEdges(horzEdge, eMaxPair, horzEdge.Top, false);
+                } else {
+                    this.IntersectEdges(eMaxPair, horzEdge, horzEdge.Top, false);
+                }
+                if (eMaxPair.OutIdx >= 0) {
+                    showError('ProcessHorizontal error');
+                }
             } else {
                 this.activeEdges = horzEdge.deleteFromAEL(this.activeEdges);
                 this.activeEdges = eMaxPair.deleteFromAEL(this.activeEdges);

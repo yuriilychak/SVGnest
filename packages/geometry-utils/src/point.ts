@@ -1,8 +1,7 @@
-import { IPoint } from './types';
 import { TOL } from './constants';
 import { almostEqual, Cast_Int64, clipperRound, midValue, mulInt128, op_EqualityInt128 } from './helpers';
 
-export default class Point implements IPoint {
+export default class Point {
     private memSeg: Float64Array;
 
     private offset: number;
@@ -38,29 +37,29 @@ export default class Point implements IPoint {
         return this;
     }
 
-    public update(point: IPoint): Point {
+    public update(point: Point): Point {
         return this.set(point.x, point.y);
     }
 
-    public fromClipper(point: IPoint): Point {
+    public fromClipper(point: Point): Point {
         return this.set(point.x, point.y);
     }
 
-    public add(point: IPoint): Point {
+    public add(point: Point): Point {
         this.x += point.x;
         this.y += point.y;
 
         return this;
     }
 
-    public sub(point: IPoint): Point {
+    public sub(point: Point): Point {
         this.x -= point.x;
         this.y -= point.y;
 
         return this;
     }
 
-    public mul(point: IPoint): Point {
+    public mul(point: Point): Point {
         this.x *= point.x;
         this.y *= point.y;
 
@@ -81,11 +80,11 @@ export default class Point implements IPoint {
         return this;
     }
 
-    public max(point: IPoint): Point {
+    public max(point: Point): Point {
         return this.set(Math.max(this.x, point.x), Math.max(this.y, point.y));
     }
 
-    public min(point: IPoint): Point {
+    public min(point: Point): Point {
         return this.set(Math.min(this.x, point.x), Math.min(this.y, point.y));
     }
 
@@ -96,11 +95,11 @@ export default class Point implements IPoint {
         return this.set(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
     }
 
-    public cross(point: IPoint): number {
+    public cross(point: Point): number {
         return this.y * point.x - this.x * point.y;
     }
 
-    public dot(point: IPoint): number {
+    public dot(point: Point): number {
         return this.x * point.x + this.y * point.y;
     }
 
@@ -116,14 +115,14 @@ export default class Point implements IPoint {
         return this.y > point1.y === this.y < point2.y;
     }
 
-    public len2(point: IPoint): number {
+    public len2(point: Point): number {
         const offetX: number = this.x - point.x;
         const offetY: number = this.y - point.y;
 
         return offetX * offetX + offetY * offetY;
     }
 
-    public len(point: IPoint): number {
+    public len(point: Point): number {
         return Math.sqrt(this.len2(point));
     }
 
@@ -203,15 +202,15 @@ export default class Point implements IPoint {
         return !(dot > len2 || almostEqual(dot, len2));
     }
 
-    public almostEqual(point: IPoint, tolerance: number = TOL): boolean {
+    public almostEqual(point: Point, tolerance: number = TOL): boolean {
         return almostEqual(this.x, point.x, tolerance) && almostEqual(this.y, point.y, tolerance);
     }
 
-    public interpolateX(beginPoint: IPoint, endPoint: IPoint): number {
+    public interpolateX(beginPoint: Point, endPoint: Point): number {
         return ((beginPoint.x - endPoint.x) * (this.y - endPoint.y)) / (beginPoint.y - endPoint.y) + endPoint.x;
     }
 
-    public interpolateY(beginPoint: IPoint, endPoint: IPoint): number {
+    public interpolateY(beginPoint: Point, endPoint: Point): number {
         return ((beginPoint.y - endPoint.y) * (this.x - endPoint.x)) / (beginPoint.x - endPoint.x) + endPoint.y;
     }
 
@@ -277,11 +276,11 @@ export default class Point implements IPoint {
         return Point.create(0, 0);
     }
 
-    public static from(point: IPoint): Point {
+    public static from(point: Point): Point {
         return Point.create(point.x, point.y);
     }
 
-    public static lineEquation(point1: IPoint, point2: IPoint): number[] {
+    public static lineEquation(point1: Point, point2: Point): number[] {
         return [point2.y - point1.y, point1.x - point2.x, point2.x * point1.y - point1.x * point2.y];
     }
 }

@@ -1,11 +1,12 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 
-import { BoundRect, NestConfig, NFPCache, PolygonNode } from './types';
+import { NestConfig, NFPCache, PolygonNode } from './types';
 import Polygon from './polygon';
 import Point from './point';
 import { generateNFPCacheKey, getPolygonNode, getUint16 } from './helpers';
 import PointPool from './point-pool';
 import { NFP_INFO_START_INDEX } from './constants';
+import BoundRect from './bound-rect';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -74,13 +75,9 @@ export default class ClipperWrapper {
         // turn the list into a tree
         this.nestPolygons(point, nodes);
 
-        const start = performance.now();
         const clipperOffset: ClipperOffset = ClipperOffset.create();
 
         this.offsetNodes(clipperOffset, nodes, 1);
-        const end = performance.now();
-
-        console.log(end - start);
 
         return nodes;
     }

@@ -1,7 +1,7 @@
 import Point from './point';
 import { almostEqual, cycleIndex, getUint16 } from './helpers';
-import { BoundRect } from './types';
 import { NFP_INFO_START_INDEX } from './constants';
+import BoundRect from './bound-rect';
 
 export default class Polygon {
     private memSeg: Float64Array;
@@ -18,6 +18,8 @@ export default class Polygon {
 
     private rectangle: boolean;
 
+    private bounds: BoundRect;
+
     private rectMemSeg: Float64Array;
 
     private constructor() {
@@ -27,6 +29,7 @@ export default class Polygon {
         this.pointCount = 0;
         this.offset = 0;
         this.rectangle = false;
+        this.bounds = new BoundRect();
     }
 
     public bind(data: Float64Array, offset: number = 0, pointCount: number = data.length >> 1): void {
@@ -159,7 +162,7 @@ export default class Polygon {
     }
 
     public exportBounds(): BoundRect {
-        return { x: this.position.x, y: this.position.y, width: this.size.x, height: this.size.y };
+        return this.bounds.clone();
     }
 
     public resetPosition(): void {
@@ -239,8 +242,7 @@ export default class Polygon {
 
         point2.sub(point1);
 
-        this.point.bind(this.rectMemSeg, 0).update(point1);
-        this.point.bind(this.rectMemSeg, 2).update(point2);
+        this.bounds.update(point1, point2);
     }
 
     public get length(): number {
