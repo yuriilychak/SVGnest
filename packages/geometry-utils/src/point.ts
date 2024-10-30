@@ -1,5 +1,5 @@
 import { TOL } from './constants';
-import { almostEqual, Cast_Int64, clipperRound, midValue, mulInt128, op_EqualityInt128 } from './helpers';
+import { almostEqual, clipperRound, midValue, slopesEqual } from './helpers';
 
 export default class Point {
     private memSeg: Float64Array;
@@ -259,9 +259,7 @@ export default class Point {
     }
 
     public static slopesEqual(pt1: Point, pt2: Point, pt3: Point, useFullRange: boolean): boolean {
-        return useFullRange
-            ? op_EqualityInt128(mulInt128(pt1.y - pt2.y, pt2.x - pt3.x), mulInt128(pt1.x - pt2.x, pt2.y - pt3.y))
-            : Cast_Int64((pt1.y - pt2.y) * (pt2.x - pt3.x)) - Cast_Int64((pt1.x - pt2.x) * (pt2.y - pt3.y)) === 0;
+        return slopesEqual(pt1.y - pt2.y, pt2.x - pt3.x, pt1.x - pt2.x, pt2.y - pt3.y, useFullRange);
     }
 
     public static create(x: number, y: number): Point {
@@ -283,4 +281,19 @@ export default class Point {
     public static lineEquation(point1: Point, point2: Point): number[] {
         return [point2.y - point1.y, point1.x - point2.x, point2.x * point1.y - point1.x * point2.y];
     }
+
+    public static rangeTest(point: Point, useFullRange: boolean): boolean {
+        if (useFullRange) {
+            if (Math.abs(point.x) > Point.HIGH_RANGE || Math.abs(point.y) > Point.HIGH_RANGE) {
+                console.warn('Coordinate outside allowed range in rangeTest().');
+            }
+        } else if (Math.abs(point.x) > Point.LOW_RANGE || Math.abs(point.y) > Point.LOW_RANGE) {
+            return Point.rangeTest(point, true);
+        }
+
+        return useFullRange;
+    }
+
+    private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2
+    private static HIGH_RANGE = 4503599627370495; // sqrt(2^106 -1)/2
 }

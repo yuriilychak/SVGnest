@@ -26,7 +26,7 @@ export function absArea(poly: Point[]): number {
     return Math.abs(getArea(poly));
 }
 
-export function pointsAreClose(pt1: Point, pt2: Point, distSqrd: number) {
+export function pointsAreClose(pt1: Point, pt2: Point, distSqrd: number): boolean {
     return Point.from(pt1).len2(pt2) <= distSqrd;
 }
 

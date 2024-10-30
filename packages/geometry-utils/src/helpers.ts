@@ -302,3 +302,9 @@ export function op_EqualityInt128(left: Uint32Array, right: Uint32Array): boolea
 
     return true;
 }
+
+export function slopesEqual(value1: number, value2: number, value3: number, value4: number, useFullRange: boolean): boolean {
+    return useFullRange
+        ? op_EqualityInt128(mulInt128(value1, value2), mulInt128(value3, value4))
+        : Cast_Int64(value1 * value2) - Cast_Int64(value3 * value4) === 0;
+}

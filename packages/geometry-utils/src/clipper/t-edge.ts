@@ -1,6 +1,6 @@
 import Point from '../point';
 import { HORIZONTAL } from './constants';
-import { Cast_Int64, mulInt128, op_EqualityInt128 } from '../helpers';
+import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
 import { PolyType, EdgeSide, PolyFillType, ClipType, Direction } from './types';
 
@@ -98,17 +98,17 @@ export default class TEdge {
                 result = result.Next;
             }
 
-            if (result.Dx !== HORIZONTAL && result.Prev.Dx !== HORIZONTAL) {
+            if (!result.isDxHorizontal && !result.Prev.isDxHorizontal) {
                 break;
             }
 
-            while (result.Prev.Dx === HORIZONTAL) {
+            while (result.Prev.isDxHorizontal) {
                 result = result.Prev;
             }
 
             edge = result;
 
-            while (result.Dx === HORIZONTAL) {
+            while (result.isDxHorizontal) {
                 result = result.Next;
             }
             if (result.Top.y == result.Prev.Bot.y) {
@@ -202,6 +202,10 @@ export default class TEdge {
         return this.Delta.y === 0;
     }
 
+    public get isDxHorizontal(): boolean {
+        return this.Dx === HORIZONTAL;
+    }
+
     public get maximaPair(): TEdge | null {
         let result: TEdge | null = null;
 
@@ -211,7 +215,8 @@ export default class TEdge {
             result = this.Prev;
         }
 
-        return result !== null && (result.OutIdx === -2 || (result.NextInAEL === result.PrevInAEL && !result.isHorizontal))
+        return result !== null &&
+            (result.OutIdx === TEdge.SKIP || (result.NextInAEL === result.PrevInAEL && !result.isHorizontal))
             ? null
             : result;
     }
@@ -373,6 +378,10 @@ export default class TEdge {
         );
     }
 
+    public get isSkip(): boolean {
+        return this.OutIdx === TEdge.SKIP;
+    }
+
     public setWindingCount(activeEdge: TEdge, clipType: ClipType, fillType: PolyFillType): void {
         let e: TEdge | null = this.PrevInAEL;
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
@@ -433,6 +442,7 @@ export default class TEdge {
                     this.WindCnt = e.WindDelta * this.WindDelta < 0 ? e.WindCnt : e.WindCnt + this.WindDelta;
                 }
             }
+
             this.WindCnt2 = e.WindCnt2;
             e = e.NextInAEL;
             //ie get ready to calc WindCnt2
@@ -491,6 +501,7 @@ export default class TEdge {
             b1 = edge1.Bot.x - edge1.Bot.y * edge1.Dx;
             b2 = edge2.Bot.x - edge2.Bot.y * edge2.Dx;
             const q: number = (b2 - b1) / (edge1.Dx - edge2.Dx);
+
             ip.set(
                 Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? clipperRound(edge1.Dx * q + b1) : clipperRound(edge2.Dx * q + b2),
                 clipperRound(q)
@@ -511,9 +522,7 @@ export default class TEdge {
     }
 
     public static slopesEqual(e1: TEdge, e2: TEdge, useFullRange: boolean): boolean {
-        return useFullRange
-            ? op_EqualityInt128(mulInt128(e1.Delta.y, e2.Delta.x), mulInt128(e1.Delta.x, e2.Delta.y))
-            : Cast_Int64(e1.Delta.y * e2.Delta.x) == Cast_Int64(e1.Delta.x * e2.Delta.y);
+        return slopesEqual(e1.Delta.y, e2.Delta.x, e1.Delta.x, e2.Delta.y, useFullRange);
     }
 
     public static swapPositionsInAEL(edge1: TEdge, edge2: TEdge): boolean {
@@ -660,6 +669,7 @@ export default class TEdge {
         if (edge1.PrevInSEL !== null) {
             edge1.PrevInSEL.NextInSEL = edge1;
         }
+
         edge2.NextInSEL = next;
 
         if (edge2.NextInSEL !== null) {
@@ -680,11 +690,13 @@ export default class TEdge {
         edge1.Side = edge2.Side;
         edge2.Side = side;
     }
+
     public static swapPolyIndexes(edge1: TEdge, edge2: TEdge): void {
         const outIdx: number = edge1.OutIdx;
         edge1.OutIdx = edge2.OutIdx;
         edge2.OutIdx = outIdx;
     }
 
+    private static SKIP = -2;
     private static UNASSIGNED = -1;
 }
