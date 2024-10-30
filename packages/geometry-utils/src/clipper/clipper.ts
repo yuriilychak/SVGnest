@@ -482,11 +482,13 @@ export default class Clipper extends ClipperBase {
                     (this.clipType !== CLIP_TYPE.UNION || edge1.WindCnt2 === 0)
                 ) {
                     OutRec.addOutPt(this.polyOuts, edge2, point);
+
                     if (edge2Contributing) {
                         edge2.unassign();
                     }
                 }
             }
+
             if (edge1Stops) {
                 if (!edge1.isAssigned) {
                     this.activeEdges = edge1.deleteFromAEL(this.activeEdges);
@@ -494,6 +496,7 @@ export default class Clipper extends ClipperBase {
                     showError('Error intersecting polylines');
                 }
             }
+
             if (edge2Stops) {
                 if (!edge2.isAssigned) {
                     this.activeEdges = edge2.deleteFromAEL(this.activeEdges);
@@ -508,17 +511,8 @@ export default class Clipper extends ClipperBase {
         //update winding counts...
         //assumes that e1 will be to the Right of e2 ABOVE the intersection
         if (edge1.PolyTyp === edge2.PolyTyp) {
-            if (edge1.WindCnt === -edge2.WindDelta) {
-                edge1.WindCnt = -edge1.WindCnt;
-            } else {
-                edge1.WindCnt += edge2.WindDelta;
-            }
-
-            if (edge2.WindCnt === edge1.WindDelta) {
-                edge2.WindCnt = -edge2.WindCnt;
-            } else {
-                edge2.WindCnt -= edge1.WindDelta;
-            }
+            edge1.WindCnt = edge1.WindCnt === -edge2.WindDelta ? -edge1.WindCnt : edge1.WindCnt + edge2.WindDelta;
+            edge2.WindCnt = edge2.WindCnt === edge1.WindDelta ? -edge2.WindCnt : edge2.WindCnt - edge1.WindDelta;
         } else {
             edge1.WindCnt2 += edge2.WindDelta;
             edge2.WindCnt2 -= edge1.WindDelta;
@@ -600,8 +594,8 @@ export default class Clipper extends ClipperBase {
                         break;
                     case CLIP_TYPE.DIFFERENCE:
                         if (
-                            (edge1.PolyTyp === POLY_TYPE.CLIP && e1Wc2 > 0 && e2Wc2 > 0) ||
-                            (edge1.PolyTyp === POLY_TYPE.SUBJECT && e1Wc2 <= 0 && e2Wc2 <= 0)
+                            (edge1.PolyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
+                            (edge1.PolyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
                         ) {
                             this.AddLocalMinPoly(edge1, edge2, point);
                         }
@@ -650,8 +644,8 @@ export default class Clipper extends ClipperBase {
         if (edge2.isHorizontal || edge1.Dx > edge2.Dx) {
             result = OutRec.addOutPt(this.polyOuts, edge1, point);
             edge2.OutIdx = edge1.OutIdx;
-            edge1.Side = DIRECTION.LEFT;
             edge2.Side = DIRECTION.RIGHT;
+            edge1.Side = DIRECTION.LEFT;
             edge = edge1;
             edgePrev = edge.PrevInAEL === edge2 ? edge2.PrevInAEL : edge.PrevInAEL;
         } else {
@@ -879,6 +873,7 @@ export default class Clipper extends ClipperBase {
             if (horzEdge.isAssigned) {
                 OutRec.addOutPt(this.polyOuts, horzEdge, horzEdge.Top);
             }
+
             this.activeEdges = horzEdge.deleteFromAEL(this.activeEdges);
         }
     }
@@ -893,7 +888,7 @@ export default class Clipper extends ClipperBase {
             //the point may be anywhere along the horizontal ...
             let outPt: OutPt | null = this.polyOuts[horzEdge.OutIdx].Pts;
 
-            if (horzEdge.Side !== DIRECTION.LEFT) {
+            if (horzEdge.Side === DIRECTION.RIGHT) {
                 outPt = outPt.Prev;
             }
 

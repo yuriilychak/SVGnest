@@ -157,10 +157,8 @@ export default class OutPt {
                 if (outPt2.Pt.x < outPt1.Pt.x) {
                     dups = null;
                     outPt1 = outPt2;
-                } else {
-                    if (outPt2.Next !== outPt1 && outPt2.Prev !== outPt1) {
-                        dups = outPt2;
-                    }
+                } else if (outPt2.Next !== outPt1 && outPt2.Prev !== outPt1) {
+                    dups = outPt2;
                 }
             }
             outPt2 = outPt2.Next;

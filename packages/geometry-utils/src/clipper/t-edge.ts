@@ -221,54 +221,15 @@ export default class TEdge {
     }
 
     public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
+        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && this.PolyTyp === POLY_TYPE.CLIP;
+
         switch (fillType) {
             case POLY_FILL_TYPE.NON_ZERO:
-                if (Math.abs(this.WindCnt) !== 1) {
-                    return false;
-                }
-                break;
+                return Math.abs(this.WindCnt) === 1 && isReverse !== (this.WindCnt2 === 0);
             case POLY_FILL_TYPE.POSITIVE:
-                if (this.WindCnt !== 1) {
-                    return false;
-                }
-                break;
+                return this.WindCnt === 1 && isReverse !== this.WindCnt2 <= 0;
             default:
-                if (this.WindCnt !== -1) {
-                    return false;
-                }
-                break;
-        }
-
-        switch (clipType) {
-            case CLIP_TYPE.UNION:
-                switch (fillType) {
-                    case POLY_FILL_TYPE.NON_ZERO:
-                        return this.WindCnt2 === 0;
-                    case POLY_FILL_TYPE.POSITIVE:
-                        return this.WindCnt2 <= 0;
-                    default:
-                        return this.WindCnt2 >= 0;
-                }
-            case CLIP_TYPE.DIFFERENCE:
-                if (this.PolyTyp === POLY_TYPE.SUBJECT) {
-                    switch (fillType) {
-                        case POLY_FILL_TYPE.NON_ZERO:
-                            return this.WindCnt2 === 0;
-                        case POLY_FILL_TYPE.POSITIVE:
-                            return this.WindCnt2 <= 0;
-                        default:
-                            return this.WindCnt2 >= 0;
-                    }
-                } else {
-                    switch (fillType) {
-                        case POLY_FILL_TYPE.NON_ZERO:
-                            return this.WindCnt2 !== 0;
-                        case POLY_FILL_TYPE.POSITIVE:
-                            return this.WindCnt2 > 0;
-                        default:
-                            return this.WindCnt2 < 0;
-                    }
-                }
+                return this.WindCnt === -1 && isReverse !== this.WindCnt2 >= 0;
         }
     }
 
