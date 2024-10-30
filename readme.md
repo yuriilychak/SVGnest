@@ -4,14 +4,15 @@
 -   Restructure project to monorep for reusage of modules.
 -   Rewritten code to Typescript.
 -   Migrate SVG parsing logic to non-DOM libs.
--   Optimized worker flow. Now workers created only once and reused.
+-   Optimized worker flow (Now workers created only once and reused).
+-   Moved workers to ArrayBuffer input/output for better memory usage.
 -   Optimized concave flow. Now it faster then original. Original flow removed.
+-   Isolated and refactored js-clipper logic to avoid of full lib usage (it decrease package size twice).
 -   Migrated UI to React.
 
 ## Current TODO's
 
 -   Add node package for ability to run nesting tool from terminal on server-side.
--   Rewrite ClipperLib flows with own functions. This library is old isn't maintained, also need for next step.
 -   Port geometry-utils to WASM using assembly-script usage for better performance.
 -   Port svg-parser to WASM using assembly-script usage for better performance.
 -   Add es-doc for all files.
