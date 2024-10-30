@@ -10,8 +10,8 @@ import TEdge from './t-edge';
 import { ClipType, Direction, EdgeSide, PolyFillType, PolyType } from './types';
 
 export default class Clipper extends ClipperBase {
-    private clipType: ClipType = ClipType.ctIntersection;
-    private fillType: PolyFillType = PolyFillType.pftEvenOdd;
+    private clipType: ClipType = ClipType.ctUnion;
+    private fillType: PolyFillType = PolyFillType.pftNonZero;
     private scanbeam: Scanbeam | null = null;
     private activeEdges: TEdge = null;
     private sortedEdges: TEdge = null;
@@ -152,7 +152,7 @@ export default class Clipper extends ClipperBase {
                 if (edge1.getIntermediate(topY) && edge1.NextInLML.isHorizontal) {
                     edge1 = this.updateEdgeIntoAEL(edge1);
 
-                    if (edge1.OutIdx >= 0) {
+                    if (edge1.isAssigned) {
                         OutRec.addOutPt(this.polyOuts, edge1, edge1.Bot);
                     }
 
@@ -165,10 +165,10 @@ export default class Clipper extends ClipperBase {
                     edge2 = edge1.PrevInAEL;
 
                     if (
-                        edge1.OutIdx >= 0 &&
+                        edge1.isAssigned &&
                         edge1.WindDelta !== 0 &&
                         edge2 !== null &&
-                        edge2.OutIdx >= 0 &&
+                        edge2.isAssigned &&
                         edge2.Curr.x === edge1.Curr.x &&
                         edge2.WindDelta !== 0
                     ) {
@@ -189,7 +189,7 @@ export default class Clipper extends ClipperBase {
 
         while (edge1 !== null) {
             if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.OutIdx >= 0 ? OutRec.addOutPt(this.polyOuts, edge1, edge1.Top) : null;
+                outPt1 = edge1.isAssigned ? OutRec.addOutPt(this.polyOuts, edge1, edge1.Top) : null;
                 edge1 = this.updateEdgeIntoAEL(edge1);
                 //if output polygons share an edge, they'll need joining later ...
                 const ePrev: TEdge = edge1.PrevInAEL;
@@ -199,7 +199,7 @@ export default class Clipper extends ClipperBase {
                     ePrev !== null &&
                     ePrev.Curr.almostEqual(edge1.Bot) &&
                     outPt1 !== null &&
-                    ePrev.OutIdx >= 0 &&
+                    ePrev.isAssigned &&
                     ePrev.Curr.y > ePrev.Top.y &&
                     TEdge.slopesEqual(edge1, ePrev, this.isUseFullRange) &&
                     edge1.WindDelta !== 0 &&
@@ -211,7 +211,7 @@ export default class Clipper extends ClipperBase {
                     eNext !== null &&
                     eNext.Curr.almostEqual(edge1.Bot) &&
                     outPt1 !== null &&
-                    eNext.OutIdx >= 0 &&
+                    eNext.isAssigned &&
                     eNext.Curr.y > eNext.Top.y &&
                     TEdge.slopesEqual(edge1, eNext, this.isUseFullRange) &&
                     edge1.WindDelta !== 0 &&
@@ -230,7 +230,7 @@ export default class Clipper extends ClipperBase {
         const maxPairEdge: TEdge | null = edge.maximaPair;
 
         if (maxPairEdge === null) {
-            if (edge.OutIdx >= 0) {
+            if (edge.isAssigned) {
                 OutRec.addOutPt(this.polyOuts, edge, edge.Top);
             }
 
@@ -247,22 +247,22 @@ export default class Clipper extends ClipperBase {
             nextEdge = edge.NextInAEL;
         }
 
-        if (edge.OutIdx === -1 && maxPairEdge.OutIdx === -1) {
+        if (edge.isUnassigned && maxPairEdge.isUnassigned) {
             this.activeEdges = edge.deleteFromAEL(this.activeEdges);
             this.activeEdges = maxPairEdge.deleteFromAEL(this.activeEdges);
-        } else if (edge.OutIdx >= 0 && maxPairEdge.OutIdx >= 0) {
+        } else if (edge.isAssigned && maxPairEdge.isAssigned) {
             this.IntersectEdges(edge, maxPairEdge, edge.Top, false);
         } else if (edge.WindDelta === 0) {
-            if (edge.OutIdx >= 0) {
+            if (edge.isAssigned) {
                 OutRec.addOutPt(this.polyOuts, edge, edge.Top);
-                edge.OutIdx = -1;
+                edge.unassign();
             }
 
             this.activeEdges = edge.deleteFromAEL(this.activeEdges);
 
-            if (maxPairEdge.OutIdx >= 0) {
+            if (maxPairEdge.isAssigned) {
                 OutRec.addOutPt(this.polyOuts, maxPairEdge, edge.Top);
-                maxPairEdge.OutIdx = -1;
+                maxPairEdge.unassign();
             }
 
             this.activeEdges = maxPairEdge.deleteFromAEL(this.activeEdges);
@@ -344,10 +344,10 @@ export default class Clipper extends ClipperBase {
             }
 
             if (
-                leftBound.OutIdx >= 0 &&
+                leftBound.isAssigned &&
                 leftBound.PrevInAEL !== null &&
                 leftBound.PrevInAEL.Curr.x === leftBound.Bot.x &&
-                leftBound.PrevInAEL.OutIdx >= 0 &&
+                leftBound.PrevInAEL.isAssigned &&
                 TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, this.isUseFullRange) &&
                 leftBound.WindDelta !== 0 &&
                 leftBound.PrevInAEL.WindDelta !== 0
@@ -358,8 +358,8 @@ export default class Clipper extends ClipperBase {
 
             if (leftBound.NextInAEL !== rightBound) {
                 if (
-                    rightBound.OutIdx >= 0 &&
-                    rightBound.PrevInAEL.OutIdx >= 0 &&
+                    rightBound.isAssigned &&
+                    rightBound.PrevInAEL.isAssigned &&
                     TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange) &&
                     rightBound.WindDelta !== 0 &&
                     rightBound.PrevInAEL.WindDelta !== 0
@@ -428,10 +428,10 @@ export default class Clipper extends ClipperBase {
     private IntersectEdges(edge1: TEdge, edge2: TEdge, point: Point, isProtect: boolean): void {
         //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
         //e2 in AEL except when e1 is being inserted at the intersection point ...
-        let edge1Stops: boolean = !isProtect && edge1.NextInLML === null && edge1.Top.x === point.x && edge1.Top.y === point.y;
-        let edge2Stops: boolean = !isProtect && edge2.NextInLML === null && edge2.Top.x === point.x && edge2.Top.y === point.y;
-        let edge1Contributing: boolean = edge1.OutIdx >= 0;
-        let edge2Contributing: boolean = edge2.OutIdx >= 0;
+        let edge1Stops: boolean = !isProtect && edge1.NextInLML === null && edge1.Top.almostEqual(point);
+        let edge2Stops: boolean = !isProtect && edge2.NextInLML === null && edge2.Top.almostEqual(point);
+        let edge1Contributing: boolean = edge1.isAssigned;
+        let edge2Contributing: boolean = edge2.isAssigned;
 
         //if either edge is on an OPEN path ...
         if (edge1.WindDelta === 0 || edge2.WindDelta === 0) {
@@ -453,7 +453,7 @@ export default class Clipper extends ClipperBase {
                         OutRec.addOutPt(this.polyOuts, edge1, point);
 
                         if (edge1Contributing) {
-                            edge1.OutIdx = -1;
+                            edge1.unassign();
                         }
                     }
                 } else {
@@ -461,7 +461,7 @@ export default class Clipper extends ClipperBase {
                         OutRec.addOutPt(this.polyOuts, edge2, point);
 
                         if (edge2Contributing) {
-                            edge2.OutIdx = -1;
+                            edge2.unassign();
                         }
                     }
                 }
@@ -474,7 +474,7 @@ export default class Clipper extends ClipperBase {
                     OutRec.addOutPt(this.polyOuts, edge1, point);
 
                     if (edge1Contributing) {
-                        edge1.OutIdx = -1;
+                        edge1.unassign();
                     }
                 } else if (
                     edge2.WindDelta === 0 &&
@@ -483,19 +483,19 @@ export default class Clipper extends ClipperBase {
                 ) {
                     OutRec.addOutPt(this.polyOuts, edge2, point);
                     if (edge2Contributing) {
-                        edge2.OutIdx = -1;
+                        edge2.unassign();
                     }
                 }
             }
             if (edge1Stops) {
-                if (edge1.OutIdx < 0) {
+                if (!edge1.isAssigned) {
                     this.activeEdges = edge1.deleteFromAEL(this.activeEdges);
                 } else {
                     showError('Error intersecting polylines');
                 }
             }
             if (edge2Stops) {
-                if (edge2.OutIdx < 0) {
+                if (!edge2.isAssigned) {
                     this.activeEdges = edge2.deleteFromAEL(this.activeEdges);
                 } else {
                     showError('Error intersecting polylines');
@@ -508,31 +508,20 @@ export default class Clipper extends ClipperBase {
         //update winding counts...
         //assumes that e1 will be to the Right of e2 ABOVE the intersection
         if (edge1.PolyTyp === edge2.PolyTyp) {
-            if (this.fillType === PolyFillType.pftEvenOdd) {
-                const oldE1WindCnt: number = edge1.WindCnt;
-                edge1.WindCnt = edge2.WindCnt;
-                edge2.WindCnt = oldE1WindCnt;
+            if (edge1.WindCnt === -edge2.WindDelta) {
+                edge1.WindCnt = -edge1.WindCnt;
             } else {
-                if (edge1.WindCnt === -edge2.WindDelta) {
-                    edge1.WindCnt = -edge1.WindCnt;
-                } else {
-                    edge1.WindCnt += edge2.WindDelta;
-                }
+                edge1.WindCnt += edge2.WindDelta;
+            }
 
-                if (edge2.WindCnt === edge1.WindDelta) {
-                    edge2.WindCnt = -edge2.WindCnt;
-                } else {
-                    edge2.WindCnt -= edge1.WindDelta;
-                }
+            if (edge2.WindCnt === edge1.WindDelta) {
+                edge2.WindCnt = -edge2.WindCnt;
+            } else {
+                edge2.WindCnt -= edge1.WindDelta;
             }
         } else {
-            if (this.fillType === PolyFillType.pftEvenOdd) {
-                edge1.WindCnt2 = edge1.WindCnt2 === 0 ? 1 : 0;
-                edge2.WindCnt2 = edge2.WindCnt2 === 0 ? 1 : 0;
-            } else {
-                edge1.WindCnt2 += edge2.WindDelta;
-                edge2.WindCnt2 -= edge1.WindDelta;
-            }
+            edge1.WindCnt2 += edge2.WindDelta;
+            edge2.WindCnt2 -= edge1.WindDelta;
         }
 
         let e1Wc: number = 0;
@@ -559,7 +548,7 @@ export default class Clipper extends ClipperBase {
                 edge2Stops ||
                 (e1Wc !== 0 && e1Wc !== 1) ||
                 (e2Wc !== 0 && e2Wc !== 1) ||
-                (edge1.PolyTyp !== edge2.PolyTyp && this.clipType !== ClipType.ctXor)
+                edge1.PolyTyp !== edge2.PolyTyp
             ) {
                 this.addLocalMaxPoly(edge1, edge2, point);
             } else {
@@ -604,11 +593,6 @@ export default class Clipper extends ClipperBase {
                 this.AddLocalMinPoly(edge1, edge2, point);
             } else if (e1Wc === 1 && e2Wc === 1) {
                 switch (this.clipType) {
-                    case ClipType.ctIntersection:
-                        if (e1Wc2 > 0 && e2Wc2 > 0) {
-                            this.AddLocalMinPoly(edge1, edge2, point);
-                        }
-                        break;
                     case ClipType.ctUnion:
                         if (e1Wc2 <= 0 && e2Wc2 <= 0) {
                             this.AddLocalMinPoly(edge1, edge2, point);
@@ -622,15 +606,12 @@ export default class Clipper extends ClipperBase {
                             this.AddLocalMinPoly(edge1, edge2, point);
                         }
                         break;
-                    case ClipType.ctXor:
-                        this.AddLocalMinPoly(edge1, edge2, point);
-                        break;
                 }
             } else {
                 TEdge.swapSides(edge1, edge2);
             }
         }
-        if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.OutIdx >= 0) || (edge2Stops && edge2.OutIdx >= 0))) {
+        if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
             TEdge.swapSides(edge1, edge2);
             TEdge.swapPolyIndexes(edge1, edge2);
         }
@@ -644,20 +625,20 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private addLocalMaxPoly(e1: TEdge, e2: TEdge, pt: Point): void {
-        OutRec.addOutPt(this.polyOuts, e1, pt);
+    private addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point): void {
+        OutRec.addOutPt(this.polyOuts, edge1, point);
 
-        if (e2.WindDelta === 0) {
-            OutRec.addOutPt(this.polyOuts, e2, pt);
+        if (edge2.WindDelta === 0) {
+            OutRec.addOutPt(this.polyOuts, edge2, point);
         }
 
-        if (e1.OutIdx === e2.OutIdx) {
-            e1.OutIdx = -1;
-            e2.OutIdx = -1;
-        } else if (e1.OutIdx < e2.OutIdx) {
-            OutRec.appendPolygon(this.polyOuts, e1, e2, this.activeEdges);
+        if (edge1.OutIdx === edge2.OutIdx) {
+            edge1.unassign();
+            edge2.unassign();
+        } else if (edge1.OutIdx < edge2.OutIdx) {
+            OutRec.appendPolygon(this.polyOuts, edge1, edge2, this.activeEdges);
         } else {
-            OutRec.appendPolygon(this.polyOuts, e2, e1, this.activeEdges);
+            OutRec.appendPolygon(this.polyOuts, edge2, edge1, this.activeEdges);
         }
     }
 
@@ -684,7 +665,7 @@ export default class Clipper extends ClipperBase {
 
         if (
             edgePrev !== null &&
-            edgePrev.OutIdx >= 0 &&
+            edgePrev.isAssigned &&
             edgePrev.topX(point.y) === edge.topX(point.y) &&
             TEdge.slopesEqual(edge, edgePrev, this.isUseFullRange) &&
             edge.WindDelta !== 0 &&
@@ -789,7 +770,7 @@ export default class Clipper extends ClipperBase {
                     (dir === Direction.dLeftToRight && e.Curr.x <= horzRight) ||
                     (dir === Direction.dRightToLeft && e.Curr.x >= horzLeft)
                 ) {
-                    if (horzEdge.OutIdx >= 0 && horzEdge.WindDelta !== 0) {
+                    if (horzEdge.isAssigned && horzEdge.WindDelta !== 0) {
                         this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
                     }
 
@@ -801,7 +782,7 @@ export default class Clipper extends ClipperBase {
                         } else {
                             this.IntersectEdges(e, horzEdge, e.Top, false);
                         }
-                        if (eMaxPair.OutIdx >= 0) {
+                        if (eMaxPair.isAssigned) {
                             showError('ProcessHorizontal error');
                         }
 
@@ -827,14 +808,14 @@ export default class Clipper extends ClipperBase {
                 e = eNext;
             }
             //end while
-            if (horzEdge.OutIdx >= 0 && horzEdge.WindDelta !== 0) {
+            if (horzEdge.isAssigned && horzEdge.WindDelta !== 0) {
                 this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
             }
 
             if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
                 horzEdge = this.updateEdgeIntoAEL(horzEdge);
 
-                if (horzEdge.OutIdx >= 0) {
+                if (horzEdge.isAssigned) {
                     OutRec.addOutPt(this.polyOuts, horzEdge, horzEdge.Bot);
                 }
 
@@ -848,7 +829,7 @@ export default class Clipper extends ClipperBase {
         }
         //end for (;;)
         if (horzEdge.NextInLML !== null) {
-            if (horzEdge.OutIdx >= 0) {
+            if (horzEdge.isAssigned) {
                 const op1: OutPt | null = OutRec.addOutPt(this.polyOuts, horzEdge, horzEdge.Top);
                 horzEdge = this.updateEdgeIntoAEL(horzEdge);
 
@@ -856,43 +837,41 @@ export default class Clipper extends ClipperBase {
                     return;
                 }
                 //nb: HorzEdge is no longer horizontal here
-                let ePrev: TEdge | null = horzEdge.PrevInAEL;
-                let eNext: TEdge | null = horzEdge.NextInAEL;
+                let prevEdge: TEdge | null = horzEdge.PrevInAEL;
+                let nextEdge: TEdge | null = horzEdge.NextInAEL;
 
                 if (
-                    ePrev !== null &&
-                    ePrev.Curr.x === horzEdge.Bot.x &&
-                    ePrev.Curr.y === horzEdge.Bot.y &&
-                    ePrev.WindDelta !== 0 &&
-                    ePrev.OutIdx >= 0 &&
-                    ePrev.Curr.y > ePrev.Top.y &&
-                    TEdge.slopesEqual(horzEdge, ePrev, this.isUseFullRange)
+                    prevEdge !== null &&
+                    prevEdge.Curr.almostEqual(horzEdge.Bot) &&
+                    prevEdge.WindDelta !== 0 &&
+                    prevEdge.isAssigned &&
+                    prevEdge.Curr.y > prevEdge.Top.y &&
+                    TEdge.slopesEqual(horzEdge, prevEdge, this.isUseFullRange)
                 ) {
-                    const op2: OutPt = OutRec.addOutPt(this.polyOuts, ePrev, horzEdge.Bot);
+                    const op2: OutPt = OutRec.addOutPt(this.polyOuts, prevEdge, horzEdge.Bot);
                     this.joins.push(new Join(op1, op2, horzEdge.Top));
                 } else if (
-                    eNext !== null &&
-                    eNext.Curr.x === horzEdge.Bot.x &&
-                    eNext.Curr.y === horzEdge.Bot.y &&
-                    eNext.WindDelta !== 0 &&
-                    eNext.OutIdx >= 0 &&
-                    eNext.Curr.y > eNext.Top.y &&
-                    TEdge.slopesEqual(horzEdge, eNext, this.isUseFullRange)
+                    nextEdge !== null &&
+                    nextEdge.Curr.almostEqual(horzEdge.Bot) &&
+                    nextEdge.WindDelta !== 0 &&
+                    nextEdge.isAssigned &&
+                    nextEdge.Curr.y > nextEdge.Top.y &&
+                    TEdge.slopesEqual(horzEdge, nextEdge, this.isUseFullRange)
                 ) {
-                    const op2: OutPt | null = OutRec.addOutPt(this.polyOuts, eNext, horzEdge.Bot);
+                    const op2: OutPt | null = OutRec.addOutPt(this.polyOuts, nextEdge, horzEdge.Bot);
                     this.joins.push(new Join(op1, op2, horzEdge.Top));
                 }
             } else {
                 horzEdge = this.updateEdgeIntoAEL(horzEdge);
             }
         } else if (eMaxPair !== null) {
-            if (eMaxPair.OutIdx >= 0) {
+            if (eMaxPair.isAssigned) {
                 if (dir === Direction.dLeftToRight) {
                     this.IntersectEdges(horzEdge, eMaxPair, horzEdge.Top, false);
                 } else {
                     this.IntersectEdges(eMaxPair, horzEdge, horzEdge.Top, false);
                 }
-                if (eMaxPair.OutIdx >= 0) {
+                if (eMaxPair.isAssigned) {
                     showError('ProcessHorizontal error');
                 }
             } else {
@@ -900,7 +879,7 @@ export default class Clipper extends ClipperBase {
                 this.activeEdges = eMaxPair.deleteFromAEL(this.activeEdges);
             }
         } else {
-            if (horzEdge.OutIdx >= 0) {
+            if (horzEdge.isAssigned) {
                 OutRec.addOutPt(this.polyOuts, horzEdge, horzEdge.Top);
             }
             this.activeEdges = horzEdge.deleteFromAEL(this.activeEdges);
@@ -916,6 +895,7 @@ export default class Clipper extends ClipperBase {
             //get the last Op for this horizontal edge
             //the point may be anywhere along the horizontal ...
             let outPt: OutPt | null = this.polyOuts[horzEdge.OutIdx].Pts;
+
             if (horzEdge.Side !== EdgeSide.esLeft) {
                 outPt = outPt.Prev;
             }
@@ -980,7 +960,7 @@ export default class Clipper extends ClipperBase {
         //pre-condition: intersections are sorted bottom-most first.
         //Now it's crucial that intersections are made only between adjacent edges,
         //so to ensure this the order of intersections may need adjusting ...
-        this.intersections.sort(Clipper.IntersectNodeSort);
+        this.intersections.sort(IntersectNode.sort);
 
         this.copyAELToSEL();
 
@@ -1103,11 +1083,5 @@ export default class Clipper extends ClipperBase {
         }
 
         this.sortedEdges = null;
-    }
-
-    private static IntersectNodeSort(node1: IntersectNode, node2: IntersectNode): number {
-        //the following typecast is safe because the differences in Pt.Y will
-        //be limited to the height of the scanbeam.
-        return node2.Pt.y - node1.Pt.y;
     }
 }

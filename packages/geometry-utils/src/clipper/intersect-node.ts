@@ -15,4 +15,10 @@ export default class IntersectNode {
     public get edgesAdjacent(): boolean {
         return this.Edge1.NextInSEL === this.Edge2 || this.Edge1.PrevInSEL === this.Edge2;
     }
+
+    public static sort(node1: IntersectNode, node2: IntersectNode): number {
+        //the following typecast is safe because the differences in Pt.Y will
+        //be limited to the height of the scanbeam.
+        return node2.Pt.y - node1.Pt.y;
+    }
 }

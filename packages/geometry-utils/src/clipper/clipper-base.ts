@@ -149,9 +149,9 @@ export default class ClipperBase {
 
             const edge2: TEdge = this.ProcessBound(locMin.RightBound, !isClockwise);
 
-            if (locMin.LeftBound.isSkip) {
+            if (locMin.LeftBound.isSkipped) {
                 locMin.LeftBound = null;
-            } else if (locMin.RightBound.isSkip) {
+            } else if (locMin.RightBound.isSkipped) {
                 locMin.RightBound = null;
             }
 
@@ -196,13 +196,13 @@ export default class ClipperBase {
             }
         }
 
-        if (!result.isSkip) {
+        if (!result.isSkipped) {
             if (isClockwise) {
-                while (result.Top.y === result.Next.Bot.y && !result.Next.isSkip) {
+                while (result.Top.y === result.Next.Bot.y && !result.Next.isSkipped) {
                     result = result.Next;
                 }
 
-                if (result.isDxHorizontal && !result.Next.isSkip) {
+                if (result.isDxHorizontal && !result.Next.isSkipped) {
                     //nb: at the top of a bound, horizontals are added to the bound
                     //only when the preceding edge attaches to the horizontal's left vertex
                     //unless a Skip edge is encountered when that becomes the top divide
@@ -238,8 +238,8 @@ export default class ClipperBase {
                 result = result.Next;
                 //move to the edge just beyond current bound
             } else {
-                while (result.Top.y === result.Prev.Bot.y && !result.Prev.isSkip) result = result.Prev;
-                if (result.isDxHorizontal && !result.Prev.isSkip) {
+                while (result.Top.y === result.Prev.Bot.y && !result.Prev.isSkipped) result = result.Prev;
+                if (result.isDxHorizontal && !result.Prev.isSkipped) {
                     horzEdge = result;
 
                     while (horzEdge.Next.isDxHorizontal) {
@@ -274,7 +274,7 @@ export default class ClipperBase {
             }
         }
 
-        if (result.isSkip) {
+        if (result.isSkipped) {
             //if edges still remain in the current bound beyond the skip edge then
             //create another LocMin and call ProcessBound once more
             edge = result;

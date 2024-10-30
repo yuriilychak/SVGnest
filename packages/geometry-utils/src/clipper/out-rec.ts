@@ -149,7 +149,7 @@ export default class OutRec {
         let edge: TEdge | null = inputEdge.PrevInAEL;
 
         while (edge !== null) {
-            if (edge.OutIdx >= 0 && edge.WindDelta !== 0) {
+            if (edge.isAssigned && edge.WindDelta !== 0) {
                 isHole = !isHole;
 
                 if (this.FirstLeft === null) {
@@ -333,9 +333,9 @@ export default class OutRec {
         outRec2.FirstLeft = outRec1;
         const OKIdx: number = edge1.OutIdx;
         const ObsoleteIdx: number = edge2.OutIdx;
-        edge1.OutIdx = -1;
+        edge1.unassign();
         //nb: safe because we only get here via AddLocalMaxPoly
-        edge2.OutIdx = -1;
+        edge2.unassign();
 
         let e: TEdge = activeEdge;
 
@@ -356,7 +356,7 @@ export default class OutRec {
         let outRec: OutRec = null;
         let newOp: OutPt = null;
 
-        if (edge.OutIdx < 0) {
+        if (!edge.isAssigned) {
             newOp = new OutPt(0, point);
             outRec = OutRec.create(records, edge.WindDelta === 0, newOp);
             newOp.Idx = outRec.Idx;
@@ -401,7 +401,7 @@ export default class OutRec {
         while (result !== records[result.Idx]) {
             result = records[result.Idx];
         }
-        
+
         return result;
     }
 
