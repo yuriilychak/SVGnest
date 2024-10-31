@@ -13,8 +13,6 @@
 ## Current TODO's
 
 -   Add node package for ability to run nesting tool from terminal on server-side.
--   Port geometry-utils to WASM using assembly-script usage for better performance.
--   Port svg-parser to WASM using assembly-script usage for better performance.
 -   Add es-doc for all files.
 
 ## Why I do it

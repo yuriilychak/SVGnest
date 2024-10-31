@@ -1,21 +1,12 @@
 import { NFPCache, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import {
-    almostEqual,
-    deserializeBufferToMap,
-    deserializeConfig,
-    deserializePolygonNodes,
-    generateNFPCacheKey,
-    getPolygonNode,
-    getUint16,
-    joinUint16,
-    toRotationIndex
-} from '../helpers';
+import { almostEqual, generateNFPCacheKey, getPolygonNode, getUint16, joinUint16, toRotationIndex } from '../helpers';
 import Point from '../point';
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import { NFP_INFO_START_INDEX } from '../constants';
 import { WorkerConfig } from './types';
+import PlaceContent from './place-content';
 
 function fillPointMemSeg(
     pointPool: PointPool,
@@ -40,26 +31,6 @@ function fillPointMemSeg(
     pointPool.malloc(pointIndices);
 
     return prevValue + pointCount;
-}
-
-// ensure all necessary NFPs exist
-function getNfpError(nfpCache: NFPCache, rotations: number, placed: PolygonNode[], path: PolygonNode): boolean {
-    let i: number = 0;
-    let key: number = 0;
-
-    for (i = 0; i < placed.length; ++i) {
-        key = generateNFPCacheKey(rotations, false, placed[i], path);
-
-        if (!nfpCache.has(key)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function getPathKey(id: number, rotation: number, rotations: number): number {
-    return joinUint16(toRotationIndex(rotation, rotations), id);
 }
 
 function getResult(placements: number[][], pathItems: number[][], fitness: number): Float64Array {
@@ -93,23 +64,11 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
     return result;
 }
 
-function deserializeBuffer(buffer: ArrayBuffer): { rotations: number; area: number; nfpCache: NFPCache; nodes: PolygonNode[] } {
-    const view: DataView = new DataView(buffer);
-    const { rotations } = deserializeConfig(view.getFloat64(Float64Array.BYTES_PER_ELEMENT));
-    const area = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
-    const mapBufferSize: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 3);
-    const nfpCache: NFPCache = deserializeBufferToMap(buffer, Float64Array.BYTES_PER_ELEMENT * 4, mapBufferSize);
-    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 4 + mapBufferSize);
-
-    return { rotations, area, nfpCache, nodes };
-}
-
 export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
     const { pointPool, polygons, memSeg } = config;
-    const { rotations, area, nodes, nfpCache } = deserializeBuffer(buffer);
+    const placeContent = new PlaceContent(buffer);
     const polygon1: Polygon = polygons[0];
     const polygon2: Polygon = polygons[1];
-    const emptyPath: PolygonNode = getPolygonNode(-1, new Float64Array(0));
     const pointIndices: number = pointPool.alloc(2);
     const tmpPoint: Point = pointPool.get(pointIndices, 0);
     const firstPoint: Point = pointPool.get(pointIndices, 1);
@@ -122,7 +81,6 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     let positionY: number = 0;
     let fitness: number = 0;
     let pointCount: number = 0;
-    let key: number = 0;
     let minWidth: number = 0;
     let curArea: number = 0;
     let nfpOffset: number = 0;
@@ -139,23 +97,22 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     let k: number = 0;
     let m: number = 0;
 
-    while (nodes.length > 0) {
+    while (placeContent.nodes.length > 0) {
         placed = [];
         placement = [];
         pathItem = [];
         ++fitness; // add 1 for each new bin opened (lower fitness is better)
 
-        for (i = 0; i < nodes.length; ++i) {
-            node = nodes[i];
+        for (i = 0; i < placeContent.nodes.length; ++i) {
+            node = placeContent.nodes[i];
             firstPoint.fromMemSeg(node.memSeg);
-            pathKey = getPathKey(node.source, node.rotation, rotations);
+            pathKey = placeContent.getPathKey(i);
 
             // inner NFP
-            key = generateNFPCacheKey(rotations, true, emptyPath, node);
-            binNfp = nfpCache.has(key) ? new Float64Array(nfpCache.get(key)) : null;
+            binNfp = placeContent.getBinNfp(i);
 
             // part unplaceable, skip             part unplaceable, skip
-            if (!binNfp || binNfp.length < 3 || getNfpError(nfpCache, rotations, placed, node)) {
+            if (!binNfp || binNfp.length < 3 || placeContent.getNfpError(placed, node)) {
                 continue;
             }
 
@@ -186,7 +143,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
                 continue;
             }
 
-            finalNfp = ClipperWrapper.getFinalNfps(pointPool, nfpCache, rotations, placed, node, binNfp, placement);
+            finalNfp = ClipperWrapper.getFinalNfps(pointPool, placeContent, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
@@ -250,13 +207,13 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
         }
 
         if (minWidth) {
-            fitness += minWidth / area;
+            fitness += minWidth / placeContent.area;
         }
 
         for (i = 0; i < placed.length; ++i) {
-            const index = nodes.indexOf(placed[i]);
+            const index = placeContent.nodes.indexOf(placed[i]);
             if (index !== -1) {
-                nodes.splice(index, 1);
+                placeContent.nodes.splice(index, 1);
             }
         }
 
@@ -269,7 +226,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     }
 
     // there were parts that couldn't be placed
-    fitness += nodes.length << 1;
+    fitness += placeContent.nodes.length << 1;
 
     pointPool.malloc(pointIndices);
 

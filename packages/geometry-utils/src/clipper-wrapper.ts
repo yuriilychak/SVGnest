@@ -1,12 +1,13 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 
-import { NestConfig, NFPCache, PolygonNode } from './types';
+import { NestConfig, PolygonNode } from './types';
 import Polygon from './polygon';
 import Point from './point';
 import { generateNFPCacheKey, getPolygonNode, getUint16 } from './helpers';
 import PointPool from './point-pool';
 import { NFP_INFO_START_INDEX } from './constants';
 import BoundRect from './bound-rect';
+import PlaceContent from './worker-flow/place-content';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -303,8 +304,7 @@ export default class ClipperWrapper {
 
     public static getFinalNfps(
         pointPool: PointPool,
-        nfpCache: NFPCache,
-        rotations: number,
+        placeContent: PlaceContent,
         placed: PolygonNode[],
         path: PolygonNode,
         binNfp: Float64Array,
@@ -317,15 +317,15 @@ export default class ClipperWrapper {
         let key: number = 0;
 
         for (i = 0; i < placed.length; ++i) {
-            key = generateNFPCacheKey(rotations, false, placed[i], path);
+            key = generateNFPCacheKey(placeContent.rotations, false, placed[i], path);
 
-            if (!nfpCache.has(key)) {
+            if (!placeContent.nfpCache.has(key)) {
                 continue;
             }
 
             tmpPoint.fromMemSeg(placement, i);
 
-            ClipperWrapper.applyNfps(clipper, nfpCache.get(key), tmpPoint);
+            ClipperWrapper.applyNfps(clipper, placeContent.nfpCache.get(key), tmpPoint);
         }
 
         pointPool.malloc(pointIndices);

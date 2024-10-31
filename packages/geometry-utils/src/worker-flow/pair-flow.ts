@@ -1,22 +1,12 @@
-import {
-    almostEqual,
-    cycleIndex,
-    midValue,
-    keyToNFPData,
-    setBits,
-    getBits,
-    getUint16,
-    joinUint16,
-    deserializeConfig,
-    deserializePolygonNodes
-} from '../helpers';
-import { NFPContent, PolygonNode } from '../types';
+import { almostEqual, cycleIndex, midValue, setBits, getBits, getUint16, joinUint16 } from '../helpers';
+import { PolygonNode } from '../types';
 import Point from '../point';
 import Polygon from '../polygon';
 import { NFP_INFO_START_INDEX, TOL } from '../constants';
 import PointPool from '../point-pool';
 import { WorkerConfig, SegmentCheck } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
+import PairContent from './pair-content';
 
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
@@ -995,53 +985,10 @@ function noFitPolygon(
     return result;
 }
 
-function getResult(key: number, nfpArrays: Float64Array[]): Float64Array {
-    const nfpCount: number = nfpArrays.length;
-    const info = new Float64Array(nfpCount);
-    let totalSize: number = NFP_INFO_START_INDEX + nfpCount;
-    let size: number = 0;
-    let i: number = 0;
-
-    for (i = 0; i < nfpCount; ++i) {
-        size = nfpArrays[i].length;
-        info[i] = joinUint16(size, totalSize);
-        totalSize += size;
-    }
-
-    const result = new Float64Array(totalSize);
-
-    result[0] = key;
-    result[1] = nfpCount;
-
-    result.set(info, NFP_INFO_START_INDEX);
-
-    for (i = 0; i < nfpCount; ++i) {
-        result.set(nfpArrays[i], getUint16(info[i], 1));
-    }
-
-    return result;
-}
-
-function deserializeBuffer(buffer: ArrayBuffer): {
-    nodes: PolygonNode[];
-    key: number;
-    useHoles: boolean;
-    nfpContent: NFPContent;
-} {
-    const view: DataView = new DataView(buffer);
-    const key: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
-    const configuration: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
-    const nodes: PolygonNode[] = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
-    const { useHoles, rotations } = deserializeConfig(configuration);
-    const nfpContent: NFPContent = keyToNFPData(key, rotations);
-
-    return { nodes, key, useHoles, nfpContent };
-}
-
 export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
-    const { key, nodes, useHoles, nfpContent } = deserializeBuffer(buffer);
+    const pairContent = new PairContent(buffer);
 
-    if (nodes.length === 0) {
+    if (pairContent.isBroken) {
         return new Float64Array(0);
     }
 
@@ -1049,20 +996,23 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     const polygonA: Polygon = polygons[0];
     const polygonB: Polygon = polygons[1];
 
-    polygonA.bind(nodes[0].memSeg);
-    polygonB.bind(nodes[1].memSeg);
+    polygonA.bind(pairContent.firstNode.memSeg);
+    polygonB.bind(pairContent.secondNode.memSeg);
     const tmpPolygon: Polygon = polygons[2];
     let nfp: Float64Array[] = null;
+    let nfpSize: number = 0;
     let i: number = 0;
 
-    if (nfpContent.inside) {
+    if (pairContent.isInside) {
         nfp = polygonA.isRectangle
             ? noFitPolygonRectangle(pointPool, polygonA, polygonB)
             : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, true);
 
         // ensure all interior NFPs have the same winding direction
-        if (nfp.length > 0) {
-            for (i = 0; i < nfp.length; ++i) {
+        nfpSize = nfp.length;
+
+        if (nfpSize !== 0) {
+            for (i = 0; i < nfpSize; ++i) {
                 tmpPolygon.bind(nfp[i]);
 
                 if (tmpPolygon.area > 0) {
@@ -1072,16 +1022,16 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
         } else {
             // warning on null inner NFP
             // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
-            console.log('NFP Warning: ', key);
+            console.log('NFP Warning: ', pairContent.key);
         }
 
-        return getResult(key, nfp);
+        return pairContent.getResult(nfp);
     }
 
     nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, false);
     // sanity check
     if (nfp.length === 0) {
-        console.log('NFP Error: ', key);
+        console.log('NFP Error: ', pairContent.key);
         console.log('A: ', JSON.stringify(polygonA));
         console.log('B: ', JSON.stringify(polygonB));
 
@@ -1091,7 +1041,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     tmpPolygon.bind(nfp[0]);
     // if searchedges is active, only the first NFP is guaranteed to pass sanity check
     if (tmpPolygon.absArea < polygonA.absArea) {
-        console.log('NFP Area Error: ', tmpPolygon.absArea, key);
+        console.log('NFP Area Error: ', tmpPolygon.absArea, pairContent.key);
         console.log('NFP:', JSON.stringify(tmpPolygon));
         console.log('A: ', JSON.stringify(polygonA));
         console.log('B: ', JSON.stringify(polygonB));
@@ -1104,8 +1054,10 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
 
     firstNfp.bind(nfp[0]);
 
+    nfpSize = nfp.length;
+
     // for outer NFPs, the first is guaranteed to be the largest. Any subsequent NFPs that lie inside the first are holes
-    for (i = 0; i < nfp.length; ++i) {
+    for (i = 0; i < nfpSize; ++i) {
         tmpPolygon.bind(nfp[i]);
 
         if (tmpPolygon.area > 0) {
@@ -1118,13 +1070,13 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     }
 
     // generate nfps for children (holes of parts) if any exist
-    if (useHoles && nodes[0].children.length !== 0) {
-        const childCount: number = nodes[0].children.length;
+    if (pairContent.isUseHoles) {
+        const childCount: number = pairContent.firstNode.children.length;
         let node: PolygonNode = null;
         const child: Polygon = polygons[4];
 
         for (i = 0; i < childCount; ++i) {
-            node = nodes[0].children[i];
+            node = pairContent.firstNode.children[i];
             child.bind(node.memSeg);
 
             // no need to find nfp if B's bounding box is too big
@@ -1148,5 +1100,5 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
         }
     }
 
-    return getResult(key, nfp);
+    return pairContent.getResult(nfp);
 }
