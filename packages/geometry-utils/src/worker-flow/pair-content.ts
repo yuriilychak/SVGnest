@@ -1,23 +1,32 @@
 import { NFP_INFO_START_INDEX } from '../constants';
-import { deserializePolygonNodes, getUint16, joinUint16, keyToNFPData } from '../helpers';
+import { getUint16, joinUint16, keyToNFPData } from '../helpers';
 import { NFPContent, PolygonNode } from '../types';
 import WorkerContent from './worker-content';
 
 export default class PairContent extends WorkerContent {
-    private _key: number;
+    private _key: number = 0;
 
-    private _nodes: PolygonNode[];
+    private _nodes: PolygonNode[] = null;
 
-    private _content: NFPContent;
+    private _content: NFPContent = null;
 
-    constructor(buffer: ArrayBuffer) {
+    public init(buffer: ArrayBuffer): this {
         const view: DataView = new DataView(buffer);
 
-        super(view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2));
+        this.initNestConfig(view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2));
 
         this._key = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
-        this._nodes = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
+        this._nodes = WorkerContent.deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
         this._content = keyToNFPData(this._key, this.nestConfig.rotations);
+
+        return this;
+    }
+
+    public clean(): void {
+        super.clean();
+        this._key = 0;
+        this._nodes = null;
+        this._content = null;
     }
 
     public getResult(nfpArrays: Float64Array[]): Float64Array {
@@ -47,6 +56,12 @@ export default class PairContent extends WorkerContent {
         return result;
     }
 
+    public logError(message: string): void {
+        console.log(`${message}: `, this._key);
+        console.log('A: ', this.firstNode);
+        console.log('B: ', this.secondNode);
+    }
+
     public get firstNode(): PolygonNode {
         return this._nodes[0];
     }
@@ -57,10 +72,6 @@ export default class PairContent extends WorkerContent {
 
     public get isBroken(): boolean {
         return this._nodes.length === 0;
-    }
-
-    public get key(): number {
-        return this._key;
     }
 
     public get isUseHoles(): boolean {

@@ -1,6 +1,6 @@
-import { NFPCache, PolygonNode } from '../types';
+import { PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { almostEqual, generateNFPCacheKey, getPolygonNode, getUint16, joinUint16, toRotationIndex } from '../helpers';
+import { almostEqual, getUint16, joinUint16 } from '../helpers';
 import Point from '../point';
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
@@ -66,7 +66,7 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 
 export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
     const { pointPool, polygons, memSeg } = config;
-    const placeContent = new PlaceContent(buffer);
+    const placeContent: PlaceContent = config.placeContent.init(buffer);
     const polygon1: Polygon = polygons[0];
     const polygon2: Polygon = polygons[1];
     const pointIndices: number = pointPool.alloc(2);
@@ -97,14 +97,14 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     let k: number = 0;
     let m: number = 0;
 
-    while (placeContent.nodes.length > 0) {
+    while (placeContent.nodeCount > 0) {
         placed = [];
         placement = [];
         pathItem = [];
         ++fitness; // add 1 for each new bin opened (lower fitness is better)
 
-        for (i = 0; i < placeContent.nodes.length; ++i) {
-            node = placeContent.nodes[i];
+        for (i = 0; i < placeContent.nodeCount; ++i) {
+            node = placeContent.nodeAt(i);
             firstPoint.fromMemSeg(node.memSeg);
             pathKey = placeContent.getPathKey(i);
 
@@ -211,10 +211,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
         }
 
         for (i = 0; i < placed.length; ++i) {
-            const index = placeContent.nodes.indexOf(placed[i]);
-            if (index !== -1) {
-                placeContent.nodes.splice(index, 1);
-            }
+            placeContent.removeNode(placed[i]);
         }
 
         if (placement.length === 0) {
@@ -226,7 +223,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     }
 
     // there were parts that couldn't be placed
-    fitness += placeContent.nodes.length << 1;
+    fitness += placeContent.nodeCount << 1;
 
     pointPool.malloc(pointIndices);
 

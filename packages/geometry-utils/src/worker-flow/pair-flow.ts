@@ -986,7 +986,7 @@ function noFitPolygon(
 }
 
 export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
-    const pairContent = new PairContent(buffer);
+    const pairContent: PairContent = config.pairContent.init(buffer);
 
     if (pairContent.isBroken) {
         return new Float64Array(0);
@@ -1022,7 +1022,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
         } else {
             // warning on null inner NFP
             // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
-            console.log('NFP Warning: ', pairContent.key);
+            pairContent.logError('NFP Warning');
         }
 
         return pairContent.getResult(nfp);
@@ -1031,9 +1031,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, false);
     // sanity check
     if (nfp.length === 0) {
-        console.log('NFP Error: ', pairContent.key);
-        console.log('A: ', JSON.stringify(polygonA));
-        console.log('B: ', JSON.stringify(polygonB));
+        pairContent.logError('NFP Error');
 
         return new Float64Array(0);
     }
@@ -1041,10 +1039,8 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     tmpPolygon.bind(nfp[0]);
     // if searchedges is active, only the first NFP is guaranteed to pass sanity check
     if (tmpPolygon.absArea < polygonA.absArea) {
-        console.log('NFP Area Error: ', tmpPolygon.absArea, pairContent.key);
-        console.log('NFP:', JSON.stringify(tmpPolygon));
-        console.log('A: ', JSON.stringify(polygonA));
-        console.log('B: ', JSON.stringify(polygonB));
+        pairContent.logError('NFP Area Error');
+        console.log('Area: ', tmpPolygon.absArea);
         nfp.splice(i, 1);
 
         return new Float64Array(0);

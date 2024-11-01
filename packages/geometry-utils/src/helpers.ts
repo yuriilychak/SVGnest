@@ -119,36 +119,6 @@ function serializeNodes(nodes: PolygonNode[], buffer: ArrayBuffer, view: DataVie
     }, offset);
 }
 
-function deserializeNodes(nodes: PolygonNode[], view: DataView, buffer: ArrayBuffer, initialOffset: number): number {
-    const nodeCount: number = nodes.length;
-    let offset: number = initialOffset;
-    let memSegLength: number = 0;
-    let childrenCount: number = 0;
-    let source: number = 0;
-    let rotation: number = 0;
-    let memSeg: Float64Array = null;
-    let children: PolygonNode[] = null;
-    let i: number = 0;
-
-    for (i = 0; i < nodeCount; ++i) {
-        source = view.getFloat64(offset) - 1;
-        offset += Float64Array.BYTES_PER_ELEMENT;
-        rotation = view.getFloat64(offset);
-        offset += Float64Array.BYTES_PER_ELEMENT;
-        memSegLength = view.getUint32(offset) << 1;
-        offset += Uint32Array.BYTES_PER_ELEMENT;
-        memSeg = new Float64Array(buffer, offset, memSegLength);
-        offset += memSeg.byteLength;
-        childrenCount = view.getUint32(offset);
-        offset += Uint32Array.BYTES_PER_ELEMENT;
-        children = new Array(childrenCount);
-        offset = deserializeNodes(children, view, buffer, offset);
-        nodes[i] = { source, rotation, memSeg, children };
-    }
-
-    return offset;
-}
-
 export function serializePolygonNodes(nodes: PolygonNode[], offset: number = 0): ArrayBuffer {
     const initialOffset = Uint32Array.BYTES_PER_ELEMENT + offset;
     const totalSize: number = calculateTotalSize(nodes, initialOffset);
@@ -160,17 +130,6 @@ export function serializePolygonNodes(nodes: PolygonNode[], offset: number = 0):
     serializeNodes(nodes, buffer, view, initialOffset);
 
     return buffer;
-}
-
-export function deserializePolygonNodes(buffer: ArrayBuffer, offset: number = 0): PolygonNode[] {
-    const initialOffset = Uint32Array.BYTES_PER_ELEMENT + offset;
-    const view: DataView = new DataView(buffer);
-    const rootNodeCount = view.getUint32(offset);
-    const nodes: PolygonNode[] = new Array(rootNodeCount);
-
-    deserializeNodes(nodes, view, buffer, initialOffset);
-
-    return nodes;
 }
 
 export function serializeConfig(config: NestConfig): number {
@@ -212,28 +171,6 @@ export function serializeMapToBuffer(map: NFPCache): ArrayBuffer {
     return resultBuffer;
 }
 
-export function deserializeBufferToMap(buffer: ArrayBuffer, initialOffset: number, bufferSize: number): NFPCache {
-    const view: DataView = new DataView(buffer);
-    const map: NFPCache = new Map<number, ArrayBuffer>();
-    const resultOffset: number = initialOffset + bufferSize;
-    let offset: number = initialOffset;
-    let key: number = 0;
-    let length: number = 0;
-    let valueBuffer: ArrayBuffer = null;
-
-    while (offset < resultOffset) {
-        key = view.getUint32(offset);
-        offset += Uint32Array.BYTES_PER_ELEMENT;
-        length = view.getUint32(offset);
-        offset += Uint32Array.BYTES_PER_ELEMENT;
-        valueBuffer = buffer.slice(offset, offset + length);
-        offset += length;
-
-        map.set(key, valueBuffer);
-    }
-
-    return map;
-}
 export function clipperRound(a: number): number {
     return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
 }

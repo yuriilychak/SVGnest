@@ -1,6 +1,8 @@
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import Point from '../point';
+import PlaceContent from './place-content';
+import PairContent from './pair-content';
 
 export type WorkerConfig = {
     pointPool: PointPool;
@@ -8,6 +10,8 @@ export type WorkerConfig = {
     polygons: Polygon[];
     buffer: ArrayBuffer;
     memSeg: Float64Array;
+    placeContent: PlaceContent;
+    pairContent: PairContent;
 };
 
 export type SegmentCheck = {

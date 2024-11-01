@@ -1,33 +1,39 @@
-import {
-    deserializeBufferToMap,
-    deserializePolygonNodes,
-    generateNFPCacheKey,
-    getPolygonNode,
-    joinUint16,
-    toRotationIndex
-} from '../helpers';
+import { generateNFPCacheKey, getPolygonNode, joinUint16, toRotationIndex } from '../helpers';
 import { NFPCache, PolygonNode } from '../types';
 import WorkerContent from './worker-content';
 
 export default class PlaceContent extends WorkerContent {
-    private _nfpCache: NFPCache;
+    private _nfpCache: NFPCache = null;
 
-    private _area: number;
+    private _area: number = 0;
 
     private _nodes: PolygonNode[];
 
     private _emptyNode: PolygonNode;
 
-    constructor(buffer: ArrayBuffer) {
+    constructor() {
+        super();
+        this._emptyNode = getPolygonNode(-1, new Float64Array(0));
+    }
+
+    public init(buffer: ArrayBuffer): this {
         const view: DataView = new DataView(buffer);
         const mapBufferSize: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 3);
 
-        super(view.getFloat64(Float64Array.BYTES_PER_ELEMENT));
+        this.initNestConfig(view.getFloat64(Float64Array.BYTES_PER_ELEMENT));
 
         this._area = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
-        this._nodes = deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 4 + mapBufferSize);
-        this._nfpCache = deserializeBufferToMap(buffer, Float64Array.BYTES_PER_ELEMENT * 4, mapBufferSize);
-        this._emptyNode = getPolygonNode(-1, new Float64Array(0));
+        this._nodes = WorkerContent.deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 4 + mapBufferSize);
+        this._nfpCache = PlaceContent.deserializeBufferToMap(buffer, Float64Array.BYTES_PER_ELEMENT * 4, mapBufferSize);
+
+        return this;
+    }
+
+    public clean(): void {
+        super.clean();
+        this._nfpCache = null;
+        this._nodes = null;
+        this._area = 0;
     }
 
     public getBinNfp(index: number): Float64Array | null {
@@ -57,8 +63,20 @@ export default class PlaceContent extends WorkerContent {
         return joinUint16(toRotationIndex(this._nodes[index].rotation, this.rotations), this._nodes[index].source);
     }
 
-    public get nodes(): PolygonNode[] {
-        return this._nodes;
+    public removeNode(node: PolygonNode): void {
+        const index: number = this._nodes.indexOf(node);
+
+        if (index !== -1) {
+            this._nodes.splice(index, 1);
+        }
+    }
+
+    public nodeAt(index: number): PolygonNode {
+        return this._nodes[index];
+    }
+
+    public get nodeCount(): number {
+        return this._nodes.length;
     }
 
     public get rotations(): number {
@@ -71,5 +89,28 @@ export default class PlaceContent extends WorkerContent {
 
     public get area(): number {
         return this._area;
+    }
+
+    private static deserializeBufferToMap(buffer: ArrayBuffer, initialOffset: number, bufferSize: number): NFPCache {
+        const view: DataView = new DataView(buffer);
+        const map: NFPCache = new Map<number, ArrayBuffer>();
+        const resultOffset: number = initialOffset + bufferSize;
+        let offset: number = initialOffset;
+        let key: number = 0;
+        let length: number = 0;
+        let valueBuffer: ArrayBuffer = null;
+
+        while (offset < resultOffset) {
+            key = view.getUint32(offset);
+            offset += Uint32Array.BYTES_PER_ELEMENT;
+            length = view.getUint32(offset);
+            offset += Uint32Array.BYTES_PER_ELEMENT;
+            valueBuffer = buffer.slice(offset, offset + length);
+            offset += length;
+
+            map.set(key, valueBuffer);
+        }
+
+        return map;
     }
 }
