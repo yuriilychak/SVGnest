@@ -164,14 +164,7 @@ export default class Clipper extends ClipperBase {
                 if (this.StrictlySimple) {
                     edge2 = edge1.PrevInAEL;
 
-                    if (
-                        edge1.isAssigned &&
-                        !edge1.isWindDeletaEmpty &&
-                        edge2 !== null &&
-                        edge2.isAssigned &&
-                        edge2.Curr.x === edge1.Curr.x &&
-                        !edge2.isWindDeletaEmpty
-                    ) {
+                    if (edge1.isFilled && edge2 !== null && edge2.isFilled && edge2.Curr.x === edge1.Curr.x) {
                         outPt1 = OutRec.addOutPt(this.polyOuts, edge2, edge1.Curr);
                         outPt2 = OutRec.addOutPt(this.polyOuts, edge1, edge1.Curr);
 
@@ -196,26 +189,24 @@ export default class Clipper extends ClipperBase {
                 const eNext: TEdge = edge1.NextInAEL;
 
                 if (
+                    outPt1 !== null &&
                     ePrev !== null &&
                     ePrev.Curr.almostEqual(edge1.Bot) &&
-                    outPt1 !== null &&
-                    ePrev.isAssigned &&
+                    ePrev.isFilled &&
                     ePrev.Curr.y > ePrev.Top.y &&
                     TEdge.slopesEqual(edge1, ePrev, this.isUseFullRange) &&
-                    !edge1.isWindDeletaEmpty &&
-                    !ePrev.isWindDeletaEmpty
+                    !edge1.isWindDeletaEmpty
                 ) {
                     outPt2 = OutRec.addOutPt(this.polyOuts, ePrev, edge1.Bot);
                     this.joins.push(new Join(outPt1, outPt2, edge1.Top));
                 } else if (
+                    outPt1 !== null &&
                     eNext !== null &&
                     eNext.Curr.almostEqual(edge1.Bot) &&
-                    outPt1 !== null &&
-                    eNext.isAssigned &&
+                    eNext.isFilled &&
                     eNext.Curr.y > eNext.Top.y &&
                     TEdge.slopesEqual(edge1, eNext, this.isUseFullRange) &&
-                    !edge1.isWindDeletaEmpty &&
-                    !eNext.isWindDeletaEmpty
+                    !edge1.isWindDeletaEmpty
                 ) {
                     outPt2 = OutRec.addOutPt(this.polyOuts, eNext, edge1.Bot);
                     this.joins.push(new Join(outPt1, outPt2, edge1.Top));
@@ -344,13 +335,11 @@ export default class Clipper extends ClipperBase {
             }
 
             if (
-                leftBound.isAssigned &&
+                leftBound.isFilled &&
                 leftBound.PrevInAEL !== null &&
                 leftBound.PrevInAEL.Curr.x === leftBound.Bot.x &&
-                leftBound.PrevInAEL.isAssigned &&
-                TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, this.isUseFullRange) &&
-                !leftBound.isWindDeletaEmpty &&
-                !leftBound.PrevInAEL.isWindDeletaEmpty
+                leftBound.PrevInAEL.isFilled &&
+                TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, this.isUseFullRange)
             ) {
                 const Op2: OutPt | null = OutRec.addOutPt(this.polyOuts, leftBound.PrevInAEL, leftBound.Bot);
                 this.joins.push(new Join(outPt, Op2, leftBound.Top));
@@ -358,11 +347,9 @@ export default class Clipper extends ClipperBase {
 
             if (leftBound.NextInAEL !== rightBound) {
                 if (
-                    rightBound.isAssigned &&
-                    rightBound.PrevInAEL.isAssigned &&
-                    TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange) &&
-                    !rightBound.isWindDeletaEmpty &&
-                    !rightBound.PrevInAEL.isWindDeletaEmpty
+                    rightBound.isFilled &&
+                    rightBound.PrevInAEL.isFilled &&
+                    TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange)
                 ) {
                     const Op2: OutPt | null = OutRec.addOutPt(this.polyOuts, rightBound.PrevInAEL, rightBound.Bot);
                     this.joins.push(new Join(outPt, Op2, rightBound.Top));
@@ -659,11 +646,10 @@ export default class Clipper extends ClipperBase {
 
         if (
             edgePrev !== null &&
-            edgePrev.isAssigned &&
+            edgePrev.isFilled &&
             edgePrev.topX(point.y) === edge.topX(point.y) &&
             TEdge.slopesEqual(edge, edgePrev, this.isUseFullRange) &&
-            !edge.isWindDeletaEmpty &&
-            !edgePrev.isWindDeletaEmpty
+            !edge.isWindDeletaEmpty
         ) {
             const outPt: OutPt | null = OutRec.addOutPt(this.polyOuts, edgePrev, point);
             this.joins.push(new Join(result, outPt, edge.Top));
@@ -761,7 +747,7 @@ export default class Clipper extends ClipperBase {
                 eNext = e.getNextInAEL(dir);
                 //saves eNext for later
                 if ((dir === DIRECTION.RIGHT && e.Curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.Curr.x >= horzLeft)) {
-                    if (horzEdge.isAssigned && !horzEdge.isWindDeletaEmpty) {
+                    if (horzEdge.isFilled) {
                         this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
                     }
 
@@ -799,7 +785,7 @@ export default class Clipper extends ClipperBase {
                 e = eNext;
             }
             //end while
-            if (horzEdge.isAssigned && !horzEdge.isWindDeletaEmpty) {
+            if (horzEdge.isFilled) {
                 this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
             }
 
@@ -834,8 +820,7 @@ export default class Clipper extends ClipperBase {
                 if (
                     prevEdge !== null &&
                     prevEdge.Curr.almostEqual(horzEdge.Bot) &&
-                    !prevEdge.isWindDeletaEmpty &&
-                    prevEdge.isAssigned &&
+                    prevEdge.isFilled &&
                     prevEdge.Curr.y > prevEdge.Top.y &&
                     TEdge.slopesEqual(horzEdge, prevEdge, this.isUseFullRange)
                 ) {
@@ -844,8 +829,7 @@ export default class Clipper extends ClipperBase {
                 } else if (
                     nextEdge !== null &&
                     nextEdge.Curr.almostEqual(horzEdge.Bot) &&
-                    !nextEdge.isWindDeletaEmpty &&
-                    nextEdge.isAssigned &&
+                    nextEdge.isFilled &&
                     nextEdge.Curr.y > nextEdge.Top.y &&
                     TEdge.slopesEqual(horzEdge, nextEdge, this.isUseFullRange)
                 ) {

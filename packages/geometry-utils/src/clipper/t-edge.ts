@@ -197,6 +197,10 @@ export default class TEdge {
         return this.Top.y === y && this.NextInLML !== null;
     }
 
+    public get isFilled(): boolean {
+        return this.isAssigned && !this.isWindDeletaEmpty;
+    }
+
     public get isHorizontal(): boolean {
         return this.Delta.y === 0;
     }
@@ -321,7 +325,7 @@ export default class TEdge {
         }
 
         if (e === null) {
-            this.WindCnt = this.isWindDeletaEmpty? 1 : this.WindDelta;
+            this.WindCnt = this.isWindDeletaEmpty ? 1 : this.WindDelta;
             this.WindCnt2 = 0;
             e = activeEdge;
             //ie get ready to calc WindCnt2
