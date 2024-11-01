@@ -18,3 +18,5 @@ export enum DIRECTION {
     LEFT = 0,
     RIGHT = 1
 }
+
+export type NullPtr<T> = T | null;

@@ -2,7 +2,7 @@ import Point from '../point';
 import { HORIZONTAL } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
-import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION } from './types';
+import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION, NullPtr } from './types';
 
 export default class TEdge {
     public Bot: Point;
@@ -147,7 +147,7 @@ export default class TEdge {
         return y === this.Top.y ? this.Top.x : this.Bot.x + clipperRound(this.Dx * (y - this.Bot.y));
     }
 
-    public deleteFromSEL(inputEdge: TEdge): TEdge | null {
+    public deleteFromSEL(inputEdge: TEdge): NullPtr<TEdge> {
         if (this.PrevInSEL === null && this.NextInSEL === null && this !== inputEdge) {
             return inputEdge;
         }
@@ -170,7 +170,7 @@ export default class TEdge {
         return result;
     }
 
-    public deleteFromAEL(inputEdge: TEdge): TEdge | null {
+    public deleteFromAEL(inputEdge: TEdge): NullPtr<TEdge> {
         if (this.PrevInAEL === null && this.NextInAEL === null && this !== inputEdge) {
             return inputEdge;
         }
@@ -213,8 +213,8 @@ export default class TEdge {
         return this.Dx === HORIZONTAL;
     }
 
-    public get maximaPair(): TEdge | null {
-        let result: TEdge | null = null;
+    public get maximaPair(): NullPtr<TEdge> {
+        let result: NullPtr<TEdge> = null;
 
         if (this.Next !== null && this.Next.Top.almostEqual(this.Top) && this.Next.NextInLML === null) {
             result = this.Next;
@@ -250,7 +250,7 @@ export default class TEdge {
         return this.Curr.x < edge.Curr.x;
     }
 
-    public addEdgeToSEL(sortedEdge: TEdge | null): TEdge {
+    public addEdgeToSEL(sortedEdge: NullPtr<TEdge>): TEdge {
         //SEL pointers in PEdge are reused to build a list of horizontal edges.
         //However, we don't need to worry about order with horizontal edge processing.
         this.PrevInSEL = null;
@@ -263,7 +263,7 @@ export default class TEdge {
         return this;
     }
 
-    public insertEdgeIntoAEL(activeEdge: TEdge | null, startEdge: TEdge | null = null): TEdge {
+    public insertEdgeIntoAEL(activeEdge: NullPtr<TEdge>, startEdge: NullPtr<TEdge> = null): TEdge {
         if (activeEdge === null) {
             this.PrevInAEL = null;
             this.NextInAEL = null;
@@ -297,7 +297,7 @@ export default class TEdge {
         return activeEdge;
     }
 
-    public getNextInAEL(direction: DIRECTION): TEdge | null {
+    public getNextInAEL(direction: DIRECTION): NullPtr<TEdge> {
         return direction === DIRECTION.RIGHT ? this.NextInAEL : this.PrevInAEL;
     }
 
@@ -315,32 +315,32 @@ export default class TEdge {
         return this.index !== TEdge.UNASSIGNED;
     }
 
-    public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
-        let e: TEdge | null = this.PrevInAEL;
+    public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE): void {
+        let edge: NullPtr<TEdge> = this.PrevInAEL;
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
-        while (e !== null && (e.PolyTyp !== this.PolyTyp || e.isWindDeletaEmpty)) {
-            e = e.PrevInAEL;
+        while (edge !== null && (edge.PolyTyp !== this.PolyTyp || edge.isWindDeletaEmpty)) {
+            edge = edge.PrevInAEL;
         }
 
-        if (e === null) {
+        if (edge === null) {
             this.WindCnt = this.isWindDeletaEmpty ? 1 : this.WindDelta;
             this.WindCnt2 = 0;
-            e = activeEdge;
+            edge = activeEdge;
             //ie get ready to calc WindCnt2
         } else if (this.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
             this.WindCnt = 1;
-            this.WindCnt2 = e.WindCnt2;
-            e = e.NextInAEL;
+            this.WindCnt2 = edge.WindCnt2;
+            edge = edge.NextInAEL;
             //ie get ready to calc WindCnt2
         } else {
             //nonZero, Positive or Negative filling ...
-            if (e.WindCnt * e.WindDelta < 0) {
+            if (edge.WindCnt * edge.WindDelta < 0) {
                 //prev edge is 'decreasing' WindCount (WC) toward zero
                 //so we're outside the previous polygon ...
-                if (Math.abs(e.WindCnt) > 1) {
+                if (Math.abs(edge.WindCnt) > 1) {
                     //outside prev poly but still inside another.
                     //when reversing direction of prev poly use the same WC
-                    this.WindCnt = e.WindDelta * this.WindDelta < 0 ? e.WindCnt : e.WindCnt + this.WindDelta;
+                    this.WindCnt = edge.WindDelta * this.WindDelta < 0 ? edge.WindCnt : edge.WindCnt + this.WindDelta;
                 } else {
                     this.WindCnt = this.isWindDeletaEmpty ? 1 : this.WindDelta;
                 }
@@ -348,73 +348,66 @@ export default class TEdge {
                 //prev edge is 'increasing' WindCount (WC) away from zero
                 //so we're inside the previous polygon ...
                 if (this.isWindDeletaEmpty) {
-                    this.WindCnt = e.WindCnt < 0 ? e.WindCnt - 1 : e.WindCnt + 1;
+                    this.WindCnt = edge.WindCnt < 0 ? edge.WindCnt - 1 : edge.WindCnt + 1;
                 } else {
-                    this.WindCnt = e.WindDelta * this.WindDelta < 0 ? e.WindCnt : e.WindCnt + this.WindDelta;
+                    this.WindCnt = edge.WindDelta * this.WindDelta < 0 ? edge.WindCnt : edge.WindCnt + this.WindDelta;
                 }
             }
 
-            this.WindCnt2 = e.WindCnt2;
-            e = e.NextInAEL;
+            this.WindCnt2 = edge.WindCnt2;
+            edge = edge.NextInAEL;
             //ie get ready to calc WindCnt2
         }
         //nonZero, Positive or Negative filling ...
-        while (e !== this) {
-            this.WindCnt2 += e.WindDelta;
-            e = e.NextInAEL;
+        while (edge !== this) {
+            this.WindCnt2 += edge.WindDelta;
+            edge = edge.NextInAEL;
         }
     }
 
-    public static intersectPoint(edge1: TEdge, edge2: TEdge, ip: Point, useFullRange: boolean): boolean {
-        ip.set(0, 0);
-        let b1: number = 0;
-        let b2: number = 0;
+    public static intersectPoint(edge1: TEdge, edge2: TEdge, intersectPoint: Point, useFullRange: boolean): boolean {
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
         if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.Dx === edge2.Dx) {
             const point: Point = edge2.Bot.y > edge1.Bot.y ? edge2.Bot : edge1.Bot;
 
-            ip.update(point);
+            intersectPoint.update(point);
 
             return false;
         }
 
         if (edge1.Delta.x === 0) {
-            ip.x = edge1.Bot.x;
-            if (edge2.isHorizontal) {
-                ip.y = edge2.Bot.y;
-            } else {
-                b2 = edge2.Bot.y - edge2.Bot.x / edge2.Dx;
-                ip.y = clipperRound(ip.x / edge2.Dx + b2);
-            }
+            intersectPoint.set(
+                edge1.Bot.x,
+                edge2.isHorizontal ? edge2.Bot.y : clipperRound((edge1.Bot.x - edge2.Bot.x) / edge2.Dx + edge2.Bot.y)
+            );
         } else if (edge2.Delta.x === 0) {
-            ip.x = edge2.Bot.x;
-
-            if (edge1.isHorizontal) {
-                ip.y = edge1.Bot.y;
-            } else {
-                b1 = edge1.Bot.y - edge1.Bot.x / edge1.Dx;
-                ip.y = clipperRound(ip.x / edge1.Dx + b1);
-            }
+            intersectPoint.set(
+                edge2.Bot.x,
+                edge1.isHorizontal ? edge1.Bot.y : clipperRound((edge2.Bot.x - edge1.Bot.x) / edge1.Dx + edge1.Bot.y)
+            );
         } else {
-            b1 = edge1.Bot.x - edge1.Bot.y * edge1.Dx;
-            b2 = edge2.Bot.x - edge2.Bot.y * edge2.Dx;
+            const b1 = edge1.Bot.x - edge1.Bot.y * edge1.Dx;
+            const b2 = edge2.Bot.x - edge2.Bot.y * edge2.Dx;
             const q: number = (b2 - b1) / (edge1.Dx - edge2.Dx);
 
-            ip.set(
+            intersectPoint.set(
                 Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? clipperRound(edge1.Dx * q + b1) : clipperRound(edge2.Dx * q + b2),
                 clipperRound(q)
             );
         }
 
-        if (ip.y < edge1.Top.y || ip.y < edge2.Top.y) {
+        if (intersectPoint.y < edge1.Top.y || intersectPoint.y < edge2.Top.y) {
             if (edge1.Top.y > edge2.Top.y) {
-                ip.set(edge2.topX(edge1.Top.y), edge1.Top.y);
+                intersectPoint.set(edge2.topX(edge1.Top.y), edge1.Top.y);
 
-                return ip.x < edge1.Top.x;
+                return intersectPoint.x < edge1.Top.x;
             }
 
-            ip.set(Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? edge1.topX(ip.y) : edge2.topX(ip.y), edge2.Top.y);
+            intersectPoint.set(
+                Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? edge1.topX(intersectPoint.y) : edge2.topX(intersectPoint.y),
+                edge2.Top.y
+            );
         }
 
         return true;
@@ -430,8 +423,8 @@ export default class TEdge {
             return false;
         }
 
-        let prev: TEdge | null = null;
-        let next: TEdge | null = null;
+        let prev: NullPtr<TEdge> = null;
+        let next: NullPtr<TEdge> = null;
 
         if (edge1.NextInAEL === edge2) {
             next = edge2.NextInAEL;
@@ -509,8 +502,8 @@ export default class TEdge {
             return false;
         }
 
-        let prev: TEdge | null = null;
-        let next: TEdge | null = null;
+        let prev: NullPtr<TEdge> = null;
+        let next: NullPtr<TEdge> = null;
 
         if (edge1.NextInSEL === edge2) {
             next = edge2.NextInSEL;

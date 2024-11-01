@@ -1,13 +1,15 @@
+import { NullPtr } from './types';
+
 export default class Scanbeam {
     public Y: number;
     public Next: Scanbeam;
 
-    constructor(y: number = 0, next: Scanbeam | null = null) {
+    constructor(y: number = 0, next: NullPtr<Scanbeam> = null) {
         this.Y = y;
         this.Next = next;
     }
 
-    public static insert(y: number, inputScanbeam: Scanbeam | null): Scanbeam {
+    public static insert(y: number, inputScanbeam: NullPtr<Scanbeam>): Scanbeam {
         if (inputScanbeam === null) {
             return new Scanbeam(y);
         }

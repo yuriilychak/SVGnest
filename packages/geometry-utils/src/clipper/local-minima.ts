@@ -1,18 +1,18 @@
 import Scanbeam from './scanbeam';
 import TEdge from './t-edge';
-import { DIRECTION } from './types';
+import { DIRECTION, NullPtr } from './types';
 
 export default class LocalMinima {
     public y: number = 0;
-    public LeftBound: TEdge | null;
-    public RightBound: TEdge | null;
-    public Next: LocalMinima | null;
+    public leftBound: NullPtr<TEdge>;
+    public rightBound: NullPtr<TEdge>;
+    public next: NullPtr<LocalMinima>;
 
-    constructor(y: number = 0, leftBound: TEdge | null = null, rightBound: TEdge | null = null, next: LocalMinima = null) {
+    constructor(y: number = 0, leftBound: NullPtr<TEdge> = null, rightBound: NullPtr<TEdge> = null, next: LocalMinima = null) {
         this.y = y;
-        this.LeftBound = leftBound;
-        this.RightBound = rightBound;
-        this.Next = next;
+        this.leftBound = leftBound;
+        this.rightBound = rightBound;
+        this.next = next;
     }
 
     public insert(currentLocalMinima: LocalMinima): LocalMinima {
@@ -21,19 +21,19 @@ export default class LocalMinima {
         }
 
         if (this.y >= currentLocalMinima.y) {
-            this.Next = currentLocalMinima;
+            this.next = currentLocalMinima;
 
             return this;
         }
 
         let localMinima: LocalMinima = currentLocalMinima;
 
-        while (localMinima.Next !== null && this.y < localMinima.Next.y) {
-            localMinima = localMinima.Next;
+        while (localMinima.next !== null && this.y < localMinima.next.y) {
+            localMinima = localMinima.next;
         }
 
-        this.Next = localMinima.Next;
-        localMinima.Next = this;
+        this.next = localMinima.next;
+        localMinima.next = this;
 
         return currentLocalMinima;
     }
@@ -42,25 +42,25 @@ export default class LocalMinima {
         let localMinima: LocalMinima = this;
 
         while (localMinima != null) {
-            if (localMinima.LeftBound !== null) {
-                localMinima.LeftBound.reset(DIRECTION.LEFT);
+            if (localMinima.leftBound !== null) {
+                localMinima.leftBound.reset(DIRECTION.LEFT);
             }
 
-            if (localMinima.RightBound !== null) {
-                localMinima.RightBound.reset(DIRECTION.RIGHT);
+            if (localMinima.rightBound !== null) {
+                localMinima.rightBound.reset(DIRECTION.RIGHT);
             }
 
-            localMinima = localMinima.Next;
+            localMinima = localMinima.next;
         }
     }
 
     public getScanbeam(): Scanbeam {
         let localMinima: LocalMinima = this;
-        let result: Scanbeam | null = null;
+        let result: NullPtr<Scanbeam> = null;
 
         while (localMinima !== null) {
             result = Scanbeam.insert(localMinima.y, result);
-            localMinima = localMinima.Next;
+            localMinima = localMinima.next;
         }
 
         return result;

@@ -49,27 +49,27 @@ export function cleanPolygon(path: Point[], distance: number): Point[] {
     }
 
     for (i = 0; i < pointCount; ++i) {
-        outPts[i].Next = outPts[cycleIndex(i, pointCount, 1)];
-        outPts[i].Next.Prev = outPts[i];
+        outPts[i].next = outPts[cycleIndex(i, pointCount, 1)];
+        outPts[i].next.prev = outPts[i];
     }
 
     const distSqrd = distance * distance;
     let op: OutPt = outPts[0];
 
-    while (op.Idx === 0 && op.Next != op.Prev) {
-        if (Point.pointsAreClose(op.Pt, op.Prev.Pt, distSqrd)) {
+    while (op.index === 0 && op.next != op.prev) {
+        if (Point.pointsAreClose(op.point, op.prev.point, distSqrd)) {
             op = op.exclude();
             --pointCount;
-        } else if (Point.pointsAreClose(op.Prev.Pt, op.Next.Pt, distSqrd)) {
-            op.Next.exclude();
+        } else if (Point.pointsAreClose(op.prev.point, op.next.point, distSqrd)) {
+            op.next.exclude();
             op = op.exclude();
             pointCount -= 2;
-        } else if (slopesNearCollinear(op.Prev.Pt, op.Pt, op.Next.Pt, distSqrd)) {
+        } else if (slopesNearCollinear(op.prev.point, op.point, op.next.point, distSqrd)) {
             op = op.exclude();
             --pointCount;
         } else {
-            op.Idx = 1;
-            op = op.Next;
+            op.index = 1;
+            op = op.next;
         }
     }
 
@@ -80,8 +80,8 @@ export function cleanPolygon(path: Point[], distance: number): Point[] {
     const result = new Array(pointCount);
 
     for (i = 0; i < pointCount; ++i) {
-        result[i] = Point.from(op.Pt);
-        op = op.Next;
+        result[i] = Point.from(op.point);
+        op = op.next;
     }
 
     return result;

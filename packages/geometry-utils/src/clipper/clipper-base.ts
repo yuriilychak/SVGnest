@@ -140,14 +140,14 @@ export default class ClipperBase {
                 : //Q.nextInLML = Q.prev
                   new LocalMinima(edge.Bot.y, edge.Prev, edge);
 
-            locMin.LeftBound.Side = DIRECTION.LEFT;
-            locMin.RightBound.Side = DIRECTION.RIGHT;
-            locMin.LeftBound.WindDelta = locMin.LeftBound.Next === locMin.RightBound ? -1 : 1;
-            locMin.RightBound.WindDelta = -locMin.LeftBound.WindDelta;
+            locMin.leftBound.Side = DIRECTION.LEFT;
+            locMin.rightBound.Side = DIRECTION.RIGHT;
+            locMin.leftBound.WindDelta = locMin.leftBound.Next === locMin.rightBound ? -1 : 1;
+            locMin.rightBound.WindDelta = -locMin.leftBound.WindDelta;
 
-            edge = this.ProcessBound(locMin.LeftBound, isClockwise);
+            edge = this.ProcessBound(locMin.leftBound, isClockwise);
 
-            const edge2: TEdge = this.ProcessBound(locMin.RightBound, !isClockwise);
+            const edge2: TEdge = this.ProcessBound(locMin.rightBound, !isClockwise);
 
             this.minimaList = locMin.insert(this.minimaList);
 
