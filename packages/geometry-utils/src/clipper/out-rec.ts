@@ -149,7 +149,7 @@ export default class OutRec {
         let edge: TEdge | null = inputEdge.PrevInAEL;
 
         while (edge !== null) {
-            if (edge.isAssigned && edge.WindDelta !== 0) {
+            if (edge.isAssigned && !edge.isWindDeletaEmpty) {
                 isHole = !isHole;
 
                 if (this.FirstLeft === null) {
@@ -358,7 +358,7 @@ export default class OutRec {
 
         if (!edge.isAssigned) {
             newOp = new OutPt(0, point);
-            outRec = OutRec.create(records, edge.WindDelta === 0, newOp);
+            outRec = OutRec.create(records, edge.isWindDeletaEmpty, newOp);
             newOp.Idx = outRec.Idx;
             newOp.Next = newOp;
             newOp.Prev = newOp;

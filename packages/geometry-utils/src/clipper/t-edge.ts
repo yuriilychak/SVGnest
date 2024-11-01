@@ -182,6 +182,7 @@ export default class TEdge {
         } else {
             result = this.NextInAEL;
         }
+
         if (this.NextInAEL !== null) {
             this.NextInAEL.PrevInAEL = this.PrevInAEL;
         }
@@ -198,6 +199,10 @@ export default class TEdge {
 
     public get isHorizontal(): boolean {
         return this.Delta.y === 0;
+    }
+
+    public get isWindDeletaEmpty(): boolean {
+        return this.WindDelta === 0;
     }
 
     public get isDxHorizontal(): boolean {
@@ -311,16 +316,16 @@ export default class TEdge {
     public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
         let e: TEdge | null = this.PrevInAEL;
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
-        while (e !== null && (e.PolyTyp !== this.PolyTyp || e.WindDelta === 0)) {
+        while (e !== null && (e.PolyTyp !== this.PolyTyp || e.isWindDeletaEmpty)) {
             e = e.PrevInAEL;
         }
 
         if (e === null) {
-            this.WindCnt = this.WindDelta === 0 ? 1 : this.WindDelta;
+            this.WindCnt = this.isWindDeletaEmpty? 1 : this.WindDelta;
             this.WindCnt2 = 0;
             e = activeEdge;
             //ie get ready to calc WindCnt2
-        } else if (this.WindDelta === 0 && clipType !== CLIP_TYPE.UNION) {
+        } else if (this.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
             this.WindCnt = 1;
             this.WindCnt2 = e.WindCnt2;
             e = e.NextInAEL;
@@ -335,12 +340,12 @@ export default class TEdge {
                     //when reversing direction of prev poly use the same WC
                     this.WindCnt = e.WindDelta * this.WindDelta < 0 ? e.WindCnt : e.WindCnt + this.WindDelta;
                 } else {
-                    this.WindCnt = this.WindDelta === 0 ? 1 : this.WindDelta;
+                    this.WindCnt = this.isWindDeletaEmpty ? 1 : this.WindDelta;
                 }
             } else {
                 //prev edge is 'increasing' WindCount (WC) away from zero
                 //so we're inside the previous polygon ...
-                if (this.WindDelta === 0) {
+                if (this.isWindDeletaEmpty) {
                     this.WindCnt = e.WindCnt < 0 ? e.WindCnt - 1 : e.WindCnt + 1;
                 } else {
                     this.WindCnt = e.WindDelta * this.WindDelta < 0 ? e.WindCnt : e.WindCnt + this.WindDelta;
