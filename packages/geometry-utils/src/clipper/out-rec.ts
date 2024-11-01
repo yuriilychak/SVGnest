@@ -153,7 +153,7 @@ export default class OutRec {
                 isHole = !isHole;
 
                 if (this.FirstLeft === null) {
-                    this.FirstLeft = outs[edge.OutIdx];
+                    this.FirstLeft = outs[edge.index];
                 }
             }
 
@@ -264,8 +264,8 @@ export default class OutRec {
 
     public static appendPolygon(records: OutRec[], edge1: TEdge, edge2: TEdge, activeEdge: TEdge): void {
         //get the start and ends of both output polygons ...
-        const outRec1: OutRec = records[edge1.OutIdx];
-        const outRec2: OutRec = records[edge2.OutIdx];
+        const outRec1: OutRec = records[edge1.index];
+        const outRec2: OutRec = records[edge2.index];
         let holeStateRec: OutRec | null = null;
 
         if (OutRec.param1RightOfParam2(outRec1, outRec2)) {
@@ -331,8 +331,8 @@ export default class OutRec {
         outRec2.Pts = null;
         outRec2.BottomPt = null;
         outRec2.FirstLeft = outRec1;
-        const OKIdx: number = edge1.OutIdx;
-        const ObsoleteIdx: number = edge2.OutIdx;
+        const OKIdx: number = edge1.index;
+        const ObsoleteIdx: number = edge2.index;
         edge1.unassign();
         //nb: safe because we only get here via AddLocalMaxPoly
         edge2.unassign();
@@ -340,8 +340,8 @@ export default class OutRec {
         let e: TEdge = activeEdge;
 
         while (e !== null) {
-            if (e.OutIdx === ObsoleteIdx) {
-                e.OutIdx = OKIdx;
+            if (e.index === ObsoleteIdx) {
+                e.index = OKIdx;
                 e.Side = side;
                 break;
             }
@@ -367,12 +367,12 @@ export default class OutRec {
                 outRec.setHoleState(edge, records);
             }
 
-            edge.OutIdx = outRec.Idx;
+            edge.index = outRec.Idx;
             //nb: do this after SetZ !
             return newOp;
         }
 
-        outRec = records[edge.OutIdx];
+        outRec = records[edge.index];
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
         const op: OutPt = outRec.Pts;
 

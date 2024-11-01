@@ -15,7 +15,7 @@ export default class TEdge {
     public WindDelta: number;
     public WindCnt: number;
     public WindCnt2: number;
-    public OutIdx: number;
+    public index: number;
     public Next: TEdge;
     public Prev: TEdge;
     public NextInLML: TEdge;
@@ -35,7 +35,7 @@ export default class TEdge {
         this.WindDelta = 0;
         this.WindCnt = 0;
         this.WindCnt2 = 0;
-        this.OutIdx = 0;
+        this.index = 0;
         this.Next = null;
         this.Prev = null;
         this.NextInLML = null;
@@ -250,15 +250,13 @@ export default class TEdge {
         return this.Curr.x < edge.Curr.x;
     }
 
-    public addEdgeToSEL(sortedEdge: TEdge | null): TEdge | null {
+    public addEdgeToSEL(sortedEdge: TEdge | null): TEdge {
         //SEL pointers in PEdge are reused to build a list of horizontal edges.
         //However, we don't need to worry about order with horizontal edge processing.
-        if (sortedEdge === null) {
-            this.PrevInSEL = null;
-            this.NextInSEL = null;
-        } else {
-            this.NextInSEL = sortedEdge;
-            this.PrevInSEL = null;
+        this.PrevInSEL = null;
+        this.NextInSEL = sortedEdge;
+
+        if (sortedEdge !== null) {
             sortedEdge.PrevInSEL = this;
         }
 
@@ -304,7 +302,7 @@ export default class TEdge {
     }
 
     public unassign(): void {
-        this.OutIdx = TEdge.UNASSIGNED;
+        this.index = TEdge.UNASSIGNED;
     }
 
     public get horzDirection(): Float64Array {
@@ -314,7 +312,7 @@ export default class TEdge {
     }
 
     public get isAssigned(): boolean {
-        return this.OutIdx !== TEdge.UNASSIGNED;
+        return this.index !== TEdge.UNASSIGNED;
     }
 
     public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
@@ -593,9 +591,9 @@ export default class TEdge {
     }
 
     public static swapPolyIndexes(edge1: TEdge, edge2: TEdge): void {
-        const outIdx: number = edge1.OutIdx;
-        edge1.OutIdx = edge2.OutIdx;
-        edge2.OutIdx = outIdx;
+        const outIdx: number = edge1.index;
+        edge1.index = edge2.index;
+        edge2.index = outIdx;
     }
 
     private static UNASSIGNED = -1;

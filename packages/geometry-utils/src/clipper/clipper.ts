@@ -613,10 +613,10 @@ export default class Clipper extends ClipperBase {
             OutRec.addOutPt(this.polyOuts, edge2, point);
         }
 
-        if (edge1.OutIdx === edge2.OutIdx) {
+        if (edge1.index === edge2.index) {
             edge1.unassign();
             edge2.unassign();
-        } else if (edge1.OutIdx < edge2.OutIdx) {
+        } else if (edge1.index < edge2.index) {
             OutRec.appendPolygon(this.polyOuts, edge1, edge2, this.activeEdges);
         } else {
             OutRec.appendPolygon(this.polyOuts, edge2, edge1, this.activeEdges);
@@ -630,14 +630,14 @@ export default class Clipper extends ClipperBase {
 
         if (edge2.isHorizontal || edge1.Dx > edge2.Dx) {
             result = OutRec.addOutPt(this.polyOuts, edge1, point);
-            edge2.OutIdx = edge1.OutIdx;
+            edge2.index = edge1.index;
             edge2.Side = DIRECTION.RIGHT;
             edge1.Side = DIRECTION.LEFT;
             edge = edge1;
             edgePrev = edge.PrevInAEL === edge2 ? edge2.PrevInAEL : edge.PrevInAEL;
         } else {
             result = OutRec.addOutPt(this.polyOuts, edge2, point);
-            edge1.OutIdx = edge2.OutIdx;
+            edge1.index = edge2.index;
             edge1.Side = DIRECTION.RIGHT;
             edge2.Side = DIRECTION.LEFT;
             edge = edge2;
@@ -870,7 +870,7 @@ export default class Clipper extends ClipperBase {
         if (isTopOfScanbeam) {
             //get the last Op for this horizontal edge
             //the point may be anywhere along the horizontal ...
-            let outPt: OutPt | null = this.polyOuts[horzEdge.OutIdx].Pts;
+            let outPt: OutPt | null = this.polyOuts[horzEdge.index].Pts;
 
             if (horzEdge.Side === DIRECTION.RIGHT) {
                 outPt = outPt.Prev;
@@ -889,7 +889,7 @@ export default class Clipper extends ClipperBase {
 
         const AelPrev: TEdge | null = edge.PrevInAEL;
         const AelNext: TEdge | null = edge.NextInAEL;
-        edge.NextInLML.OutIdx = edge.OutIdx;
+        edge.NextInLML.index = edge.index;
 
         if (AelPrev !== null) {
             AelPrev.NextInAEL = edge.NextInLML;
