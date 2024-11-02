@@ -1,7 +1,7 @@
 import { NFP_KEY_INDICES, TOL, UINT16_BIT_COUNT } from './constants';
-import { NestConfig, NFPCache, NFPContent, PolygonNode } from './types';
+import { NestConfig, NFPCache, PolygonNode } from './types';
 
-export function getMask(bitCount: number, offset: number = 0): number {
+function getMask(bitCount: number, offset: number = 0): number {
     return ((1 << bitCount) - 1) << offset;
 }
 
@@ -35,52 +35,28 @@ export function cycleIndex(index: number, size: number, offset: number): number 
     return (index + size + offset) % size;
 }
 
-function shiftNfpVaue(value: number, index: number): number {
-    return value << NFP_KEY_INDICES[index];
-}
-
-function unshiftNfpVaue(value: number, index: number): number {
-    return value >> NFP_KEY_INDICES[index];
-}
-
 export function toRotationIndex(angle: number, rotationSplit: number): number {
     return Math.round((angle * rotationSplit) / 360);
 }
 
-export function generateNFPCacheKey(rotationSplit: number, inside: boolean, polygon1: PolygonNode, polygon2: PolygonNode) {
-    const rotationIndex1: number = toRotationIndex(polygon1.rotation, rotationSplit);
-    const rotationIndex2: number = toRotationIndex(polygon2.rotation, rotationSplit);
-    const data: number[] = [polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0];
-    const size: number = data.length;
+export function generateNFPCacheKey(
+    rotationSplit: number,
+    inside: boolean,
+    polygon1: PolygonNode,
+    polygon2: PolygonNode
+): number {
+    const rotationIndex1 = toRotationIndex(polygon1.rotation, rotationSplit);
+    const rotationIndex2 = toRotationIndex(polygon2.rotation, rotationSplit);
+    const data = new Uint8Array([polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0]);
+    const elementCount: number = data.length;
     let result: number = 0;
     let i: number = 0;
 
-    for (i = 0; i < size; ++i) {
-        result += shiftNfpVaue(data[i], i);
+    for (i = 0; i < elementCount; ++i) {
+        result = setBits(result, data[i], NFP_KEY_INDICES[i], NFP_KEY_INDICES[i + 1] - NFP_KEY_INDICES[i]);
     }
 
     return result;
-}
-
-export function keyToNFPData(numKey: number, rotationSplit: number): NFPContent {
-    const rotationOffset: number = Math.round(360 / rotationSplit);
-    const size: number = 5;
-    const result: number[] = new Array(size);
-    let accumulator: number = 0;
-    let i: number = 0;
-
-    for (i = size - 1; i >= 0; --i) {
-        result[i] = unshiftNfpVaue(numKey - accumulator, i);
-        accumulator += shiftNfpVaue(result[i], i);
-    }
-
-    return {
-        A: result[0] - 1,
-        B: result[1] - 1,
-        inside: Boolean(result[4]),
-        Arotation: result[2] * rotationOffset,
-        Brotation: result[3] * rotationOffset
-    };
 }
 
 export function getPolygonNode(source: number, memSeg: Float64Array): PolygonNode {
@@ -175,7 +151,7 @@ export function clipperRound(a: number): number {
     return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
 }
 
-export function Cast_Int64(a: number): number {
+export function castInt64(a: number): number {
     return a < 0 ? Math.ceil(a) : Math.floor(a);
 }
 
@@ -194,7 +170,7 @@ function splitTo16Bits(value: number): Uint16Array {
     return result;
 }
 
-export function mulInt128(x: number, y: number): Uint32Array {
+function mulInt128(x: number, y: number): Uint32Array {
     const xParts: Uint16Array = splitTo16Bits(x);
     const yParts: Uint16Array = splitTo16Bits(y);
     const result = new Uint32Array(5);
@@ -216,7 +192,7 @@ export function mulInt128(x: number, y: number): Uint32Array {
     return result;
 }
 
-export function op_EqualityInt128(left: Uint32Array, right: Uint32Array): boolean {
+function equalityInt128(left: Uint32Array, right: Uint32Array): boolean {
     const iterationCount: number = left.length;
     let i: number = 0;
 
@@ -231,6 +207,6 @@ export function op_EqualityInt128(left: Uint32Array, right: Uint32Array): boolea
 
 export function slopesEqual(value1: number, value2: number, value3: number, value4: number, useFullRange: boolean): boolean {
     return useFullRange
-        ? op_EqualityInt128(mulInt128(value1, value2), mulInt128(value3, value4))
-        : Cast_Int64(value1 * value2) - Cast_Int64(value3 * value4) === 0;
+        ? equalityInt128(mulInt128(value1, value2), mulInt128(value3, value4))
+        : castInt64(value1 * value2) - castInt64(value3 * value4) === 0;
 }

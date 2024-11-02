@@ -1,18 +1,10 @@
 export type NestConfig = {
-    curveTolerance: number;
-    spacing: number;
-    rotations: number;
-    populationSize: number;
-    mutationRate: number;
-    useHoles: boolean;
-};
-
-export type NFPContent = {
-    A: number;
-    B: number;
-    inside: boolean;
-    Arotation: number;
-    Brotation: number;
+    readonly curveTolerance: number;
+    readonly spacing: number;
+    readonly rotations: number;
+    readonly populationSize: number;
+    readonly mutationRate: number;
+    readonly useHoles: boolean;
 };
 
 export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;

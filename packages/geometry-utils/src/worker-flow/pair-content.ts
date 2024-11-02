@@ -1,32 +1,33 @@
-import { NFP_INFO_START_INDEX } from '../constants';
-import { getUint16, joinUint16, keyToNFPData } from '../helpers';
-import { NFPContent, PolygonNode } from '../types';
+import { NFP_INFO_START_INDEX, NFP_KEY_INDICES } from '../constants';
+import { getBits, getUint16, joinUint16 } from '../helpers';
+import { PolygonNode } from '../types';
 import WorkerContent from './worker-content';
 
 export default class PairContent extends WorkerContent {
     private _key: number = 0;
 
-    private _nodes: PolygonNode[] = null;
+    private _isInside: boolean = false;
 
-    private _content: NFPContent = null;
+    private _useHoles: boolean = false;
 
     public init(buffer: ArrayBuffer): this {
+        this.initNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
         const view: DataView = new DataView(buffer);
 
-        this.initNestConfig(view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2));
+        const nestConfig: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
 
         this._key = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
-        this._nodes = WorkerContent.deserializePolygonNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
-        this._content = keyToNFPData(this._key, this.nestConfig.rotations);
+        this._isInside = PairContent.getInside(this._key);
+        this._useHoles = Boolean(getBits(nestConfig, 28, 1));
 
         return this;
     }
 
     public clean(): void {
         super.clean();
+
         this._key = 0;
-        this._nodes = null;
-        this._content = null;
+        this._isInside = false;
     }
 
     public getResult(nfpArrays: Float64Array[]): Float64Array {
@@ -63,22 +64,25 @@ export default class PairContent extends WorkerContent {
     }
 
     public get firstNode(): PolygonNode {
-        return this._nodes[0];
+        return this.nodeAt(0);
     }
 
     public get secondNode(): PolygonNode {
-        return this._nodes[1];
-    }
-
-    public get isBroken(): boolean {
-        return this._nodes.length === 0;
+        return this.nodeAt(1);
     }
 
     public get isUseHoles(): boolean {
-        return this.nestConfig.useHoles && this.firstNode.children.length !== 0;
+        return this._useHoles && this.firstNode.children.length !== 0;
     }
 
     public get isInside(): boolean {
-        return this._content.inside;
+        return this._isInside;
+    }
+
+    private static getInside(numKey: number): boolean {
+        const insideBitIndex = NFP_KEY_INDICES[4];
+        const insideValue = getBits(numKey, insideBitIndex, 1);
+
+        return Boolean(insideValue);
     }
 }

@@ -1,32 +1,42 @@
-import { getBits } from '../helpers';
-import { NestConfig, PolygonNode } from '../types';
+import { PolygonNode } from '../types';
 
 export default abstract class WorkerContent {
-    private _nestConfig: NestConfig = null;
+    private _nodes: PolygonNode[] = null;
 
     public abstract init(buffer: ArrayBuffer): this;
 
+    protected initNodes(buffer: ArrayBuffer, offset: number): void {
+        const initialOffset = Uint32Array.BYTES_PER_ELEMENT + offset;
+        const view: DataView = new DataView(buffer);
+        const rootNodeCount = view.getUint32(offset);
+
+        this._nodes = new Array(rootNodeCount);
+
+        WorkerContent.deserializeNodes(this._nodes, view, buffer, initialOffset);
+    }
+
     public clean(): void {
-        this._nestConfig = null;
+        this._nodes = null;
     }
 
-    protected initNestConfig(nestValue: number): void {
-        this._nestConfig = WorkerContent.deserializeConfig(nestValue);
+    public nodeAt(index: number): PolygonNode {
+        return this._nodes[index];
     }
 
-    protected get nestConfig(): NestConfig {
-        return this._nestConfig;
+    public removeNode(node: PolygonNode): void {
+        const index: number = this._nodes.indexOf(node);
+
+        if (index !== -1) {
+            this._nodes.splice(index, 1);
+        }
     }
 
-    private static deserializeConfig(value: number): NestConfig {
-        return {
-            curveTolerance: getBits(value, 0, 4) / 10,
-            spacing: getBits(value, 4, 5),
-            rotations: getBits(value, 9, 5),
-            populationSize: getBits(value, 14, 7),
-            mutationRate: getBits(value, 21, 7),
-            useHoles: Boolean(getBits(value, 28, 1))
-        };
+    public get isBroken(): boolean {
+        return this._nodes.length === 0;
+    }
+
+    public get nodeCount(): number {
+        return this._nodes.length;
     }
 
     private static deserializeNodes(nodes: PolygonNode[], view: DataView, buffer: ArrayBuffer, initialOffset: number): number {
@@ -57,16 +67,5 @@ export default abstract class WorkerContent {
         }
 
         return offset;
-    }
-
-    protected static deserializePolygonNodes(buffer: ArrayBuffer, offset: number = 0): PolygonNode[] {
-        const initialOffset = Uint32Array.BYTES_PER_ELEMENT + offset;
-        const view: DataView = new DataView(buffer);
-        const rootNodeCount = view.getUint32(offset);
-        const nodes: PolygonNode[] = new Array(rootNodeCount);
-
-        WorkerContent.deserializeNodes(nodes, view, buffer, initialOffset);
-
-        return nodes;
     }
 }
