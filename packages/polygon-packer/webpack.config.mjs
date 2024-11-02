@@ -1,3 +1,4 @@
+import webpack from 'webpack';
 import path from 'path';
 
 export default {
@@ -16,6 +17,8 @@ export default {
         'geometry-utils': 'geometryUtils'
     },
     resolve: { extensions: ['.ts'] },
+    devServer: { contentBase: '../../dist', hot: true },
+    plugins: [new webpack.HotModuleReplacementPlugin()],
     module: {
         rules: [
             {

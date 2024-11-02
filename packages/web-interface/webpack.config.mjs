@@ -1,3 +1,4 @@
+import webpack from 'webpack';
 import path from 'path';
 
 export default {
@@ -11,6 +12,8 @@ export default {
         'svg-parser': 'svgParser'
     },
     resolve: { extensions: ['.js', '.jsx', '.ts', '.tsx'] },
+    devServer: { contentBase: '../../dist', hot: true },
+    plugins: [new webpack.HotModuleReplacementPlugin()],
     module: {
         rules: [
             {

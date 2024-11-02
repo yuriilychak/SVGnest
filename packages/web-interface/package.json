@@ -4,6 +4,7 @@
     "main": "src/index.ts",
     "scripts": {
         "build": "webpack",
+        "watch": "webpack --watch --config webpack.config.mjs",
         "test": "jest",
         "lint": "eslint src/**/*.ts src/**/*.tsx",
         "lint:fix": "eslint src/**/*.ts src/**/*.tsx --fix"

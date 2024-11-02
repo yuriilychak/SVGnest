@@ -1,3 +1,4 @@
+import webpack from 'webpack';
 import path from 'path';
 
 export default {
@@ -12,12 +13,9 @@ export default {
         filename: 'geometry-utils.js',
         path: path.resolve('../../dist')
     },
-    externals: {
-        'geometry-utils': 'geometryUtils'
-    },
-    resolve: {
-        extensions: ['.ts', '.js']
-    },
+    resolve: { extensions: ['.ts'] },
+    devServer: { contentBase: '../../dist', hot: true },
+    plugins: [new webpack.HotModuleReplacementPlugin()],
     module: {
         rules: [
             { test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ },
