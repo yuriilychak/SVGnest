@@ -1,4 +1,4 @@
-import { TOL } from './constants';
+import { ANGLE_CACHE, TOL } from './constants';
 import { almostEqual, clipperRound, midValue, slopesEqual } from './helpers';
 
 export default class Point {
@@ -88,9 +88,10 @@ export default class Point {
         return this.set(Math.min(this.x, point.x), Math.min(this.y, point.y));
     }
 
-    public rotate(radianAngle: number): Point {
-        const sin: number = Math.sin(radianAngle);
-        const cos: number = Math.cos(radianAngle);
+    public rotate(angle: number): Point {
+        const angleData = ANGLE_CACHE.get(angle);
+        const sin: number = angleData[0];
+        const cos: number = angleData[1];
 
         return this.set(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
     }

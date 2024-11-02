@@ -17,17 +17,6 @@ export default {
     devServer: { contentBase: '../../dist', hot: true },
     plugins: [new webpack.HotModuleReplacementPlugin()],
     module: {
-        rules: [
-            { test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ },
-            {
-                test: /node_modules\/js-clipper\/.*\.js$/,
-                use: [
-                    {
-                        loader: 'string-replace-loader',
-                        options: { search: 'alert', replace: 'console.log', flags: 'g' }
-                    }
-                ]
-            }
-        ]
+        rules: [{ test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ }]
     }
 };

@@ -137,7 +137,7 @@ export default class GeneticAlgorithm {
         let j: number = 0;
 
         for (i = 0; i < this.#rotations; ++i) {
-            angles.push(i * step);
+            angles.push(Math.round(i * step));
         }
 
         for (i = lastIndex; i > 0; --i) {

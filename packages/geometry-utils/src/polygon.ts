@@ -62,11 +62,10 @@ export default class Polygon {
 
     public rotate(angle: number): void {
         const pointCount: number = this.pointCount;
-        const radianAngle: number = (angle * Math.PI) / 180;
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            this.at(i).rotate(radianAngle);
+            this.at(i).rotate(angle);
         }
 
         this.calculateBounds();
