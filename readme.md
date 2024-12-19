@@ -14,6 +14,7 @@
 
 -   Add node package for ability to run nesting tool from terminal on server-side.
 -   Add es-doc for all files.
+-   Migrate from Float64 to Float32 values in point for decrease memory usage and increase worker performance.
 -   Migrate geometry calculations to WASM using Rust with SIMD 
 
 ## Why I do it
