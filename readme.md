@@ -14,6 +14,7 @@
 
 -   Add node package for ability to run nesting tool from terminal on server-side.
 -   Add es-doc for all files.
+-   Migrate geometry calculations to WASM using Rust with SIMD 
 
 ## Why I do it
 
