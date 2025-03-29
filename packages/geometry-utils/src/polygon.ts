@@ -1,3 +1,4 @@
+import { greet } from 'wasm-nesting';
 import Point from './point';
 import { almostEqual, cycleIndex, getUint16 } from './helpers';
 import { NFP_INFO_START_INDEX } from './constants';
@@ -21,6 +22,7 @@ export default class Polygon {
     private bounds: BoundRect;
 
     private constructor() {
+        console.log(greet('test'));
         this.point = Point.zero();
         this.closed = false;
         this.pointCount = 0;

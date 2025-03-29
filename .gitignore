@@ -1,3 +1,7 @@
+# Ignore pkg and target directories in all packages
+packages/**/pkg
+packages/**/target
+
 .history
 .DS_Store
 .vscode

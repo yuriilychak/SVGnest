@@ -13,7 +13,12 @@ export default {
         filename: 'geometry-utils.js',
         path: path.resolve('../../dist')
     },
-    resolve: { extensions: ['.ts'] },
+    externals: {
+        'wasm-nesting': 'WasmNesting' // Treat wasm-nesting as an external dependency
+    },
+    resolve: {
+        extensions: ['.ts'] // Only resolve TypeScript files
+    },
     devServer: { contentBase: '../../dist', hot: true },
     plugins: [new webpack.HotModuleReplacementPlugin()],
     module: {
