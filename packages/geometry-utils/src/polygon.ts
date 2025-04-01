@@ -1,4 +1,4 @@
-import { greet } from 'wasm-nesting';
+import { polygon_area, polygon_area_simd } from 'wasm-nesting';
 import Point from './point';
 import { almostEqual, cycleIndex, getUint16 } from './helpers';
 import { NFP_INFO_START_INDEX } from './constants';
@@ -22,7 +22,6 @@ export default class Polygon {
     private bounds: BoundRect;
 
     private constructor() {
-        console.log(greet('test'));
         this.point = Point.zero();
         this.closed = false;
         this.pointCount = 0;
@@ -283,6 +282,10 @@ export default class Polygon {
             currPoint.update(this.at(i));
             result += (prevPoint.x + currPoint.x) * (prevPoint.y - currPoint.y);
         }
+
+        const testData = Float32Array.from(this.memSeg.slice(this.offset, this.offset + (pointCount << 1)));
+
+        console.log(pointCount, 0.5 * result, polygon_area(testData), polygon_area_simd(testData));
 
         return 0.5 * result;
     }
