@@ -11,7 +11,7 @@ export default class SVGParser {
 
     #bin: INode = null;
 
-    #binPolygon: Float64Array = null;
+    #binPolygon: Float32Array = null;
 
     #parts: INode[] = null;
 
@@ -19,13 +19,13 @@ export default class SVGParser {
         this.#svgRoot = formatSVG(svgString);
     }
 
-    public getPolygons(configuration: NestConfig): Float64Array[] {
+    public getPolygons(configuration: NestConfig): Float32Array[] {
         const { curveTolerance } = configuration;
         this.#parts = this.#svgRoot.children.filter(node => node.attributes.guid !== this.#bin.attributes.guid);
         this.#binPolygon = this.clearPolygon(this.#bin, curveTolerance);
 
         const nodeCount = this.#parts.length;
-        const result: Float64Array[] = [];
+        const result: Float32Array[] = [];
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
@@ -43,12 +43,12 @@ export default class SVGParser {
         return this.#svgRoot.attributes;
     }
 
-    private clearPolygon(element: INode, tolerance: number): Float64Array {
+    private clearPolygon(element: INode, tolerance: number): Float32Array {
         const tagName: SVG_TAG = element.name as SVG_TAG;
 
         return SHAPE_BUILDERS.has(tagName)
             ? SHAPE_BUILDERS.get(tagName).create(element, tolerance, SVGParser.SVG_TOLERANCE).getResult()
-            : new Float64Array(0);
+            : new Float32Array(0);
     }
 
     // returns an array of SVG elements that represent the placement, for export or rendering
@@ -147,7 +147,7 @@ export default class SVGParser {
         return stringify(this.#svgRoot);
     }
 
-    public get binPolygon(): Float64Array {
+    public get binPolygon(): Float32Array {
         return this.#binPolygon;
     }
 

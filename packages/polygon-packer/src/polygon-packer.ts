@@ -34,20 +34,20 @@ export default class PolygonPacker {
     // displayCallback is called when a new placement has been made
     public start(
         configuration: NestConfig,
-        polygons: Float64Array[],
-        binPolygon: Float64Array,
+        polygons: Float32Array[],
+        binPolygon: Float32Array,
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {
         const clipperWrapper = new ClipperWrapper(configuration);
-        const binData = clipperWrapper.generateBounds(binPolygon);
+        const binData = clipperWrapper.generateBounds(Float64Array.from(binPolygon));
 
         this.#binNode = binData.binNode;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
         this.#isWorking = true;
-        this.#nodes = clipperWrapper.generateTree(polygons);
+        this.#nodes = clipperWrapper.generateTree(polygons.map(polygon => Float64Array.from(polygon)));
 
         this.launchWorkers(configuration, displayCallback);
 

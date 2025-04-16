@@ -15,7 +15,7 @@ import BasicSegment from './segments/basic-segment';
 import { ICubicSegmentData, IQuadraticSegmentData, IBasicSegmentData, IArcSegmentData } from './types';
 
 export default class PathBuilder extends BasicShapeBuilder {
-    public getResult(): Float64Array {
+    public getResult(): Float32Array {
         const definition: string = this.element.attributes.d;
         const rawSegments: Command[] = parseSVG(definition);
         const segments: CommandMadeAbsolute[] = makeAbsolute(rawSegments);

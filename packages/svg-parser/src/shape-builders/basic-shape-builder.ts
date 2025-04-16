@@ -34,7 +34,7 @@ export default class BasicShapeBuilder extends BasicElementBuilder {
         }
     }
 
-    public getResult(): Float64Array {
+    public getResult(): Float32Array {
         let pointCount: number = this.#result.length;
 
         while (
@@ -46,7 +46,7 @@ export default class BasicShapeBuilder extends BasicElementBuilder {
             --pointCount;
         }
 
-        const result: Float64Array = new Float64Array(pointCount << 1);
+        const result: Float32Array = new Float32Array(pointCount << 1);
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
