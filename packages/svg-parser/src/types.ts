@@ -73,7 +73,7 @@ export type NestConfig = {
 export type PolygonNode = {
     source: number;
     rotation: number;
-    memSeg: Float64Array;
+    memSeg: Float32Array;
     children: PolygonNode[];
 };
 
