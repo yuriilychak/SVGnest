@@ -12,7 +12,7 @@ export type DisplayCallback = (placement: string, placePerecntage: number, laced
 export type PolygonNode = {
     source: number;
     rotation: number;
-    memSeg: Float64Array;
+    memSeg: Float32Array;
     children: PolygonNode[];
 };
 

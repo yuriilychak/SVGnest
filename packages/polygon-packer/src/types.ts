@@ -7,7 +7,7 @@ export type NestConfig = {
     useHoles: boolean;
 };
 
-export type BoundRect = {
+export type BoundRectF32 = {
     x: number;
     y: number;
     width: number;
@@ -24,7 +24,7 @@ export type NFPCache = Map<number, ArrayBuffer>;
 export type PlacementData = {
     placementsData: Float64Array;
     nodes: PolygonNode[];
-    bounds: BoundRect;
+    bounds: BoundRectF32;
     angleSplit: number;
 };
 
@@ -38,7 +38,7 @@ export type DisplayCallback = (
 export type PolygonNode = {
     source: number;
     rotation: number;
-    memSeg: Float64Array;
+    memSeg: Float32Array;
     children: PolygonNode[];
 };
 

@@ -11,12 +11,12 @@ export default class PairContent extends WorkerContent {
     private _useHoles: boolean = false;
 
     public init(buffer: ArrayBuffer): this {
-        this.initNodes(buffer, Float64Array.BYTES_PER_ELEMENT * 3);
+        this.initNodes(buffer, Uint32Array.BYTES_PER_ELEMENT * 3);
         const view: DataView = new DataView(buffer);
 
-        const nestConfig: number = view.getFloat64(Float64Array.BYTES_PER_ELEMENT * 2);
+        const nestConfig: number = view.getUint32(Uint32Array.BYTES_PER_ELEMENT * 2);
 
-        this._key = view.getFloat64(Float64Array.BYTES_PER_ELEMENT);
+        this._key = view.getUint32(Uint32Array.BYTES_PER_ELEMENT);
         this._isInside = PairContent.getInside(this._key);
         this._useHoles = Boolean(getBits(nestConfig, 28, 1));
 

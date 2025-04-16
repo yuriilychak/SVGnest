@@ -996,8 +996,8 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     const polygonA: Polygon = polygons[0];
     const polygonB: Polygon = polygons[1];
 
-    polygonA.bind(pairContent.firstNode.memSeg);
-    polygonB.bind(pairContent.secondNode.memSeg);
+    polygonA.bind(Float64Array.from(pairContent.firstNode.memSeg));
+    polygonB.bind(Float64Array.from(pairContent.secondNode.memSeg));
     const tmpPolygon: Polygon = polygons[2];
     let nfp: Float64Array[] = null;
     let nfpSize: number = 0;
@@ -1073,7 +1073,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
 
         for (i = 0; i < childCount; ++i) {
             node = pairContent.firstNode.children[i];
-            child.bind(node.memSeg);
+            child.bind(Float64Array.from(node.memSeg));
 
             // no need to find nfp if B's bounding box is too big
             if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {

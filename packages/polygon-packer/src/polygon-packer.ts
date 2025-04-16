@@ -1,9 +1,9 @@
-import { ClipperWrapper, getUint16, Polygon } from 'geometry-utils';
+import { ClipperWrapper, getUint16, Polygon, PolygonF32 } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
-import { BoundRect, DisplayCallback, NestConfig, PolygonNode } from './types';
+import { BoundRectF32, DisplayCallback, NestConfig, PolygonNode } from './types';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -12,9 +12,9 @@ export default class PolygonPacker {
 
     #binArea: number = 0;
 
-    #binBounds: BoundRect = null;
+    #binBounds: BoundRectF32 = null;
 
-    #resultBounds: BoundRect = null;
+    #resultBounds: BoundRectF32 = null;
 
     #isWorking: boolean = false;
 
@@ -40,14 +40,14 @@ export default class PolygonPacker {
         displayCallback: DisplayCallback
     ): void {
         const clipperWrapper = new ClipperWrapper(configuration);
-        const binData = clipperWrapper.generateBounds(Float64Array.from(binPolygon));
+        const binData = clipperWrapper.generateBounds(binPolygon);
 
         this.#binNode = binData.binNode;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
         this.#isWorking = true;
-        this.#nodes = clipperWrapper.generateTree(polygons.map(polygon => Float64Array.from(polygon)));
+        this.#nodes = clipperWrapper.generateTree(polygons);
 
         this.launchWorkers(configuration, displayCallback);
 
@@ -112,7 +112,7 @@ export default class PolygonPacker {
             this.#best = placementsData;
 
             const binArea: number = Math.abs(this.#binArea);
-            const polygon: Polygon = Polygon.create();
+            const polygon: PolygonF32 = PolygonF32.create();
             const placementCount = placementsData[1];
             let placedCount: number = 0;
             let placedArea: number = 0;

@@ -1,4 +1,4 @@
-import { generateNFPCacheKey, Polygon, serializeConfig, serializeMapToBuffer, serializePolygonNodes } from 'geometry-utils';
+import { generateNFPCacheKey, PolygonF32, serializeConfig, serializeMapToBuffer, serializePolygonNodes } from 'geometry-utils';
 
 import { Phenotype } from './genetic-algorithm';
 import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE } from './types';
@@ -20,7 +20,7 @@ export default class NFPStore {
         this.#angleSplit = config.rotations;
         this.#nfpPairs = [];
 
-        const polygon: Polygon = Polygon.create();
+        const polygon: PolygonF32 = PolygonF32.create();
         const nodes: PolygonNode[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = nodes.length;
@@ -63,17 +63,17 @@ export default class NFPStore {
         }
     }
 
-    private updateCache(polygon: Polygon, node1: PolygonNode, node2: PolygonNode, inside: boolean, newCache: NFPCache): void {
+    private updateCache(polygon: PolygonF32, node1: PolygonNode, node2: PolygonNode, inside: boolean, newCache: NFPCache): void {
         const key: number = generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
 
         if (!this.#nfpCache.has(key)) {
             const nodes = NFPStore.rotateNodes(polygon, [node1, node2]);
-            const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT * 3);
+            const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 3);
             const view: DataView = new DataView(buffer);
 
-            view.setFloat64(0, THREAD_TYPE.PAIR);
-            view.setFloat64(Float64Array.BYTES_PER_ELEMENT, key);
-            view.setFloat64(Float64Array.BYTES_PER_ELEMENT << 1, this.#configCompressed);
+            view.setUint32(0, THREAD_TYPE.PAIR);
+            view.setUint32(Uint32Array.BYTES_PER_ELEMENT, key);
+            view.setUint32(Uint32Array.BYTES_PER_ELEMENT << 1, this.#configCompressed);
 
             this.#nfpPairs.push(buffer);
         } else {
@@ -88,19 +88,19 @@ export default class NFPStore {
     }
 
     public getPlacementData(area: number): ArrayBuffer[] {
-        const polygon: Polygon = Polygon.create();
+        const polygon: PolygonF32 = PolygonF32.create();
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
         const nodes = NFPStore.rotateNodes(polygon, this.#individual.placement);
-        const buffer = serializePolygonNodes(nodes, Float64Array.BYTES_PER_ELEMENT * 4 + bufferSize);
+        const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 4 + bufferSize);
         const view = new DataView(buffer);
 
-        view.setFloat64(0, THREAD_TYPE.PLACEMENT);
-        view.setFloat64(Float64Array.BYTES_PER_ELEMENT, this.#configCompressed);
-        view.setFloat64(Float64Array.BYTES_PER_ELEMENT * 2, area);
-        view.setFloat64(Float64Array.BYTES_PER_ELEMENT * 3, bufferSize);
+        view.setUint32(0, THREAD_TYPE.PLACEMENT);
+        view.setUint32(Uint32Array.BYTES_PER_ELEMENT, this.#configCompressed);
+        view.setFloat32(Uint32Array.BYTES_PER_ELEMENT * 2, area);
+        view.setUint32(Uint32Array.BYTES_PER_ELEMENT * 3, bufferSize);
 
-        new Uint8Array(buffer, Float64Array.BYTES_PER_ELEMENT * 4).set(new Uint8Array(nfpBuffer));
+        new Uint8Array(buffer, Uint32Array.BYTES_PER_ELEMENT * 4).set(new Uint8Array(nfpBuffer));
 
         return [buffer];
     }
@@ -121,7 +121,7 @@ export default class NFPStore {
         this.#individual.fitness = value;
     }
 
-    private static rotateNodes(polygon: Polygon, nodes: PolygonNode[]): PolygonNode[] {
+    private static rotateNodes(polygon: PolygonF32, nodes: PolygonNode[]): PolygonNode[] {
         const result: PolygonNode[] = NFPStore.cloneNodes(nodes);
 
         const nodeCount: number = result.length;
@@ -134,7 +134,7 @@ export default class NFPStore {
         return result;
     }
 
-    private static rotateNode(polygon: Polygon, rootNode: PolygonNode, rotation: number): void {
+    private static rotateNode(polygon: PolygonF32, rootNode: PolygonNode, rotation: number): void {
         polygon.bind(rootNode.memSeg);
         polygon.rotate(rotation);
 
