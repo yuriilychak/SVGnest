@@ -13,7 +13,7 @@ export default class OutPt {
 
     constructor(index: number = 0, point: NullPtr<PointF64> = null, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
         this.index = index;
-        this.point = point === null ? PointF64.zero() : PointF64.from(point);
+        this.point = PointF64.from(point);
         this.next = next;
         this.prev = prev;
     }

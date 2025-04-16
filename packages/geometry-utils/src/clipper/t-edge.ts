@@ -1,4 +1,4 @@
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../point';
 import { HORIZONTAL } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
@@ -25,10 +25,10 @@ export default class TEdge {
     public PrevInSEL: TEdge;
 
     constructor() {
-        this.Bot = PointF64.zero();
-        this.Curr = PointF64.zero();
-        this.Top = PointF64.zero();
-        this.Delta = PointF64.zero();
+        this.Bot = PointF64.create();
+        this.Curr = PointF64.create();
+        this.Top = PointF64.create();
+        this.Delta = PointF64.create();
         this.Dx = 0;
         this.PolyTyp = POLY_TYPE.SUBJECT;
         this.Side = DIRECTION.LEFT;

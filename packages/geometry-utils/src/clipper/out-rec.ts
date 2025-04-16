@@ -1,4 +1,4 @@
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../point';
 import OutPt from './out-pt';
 import TEdge from './t-edge';
 import { DIRECTION, NullPtr } from './types';

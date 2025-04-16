@@ -1010,7 +1010,7 @@ export default class Clipper extends ClipperBase {
 
             while (edge.NextInSEL !== null) {
                 nextEdge = edge.NextInSEL;
-                point = PointF64.zero();
+                point = PointF64.create();
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.Curr.x > nextEdge.Curr.x) {
                     if (

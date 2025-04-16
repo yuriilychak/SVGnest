@@ -48,7 +48,7 @@ export default class ClipperWrapper {
     }
 
     public generateTree(memSegs: Float32Array[]): PolygonNode[] {
-        const point: PointF32 = PointF32.zero();
+        const point: PointF32 = PointF32.create();
         const { curveTolerance } = this.configuration;
         const trashold = curveTolerance * curveTolerance;
         const nodes: PolygonNode[] = [];
@@ -231,7 +231,7 @@ export default class ClipperWrapper {
     ): PointF64[] {
         const resultScale = scale * ClipperWrapper.CLIPPER_SCALE;
         const result: PointF64[] = [];
-        const point: PointF64 = PointF64.zero();
+        const point: PointF64 = PointF64.create();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
@@ -256,7 +256,7 @@ export default class ClipperWrapper {
     public static toMemSeg(polygon: PointF64[], memSeg: Float64Array = null): Float64Array {
         const pointCount: number = polygon.length;
         const result: Float64Array = memSeg ? memSeg : new Float64Array(pointCount << 1);
-        const tempPoint: PointF64 = PointF64.zero();
+        const tempPoint: PointF64 = PointF64.create();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
@@ -270,7 +270,7 @@ export default class ClipperWrapper {
     public static toMemSegF32(polygon: PointF64[], memSeg: Float32Array = null): Float32Array {
         const pointCount: number = polygon.length;
         const result: Float32Array = memSeg ? memSeg : new Float32Array(pointCount << 1);
-        const tempPoint: PointF32 = PointF32.zero();
+        const tempPoint: PointF32 = PointF32.create();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {

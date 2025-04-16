@@ -11,7 +11,7 @@ export default class Join {
     constructor(outPt1: NullPtr<OutPt> = null, outPt2: NullPtr<OutPt> = null, offPoint: NullPtr<PointF64> = null) {
         this.OutPt1 = outPt1;
         this.OutPt2 = outPt2;
-        this.OffPt = offPoint === null ? PointF64.zero() : PointF64.from(offPoint);
+        this.OffPt = PointF64.from(offPoint);
     }
 
     public joinPoints(isRecordsSame: boolean, isUseFullRange: boolean): boolean {
@@ -96,7 +96,7 @@ export default class Join {
             //DiscardLeftSide: when overlapping edges are joined, a spike will created
             //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
             //on the discard Side as either may still be needed for other joins ...
-            const Pt: PointF64 = PointF64.zero();
+            const Pt: PointF64 = PointF64.create();
             let DiscardLeftSide: boolean = false;
             if (op1.point.x >= value.x && op1.point.x <= value.y) {
                 //Pt = op1.Pt;

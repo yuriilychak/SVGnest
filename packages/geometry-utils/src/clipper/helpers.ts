@@ -1,5 +1,5 @@
 import OutPt from './out-pt';
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../point';
 import { cycleIndex } from '../helpers';
 
 export function getArea(poly: PointF64[]): number {
@@ -57,10 +57,10 @@ export function cleanPolygon(path: PointF64[], distance: number): PointF64[] {
     let op: OutPt = outPts[0];
 
     while (op.index === 0 && op.next != op.prev) {
-        if (PointF64.pointsAreClose(op.point, op.prev.point, distSqrd)) {
+        if (op.point.closeTo(op.prev.point, distSqrd)) {
             op = op.exclude();
             --pointCount;
-        } else if (PointF64.pointsAreClose(op.prev.point, op.next.point, distSqrd)) {
+        } else if (op.prev.point.closeTo(op.next.point, distSqrd)) {
             op.next.exclude();
             op = op.exclude();
             pointCount -= 2;

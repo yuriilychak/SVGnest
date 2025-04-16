@@ -74,6 +74,8 @@ export interface Point<T extends TypedArray = TypedArray> {
 
     reverse(): this;
 
+    clone(point?: Point): Point<T>;
+
     onSegment(pointA: Point, pointB: Point): boolean;
 
     almostEqual(point: Point, tolerance?: number): boolean;
@@ -83,6 +85,10 @@ export interface Point<T extends TypedArray = TypedArray> {
     interpolateY(beginPoint: Point, endPoint: Point): number;
 
     export(): T;
+
+    rangeTest(useFullRange: boolean): boolean;
+
+    closeTo(point: Point, distSqrd: number): boolean
 
     x: number;
 

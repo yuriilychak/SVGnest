@@ -21,7 +21,7 @@ export default class Polygon {
     private bounds: BoundRect;
 
     private constructor() {
-        this.point = PointF64.zero();
+        this.point = PointF64.create();
         this.closed = false;
         this.pointCount = 0;
         this.offset = 0;
@@ -87,8 +87,8 @@ export default class Polygon {
         }
 
         const innerPoint: PointF64 = PointF64.from(point);
-        const currPoint: PointF64 = PointF64.zero();
-        const prevPoint: PointF64 = PointF64.zero();
+        const currPoint: PointF64 = PointF64.create();
+        const prevPoint: PointF64 = PointF64.create();
         const pointCount: number = this.pointCount;
         let inside: boolean = false;
         let i: number = 0;
@@ -271,8 +271,8 @@ export default class Polygon {
     // a negative area indicates counter-clockwise winding direction
     public get area(): number {
         const pointCount = this.pointCount;
-        const prevPoint: PointF64 = PointF64.zero();
-        const currPoint: PointF64 = PointF64.zero();
+        const prevPoint: PointF64 = PointF64.create();
+        const currPoint: PointF64 = PointF64.create();
         let result: number = 0;
         let i: number = 0;
 

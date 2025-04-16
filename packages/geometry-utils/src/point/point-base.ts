@@ -177,7 +177,66 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return this.memSeg.slice(this.offset, this.offset + 2) as T;
     }
 
-    public abstract onSegment(pointA: Point, pointB: Point): boolean;
+    public rangeTest(useFullRange: boolean): boolean {
+        if (useFullRange) {
+            if (Math.abs(this.x) > PointBase.HIGH_RANGE || Math.abs(this.y) > PointBase.HIGH_RANGE) {
+                console.warn('Coordinate outside allowed range in rangeTest().');
+            }
+        } else if (Math.abs(this.x) > PointBase.LOW_RANGE || Math.abs(this.y) > PointBase.LOW_RANGE) {
+            return this.rangeTest(true);
+        }
+
+        return useFullRange;
+    }
+
+    public abstract clone(point?: Point): PointBase<T>;
+
+    public closeTo(point: Point, distSqrd: number): boolean {
+        return this.len2(point) <= distSqrd;
+    }
+
+    public onSegment(pointA: Point, pointB: Point): boolean {
+        const midX: number = midValue(this.x, pointA.x, pointB.x);
+        const midY: number = midValue(this.y, pointA.y, pointB.y);
+
+        // vertical line
+        if (almostEqual(pointA.x, pointB.x) && almostEqual(this.x, pointA.x)) {
+            return !almostEqual(this.y, pointB.y) && !almostEqual(this.y, pointA.y) && midY < 0;
+        }
+
+        // horizontal line
+        if (almostEqual(pointA.y, pointB.y) && almostEqual(this.y, pointA.y)) {
+            return !almostEqual(this.x, pointB.x) && !almostEqual(this.x, pointA.x) && midX < 0;
+        }
+
+        if (
+            // range check
+            midX > 0 ||
+            midY > 0 ||
+            // exclude end points
+            this.almostEqual(pointA) ||
+            this.almostEqual(pointB)
+        ) {
+            return false;
+        }
+
+        const subA = this.clone().sub(pointA);
+        const subAB = this.clone(pointB).sub(pointA);
+
+        if (Math.abs(subA.cross(subAB)) > TOL) {
+            return false;
+        }
+
+        const dot = subA.dot(subAB);
+
+        if (dot < TOL) {
+            return false;
+        }
+
+        const len2 = pointA.len2(pointB);
+
+        return !(dot > len2 || almostEqual(dot, len2));
+    }
 
     public get x(): number {
         return this.memSeg[this.offset];
@@ -226,18 +285,6 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
 
     public static lineEquation(point1: Point, point2: Point): number[] {
         return [point2.y - point1.y, point1.x - point2.x, point2.x * point1.y - point1.x * point2.y];
-    }
-
-    public static rangeTest(point: Point, useFullRange: boolean): boolean {
-        if (useFullRange) {
-            if (Math.abs(point.x) > PointBase.HIGH_RANGE || Math.abs(point.y) > PointBase.HIGH_RANGE) {
-                console.warn('Coordinate outside allowed range in rangeTest().');
-            }
-        } else if (Math.abs(point.x) > PointBase.LOW_RANGE || Math.abs(point.y) > PointBase.LOW_RANGE) {
-            return PointBase.rangeTest(point, true);
-        }
-
-        return useFullRange;
     }
 
     private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2

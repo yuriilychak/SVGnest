@@ -1,4 +1,4 @@
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../point';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { DIRECTION, POLY_TYPE } from './types';
@@ -34,14 +34,14 @@ export default class ClipperBase {
         //edges[1].Curr = pg[1];
         edges[1].Curr.update(polygon[1]);
 
-        this.isUseFullRange = PointF64.rangeTest(polygon[0], this.isUseFullRange);
-        this.isUseFullRange = PointF64.rangeTest(polygon[lastIndex], this.isUseFullRange);
+        this.isUseFullRange = polygon[0].rangeTest(this.isUseFullRange);
+        this.isUseFullRange = polygon[lastIndex].rangeTest(this.isUseFullRange);
 
         edges[0].init(edges[1], edges[lastIndex], polygon[0]);
         edges[lastIndex].init(edges[0], edges[lastIndex - 1], polygon[lastIndex]);
 
         for (i = lastIndex - 1; i >= 1; --i) {
-            this.isUseFullRange = PointF64.rangeTest(polygon[i], this.isUseFullRange);
+            this.isUseFullRange = polygon[i].rangeTest(this.isUseFullRange);
 
             edges[i].init(edges[i + 1], edges[i - 1], polygon[i]);
         }

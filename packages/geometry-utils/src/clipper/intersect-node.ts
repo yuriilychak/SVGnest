@@ -10,7 +10,7 @@ export default class IntersectNode {
     constructor(edge1: NullPtr<TEdge> = null, edge2: NullPtr<TEdge> = null, point: NullPtr<PointF64> = null) {
         this.Edge1 = edge1;
         this.Edge2 = edge2;
-        this.Pt = point === null ? PointF64.zero() : PointF64.from(point);
+        this.Pt = PointF64.from(point);
     }
 
     public get edgesAdjacent(): boolean {
