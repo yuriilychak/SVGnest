@@ -1,8 +1,8 @@
 import { almostEqual, cycleIndex, midValue, setBits, getBits, getUint16, joinUint16 } from '../helpers';
 import { PolygonNode } from '../types';
-import Point from '../point';
+import { PointF64 } from '../point';
 import Polygon from '../polygon';
-import { NFP_INFO_START_INDEX, TOL } from '../constants';
+import { TOL } from '../constants';
 import PointPool from '../point-pool';
 import { WorkerConfig, SegmentCheck } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
@@ -11,9 +11,9 @@ import PairContent from './pair-content';
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
-function lineIntersect(A: Point, B: Point, E: Point, F: Point): boolean {
-    const [a1, b1, c1] = Point.lineEquation(A, B);
-    const [a2, b2, c2] = Point.lineEquation(E, F);
+function lineIntersect(A: PointF64, B: PointF64, E: PointF64, F: PointF64): boolean {
+    const [a1, b1, c1] = PointF64.lineEquation(A, B);
+    const [a2, b2, c2] = PointF64.lineEquation(E, F);
     const denom = a1 * b2 - a2 * b1;
     const x = (b1 * c2 - b2 * c1) / denom;
     const y = (a2 * c1 - a1 * c2) / denom;
@@ -38,7 +38,7 @@ function lineIntersect(A: Point, B: Point, E: Point, F: Point): boolean {
 // old-todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
 
-function updateIntersectPoint(point: Point, polygon: Polygon, index: number, offset: number): void {
+function updateIntersectPoint(point: PointF64, polygon: Polygon, index: number, offset: number): void {
     const pointCount: number = polygon.length;
     let currentIndex = cycleIndex(index, pointCount, offset);
 
@@ -52,14 +52,14 @@ function updateIntersectPoint(point: Point, polygon: Polygon, index: number, off
 }
 
 function getSegmentCheck(
-    point: Point,
+    point: PointF64,
     polygon: Polygon,
-    segmentStart: Point,
-    segmentEnd: Point,
-    checkStart: Point,
-    checkEnd: Point,
-    target: Point,
-    offset: Point
+    segmentStart: PointF64,
+    segmentEnd: PointF64,
+    checkStart: PointF64,
+    checkEnd: PointF64,
+    target: PointF64,
+    offset: PointF64
 ): SegmentCheck {
     return { point, polygon, segmentStart, segmentEnd, checkStart, checkEnd, target, offset };
 }
@@ -85,17 +85,17 @@ function getSegmentStats({
     return null;
 }
 
-function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, offset: Point): boolean {
+function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, offset: PointF64): boolean {
     const pointIndices: number = pointPool.alloc(9);
-    const a0: Point = pointPool.get(pointIndices, 0);
-    const a1: Point = pointPool.get(pointIndices, 1);
-    const a2: Point = pointPool.get(pointIndices, 2);
-    const a3: Point = pointPool.get(pointIndices, 3);
-    const b0: Point = pointPool.get(pointIndices, 4);
-    const b1: Point = pointPool.get(pointIndices, 5);
-    const b2: Point = pointPool.get(pointIndices, 6);
-    const b3: Point = pointPool.get(pointIndices, 7);
-    const offsetA: Point = pointPool.get(pointIndices, 8).set(0, 0);
+    const a0: PointF64 = pointPool.get(pointIndices, 0);
+    const a1: PointF64 = pointPool.get(pointIndices, 1);
+    const a2: PointF64 = pointPool.get(pointIndices, 2);
+    const a3: PointF64 = pointPool.get(pointIndices, 3);
+    const b0: PointF64 = pointPool.get(pointIndices, 4);
+    const b1: PointF64 = pointPool.get(pointIndices, 5);
+    const b2: PointF64 = pointPool.get(pointIndices, 6);
+    const b3: PointF64 = pointPool.get(pointIndices, 7);
+    const offsetA: PointF64 = pointPool.get(pointIndices, 8).set(0, 0);
     const pointCountA: number = polygonA.length;
     const pointCountB: number = polygonB.length;
     const segmentChecks: SegmentCheck[] = [
@@ -156,10 +156,10 @@ function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, o
 
 function pointDistance(
     pointPool: PointPool,
-    p: Point,
-    s1: Point,
-    s2: Point,
-    inputNormal: Point,
+    p: PointF64,
+    s1: PointF64,
+    s2: PointF64,
+    inputNormal: PointF64,
     infinite: boolean = false
 ): number {
     const pointIndices: number = pointPool.alloc(2);
@@ -193,12 +193,12 @@ function pointDistance(
 
 function coincedentDistance(
     pointPool: PointPool,
-    point1: Point,
-    point2: Point,
-    point3: Point,
-    point4: Point,
-    direction: Point,
-    normal: Point,
+    point1: PointF64,
+    point2: PointF64,
+    point3: PointF64,
+    point4: PointF64,
+    direction: PointF64,
+    normal: PointF64,
     overlap: number,
     defaultValue: number
 ): number {
@@ -228,7 +228,7 @@ function coincedentDistance(
     return Number.isNaN(defaultValue) ? result : Math.min(result, defaultValue);
 }
 
-function segmentDistance(pointPool: PointPool, A: Point, B: Point, E: Point, F: Point, direction: Point): number {
+function segmentDistance(pointPool: PointPool, A: PointF64, B: PointF64, E: PointF64, F: PointF64, direction: PointF64): number {
     let sharedPointIndices: number = pointPool.alloc(3);
     const normal = pointPool.get(sharedPointIndices, 0).update(direction).normal();
     const reverse = pointPool.get(sharedPointIndices, 1).update(direction).reverse();
@@ -258,9 +258,9 @@ function segmentDistance(pointPool: PointPool, A: Point, B: Point, E: Point, F: 
             ? 1
             : (Math.min(maxAB, maxEF) - Math.max(minAB, minEF)) / (Math.max(maxAB, maxEF) - Math.min(minAB, minEF));
     const pointIndices2: number = pointPool.alloc(3);
-    const diffAB: Point = pointPool.get(pointIndices2, 0).update(B).sub(A);
-    const diffAE: Point = pointPool.get(pointIndices2, 1).update(E).sub(A);
-    const diffAF: Point = pointPool.get(pointIndices2, 2).update(F).sub(A);
+    const diffAB: PointF64 = pointPool.get(pointIndices2, 0).update(B).sub(A);
+    const diffAE: PointF64 = pointPool.get(pointIndices2, 1).update(E).sub(A);
+    const diffAF: PointF64 = pointPool.get(pointIndices2, 2).update(F).sub(A);
     const crossABE = diffAE.cross(diffAB);
     const crossABF = diffAF.cross(diffAB);
 
@@ -328,14 +328,14 @@ function polygonSlideDistance(
     pointPool: PointPool,
     polygonA: Polygon,
     polygonB: Polygon,
-    direction: Point,
-    offset: Point
+    direction: PointF64,
+    offset: PointF64
 ): number {
     const pointIndices: number = pointPool.alloc(5);
-    const a1: Point = pointPool.get(pointIndices, 0);
-    const a2: Point = pointPool.get(pointIndices, 1);
-    const b1: Point = pointPool.get(pointIndices, 2);
-    const b2: Point = pointPool.get(pointIndices, 3);
+    const a1: PointF64 = pointPool.get(pointIndices, 0);
+    const a2: PointF64 = pointPool.get(pointIndices, 1);
+    const b1: PointF64 = pointPool.get(pointIndices, 2);
+    const b2: PointF64 = pointPool.get(pointIndices, 3);
     const dir = pointPool.get(pointIndices, 4).update(direction).normalize();
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
@@ -376,16 +376,16 @@ function polygonProjectionDistance(
     pointPool: PointPool,
     polygonA: Polygon,
     polygonB: Polygon,
-    direction: Point,
-    offset: Point
+    direction: PointF64,
+    offset: PointF64
 ): number {
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const pointIndices: number = pointPool.alloc(4);
-    const p: Point = pointPool.get(pointIndices, 0);
-    const s1: Point = pointPool.get(pointIndices, 1);
-    const s2: Point = pointPool.get(pointIndices, 2);
-    const sOffset: Point = pointPool.get(pointIndices, 3);
+    const p: PointF64 = pointPool.get(pointIndices, 0);
+    const s1: PointF64 = pointPool.get(pointIndices, 1);
+    const s2: PointF64 = pointPool.get(pointIndices, 2);
+    const sOffset: PointF64 = pointPool.get(pointIndices, 3);
     let result: number = NaN;
     let d: number = 0;
     let i: number = 0;
@@ -445,7 +445,7 @@ function noFitPolygonRectangle(pointPool: PointPool, A: Polygon, B: Polygon): Fl
 }
 
 // returns true if point already exists in the given nfp
-function inNfp(polygon: Polygon, point: Point, nfp: Float64Array[]): boolean {
+function inNfp(polygon: Polygon, point: PointF64, nfp: Float64Array[]): boolean {
     if (nfp.length === 0) {
         return false;
     }
@@ -473,11 +473,11 @@ function getInside(
     pointPool: PointPool,
     polygonA: Polygon,
     polygonB: Polygon,
-    offset: Point,
+    offset: PointF64,
     defaultValue: boolean | null
 ): boolean | null {
     const pointIndices: number = pointPool.alloc(1);
-    const point: Point = pointPool.get(pointIndices, 0);
+    const point: PointF64 = pointPool.get(pointIndices, 0);
     const sizeB: number = polygonB.length;
     let i: number = 0;
     let inPoly: boolean = false;
@@ -514,9 +514,9 @@ function searchStartPoint(
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const pointIndices = pointPool.alloc(3);
-    const startPoint: Point = pointPool.get(pointIndices, 0);
-    const v: Point = pointPool.get(pointIndices, 1);
-    const vNeg: Point = pointPool.get(pointIndices, 2);
+    const startPoint: PointF64 = pointPool.get(pointIndices, 0);
+    const v: PointF64 = pointPool.get(pointIndices, 1);
+    const vNeg: PointF64 = pointPool.get(pointIndices, 2);
     let i: number = 0;
     let j: number = 0;
     let d: number = 0;
@@ -603,12 +603,12 @@ function searchStartPoint(
 
 function applyVector(
     memSeg: Float64Array,
-    point: Point,
+    point: PointF64,
     start: number,
     end: number,
-    baseValue: Point,
-    subValue: Point,
-    offset: Point = null
+    baseValue: PointF64,
+    subValue: PointF64,
+    offset: PointF64 = null
 ): void {
     point.update(baseValue).sub(subValue);
 
@@ -635,10 +635,10 @@ function serializeTouch(type: number, firstIndex: number, secondIndex: number): 
 }
 
 function getTouch(
-    pointA: Point,
-    pointANext: Point,
-    pointB: Point,
-    pointBNext: Point,
+    pointA: PointF64,
+    pointANext: PointF64,
+    pointB: PointF64,
+    pointBNext: PointF64,
     indexA: number,
     indexANext: number,
     indexB: number,
@@ -660,16 +660,16 @@ function fillVectors(
     polygonA: Polygon,
     polygonB: Polygon,
     pointPool: PointPool,
-    offset: Point,
+    offset: PointF64,
     memSeg: Float64Array,
     markedIndices: number[]
 ): void {
     // sanity check, prevent infinite loop
     const pointIndices = pointPool.alloc(4);
-    const pointA: Point = pointPool.get(pointIndices, 0);
-    const pointANext: Point = pointPool.get(pointIndices, 1);
-    const pointB: Point = pointPool.get(pointIndices, 2);
-    const pointBNext: Point = pointPool.get(pointIndices, 3);
+    const pointA: PointF64 = pointPool.get(pointIndices, 0);
+    const pointANext: PointF64 = pointPool.get(pointIndices, 1);
+    const pointB: PointF64 = pointPool.get(pointIndices, 2);
+    const pointBNext: PointF64 = pointPool.get(pointIndices, 3);
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     let i: number = 0;
@@ -705,7 +705,7 @@ function applyVectors(
     polygonA: Polygon,
     polygonB: Polygon,
     pointPool: PointPool,
-    offset: Point,
+    offset: PointF64,
     touch: number,
     memSeg: Float64Array
 ): void {
@@ -719,13 +719,13 @@ function applyVectors(
     const prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
     const nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
     const pointIndices = pointPool.alloc(7);
-    const prevA: Point = pointPool.get(pointIndices, 0);
-    const currA: Point = pointPool.get(pointIndices, 1);
-    const nextA: Point = pointPool.get(pointIndices, 2);
-    const prevB: Point = pointPool.get(pointIndices, 3);
-    const currB: Point = pointPool.get(pointIndices, 4);
-    const nextB: Point = pointPool.get(pointIndices, 5);
-    const point: Point = pointPool.get(pointIndices, 6);
+    const prevA: PointF64 = pointPool.get(pointIndices, 0);
+    const currA: PointF64 = pointPool.get(pointIndices, 1);
+    const nextA: PointF64 = pointPool.get(pointIndices, 2);
+    const prevB: PointF64 = pointPool.get(pointIndices, 3);
+    const currB: PointF64 = pointPool.get(pointIndices, 4);
+    const nextB: PointF64 = pointPool.get(pointIndices, 5);
+    const point: PointF64 = pointPool.get(pointIndices, 6);
 
     prevA.update(polygonA.at(prevIndexA));
     currA.update(polygonA.at(currIndexA));
@@ -758,7 +758,7 @@ function applyVectors(
 }
 
 // if A and B start on a touching horizontal line, the end point may not be the start point
-function getNfpLooped(nfp: number[], reference: Point, pointPool: PointPool): boolean {
+function getNfpLooped(nfp: number[], reference: PointF64, pointPool: PointPool): boolean {
     const pointCount: number = nfp.length >> 1;
 
     if (pointCount === 0) {
@@ -766,7 +766,7 @@ function getNfpLooped(nfp: number[], reference: Point, pointPool: PointPool): bo
     }
 
     const pointIndices: number = pointPool.alloc(1);
-    const point: Point = pointPool.get(pointIndices, 0);
+    const point: PointF64 = pointPool.get(pointIndices, 0);
     let i: number = 0;
 
     for (i = 0; i < pointCount - 1; ++i) {
@@ -787,17 +787,17 @@ function findTranslate(
     polygonA: Polygon,
     polygonB: Polygon,
     pointPool: PointPool,
-    offset: Point,
+    offset: PointF64,
     memSeg: Float64Array,
-    prevTranslate: Point
+    prevTranslate: PointF64
 ): void {
     // old-todo: there should be a faster way to reject vectors
     // that will cause immediate intersection. For now just check them all
     const vectorCount: number = memSeg[0];
     const pointIndices = pointPool.alloc(3);
-    const currUnitV: Point = pointPool.get(pointIndices, 0);
-    const prevUnitV: Point = pointPool.get(pointIndices, 1);
-    const currVector: Point = pointPool.get(pointIndices, 2);
+    const currUnitV: PointF64 = pointPool.get(pointIndices, 0);
+    const prevUnitV: PointF64 = pointPool.get(pointIndices, 1);
+    const currVector: PointF64 = pointPool.get(pointIndices, 2);
     let translate: number = -1;
     let maxDistance: number = 0;
     let distance: number = 0;
@@ -876,13 +876,13 @@ function noFitPolygon(
     }
 
     const pointIndices = pointPool.alloc(7);
-    const reference: Point = pointPool.get(pointIndices, 0);
-    const start: Point = pointPool.get(pointIndices, 1);
-    const offset: Point = pointPool.get(pointIndices, 2);
-    const startPoint: Point = pointPool.get(pointIndices, 3).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
-    const prevTranslate: Point = pointPool.get(pointIndices, 4);
-    const translate: Point = pointPool.get(pointIndices, 5);
-    const indices: Point = pointPool.get(pointIndices, 6);
+    const reference: PointF64 = pointPool.get(pointIndices, 0);
+    const start: PointF64 = pointPool.get(pointIndices, 1);
+    const offset: PointF64 = pointPool.get(pointIndices, 2);
+    const startPoint: PointF64 = pointPool.get(pointIndices, 3).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
+    const prevTranslate: PointF64 = pointPool.get(pointIndices, 4);
+    const translate: PointF64 = pointPool.get(pointIndices, 5);
+    const indices: PointF64 = pointPool.get(pointIndices, 6);
     const result: Float64Array[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;

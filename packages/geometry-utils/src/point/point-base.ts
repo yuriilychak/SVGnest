@@ -1,32 +1,32 @@
-import { ANGLE_CACHE, TOL } from './constants';
-import { almostEqual, clipperRound, midValue, slopesEqual } from './helpers';
-import Point from './point';
+import { ANGLE_CACHE, TOL } from '../constants';
+import { almostEqual, clipperRound, midValue, slopesEqual } from '../helpers';
+import type { Point, TypedArray } from '../types';
 
-export default class PointF32 {
-    private memSeg: Float32Array;
+export default abstract class PointBase<T extends TypedArray> implements Point<T> {
+    private memSeg: T;
 
     private offset: number;
 
-    public constructor(data: Float32Array, offset: number = 0) {
+    public constructor(data: T, offset: number = 0) {
         this.memSeg = data;
         this.offset = offset;
     }
 
-    public bind(data: Float32Array, offset: number = 0): this {
+    public bind(data: T, offset: number = 0): this {
         this.memSeg = data;
         this.offset = offset;
 
         return this;
     }
 
-    public fromMemSeg(data: Float32Array | number[], index: number = 0, offset: number = 0): this {
+    public fromMemSeg(data: ArrayLike<number>, index: number = 0, offset: number = 0): this {
         this.x = data[offset + (index << 1)];
         this.y = data[offset + (index << 1) + 1];
 
         return this;
     }
 
-    public fill(memSeg: Float32Array, index: number, offset: number = 0): void {
+    public fill(memSeg: T, index: number, offset: number = 0): void {
         memSeg[offset + (index << 1)] = this.x;
         memSeg[offset + (index << 1) + 1] = this.y;
     }
@@ -38,29 +38,29 @@ export default class PointF32 {
         return this;
     }
 
-    public update(point: PointF32): this {
+    public update(point: Point): this {
         return this.set(point.x, point.y);
     }
 
-    public fromClipper(point: PointF32 | Point): this {
+    public fromClipper(point: Point): this {
         return this.set(point.x, point.y);
     }
 
-    public add(point: PointF32): this {
+    public add(point: Point): this {
         this.x += point.x;
         this.y += point.y;
 
         return this;
     }
 
-    public sub(point: PointF32): this {
+    public sub(point: Point): this {
         this.x -= point.x;
         this.y -= point.y;
 
         return this;
     }
 
-    public mul(point: PointF32): this {
+    public mul(point: Point): this {
         this.x *= point.x;
         this.y *= point.y;
 
@@ -81,11 +81,11 @@ export default class PointF32 {
         return this;
     }
 
-    public max(point: PointF32): this {
+    public max(point: Point): this {
         return this.set(Math.max(this.x, point.x), Math.max(this.y, point.y));
     }
 
-    public min(point: PointF32): this {
+    public min(point: Point): this {
         return this.set(Math.min(this.x, point.x), Math.min(this.y, point.y));
     }
 
@@ -97,15 +97,15 @@ export default class PointF32 {
         return this.set(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
     }
 
-    public cross(point: PointF32): number {
+    public cross(point: Point): number {
         return this.y * point.x - this.x * point.y;
     }
 
-    public dot(point: PointF32): number {
+    public dot(point: Point): number {
         return this.x * point.x + this.y * point.y;
     }
 
-    public getBetween(point1: PointF32, point2: PointF32): boolean {
+    public getBetween(point1: Point, point2: Point): boolean {
         if (point1.almostEqual(point2) || point1.almostEqual(this) || this.almostEqual(point2)) {
             return false;
         }
@@ -117,14 +117,14 @@ export default class PointF32 {
         return this.y > point1.y === this.y < point2.y;
     }
 
-    public len2(point: PointF32): number {
+    public len2(point: Point): number {
         const offetX: number = this.x - point.x;
         const offetY: number = this.y - point.y;
 
         return offetX * offetX + offetY * offetY;
     }
 
-    public len(point: PointF32): number {
+    public len(point: Point): number {
         return Math.sqrt(this.len2(point));
     }
 
@@ -161,64 +161,23 @@ export default class PointF32 {
         return this.set(-this.x, -this.y);
     }
 
-    public onSegment(pointA: PointF32, pointB: PointF32): boolean {
-        const midX: number = midValue(this.x, pointA.x, pointB.x);
-        const midY: number = midValue(this.y, pointA.y, pointB.y);
-
-        // vertical line
-        if (almostEqual(pointA.x, pointB.x) && almostEqual(this.x, pointA.x)) {
-            return !almostEqual(this.y, pointB.y) && !almostEqual(this.y, pointA.y) && midY < 0;
-        }
-
-        // horizontal line
-        if (almostEqual(pointA.y, pointB.y) && almostEqual(this.y, pointA.y)) {
-            return !almostEqual(this.x, pointB.x) && !almostEqual(this.x, pointA.x) && midX < 0;
-        }
-
-        if (
-            // range check
-            midX > 0 ||
-            midY > 0 ||
-            // exclude end points
-            this.almostEqual(pointA) ||
-            this.almostEqual(pointB)
-        ) {
-            return false;
-        }
-
-        const subA = PointF32.from(this).sub(pointA);
-        const subAB = PointF32.from(pointB).sub(pointA);
-
-        if (Math.abs(subA.cross(subAB)) > TOL) {
-            return false;
-        }
-
-        const dot = subA.dot(subAB);
-
-        if (dot < TOL) {
-            return false;
-        }
-
-        const len2 = pointA.len2(pointB);
-
-        return !(dot > len2 || almostEqual(dot, len2));
-    }
-
-    public almostEqual(point: PointF32, tolerance: number = TOL): boolean {
+    public almostEqual(point: Point, tolerance: number = TOL): boolean {
         return almostEqual(this.x, point.x, tolerance) && almostEqual(this.y, point.y, tolerance);
     }
 
-    public interpolateX(beginPoint: PointF32, endPoint: PointF32): number {
+    public interpolateX(beginPoint: Point, endPoint: Point): number {
         return ((beginPoint.x - endPoint.x) * (this.y - endPoint.y)) / (beginPoint.y - endPoint.y) + endPoint.x;
     }
 
-    public interpolateY(beginPoint: PointF32, endPoint: PointF32): number {
+    public interpolateY(beginPoint: Point, endPoint: Point): number {
         return ((beginPoint.y - endPoint.y) * (this.x - endPoint.x)) / (beginPoint.x - endPoint.x) + endPoint.y;
     }
 
-    public export(): Float32Array {
-        return this.memSeg.slice(this.offset, this.offset + 2);
+    public export(): T {
+        return this.memSeg.slice(this.offset, this.offset + 2) as T;
     }
+
+    public abstract onSegment(pointA: Point, pointB: Point): boolean;
 
     public get x(): number {
         return this.memSeg[this.offset];
@@ -248,7 +207,7 @@ export default class PointF32 {
         return this.x === 0 && this.y === 0;
     }
 
-    public static horzSegmentsOverlap(Pt1a: PointF32, Pt1b: PointF32, Pt2a: PointF32, Pt2b: PointF32): boolean {
+    public static horzSegmentsOverlap(Pt1a: Point, Pt1b: Point, Pt2a: Point, Pt2b: Point): boolean {
         //precondition: both segments are horizontal
         return (
             Pt1a.x > Pt2a.x === Pt1a.x < Pt2b.x ||
@@ -260,44 +219,25 @@ export default class PointF32 {
         );
     }
 
-    public static slopesEqual(pt1: PointF32, pt2: PointF32, pt3: PointF32, useFullRange: boolean): boolean {
+    public static slopesEqual(pt1: Point, pt2: Point, pt3: Point, useFullRange: boolean): boolean {
         return slopesEqual(pt1.y - pt2.y, pt2.x - pt3.x, pt1.x - pt2.x, pt2.y - pt3.y, useFullRange);
     }
 
-    public static create(x: number, y: number): PointF32 {
-        const data = new Float32Array(2);
-        data[0] = x;
-        data[1] = y;
 
-        return new PointF32(data);
-    }
-
-    public static zero(): PointF32 {
-        return PointF32.create(0, 0);
-    }
-
-    public static from(point: PointF32): PointF32 {
-        return PointF32.create(point.x, point.y);
-    }
-
-    public static lineEquation(point1: PointF32, point2: PointF32): number[] {
+    public static lineEquation(point1: Point, point2: Point): number[] {
         return [point2.y - point1.y, point1.x - point2.x, point2.x * point1.y - point1.x * point2.y];
     }
 
-    public static rangeTest(point: PointF32, useFullRange: boolean): boolean {
+    public static rangeTest(point: Point, useFullRange: boolean): boolean {
         if (useFullRange) {
-            if (Math.abs(point.x) > PointF32.HIGH_RANGE || Math.abs(point.y) > PointF32.HIGH_RANGE) {
+            if (Math.abs(point.x) > PointBase.HIGH_RANGE || Math.abs(point.y) > PointBase.HIGH_RANGE) {
                 console.warn('Coordinate outside allowed range in rangeTest().');
             }
-        } else if (Math.abs(point.x) > PointF32.LOW_RANGE || Math.abs(point.y) > PointF32.LOW_RANGE) {
-            return PointF32.rangeTest(point, true);
+        } else if (Math.abs(point.x) > PointBase.LOW_RANGE || Math.abs(point.y) > PointBase.LOW_RANGE) {
+            return PointBase.rangeTest(point, true);
         }
 
         return useFullRange;
-    }
-
-    public static pointsAreClose(point1: PointF32, point2: PointF32, distSqrd: number): boolean {
-        return PointF32.from(point1).len2(point2) <= distSqrd;
     }
 
     private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2

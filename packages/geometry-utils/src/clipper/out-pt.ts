@@ -1,19 +1,19 @@
-import Point from '../point';
+import PointF64 from '../point/point-f64';
 import { HORIZONTAL } from './constants';
 import { DIRECTION, NullPtr } from './types';
 
 export default class OutPt {
     public index: number;
 
-    public point: Point;
+    public point: PointF64;
 
     public next: NullPtr<OutPt>;
 
     public prev: NullPtr<OutPt>;
 
-    constructor(index: number = 0, point: NullPtr<Point> = null, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
+    constructor(index: number = 0, point: NullPtr<PointF64> = null, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
         this.index = index;
-        this.point = point === null ? Point.zero() : Point.from(point);
+        this.point = point === null ? PointF64.zero() : PointF64.from(point);
         this.next = next;
         this.prev = prev;
     }
@@ -80,7 +80,7 @@ export default class OutPt {
         } while (pp1 !== outPt);
     }
 
-    public pointIn(pt: Point): number {
+    public pointIn(pt: PointF64): number {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
         let outPt: OutPt = this;
@@ -215,7 +215,7 @@ export default class OutPt {
         return dx1p >= maxDx || dx1n >= maxDx;
     }
 
-    public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: Point, isDiscardLeft: boolean) {
+    public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: PointF64, isDiscardLeft: boolean) {
         const direction1: DIRECTION = op1.point.x > op1b.point.x ? DIRECTION.LEFT : DIRECTION.RIGHT;
         const direction2: DIRECTION = op2.point.x > op2b.point.x ? DIRECTION.LEFT : DIRECTION.RIGHT;
 

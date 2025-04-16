@@ -1,7 +1,7 @@
 import { PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { almostEqual, getUint16, joinUint16 } from '../helpers';
-import Point from '../point';
+import { PointF64 } from '../point';
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import { NFP_INFO_START_INDEX } from '../constants';
@@ -12,12 +12,12 @@ function fillPointMemSeg(
     pointPool: PointPool,
     memSeg: Float64Array,
     node: PolygonNode,
-    offset: Point,
+    offset: PointF64,
     prevValue: number,
     memOffset: number
 ): number {
     const pointIndices: number = pointPool.alloc(1);
-    const tmpPoint: Point = pointPool.get(pointIndices, 0);
+    const tmpPoint: PointF64 = pointPool.get(pointIndices, 0);
     const pointCount = node.memSeg.length >> 1;
     let i: number = 0;
 
@@ -70,8 +70,8 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     const polygon1: Polygon = polygons[0];
     const polygon2: Polygon = polygons[1];
     const pointIndices: number = pointPool.alloc(2);
-    const tmpPoint: Point = pointPool.get(pointIndices, 0);
-    const firstPoint: Point = pointPool.get(pointIndices, 1);
+    const tmpPoint: PointF64 = pointPool.get(pointIndices, 0);
+    const firstPoint: PointF64 = pointPool.get(pointIndices, 1);
     const placements: number[][] = [];
     const pathItems: number[][] = [];
     let node: PolygonNode = null;
@@ -86,7 +86,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     let nfpOffset: number = 0;
     let placed: PolygonNode[] = [];
     let binNfp: Float64Array = null;
-    let finalNfp: Point[][] = null;
+    let finalNfp: PointF64[][] = null;
     let minArea: number = 0;
     let minX: number = 0;
     let nfpSize: number = 0;

@@ -1,6 +1,6 @@
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
-import Point from '../point';
+import { PointF64 } from '../point';
 import PlaceContent from './place-content';
 import PairContent from './pair-content';
 
@@ -15,12 +15,12 @@ export type WorkerConfig = {
 };
 
 export type SegmentCheck = {
-    point: Point;
+    point: PointF64;
     polygon: Polygon;
-    segmentStart: Point;
-    segmentEnd: Point;
-    checkStart: Point;
-    checkEnd: Point;
-    target: Point;
-    offset: Point;
+    segmentStart: PointF64;
+    segmentEnd: PointF64;
+    checkStart: PointF64;
+    checkEnd: PointF64;
+    target: PointF64;
+    offset: PointF64;
 };

@@ -1,4 +1,4 @@
-import PointF32 from './point-f32';
+import { PointF32 } from './point';
 
 export default class BoundRectF32 {
     private _memSeg: Float32Array;

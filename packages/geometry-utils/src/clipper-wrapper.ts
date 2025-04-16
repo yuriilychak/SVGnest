@@ -1,14 +1,13 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 
 import { NestConfig, PolygonNode } from './types';
-import Point from './point';
 import { generateNFPCacheKey, getPolygonNode, getUint16 } from './helpers';
 import PointPool from './point-pool';
 import { NFP_INFO_START_INDEX } from './constants';
 import PlaceContent from './worker-flow/place-content';
 import PolygonF32 from './polygon-f32';
 import BoundRectF32 from './bound-rect-f32';
-import PointF32 from './point-f32';
+import { PointF32, PointF64 } from './point';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -153,9 +152,9 @@ export default class ClipperWrapper {
         if (this.configuration.spacing !== 0) {
             const { spacing } = this.configuration;
             const offset: number = 0.5 * spacing * sign;
-            const path: Point[] = ClipperWrapper.fromMemSeg(node.memSeg);
+            const path: PointF64[] = ClipperWrapper.fromMemSeg(node.memSeg);
 
-            const resultPath: Point[][] = clipperOffset.execute(path, offset * ClipperWrapper.CLIPPER_SCALE);
+            const resultPath: PointF64[][] = clipperOffset.execute(path, offset * ClipperWrapper.CLIPPER_SCALE);
 
             if (resultPath.length !== 1) {
                 throw new Error(`Error while offset ${JSON.stringify(node)}`);
@@ -174,7 +173,7 @@ export default class ClipperWrapper {
     private cleanNode(node: PolygonNode): void {
         const { curveTolerance } = this.configuration;
         const clipperPolygon = ClipperWrapper.fromMemSeg(node.memSeg);
-        const simple: Point[][] = [];
+        const simple: PointF64[][] = [];
         const clipper = new Clipper();
 
         clipper.StrictlySimple = true;
@@ -186,7 +185,7 @@ export default class ClipperWrapper {
         }
 
         let i: number = 0;
-        let biggest: Point[] = simple[0];
+        let biggest: PointF64[] = simple[0];
         let biggestArea: number = absArea(biggest);
         let area: number = 0;
         let pointCount: number = simple.length;
@@ -201,7 +200,7 @@ export default class ClipperWrapper {
         }
 
         // clean up singularities, coincident points and edges
-        const clearedPolygon: Point[] = cleanPolygon(biggest, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
+        const clearedPolygon: PointF64[] = cleanPolygon(biggest, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
         pointCount = clearedPolygon && clearedPolygon.length ? clearedPolygon.length : 0;
 
         if (!pointCount) {
@@ -211,7 +210,7 @@ export default class ClipperWrapper {
         node.memSeg = ClipperWrapper.toMemSegF32(clearedPolygon);
     }
 
-    private static fromNfp(memSeg: Float64Array, index: number, offset: Point = null): Point[] {
+    private static fromNfp(memSeg: Float64Array, index: number, offset: PointF64 = null): PointF64[] {
         const cleanTrashold: number = offset === null ? -1 : ClipperWrapper.CLEAN_TRASHOLD;
         const isRound: boolean = offset === null;
         const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
@@ -226,13 +225,13 @@ export default class ClipperWrapper {
         memOffset: number = 0,
         pointCount: number = memSeg.length >> 1,
         scale: number = 1,
-        offset: Point = null,
+        offset: PointF64 = null,
         isRound: boolean = false,
         cleanTrashold: number = -1
-    ): Point[] {
+    ): PointF64[] {
         const resultScale = scale * ClipperWrapper.CLIPPER_SCALE;
-        const result: Point[] = [];
-        const point: Point = Point.zero();
+        const result: PointF64[] = [];
+        const point: PointF64 = PointF64.zero();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
@@ -248,16 +247,16 @@ export default class ClipperWrapper {
                 point.round();
             }
 
-            result.push(Point.from(point));
+            result.push(PointF64.from(point));
         }
 
         return cleanTrashold !== -1 ? cleanPolygon(result, cleanTrashold) : result;
     }
 
-    public static toMemSeg(polygon: Point[], memSeg: Float64Array = null): Float64Array {
+    public static toMemSeg(polygon: PointF64[], memSeg: Float64Array = null): Float64Array {
         const pointCount: number = polygon.length;
         const result: Float64Array = memSeg ? memSeg : new Float64Array(pointCount << 1);
-        const tempPoint: Point = Point.zero();
+        const tempPoint: PointF64 = PointF64.zero();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
@@ -268,7 +267,7 @@ export default class ClipperWrapper {
         return result;
     }
 
-    public static toMemSegF32(polygon: Point[], memSeg: Float32Array = null): Float32Array {
+    public static toMemSegF32(polygon: PointF64[], memSeg: Float32Array = null): Float32Array {
         const pointCount: number = polygon.length;
         const result: Float32Array = memSeg ? memSeg : new Float32Array(pointCount << 1);
         const tempPoint: PointF32 = PointF32.zero();
@@ -282,10 +281,10 @@ export default class ClipperWrapper {
         return result;
     }
 
-    public static applyNfps(clipper: Clipper, nfpBuffer: ArrayBuffer, offset: Point): void {
+    public static applyNfps(clipper: Clipper, nfpBuffer: ArrayBuffer, offset: PointF64): void {
         const nfpMemSeg: Float64Array = new Float64Array(nfpBuffer);
         const nfpCount: number = nfpMemSeg[1];
-        let clone: Point[] = null;
+        let clone: PointF64[] = null;
         let i: number = 0;
 
         for (i = 0; i < nfpCount; ++i) {
@@ -297,7 +296,7 @@ export default class ClipperWrapper {
         }
     }
 
-    public static nfpToClipper(pointPool: PointPool, nfpMmSeg: Float64Array): Point[][] {
+    public static nfpToClipper(pointPool: PointPool, nfpMmSeg: Float64Array): PointF64[][] {
         const pointIndices = pointPool.alloc(1);
         const nfpCount: number = nfpMmSeg[1];
         let i: number = 0;
@@ -321,7 +320,7 @@ export default class ClipperWrapper {
         placement: number[]
     ) {
         const pointIndices: number = pointPool.alloc(1);
-        const tmpPoint: Point = pointPool.get(pointIndices, 0);
+        const tmpPoint: PointF64 = pointPool.get(pointIndices, 0);
         let clipper = new Clipper();
         let i: number = 0;
         let key: number = 0;
@@ -340,15 +339,15 @@ export default class ClipperWrapper {
 
         pointPool.malloc(pointIndices);
 
-        const combinedNfp: Point[][] = [];
+        const combinedNfp: PointF64[][] = [];
 
         if (!clipper.execute(ClipType.UNION, combinedNfp, PolyFillType.NON_ZERO)) {
             return null;
         }
 
         // difference with bin polygon
-        let finalNfp: Point[][] = [];
-        const clipperBinNfp: Point[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
+        let finalNfp: PointF64[][] = [];
+        const clipperBinNfp: PointF64[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
 
         clipper = new Clipper();
         clipper.addPaths(combinedNfp, PolyType.CLIP);

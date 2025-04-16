@@ -1,7 +1,7 @@
-import Point from './point';
+import { PointF64 } from './point';
 
 export default class PointPool {
-    private items: Point[];
+    private items: PointF64[];
 
     private used: number;
 
@@ -14,7 +14,7 @@ export default class PointPool {
         this.memSeg.fill(0);
 
         for (let i = 0; i < PointPool.POOL_SIZE; ++i) {
-            this.items[i] = new Point(this.memSeg, i << 1);
+            this.items[i] = new PointF64(this.memSeg, i << 1);
         }
     }
 
@@ -43,7 +43,7 @@ export default class PointPool {
         this.used &= ~indices;
     }
 
-    get(indices: number, index: number): Point {
+    get(indices: number, index: number): PointF64 {
         let currentIndex: number = 0;
         let bitIndex: number = 0;
         let currentBit: number = 0;

@@ -1,6 +1,6 @@
 import { almostEqual, cycleIndex, getUint16, readUint32FromF32 } from './helpers';
 import { NFP_INFO_START_INDEX } from './constants';
-import PointF32 from './point-f32';
+import { PointF32 } from './point';
 import BoundRectF32 from './bound-rect-f32';
 
 export default class PolygonF32 {

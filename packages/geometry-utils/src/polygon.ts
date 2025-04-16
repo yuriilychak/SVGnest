@@ -1,4 +1,4 @@
-import Point from './point';
+import { PointF64 } from './point';
 import { almostEqual, cycleIndex, getUint16 } from './helpers';
 import { NFP_INFO_START_INDEX } from './constants';
 import BoundRect from './bound-rect';
@@ -14,14 +14,14 @@ export default class Polygon {
 
     private closedDirty: boolean;
 
-    private point: Point;
+    private point: PointF64;
 
     private rectangle: boolean;
 
     private bounds: BoundRect;
 
     private constructor() {
-        this.point = Point.zero();
+        this.point = PointF64.zero();
         this.closed = false;
         this.pointCount = 0;
         this.offset = 0;
@@ -71,7 +71,7 @@ export default class Polygon {
         this.calculateBounds();
     }
 
-    public at(index: number): Point | null {
+    public at(index: number): PointF64 | null {
         if (index >= this.length) {
             return null;
         }
@@ -81,14 +81,14 @@ export default class Polygon {
         return this.point.bind(this.memSeg, this.getPointOffset(pointIndex));
     }
 
-    public pointIn(point: Point, offset: Point = null): boolean {
+    public pointIn(point: PointF64, offset: PointF64 = null): boolean {
         if (this.isBroken) {
             return null;
         }
 
-        const innerPoint: Point = Point.from(point);
-        const currPoint: Point = Point.zero();
-        const prevPoint: Point = Point.zero();
+        const innerPoint: PointF64 = PointF64.from(point);
+        const currPoint: PointF64 = PointF64.zero();
+        const prevPoint: PointF64 = PointF64.zero();
         const pointCount: number = this.pointCount;
         let inside: boolean = false;
         let i: number = 0;
@@ -162,7 +162,7 @@ export default class Polygon {
     }
 
     public resetPosition(): void {
-        const position: Point = Point.from(this.position);
+        const position: PointF64 = PointF64.from(this.position);
         const binSize = this.length;
         let i: number = 0;
 
@@ -176,8 +176,8 @@ export default class Polygon {
     // remove duplicate endpoints, ensure counterclockwise winding direction
     public normalize(): Float64Array {
         let pointCount: number = this.pointCount;
-        const first: Point = Point.from(this.first);
-        const last: Point = Point.from(this.last);
+        const first: PointF64 = PointF64.from(this.first);
+        const last: PointF64 = PointF64.from(this.last);
 
         while (first.almostEqual(last)) {
             --pointCount;
@@ -205,14 +205,14 @@ export default class Polygon {
             return;
         }
 
-        const point1: Point = Point.from(this.first);
-        const point2: Point = Point.from(this.last);
+        const point1: PointF64 = PointF64.from(this.first);
+        const point2: PointF64 = PointF64.from(this.last);
 
         this.closed = point1.almostEqual(point2);
 
         const pointCount: number = this.pointCount;
         let i: number = 0;
-        let point: Point = null;
+        let point: PointF64 = null;
 
         for (i = 0; i < pointCount; ++i) {
             point = this.at(i);
@@ -247,11 +247,11 @@ export default class Polygon {
         return this.pointCount + offset;
     }
 
-    public get first(): Point {
+    public get first(): PointF64 {
         return this.at(0);
     }
 
-    public get last(): Point {
+    public get last(): PointF64 {
         return this.at(cycleIndex(this.length, this.pointCount, -1));
     }
 
@@ -271,8 +271,8 @@ export default class Polygon {
     // a negative area indicates counter-clockwise winding direction
     public get area(): number {
         const pointCount = this.pointCount;
-        const prevPoint: Point = Point.zero();
-        const currPoint: Point = Point.zero();
+        const prevPoint: PointF64 = PointF64.zero();
+        const currPoint: PointF64 = PointF64.zero();
         let result: number = 0;
         let i: number = 0;
 
@@ -289,11 +289,11 @@ export default class Polygon {
         return Math.abs(this.area);
     }
 
-    public get position(): Point {
+    public get position(): PointF64 {
         return this.bounds.position;
     }
 
-    public get size(): Point {
+    public get size(): PointF64 {
         return this.bounds.size;
     }
 
