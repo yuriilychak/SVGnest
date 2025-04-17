@@ -1,4 +1,4 @@
-export { generateNFPCacheKey, getUint16, serializePolygonNodes, serializeConfig, serializeMapToBuffer } from './helpers';
+export { generateNFPCacheKey, getUint16, serializePolygonNodes, serializeConfig, serializeMapToBuffer, readUint32FromF32 } from './helpers';
 export { default as ClipperWrapper } from './clipper-wrapper';
 export { default as Polygon } from './polygon';
 export { default as PolygonF32 } from './polygon-f32';

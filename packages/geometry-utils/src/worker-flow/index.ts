@@ -22,7 +22,7 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
     const view: DataView = new DataView(buffer);
     const dataType: THREAD_TYPE = view.getUint32(0) as THREAD_TYPE;
     const isPair: boolean = dataType === THREAD_TYPE.PAIR;
-    const result: Float64Array = isPair ? pairData(buffer, config) : placePaths(buffer, config);
+    const result: Float64Array | Float32Array = isPair ? pairData(buffer, config) : placePaths(buffer, config);
 
     let i: number = 0;
 

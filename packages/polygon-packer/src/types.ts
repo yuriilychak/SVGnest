@@ -22,7 +22,7 @@ export enum THREAD_TYPE {
 export type NFPCache = Map<number, ArrayBuffer>;
 
 export type PlacementData = {
-    placementsData: Float64Array;
+    placementsData: Float32Array;
     nodes: PolygonNode[];
     bounds: BoundRectF32;
     angleSplit: number;

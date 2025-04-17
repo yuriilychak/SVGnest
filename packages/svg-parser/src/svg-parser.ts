@@ -58,7 +58,7 @@ export default class SVGParser {
         bounds,
         angleSplit
     }: {
-        placementsData: Float64Array;
+        placementsData: Float32Array;
         nodes: PolygonNode[];
         bounds: { x: number; y: number; width: number; height: number };
         angleSplit: number;

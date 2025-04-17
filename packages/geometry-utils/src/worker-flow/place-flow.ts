@@ -1,6 +1,6 @@
 import { PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { almostEqual, getUint16, joinUint16 } from '../helpers';
+import { almostEqual, getUint16, joinUint16, writeUint32ToF32 } from '../helpers';
 import { PointF64 } from '../point';
 import Polygon from '../polygon';
 import PointPool from '../point-pool';
@@ -33,38 +33,45 @@ function fillPointMemSeg(
     return prevValue + pointCount;
 }
 
-function getResult(placements: number[][], pathItems: number[][], fitness: number): Float64Array {
+function getResult(placements: number[][], pathItems: number[][], fitness: number): Float32Array {
     const placementCount: number = pathItems.length;
-    const info = new Float64Array(placementCount);
+    const info: Uint32Array = new Uint32Array(placementCount);
     let totalSize: number = NFP_INFO_START_INDEX + placementCount;
+    let mergedSize: number = 0;
     let offset: number = 0;
     let size: number = 0;
     let i: number = 0;
+    let j: number = 0;
 
     for (i = 0; i < placementCount; ++i) {
         size = pathItems[i].length;
-        info[i] = joinUint16(size, totalSize);
+        mergedSize = joinUint16(size, totalSize)
+        info[i] = mergedSize;
         totalSize += size * 3;
     }
 
-    const result = new Float64Array(totalSize);
+    const result = new Float32Array(totalSize);
 
     result[0] = fitness;
     result[1] = placementCount;
 
-    result.set(info, NFP_INFO_START_INDEX);
-
     for (i = 0; i < placementCount; ++i) {
-        offset = getUint16(info[i], 1);
-        size = getUint16(info[i], 0);
-        result.set(pathItems[i], offset);
+        mergedSize = info[i];
+        offset = getUint16(mergedSize, 1);
+        size = getUint16(mergedSize, 0);
+        writeUint32ToF32(result, NFP_INFO_START_INDEX + i, mergedSize);
+
+        for (j = 0; j < size; ++j) {
+            writeUint32ToF32(result, offset + j, pathItems[i][j]);
+        }
+
         result.set(placements[i], offset + size);
     }
 
     return result;
 }
 
-export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
+export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float32Array {
     const { pointPool, polygons, memSeg } = config;
     const placeContent: PlaceContent = config.placeContent.init(buffer);
     const polygon1: Polygon = polygons[0];

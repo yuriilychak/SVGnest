@@ -60,3 +60,10 @@ export function flattenTree(
 
     return result;
 }
+
+export function readUint32FromF32(array: Float32Array, index: number): number {
+    const byteOffset = (array.byteOffset >>> 0) + index * Float32Array.BYTES_PER_ELEMENT; 
+    const view = new DataView(array.buffer);
+
+    return view.getUint32(byteOffset, true); 
+}

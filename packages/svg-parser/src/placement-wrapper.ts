@@ -1,7 +1,9 @@
+import { readUint32FromF32 } from "./helpers";
+
 export default class PlacementWrapper {
     private _placement: number;
 
-    private _memSeg: Float64Array;
+    private _memSeg: Float32Array;
 
     private _offset: number;
 
@@ -15,7 +17,7 @@ export default class PlacementWrapper {
 
     private _angleSplit: number;
 
-    constructor(memSeg: Float64Array, angleSplit: number) {
+    constructor(memSeg: Float32Array, angleSplit: number) {
         this._angleSplit = angleSplit;
         this._placementCount = memSeg[1];
         this._memSeg = memSeg;
@@ -27,13 +29,13 @@ export default class PlacementWrapper {
     }
 
     public bindPlacement(index: number): void {
-        this._placement = this._memSeg[2 + index];
+        this._placement = readUint32FromF32(this._memSeg, 2 + index);
         this._offset = this._placement >>> 16;
         this._size = this._placement & ((1 << 16) - 1);
     }
 
     public bindData(index: number): void {
-        this._pointData = this._memSeg[this._offset + index];
+        this._pointData = readUint32FromF32(this._memSeg, this._offset + index);
         this._pointOffset = this._offset + this._size + (index << 1);
     }
 
