@@ -1,20 +1,20 @@
-import { PointF64 } from './point';
+import { PointF32, PointF64 } from './point';
 
-export default class PointPool {
-    private items: PointF64[];
+export default class PointPoolF32 {
+    private items: PointF32[];
 
     private used: number;
 
-    private memSeg: Float64Array;
+    private memSeg: Float32Array;
 
-    constructor(buffer: ArrayBuffer, offset: number = 0) {
-        this.items = new Array(PointPool.POOL_SIZE);
+    constructor(buffer: ArrayBuffer, offset: number  = 0) {
+        this.items = new Array(PointPoolF32.POOL_SIZE);
         this.used = 0;
-        this.memSeg = new Float64Array(buffer, offset, PointPool.POOL_SIZE << 1);
+        this.memSeg = new Float32Array(buffer, offset, PointPoolF32.POOL_SIZE << 1);
         this.memSeg.fill(0);
 
-        for (let i = 0; i < PointPool.POOL_SIZE; ++i) {
-            this.items[i] = new PointF64(this.memSeg, i << 1);
+        for (let i = 0; i < PointPoolF32.POOL_SIZE; ++i) {
+            this.items[i] = new PointF32(this.memSeg, i << 1);
         }
     }
 
@@ -25,7 +25,7 @@ export default class PointPool {
         let currentBit: number = 0;
 
         while (freeBits !== 0) {
-            currentBit = 1 << (PointPool.MAX_BITS - Math.clz32(freeBits));
+            currentBit = 1 << (PointPoolF32.MAX_BITS - Math.clz32(freeBits));
             result |= currentBit;
             freeBits &= ~currentBit;
             ++currentCount;
@@ -43,14 +43,14 @@ export default class PointPool {
         this.used &= ~indices;
     }
 
-    get(indices: number, index: number): PointF64 {
+    get(indices: number, index: number): PointF32 {
         let currentIndex: number = 0;
         let bitIndex: number = 0;
         let currentBit: number = 0;
         let currentIndices: number = indices;
 
         while (currentIndices !== 0) {
-            bitIndex = PointPool.MAX_BITS - Math.clz32(currentIndices);
+            bitIndex = PointPoolF32.MAX_BITS - Math.clz32(currentIndices);
             currentBit = 1 << bitIndex;
 
             if (currentIndex === index) {
