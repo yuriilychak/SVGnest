@@ -30,7 +30,7 @@ export default class PairContent extends WorkerContent {
         this._isInside = false;
     }
 
-    public getResult(nfpArrays: Float64Array[]): Float64Array {
+    public getResult(nfpArrays: Float32Array[]): Float64Array {
         const nfpCount: number = nfpArrays.length;
         const info = new Float64Array(nfpCount);
         let totalSize: number = NFP_INFO_START_INDEX + nfpCount;

@@ -6,6 +6,7 @@ import { placePaths } from './place-flow';
 import { WorkerConfig } from './types';
 import PairContent from './pair-content';
 import PlaceContent from './place-content';
+import PolygonF32 from '../polygon-f32';
 
 export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): ArrayBuffer {
     if (!config.isInit) {
@@ -14,6 +15,7 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
         config.memSeg = new Float64Array(config.buffer, config.pointPool.size);
         config.isInit = true;
         config.polygons = [Polygon.create(), Polygon.create(), Polygon.create(), Polygon.create(), Polygon.create()];
+        config.polygonsF32 = [PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create()];
         config.pairContent = new PairContent();
         config.placeContent = new PlaceContent();
     }
