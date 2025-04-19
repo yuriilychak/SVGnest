@@ -1,23 +1,23 @@
 import { PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { almostEqual, getUint16, joinUint16, writeUint32ToF32 } from '../helpers';
-import { PointF64 } from '../point';
-import Polygon from '../polygon';
-import PointPool from '../point-pool';
+import { PointF32, PointF64 } from '../point';
 import { NFP_INFO_START_INDEX } from '../constants';
 import { WorkerConfig } from './types';
 import PlaceContent from './place-content';
+import PolygonF32 from '../polygon-f32';
+import PointPoolF32 from '../point-pool-f32';
 
 function fillPointMemSeg(
-    pointPool: PointPool,
-    memSeg: Float64Array,
+    pointPool: PointPoolF32,
+    memSeg: Float32Array,
     node: PolygonNode,
-    offset: PointF64,
+    offset: PointF32,
     prevValue: number,
     memOffset: number
 ): number {
     const pointIndices: number = pointPool.alloc(1);
-    const tmpPoint: PointF64 = pointPool.get(pointIndices, 0);
+    const tmpPoint: PointF32 = pointPool.get(pointIndices, 0);
     const pointCount = node.memSeg.length >> 1;
     let i: number = 0;
 
@@ -72,13 +72,13 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 }
 
 export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float32Array {
-    const { pointPool, polygons, memSeg } = config;
+    const { pointPoolF32, polygonsF32, memSegF32 } = config;
     const placeContent: PlaceContent = config.placeContent.init(buffer);
-    const polygon1: Polygon = polygons[0];
-    const polygon2: Polygon = polygons[1];
-    const pointIndices: number = pointPool.alloc(2);
-    const tmpPoint: PointF64 = pointPool.get(pointIndices, 0);
-    const firstPoint: PointF64 = pointPool.get(pointIndices, 1);
+    const polygon1: PolygonF32 = polygonsF32[0];
+    const polygon2: PolygonF32 = polygonsF32[1];
+    const pointIndices: number = pointPoolF32.alloc(2);
+    const tmpPoint: PointF32 = pointPoolF32.get(pointIndices, 0);
+    const firstPoint: PointF32 = pointPoolF32.get(pointIndices, 1);
     const placements: number[][] = [];
     const pathItems: number[][] = [];
     let node: PolygonNode = null;
@@ -150,7 +150,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float32Ar
                 continue;
             }
 
-            finalNfp = ClipperWrapper.getFinalNfps(pointPool, placeContent, placed, node, binNfp, placement);
+            finalNfp = ClipperWrapper.getFinalNfps(pointPoolF32, placeContent, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
@@ -167,8 +167,8 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float32Ar
 
             for (j = 0; j < finalNfp.length; ++j) {
                 nfpSize = finalNfp[j].length;
-                ClipperWrapper.toMemSeg(finalNfp[j], memSeg);
-                polygon1.bind(memSeg, 0, nfpSize);
+                ClipperWrapper.toMemSegF32(finalNfp[j], memSegF32);
+                polygon1.bind(memSegF32, 0, nfpSize);
                 nfpOffset = nfpSize << 1;
 
                 if (polygon1.absArea < 2) {
@@ -180,14 +180,14 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float32Ar
 
                     for (m = 0; m < placed.length; ++m) {
                         tmpPoint.fromMemSeg(placement, m);
-                        pointCount = fillPointMemSeg(pointPool, memSeg, placed[m], tmpPoint, pointCount, nfpOffset);
+                        pointCount = fillPointMemSeg(pointPoolF32, memSegF32, placed[m], tmpPoint, pointCount, nfpOffset);
                     }
 
                     tmpPoint.update(polygon1.at(k)).sub(firstPoint);
 
-                    pointCount = fillPointMemSeg(pointPool, memSeg, node, tmpPoint, pointCount, nfpOffset);
+                    pointCount = fillPointMemSeg(pointPoolF32, memSegF32, node, tmpPoint, pointCount, nfpOffset);
 
-                    polygon2.bind(memSeg, nfpOffset, pointCount);
+                    polygon2.bind(memSegF32, nfpOffset, pointCount);
                     // weigh width more, to help compress in direction of gravity
                     curArea = polygon2.size.x * 2 + polygon2.size.y;
 
@@ -232,7 +232,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float32Ar
     // there were parts that couldn't be placed
     fitness += placeContent.nodeCount << 1;
 
-    pointPool.malloc(pointIndices);
+    pointPoolF32.malloc(pointIndices);
 
     return getResult(placements, pathItems, fitness);
 }

@@ -42,12 +42,13 @@ export default class PolygonF32 {
         this.calculateBounds();
     }
 
-    public bindNFP(memSeg: Float32Array, index: number): void {
-        const compressedInfo: number = readUint32FromF32(memSeg, NFP_INFO_START_INDEX + index);
+    public bindNFP(memSeg: Float64Array, index: number): void {
+        const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
         const offset: number = getUint16(compressedInfo, 1);
         const size: number = getUint16(compressedInfo, 0) >>> 1;
+        const array: Float32Array = Float32Array.from(memSeg.slice(offset, offset + (size * 2)));
 
-        this.bind(memSeg, offset, size);
+        this.bind(array, 0, size);
     }
 
     public clean(): void {
