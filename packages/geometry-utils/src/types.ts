@@ -101,3 +101,75 @@ export interface Point<T extends TypedArray = TypedArray> {
     readonly isEmpty: boolean;
 }
 
+export interface BoundRect<T extends TypedArray> {
+    clone(): BoundRect<T>;
+
+    update(position: Point, size: Point): void;
+
+    readonly position: Point<T>;
+
+    readonly size: Point<T>;
+
+    readonly x: number;
+
+    readonly y: number;
+
+    readonly width: number;
+
+    readonly height: number;
+}
+
+export interface Polygon<T extends TypedArray = TypedArray> {
+
+    bind(data: T, offset?: number, pointCount?: number): void;
+
+    clean(): void;
+
+    rotate(angle: number): void;
+
+    at(index: number): Point<T> | null;
+
+    pointIn(point: Point, offset?: Point | null): boolean;
+
+    close(): void;
+
+    reverse(): void;
+
+    exportBounds(): BoundRect<T>;
+
+    resetPosition(): void;
+
+    normalize(): T;
+
+    readonly length: number;
+
+    readonly first: Point<T>;
+
+    readonly last: Point<T>;
+
+    readonly isBroken: boolean;
+
+    readonly isClosed: boolean;
+
+    readonly isRectangle: boolean;
+
+    readonly area: number;
+
+    readonly absArea: number;
+
+    readonly position: Point<T>;
+
+    readonly size: Point<T>;
+}
+
+export interface PointPool<T extends TypedArray = TypedArray> {
+    alloc(count: number): number;
+
+    malloc(indices: number): void;
+
+    get(indices: number, index: number): Point<T>;
+
+    readonly size: number;
+}
+
+

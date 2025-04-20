@@ -1,24 +1,21 @@
-import { PolygonNode } from '../types';
+import type { Point, PointPool, Polygon, PolygonNode, TypedArray } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { almostEqual, getUint16, joinUint16, writeUint32ToF32 } from '../helpers';
-import { PointF32, PointF64 } from '../point';
 import { NFP_INFO_START_INDEX } from '../constants';
 import { WorkerConfig } from './types';
 import PlaceContent from './place-content';
-import PolygonF32 from '../polygon-f32';
-import PointPoolF32 from '../point-pool-f32';
 import NFPWrapper from './nfp-wrapper';
 
-function fillPointMemSeg(
-    pointPool: PointPoolF32,
-    memSeg: Float32Array,
+function fillPointMemSeg<T extends TypedArray = Float32Array>(
+    pointPool: PointPool<T>,
+    memSeg: T,
     node: PolygonNode,
-    offset: PointF32,
+    offset: Point<T>,
     prevValue: number,
     memOffset: number
 ): number {
     const pointIndices: number = pointPool.alloc(1);
-    const tmpPoint: PointF32 = pointPool.get(pointIndices, 0);
+    const tmpPoint: Point<T> = pointPool.get(pointIndices, 0);
     const pointCount = node.memSeg.length >> 1;
     let i: number = 0;
 
@@ -75,11 +72,11 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer {
     const { pointPoolF32, polygonsF32, memSegF32 } = config;
     const placeContent: PlaceContent = config.placeContent.init(buffer);
-    const polygon1: PolygonF32 = polygonsF32[0];
-    const polygon2: PolygonF32 = polygonsF32[1];
+    const polygon1: Polygon<Float32Array> = polygonsF32[0];
+    const polygon2: Polygon<Float32Array> = polygonsF32[1];
     const pointIndices: number = pointPoolF32.alloc(2);
-    const tmpPoint: PointF32 = pointPoolF32.get(pointIndices, 0);
-    const firstPoint: PointF32 = pointPoolF32.get(pointIndices, 1);
+    const tmpPoint: Point<Float32Array> = pointPoolF32.get(pointIndices, 0);
+    const firstPoint: Point<Float32Array> = pointPoolF32.get(pointIndices, 1);
     const placements: number[][] = [];
     const pathItems: number[][] = [];
     let node: PolygonNode = null;
@@ -94,7 +91,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
     let nfpOffset: number = 0;
     let placed: PolygonNode[] = [];
     let binNfp: NFPWrapper = new NFPWrapper();
-    let finalNfp: PointF64[][] = null;
+    let finalNfp: Point<Float64Array>[][] = null;
     let minArea: number = 0;
     let minX: number = 0;
     let nfpSize: number = 0;

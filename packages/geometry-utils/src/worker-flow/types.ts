@@ -1,15 +1,12 @@
-import PointPool from '../point-pool';
 import PlaceContent from './place-content';
 import PairContent from './pair-content';
-import PolygonF32 from '../polygon-f32';
-import PointPoolF32 from '../point-pool-f32';
-import type { Point, TypedArray } from '../types';
+import type { Point, PointPool, Polygon, TypedArray } from '../types';
 
 export type WorkerConfig = {
-    pointPool: PointPool;
-    pointPoolF32: PointPoolF32;
+    pointPool: PointPool<Float64Array>;
+    pointPoolF32: PointPool<Float32Array>;
     isInit: boolean;
-    polygonsF32: PolygonF32[];
+    polygonsF32: Polygon<Float32Array>[];
     buffer: ArrayBuffer;
     bufferF32: ArrayBuffer;
     memSeg: Float64Array;
@@ -20,7 +17,7 @@ export type WorkerConfig = {
 
 export type SegmentCheck<T extends TypedArray = Float64Array> = {
     point: Point<T>;
-    polygon: PolygonF32;
+    polygon: Polygon<Float32Array>;
     segmentStart: Point<T>;
     segmentEnd: Point<T>;
     checkStart: Point<T>;

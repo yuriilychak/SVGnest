@@ -1,6 +1,6 @@
 import { PointF64 } from './point';
-
-export default class PointPool {
+import type { PointPool } from './types';
+export default class PointPoolF64 implements PointPool<Float64Array> {
     private items: PointF64[];
 
     private used: number;
@@ -8,12 +8,12 @@ export default class PointPool {
     private memSeg: Float64Array;
 
     constructor(buffer: ArrayBuffer, offset: number = 0) {
-        this.items = new Array(PointPool.POOL_SIZE);
+        this.items = new Array(PointPoolF64.POOL_SIZE);
         this.used = 0;
-        this.memSeg = new Float64Array(buffer, offset, PointPool.POOL_SIZE << 1);
+        this.memSeg = new Float64Array(buffer, offset, PointPoolF64.POOL_SIZE << 1);
         this.memSeg.fill(0);
 
-        for (let i = 0; i < PointPool.POOL_SIZE; ++i) {
+        for (let i = 0; i < PointPoolF64.POOL_SIZE; ++i) {
             this.items[i] = new PointF64(this.memSeg, i << 1);
         }
     }
@@ -25,7 +25,7 @@ export default class PointPool {
         let currentBit: number = 0;
 
         while (freeBits !== 0) {
-            currentBit = 1 << (PointPool.MAX_BITS - Math.clz32(freeBits));
+            currentBit = 1 << (PointPoolF64.MAX_BITS - Math.clz32(freeBits));
             result |= currentBit;
             freeBits &= ~currentBit;
             ++currentCount;
@@ -50,7 +50,7 @@ export default class PointPool {
         let currentIndices: number = indices;
 
         while (currentIndices !== 0) {
-            bitIndex = PointPool.MAX_BITS - Math.clz32(currentIndices);
+            bitIndex = PointPoolF64.MAX_BITS - Math.clz32(currentIndices);
             currentBit = 1 << bitIndex;
 
             if (currentIndex === index) {

@@ -1,6 +1,7 @@
 import { PointF32 } from './point';
+import type { PointPool } from './types';
 
-export default class PointPoolF32 {
+export default class PointPoolF32 implements PointPool<Float32Array> {
     private items: PointF32[];
 
     private used: number;

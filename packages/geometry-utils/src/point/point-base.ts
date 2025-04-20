@@ -287,7 +287,34 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return [point2.y - point1.y, point1.x - point2.x, point2.x * point1.y - point1.x * point2.y];
     }
 
-    private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2
+    // returns the intersection of AB and EF
+    // or null if there are no intersections or other numerical error
+    // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
+    public static lineIntersect(A: Point, B: Point, E: Point, F: Point): boolean {
+        const [a1, b1, c1] = PointBase.lineEquation(A, B);
+        const [a2, b2, c2] = PointBase.lineEquation(E, F);
+        const denom = a1 * b2 - a2 * b1;
+        const x = (b1 * c2 - b2 * c1) / denom;
+        const y = (a2 * c1 - a1 * c2) / denom;
     
+        // lines are colinear
+        /* var crossABE = (E.y - A.y) * (B.x - A.x) - (E.x - A.x) * (B.y - A.y);
+            var crossABF = (F.y - A.y) * (B.x - A.x) - (F.x - A.x) * (B.y - A.y);
+            if(_almostEqual(crossABE,0) && _almostEqual(crossABF,0)){
+                return null;
+            }*/
+    
+        return !(
+            !(isFinite(x) && isFinite(y)) ||
+            // coincident points do not count as intersecting
+            (!almostEqual(A.x, B.x) && midValue(x, A.x, B.x) > 0) ||
+            (!almostEqual(A.y, B.y) && midValue(y, A.y, B.y) > 0) ||
+            (!almostEqual(E.x, F.x) && midValue(x, E.x, F.x) > 0) ||
+            (!almostEqual(E.y, F.y) && midValue(y, E.y, F.y) > 0)
+        );
+    }
+
+    private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2
+
     private static HIGH_RANGE = 4503599627370495; // sqrt(2^106 -1)/2
 }

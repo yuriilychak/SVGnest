@@ -1,4 +1,4 @@
-import PointPool from '../point-pool';
+import PointPoolF64 from '../point-pool';
 import { THREAD_TYPE } from '../types';
 import { pairData } from './pair-flow';
 import { placePaths } from './place-flow';
@@ -14,7 +14,7 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
         config.bufferF32 = new ArrayBuffer(8192 * Float32Array.BYTES_PER_ELEMENT);
         config.pointPoolF32 = new PointPoolF32(config.bufferF32);
         config.memSegF32 = new Float32Array(config.bufferF32, config.pointPoolF32.size);
-        config.pointPool = new PointPool(config.buffer);
+        config.pointPool = new PointPoolF64(config.buffer);
         config.memSeg = new Float64Array(config.buffer, config.pointPool.size);
         config.isInit = true;
         config.polygonsF32 = [PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create()];

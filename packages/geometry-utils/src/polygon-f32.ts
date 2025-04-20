@@ -1,9 +1,9 @@
 import { almostEqual, cycleIndex } from './helpers';
 import { PointF32 } from './point';
 import BoundRectF32 from './bound-rect-f32';
-import { Point } from './types';
+import type { Point, Polygon } from './types';
 
-export default class PolygonF32 {
+export default class PolygonF32 implements Polygon<Float32Array> {
     private memSeg: Float32Array;
 
     private offset: number;

@@ -1,6 +1,7 @@
 import { PointF32 } from './point';
+import type { BoundRect } from './types';
 
-export default class BoundRectF32 {
+export default class BoundRectF32 implements BoundRect<Float32Array> {
     private _memSeg: Float32Array;
 
     private _position: PointF32;
