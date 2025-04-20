@@ -167,14 +167,14 @@ function pointDistance<T extends TypedArray>(
     return s1dotnorm - pdotnorm - ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot);
 }
 
-function coincedentDistance(
-    pointPool: PointPool<Float64Array>,
-    point1: Point<Float64Array>,
-    point2: Point<Float64Array>,
-    point3: Point<Float64Array>,
-    point4: Point<Float64Array>,
-    direction: Point<Float64Array>,
-    normal: Point<Float64Array>,
+function coincedentDistance<T extends TypedArray>(
+    pointPool: PointPool<T>,
+    point1: Point<T>,
+    point2: Point<T>,
+    point3: Point<T>,
+    point4: Point<T>,
+    direction: Point<T>,
+    normal: Point<T>,
     overlap: number,
     defaultValue: number
 ): number {
@@ -610,11 +610,11 @@ function serializeTouch(type: number, firstIndex: number, secondIndex: number): 
     return setBits(result, secondIndex, 17, 15);
 }
 
-function getTouch(
-    pointA: Point<Float64Array>,
-    pointANext: Point<Float64Array>,
-    pointB: Point<Float64Array>,
-    pointBNext: Point<Float64Array>,
+function getTouch<T extends TypedArray>(
+    pointA: Point<T>,
+    pointANext: Point<T>,
+    pointB: Point<T>,
+    pointBNext: Point<T>,
     indexA: number,
     indexANext: number,
     indexB: number,
