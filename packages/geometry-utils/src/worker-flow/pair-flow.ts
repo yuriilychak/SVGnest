@@ -577,13 +577,13 @@ function searchStartPoint<T extends TypedArray>(
     return null;
 }
 
-function applyVector(
+function applyVector<T extends TypedArray>(
     memSeg: Float64Array,
-    point: Point<Float64Array>,
+    point: Point<T>,
     start: number,
     end: number,
-    baseValue: Point<Float64Array>,
-    subValue: Point<Float64Array>,
+    baseValue: Point<T>,
+    subValue: Point<T>,
     offset: Point<Float64Array> = null
 ): void {
     point.update(baseValue).sub(subValue);
@@ -632,20 +632,20 @@ function getTouch<T extends TypedArray>(
     }
 }
 
-function fillVectors(
+function fillVectors<T extends TypedArray>(
     polygonA: Polygon<Float32Array>,
     polygonB: Polygon<Float32Array>,
-    pointPool: PointPool<Float64Array>,
+    pointPool: PointPool<T>,
     offset: Point<Float64Array>,
     memSeg: Float64Array,
     markedIndices: number[]
 ): void {
     // sanity check, prevent infinite loop
     const pointIndices = pointPool.alloc(4);
-    const pointA: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const pointANext: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const pointB: Point<Float64Array> = pointPool.get(pointIndices, 2);
-    const pointBNext: Point<Float64Array> = pointPool.get(pointIndices, 3);
+    const pointA: Point<T> = pointPool.get(pointIndices, 0);
+    const pointANext: Point<T> = pointPool.get(pointIndices, 1);
+    const pointB: Point<T> = pointPool.get(pointIndices, 2);
+    const pointBNext: Point<T> = pointPool.get(pointIndices, 3);
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     let i: number = 0;
@@ -677,10 +677,10 @@ function fillVectors(
     pointPool.malloc(pointIndices);
 }
 
-function applyVectors(
+function applyVectors<T extends TypedArray>(
     polygonA: Polygon<Float32Array>,
     polygonB: Polygon<Float32Array>,
-    pointPool: PointPool<Float64Array>,
+    pointPool: PointPool<T>,
     offset: Point<Float64Array>,
     touch: number,
     memSeg: Float64Array
@@ -695,13 +695,13 @@ function applyVectors(
     const prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
     const nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
     const pointIndices = pointPool.alloc(7);
-    const prevA: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const currA: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const nextA: Point<Float64Array> = pointPool.get(pointIndices, 2);
-    const prevB: Point<Float64Array> = pointPool.get(pointIndices, 3);
-    const currB: Point<Float64Array> = pointPool.get(pointIndices, 4);
-    const nextB: Point<Float64Array> = pointPool.get(pointIndices, 5);
-    const point: Point<Float64Array> = pointPool.get(pointIndices, 6);
+    const prevA: Point<T> = pointPool.get(pointIndices, 0);
+    const currA: Point<T> = pointPool.get(pointIndices, 1);
+    const nextA: Point<T> = pointPool.get(pointIndices, 2);
+    const prevB: Point<T> = pointPool.get(pointIndices, 3);
+    const currB: Point<T> = pointPool.get(pointIndices, 4);
+    const nextB: Point<T> = pointPool.get(pointIndices, 5);
+    const point: Point<T> = pointPool.get(pointIndices, 6);
 
     prevA.update(polygonA.at(prevIndexA));
     currA.update(polygonA.at(currIndexA));
@@ -734,7 +734,7 @@ function applyVectors(
 }
 
 // if A and B start on a touching horizontal line, the end point may not be the start point
-function getNfpLooped(nfp: number[], reference: Point<Float64Array>, pointPool: PointPool<Float32Array>): boolean {
+function getNfpLooped<T extends TypedArray>(nfp: number[], reference: Point<Float64Array>, pointPool: PointPool<T>): boolean {
     const pointCount: number = nfp.length >> 1;
 
     if (pointCount === 0) {
@@ -742,7 +742,7 @@ function getNfpLooped(nfp: number[], reference: Point<Float64Array>, pointPool: 
     }
 
     const pointIndices: number = pointPool.alloc(1);
-    const point: Point<Float32Array> = pointPool.get(pointIndices, 0);
+    const point: Point<T> = pointPool.get(pointIndices, 0);
     let i: number = 0;
 
     for (i = 0; i < pointCount - 1; ++i) {
