@@ -57,7 +57,7 @@ export default class NFPStore {
                 if (nfps[i].byteLength > Float64Array.BYTES_PER_ELEMENT << 1) {
                     // a null nfp means the nfp could not be generated, either because the parts simply don't
                     // fit or an error in the nfp algo
-                    this.#nfpCache.set(view.getFloat64(0, true), nfps[i]);
+                    this.#nfpCache.set(view.getUint32(0, true), nfps[i]);
                 }
             }
         }

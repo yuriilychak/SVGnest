@@ -1,25 +1,29 @@
-import { getUint16, joinUint16 } from "../helpers";
+import { getUint16, joinUint16, writeUint32ToF32 } from "../helpers";
 
 export default class NFPWrapper {
-    private _buffer: ArrayBuffer | null = null;
+    private _buffer: ArrayBuffer;
 
-    private _view: DataView | null = null;
+    private _view: DataView;
 
-    constructor(buffer: ArrayBuffer | null = null) {
+    constructor(buffer: ArrayBuffer = NFPWrapper.EMPTY_BUFFER) {
         this._buffer = buffer;
-        this._view = buffer !== null ? new DataView(buffer) : null;
+        this._view = new DataView(buffer);
     }
 
-    public getNFPMemSeg(index: number): Float32Array | null {
-        if (this._view === null) {
-            return null;
+    public getNFPMemSeg(index: number): Float32Array {
+        if (this.isBroken) {
+            return new Float32Array(0);
         }
 
-        const compressedInfo: number = this._view.getFloat64((NFPWrapper.NFP_INFO_START_INDEX + index) * Float64Array.BYTES_PER_ELEMENT, true);
-        const offset: number = getUint16(compressedInfo, 1);
+        const compressedInfo: number = this.getUint32(NFPWrapper.NFP_INFO_START_INDEX + index);
+        const offset: number = getUint16(compressedInfo, 1) * Float32Array.BYTES_PER_ELEMENT;
         const size: number = getUint16(compressedInfo, 0);
 
-        return Float32Array.from(new Float64Array(this._buffer, offset * Float64Array.BYTES_PER_ELEMENT, size));
+        return new Float32Array(this._buffer, offset, size);
+    }
+
+    private getUint32(index: number): number {
+        return this._view.getUint32(index * Float32Array.BYTES_PER_ELEMENT, true);
     }
 
     public get buffer(): ArrayBuffer {
@@ -27,21 +31,21 @@ export default class NFPWrapper {
     }
 
     public set buffer(value: ArrayBuffer) {
-        this._buffer = value;
-        this._view = this._buffer !== null ? new DataView(this._buffer) : null;
+        this._buffer = value || NFPWrapper.EMPTY_BUFFER;
+        this._view = new DataView(this._buffer);
     }
 
     public get count(): number {
-        return this._view !== null ? this._view.getFloat64(1 * Float64Array.BYTES_PER_ELEMENT, true) : 0;
+        return this.isBroken ? 0 : this.getUint32(1);
     }
 
     public get isBroken(): boolean {
-        return this._buffer === null || this._buffer.byteLength < 3 * Float64Array.BYTES_PER_ELEMENT;
+        return this._buffer.byteLength < 3 * Float32Array.BYTES_PER_ELEMENT;
     }
     
     public static serialize(key: number, nfpArrays: Float32Array[]): ArrayBuffer {
             const nfpCount: number = nfpArrays.length;
-            const info = new Float64Array(nfpCount);
+            const info: Uint32Array = new Uint32Array(nfpCount);
             let totalSize: number = NFPWrapper.NFP_INFO_START_INDEX + nfpCount;
             let size: number = 0;
             let i: number = 0;
@@ -52,19 +56,20 @@ export default class NFPWrapper {
                 totalSize += size;
             }
     
-            const result = new Float64Array(totalSize);
+            const result = new Float32Array(totalSize);
     
-            result[0] = key;
-            result[1] = nfpCount;
-    
-            result.set(info, NFPWrapper.NFP_INFO_START_INDEX);
+            writeUint32ToF32(result, 0, key);
+            writeUint32ToF32(result, 1, nfpCount);
     
             for (i = 0; i < nfpCount; ++i) {
+                writeUint32ToF32(result, NFPWrapper.NFP_INFO_START_INDEX + i, info[i]);
                 result.set(nfpArrays[i], getUint16(info[i], 1));
             }
     
             return result.buffer;
         }
 
-    private static NFP_INFO_START_INDEX = 2;
+    private static NFP_INFO_START_INDEX: number = 2;
+
+    private static EMPTY_BUFFER: ArrayBuffer = new ArrayBuffer(0);
 }
