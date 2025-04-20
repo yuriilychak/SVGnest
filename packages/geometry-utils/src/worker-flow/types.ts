@@ -17,7 +17,7 @@ export type WorkerConfig = {
 
 export type SegmentCheck<T extends TypedArray = Float64Array> = {
     point: Point<T>;
-    polygon: Polygon<Float32Array>;
+    polygon: Polygon<T>;
     segmentStart: Point<T>;
     segmentEnd: Point<T>;
     checkStart: Point<T>;

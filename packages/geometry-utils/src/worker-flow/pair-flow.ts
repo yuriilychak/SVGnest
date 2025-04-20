@@ -4,12 +4,12 @@ import { TOL } from '../constants';
 import { WorkerConfig, SegmentCheck } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
 import PairContent from './pair-content';
-import type { Point, PolygonNode, Polygon, PointPool } from '../types';
+import type { Point, PolygonNode, Polygon, PointPool, TypedArray } from '../types';
 
 // old-todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
 
-function updateIntersectPoint(point: Point<Float64Array>, polygon: Polygon<Float32Array>, index: number, offset: number): void {
+function updateIntersectPoint<T extends TypedArray>(point: Point<T>, polygon: Polygon<T>, index: number, offset: number): void {
     const pointCount: number = polygon.length;
     let currentIndex = cycleIndex(index, pointCount, offset);
 
@@ -22,20 +22,20 @@ function updateIntersectPoint(point: Point<Float64Array>, polygon: Polygon<Float
     }
 }
 
-function getSegmentCheck(
-    point: Point<Float64Array>,
-    polygon: Polygon<Float32Array>,
-    segmentStart: Point<Float64Array>,
-    segmentEnd: Point<Float64Array>,
-    checkStart: Point<Float64Array>,
-    checkEnd: Point<Float64Array>,
-    target: Point<Float64Array>,
-    offset: Point<Float64Array>
-): SegmentCheck {
+function getSegmentCheck<T extends TypedArray>(
+    point: Point<T>,
+    polygon: Polygon<T>,
+    segmentStart: Point<T>,
+    segmentEnd: Point<T>,
+    checkStart: Point<T>,
+    checkEnd: Point<T>,
+    target: Point<T>,
+    offset: Point<T>
+): SegmentCheck<T> {
     return { point, polygon, segmentStart, segmentEnd, checkStart, checkEnd, target, offset };
 }
 
-function getSegmentStats({
+function getSegmentStats<T extends TypedArray>({
     point,
     segmentStart,
     segmentEnd,
@@ -44,7 +44,7 @@ function getSegmentStats({
     checkStart,
     checkEnd,
     offset
-}: SegmentCheck): boolean {
+}: SegmentCheck<T>): boolean {
     if (point.onSegment(segmentStart, segmentEnd) || point.almostEqual(target)) {
         // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
         const pointIn1 = polygon.pointIn(checkStart, offset);
@@ -56,20 +56,25 @@ function getSegmentStats({
     return null;
 }
 
-function intersect(pointPool: PointPool<Float64Array>, polygonA: Polygon<Float32Array>, polygonB: Polygon<Float32Array>, offset: Point<Float64Array>): boolean {
+function intersect<T extends TypedArray>(
+    pointPool: PointPool<T>, 
+    polygonA: Polygon<T>, 
+    polygonB: Polygon<T>, 
+    offset: Point<T>
+): boolean {
     const pointIndices: number = pointPool.alloc(9);
-    const a0: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const a1: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const a2: Point<Float64Array> = pointPool.get(pointIndices, 2);
-    const a3: Point<Float64Array> = pointPool.get(pointIndices, 3);
-    const b0: Point<Float64Array> = pointPool.get(pointIndices, 4);
-    const b1: Point<Float64Array> = pointPool.get(pointIndices, 5);
-    const b2: Point<Float64Array> = pointPool.get(pointIndices, 6);
-    const b3: Point<Float64Array> = pointPool.get(pointIndices, 7);
-    const offsetA: Point<Float64Array> = pointPool.get(pointIndices, 8).set(0, 0);
+    const a0: Point<T> = pointPool.get(pointIndices, 0);
+    const a1: Point<T> = pointPool.get(pointIndices, 1);
+    const a2: Point<T> = pointPool.get(pointIndices, 2);
+    const a3: Point<T> = pointPool.get(pointIndices, 3);
+    const b0: Point<T> = pointPool.get(pointIndices, 4);
+    const b1: Point<T> = pointPool.get(pointIndices, 5);
+    const b2: Point<T> = pointPool.get(pointIndices, 6);
+    const b3: Point<T> = pointPool.get(pointIndices, 7);
+    const offsetA: Point<T> = pointPool.get(pointIndices, 8).set(0, 0);
     const pointCountA: number = polygonA.length;
     const pointCountB: number = polygonB.length;
-    const segmentChecks: SegmentCheck[] = [
+    const segmentChecks: SegmentCheck<T>[] = [
         getSegmentCheck(b1, polygonA, a1, a2, b0, b2, a1, offset),
         getSegmentCheck(b2, polygonA, a1, a2, b1, b3, a2, offset),
         getSegmentCheck(a1, polygonB, b1, b2, a0, a2, b2, offsetA),
@@ -125,12 +130,12 @@ function intersect(pointPool: PointPool<Float64Array>, polygonA: Polygon<Float32
     return false;
 }
 
-function pointDistance(
-    pointPool: PointPool<Float64Array>,
-    p: Point<Float64Array>,
-    s1: Point<Float64Array>,
-    s2: Point<Float64Array>,
-    inputNormal: Point<Float64Array>,
+function pointDistance<T extends TypedArray>(
+    pointPool: PointPool<T>,
+    p: Point<T>,
+    s1: Point<T>,
+    s2: Point<T>,
+    inputNormal: Point<T>,
     infinite: boolean = false
 ): number {
     const pointIndices: number = pointPool.alloc(2);
@@ -343,20 +348,20 @@ function polygonSlideDistance(
 }
 
 // project each point of B onto A in the given direction, and return the
-function polygonProjectionDistance(
-    pointPool: PointPool<Float64Array>,
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
-    direction: Point<Float64Array>,
-    offset: Point<Float64Array>
+function polygonProjectionDistance<T extends TypedArray>(
+    pointPool: PointPool<T>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
+    direction: Point<T>,
+    offset: Point<T>
 ): number {
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const pointIndices: number = pointPool.alloc(4);
-    const p: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const s1: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const s2: Point<Float64Array> = pointPool.get(pointIndices, 2);
-    const sOffset: Point<Float64Array> = pointPool.get(pointIndices, 3);
+    const p: Point<T> = pointPool.get(pointIndices, 0);
+    const s1: Point<T> = pointPool.get(pointIndices, 1);
+    const s2: Point<T> = pointPool.get(pointIndices, 2);
+    const sOffset: Point<T> = pointPool.get(pointIndices, 3);
     let result: number = NaN;
     let d: number = 0;
     let i: number = 0;
@@ -416,7 +421,7 @@ function noFitPolygonRectangle(pointPool: PointPool<Float32Array>, A: Polygon<Fl
 }
 
 // returns true if point already exists in the given nfp
-function inNfp(polygon: Polygon<Float32Array>, point: Point<Float64Array>, nfp: Float32Array[]): boolean {
+function inNfp<T extends TypedArray>(polygon: Polygon<T>, point: Point<T>, nfp: T[]): boolean {
     if (nfp.length === 0) {
         return false;
     }
@@ -440,15 +445,15 @@ function inNfp(polygon: Polygon<Float32Array>, point: Point<Float64Array>, nfp: 
     return false;
 }
 
-function getInside(
-    pointPool: PointPool<Float64Array>,
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
-    offset: Point<Float64Array>,
+function getInside<T extends TypedArray>(
+    pointPool: PointPool<T>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
+    offset: Point<T>,
     defaultValue: boolean | null
 ): boolean | null {
     const pointIndices: number = pointPool.alloc(1);
-    const point: Point<Float64Array> = pointPool.get(pointIndices, 0);
+    const point: Point<T> = pointPool.get(pointIndices, 0);
     const sizeB: number = polygonB.length;
     let i: number = 0;
     let inPoly: boolean = false;
@@ -471,28 +476,28 @@ function getInside(
 
 // searches for an arrangement of A and B such that they do not overlap
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
-function searchStartPoint(
-    pointPool: PointPool<Float64Array>,
-    polygon: Polygon<Float32Array>,
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
+function searchStartPoint<T extends TypedArray>(
+    pointPool: PointPool<T>,
+    polygon: Polygon<T>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
     inside: boolean,
     markedIndices: number[],
-    nfp: Float32Array[] = []
-): Float64Array {
+    nfp: T[] = []
+): T {
     polygonA.close();
     polygonB.close();
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const pointIndices = pointPool.alloc(3);
-    const startPoint: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const v: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const vNeg: Point<Float64Array> = pointPool.get(pointIndices, 2);
+    const startPoint: Point<T> = pointPool.get(pointIndices, 0);
+    const v: Point<T> = pointPool.get(pointIndices, 1);
+    const vNeg: Point<T> = pointPool.get(pointIndices, 2);
     let i: number = 0;
     let j: number = 0;
     let d: number = 0;
     let isInside: boolean = false;
-    let result: Float64Array = null;
+    let result: T = null;
 
     for (i = 0; i < sizeA - 1; ++i) {
         if (markedIndices.indexOf(i) === -1) {
@@ -862,7 +867,7 @@ function noFitPolygon(
     const condition: number = 10 * (sizeA + sizeB);
     let counter: number = 0;
     let nfp: number[] = null;
-    let startPointRaw: Float64Array = null;
+    let startPointRaw: Float32Array = null;
     let maxDistance: number = 0;
     let vLength: number = 0;
     let translateIndex: number = 0;
@@ -871,7 +876,7 @@ function noFitPolygon(
     // point of A. This guarantees an initial placement with no intersections
     // no reliable heuristic for inside
     if (inside) {
-        startPointRaw = searchStartPoint(pointPool, polygon, polygonA, polygonB, true, markedIndices);
+        startPointRaw = searchStartPoint<Float32Array>(pointPoolF32, polygon, polygonA, polygonB, true, markedIndices);
 
         if (startPointRaw === null) {
             pointPool.malloc(pointIndices);
@@ -944,7 +949,7 @@ function noFitPolygon(
             result.push(new Float32Array(nfp));
         }
 
-        startPointRaw = searchStartPoint(pointPool, polygon, polygonA, polygonB, inside, markedIndices, result);
+        startPointRaw = searchStartPoint<Float32Array>(pointPoolF32, polygon, polygonA, polygonB, inside, markedIndices, result);
 
         if (startPointRaw === null) {
             break;
