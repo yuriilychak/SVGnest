@@ -26,7 +26,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return this;
     }
 
-    public fill(memSeg: T, index: number, offset: number = 0): void {
+    public fill(memSeg: TypedArray, index: number, offset: number = 0): void {
         memSeg[offset + (index << 1)] = this.x;
         memSeg[offset + (index << 1) + 1] = this.y;
     }

@@ -30,7 +30,7 @@ export interface Point<T extends TypedArray = TypedArray> {
 
     fromMemSeg(data: ArrayLike<number>, index?: number, offset?: number): this;
 
-    fill(memSeg: T, index: number, offset?: number): void;
+    fill(memSeg: TypedArray, index: number, offset?: number): void;
 
     set(x: number, y: number): this;
 
