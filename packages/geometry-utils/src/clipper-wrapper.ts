@@ -1,14 +1,13 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 
 import { NestConfig, PolygonNode } from './types';
-import { generateNFPCacheKey, getPolygonNode, getUint16 } from './helpers';
-import PointPool from './point-pool';
-import { NFP_INFO_START_INDEX } from './constants';
+import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import PolygonF32 from './polygon-f32';
 import BoundRectF32 from './bound-rect-f32';
 import { PointF32, PointF64 } from './point';
 import PointPoolF32 from './point-pool-f32';
+import NFPWrapper from './worker-flow/nfp-wrapper';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -211,38 +210,29 @@ export default class ClipperWrapper {
         node.memSeg = ClipperWrapper.toMemSegF32(clearedPolygon);
     }
 
-    private static fromNfp(memSeg: Float64Array, index: number, offset: PointF32 = null): PointF64[] {
-        const cleanTrashold: number = offset === null ? -1 : ClipperWrapper.CLEAN_TRASHOLD;
-        const isRound: boolean = offset === null;
-        const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
-        const memOffset: number = getUint16(compressedInfo, 1);
-        const pointCount: number = getUint16(compressedInfo, 0) >>> 1;
-
-        return ClipperWrapper.fromMemSeg(Float32Array.from(memSeg), memOffset, pointCount, 1, offset, isRound, cleanTrashold);
+    private static fromNfp(memSeg: Float32Array, offset: PointF32 = null): PointF64[] {
+        return ClipperWrapper.fromMemSeg(memSeg, offset, offset === null);
     }
 
     public static fromMemSeg(
-        memSeg: Float32Array | Float64Array,
-        memOffset: number = 0,
-        pointCount: number = memSeg.length >> 1,
-        scale: number = 1,
+        memSeg: Float32Array,
         offset: PointF32 = null,
-        isRound: boolean = false,
-        cleanTrashold: number = -1
+        isRound: boolean = false
     ): PointF64[] {
-        const resultScale = scale * ClipperWrapper.CLIPPER_SCALE;
+        const cleanTrashold: number = offset === null ? -1 : ClipperWrapper.CLEAN_TRASHOLD;
+        const pointCount: number = memSeg.length >> 1;
         const result: PointF64[] = [];
         const point: PointF32 = PointF32.create();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            point.fromMemSeg(memSeg, i, memOffset);
+            point.fromMemSeg(memSeg, i);
 
             if (offset !== null) {
                 point.add(offset);
             }
 
-            point.scaleUp(resultScale);
+            point.scaleUp(ClipperWrapper.CLIPPER_SCALE);
 
             if (isRound) {
                 point.round();
@@ -283,13 +273,15 @@ export default class ClipperWrapper {
     }
 
     public static applyNfps(clipper: Clipper, nfpBuffer: ArrayBuffer, offset: PointF32): void {
-        const nfpMemSeg: Float64Array = new Float64Array(nfpBuffer);
-        const nfpCount: number = nfpMemSeg[1];
+        const nfpWrapper: NFPWrapper = new NFPWrapper(nfpBuffer);
+        const nfpCount: number = nfpWrapper.count;
         let clone: PointF64[] = null;
+        let memSeg: Float32Array = null;
         let i: number = 0;
 
         for (i = 0; i < nfpCount; ++i) {
-            clone = ClipperWrapper.fromNfp(nfpMemSeg, i, offset);
+            memSeg = nfpWrapper.getNFPMemSeg(i);
+            clone = ClipperWrapper.fromMemSeg(memSeg, offset);
 
             if (absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
                 clipper.addPath(clone, PolyType.SUBJECT);
@@ -297,14 +289,17 @@ export default class ClipperWrapper {
         }
     }
 
-    public static nfpToClipper(pointPool: PointPoolF32, nfpMmSeg: Float64Array): PointF64[][] {
+    public static nfpToClipper(pointPool: PointPoolF32, nfpWrapper: NFPWrapper): PointF64[][] {
         const pointIndices = pointPool.alloc(1);
-        const nfpCount: number = nfpMmSeg[1];
-        let i: number = 0;
+        const nfpCount: number = nfpWrapper.count;
         const result = [];
+        let memSeg: Float32Array = null;
+        let i: number = 0;
+        
 
         for (i = 0; i < nfpCount; ++i) {
-            result.push(ClipperWrapper.fromNfp(nfpMmSeg, i));
+            memSeg = nfpWrapper.getNFPMemSeg(i)
+            result.push(ClipperWrapper.fromMemSeg(memSeg, null, true));
         }
 
         pointPool.malloc(pointIndices);
@@ -317,7 +312,7 @@ export default class ClipperWrapper {
         placeContent: PlaceContent,
         placed: PolygonNode[],
         path: PolygonNode,
-        binNfp: Float64Array,
+        binNfp: NFPWrapper,
         placement: number[]
     ) {
         const pointIndices: number = pointPool.alloc(1);

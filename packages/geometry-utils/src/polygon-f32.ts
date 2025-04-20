@@ -1,5 +1,4 @@
-import { almostEqual, cycleIndex, getUint16, readUint32FromF32 } from './helpers';
-import { NFP_INFO_START_INDEX } from './constants';
+import { almostEqual, cycleIndex } from './helpers';
 import { PointF32 } from './point';
 import BoundRectF32 from './bound-rect-f32';
 
@@ -40,15 +39,6 @@ export default class PolygonF32 {
         this.memSeg = data;
 
         this.calculateBounds();
-    }
-
-    public bindNFP(memSeg: Float64Array, index: number): void {
-        const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
-        const offset: number = getUint16(compressedInfo, 1);
-        const size: number = getUint16(compressedInfo, 0) >>> 1;
-        const array: Float32Array = Float32Array.from(memSeg.slice(offset, offset + (size * 2)));
-
-        this.bind(array, 0, size);
     }
 
     public clean(): void {

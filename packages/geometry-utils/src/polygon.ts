@@ -1,6 +1,5 @@
 import { PointF64 } from './point';
-import { almostEqual, cycleIndex, getUint16 } from './helpers';
-import { NFP_INFO_START_INDEX } from './constants';
+import { almostEqual, cycleIndex } from './helpers';
 import BoundRect from './bound-rect';
 
 export default class Polygon {
@@ -40,14 +39,6 @@ export default class Polygon {
         this.memSeg = data;
 
         this.calculateBounds();
-    }
-
-    public bindNFP(memSeg: Float64Array, index: number): void {
-        const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
-        const offset: number = getUint16(compressedInfo, 1);
-        const size: number = getUint16(compressedInfo, 0) >>> 1;
-
-        this.bind(memSeg, offset, size);
     }
 
     public clean(): void {

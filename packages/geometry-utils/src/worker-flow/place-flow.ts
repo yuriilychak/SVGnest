@@ -7,6 +7,7 @@ import { WorkerConfig } from './types';
 import PlaceContent from './place-content';
 import PolygonF32 from '../polygon-f32';
 import PointPoolF32 from '../point-pool-f32';
+import NFPWrapper from './nfp-wrapper';
 
 function fillPointMemSeg(
     pointPool: PointPoolF32,
@@ -92,7 +93,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
     let curArea: number = 0;
     let nfpOffset: number = 0;
     let placed: PolygonNode[] = [];
-    let binNfp: Float64Array = null;
+    let binNfp: NFPWrapper = new NFPWrapper();
     let finalNfp: PointF64[][] = null;
     let minArea: number = 0;
     let minX: number = 0;
@@ -116,21 +117,21 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
             pathKey = placeContent.getPathKey(i);
 
             // inner NFP
-            binNfp = placeContent.getBinNfp(i);
+            binNfp.buffer = placeContent.getBinNfp(i);
 
             // part unplaceable, skip             part unplaceable, skip
-            if (!binNfp || binNfp.length < 3 || placeContent.getNfpError(placed, node)) {
+            if (binNfp.isBroken || placeContent.getNfpError(placed, node)) {
                 continue;
             }
 
             positionX = NaN;
 
-            binNfpCount = binNfp[1];
+            binNfpCount = binNfp.count;
 
             if (placed.length === 0) {
                 // first placement, put it on the left
                 for (j = 0; j < binNfpCount; ++j) {
-                    polygon1.bindNFP(binNfp, j);
+                    polygon1.bind(binNfp.getNFPMemSeg(j));
 
                     for (k = 0; k < polygon1.length; ++k) {
                         tmpPoint.update(polygon1.at(k)).sub(firstPoint);

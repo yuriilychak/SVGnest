@@ -36,10 +36,10 @@ export default class PlaceContent extends WorkerContent {
         this._area = 0;
     }
 
-    public getBinNfp(index: number): Float64Array | null {
+    public getBinNfp(index: number): ArrayBuffer | null {
         const key: number = generateNFPCacheKey(this.rotations, true, this._emptyNode, this.nodeAt(index));
 
-        return this._nfpCache.has(key) ? new Float64Array(this._nfpCache.get(key)) : null;
+        return this._nfpCache.has(key) ? this._nfpCache.get(key) : null;
     }
 
     // ensure all necessary NFPs exist

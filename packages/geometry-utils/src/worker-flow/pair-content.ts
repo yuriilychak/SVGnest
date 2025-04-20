@@ -1,6 +1,7 @@
-import { NFP_INFO_START_INDEX, NFP_KEY_INDICES } from '../constants';
-import { getBits, getUint16, joinUint16 } from '../helpers';
+import { NFP_KEY_INDICES } from '../constants';
+import { getBits } from '../helpers';
 import { PolygonNode } from '../types';
+import NFPWrapper from './nfp-wrapper';
 import WorkerContent from './worker-content';
 
 export default class PairContent extends WorkerContent {
@@ -31,30 +32,7 @@ export default class PairContent extends WorkerContent {
     }
 
     public getResult(nfpArrays: Float32Array[]): ArrayBuffer {
-        const nfpCount: number = nfpArrays.length;
-        const info = new Float64Array(nfpCount);
-        let totalSize: number = NFP_INFO_START_INDEX + nfpCount;
-        let size: number = 0;
-        let i: number = 0;
-
-        for (i = 0; i < nfpCount; ++i) {
-            size = nfpArrays[i].length;
-            info[i] = joinUint16(size, totalSize);
-            totalSize += size;
-        }
-
-        const result = new Float64Array(totalSize);
-
-        result[0] = this._key;
-        result[1] = nfpCount;
-
-        result.set(info, NFP_INFO_START_INDEX);
-
-        for (i = 0; i < nfpCount; ++i) {
-            result.set(nfpArrays[i], getUint16(info[i], 1));
-        }
-
-        return result.buffer;
+        return NFPWrapper.serialize(this._key, nfpArrays);
     }
 
     public logError(message: string): void {
