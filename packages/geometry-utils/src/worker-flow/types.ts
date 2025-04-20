@@ -1,9 +1,9 @@
 import PointPool from '../point-pool';
-import { PointF64 } from '../point';
 import PlaceContent from './place-content';
 import PairContent from './pair-content';
 import PolygonF32 from '../polygon-f32';
 import PointPoolF32 from '../point-pool-f32';
+import type { Point, TypedArray } from '../types';
 
 export type WorkerConfig = {
     pointPool: PointPool;
@@ -18,13 +18,13 @@ export type WorkerConfig = {
     pairContent: PairContent;
 };
 
-export type SegmentCheck = {
-    point: PointF64;
+export type SegmentCheck<T extends TypedArray = Float64Array> = {
+    point: Point<T>;
     polygon: PolygonF32;
-    segmentStart: PointF64;
-    segmentEnd: PointF64;
-    checkStart: PointF64;
-    checkEnd: PointF64;
-    target: PointF64;
-    offset: PointF64;
+    segmentStart: Point<T>;
+    segmentEnd: Point<T>;
+    checkStart: Point<T>;
+    checkEnd: Point<T>;
+    target: Point<T>;
+    offset: Point<T>;
 };

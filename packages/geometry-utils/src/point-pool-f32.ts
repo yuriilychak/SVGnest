@@ -1,4 +1,4 @@
-import { PointF32, PointF64 } from './point';
+import { PointF32 } from './point';
 
 export default class PointPoolF32 {
     private items: PointF32[];
@@ -7,7 +7,7 @@ export default class PointPoolF32 {
 
     private memSeg: Float32Array;
 
-    constructor(buffer: ArrayBuffer, offset: number  = 0) {
+    constructor(buffer: ArrayBuffer, offset: number = 0) {
         this.items = new Array(PointPoolF32.POOL_SIZE);
         this.used = 0;
         this.memSeg = new Float32Array(buffer, offset, PointPoolF32.POOL_SIZE << 1);
@@ -70,5 +70,5 @@ export default class PointPoolF32 {
 
     private static readonly MAX_BITS: number = 31;
 
-    public static POOL_SIZE: number = 32;
+    public static readonly POOL_SIZE: number = 32;
 }

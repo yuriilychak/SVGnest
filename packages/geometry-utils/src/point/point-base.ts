@@ -288,5 +288,6 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     }
 
     private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2
+    
     private static HIGH_RANGE = 4503599627370495; // sqrt(2^106 -1)/2
 }

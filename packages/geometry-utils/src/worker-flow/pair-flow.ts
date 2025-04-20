@@ -1,12 +1,13 @@
 import { almostEqual, cycleIndex, midValue, setBits, getBits } from '../helpers';
 import { PolygonNode } from '../types';
-import { PointF64 } from '../point';
+import { PointF32, PointF64 } from '../point';
 import PolygonF32 from '../polygon-f32';
 import { TOL } from '../constants';
 import PointPool from '../point-pool';
 import { WorkerConfig, SegmentCheck } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
 import PairContent from './pair-content';
+import PointPoolF32 from '../point-pool-f32';
 
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
@@ -425,7 +426,7 @@ function polygonProjectionDistance(
 }
 
 // returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle(pointPool: PointPool, A: PolygonF32, B: PolygonF32): Float32Array[] {
+function noFitPolygonRectangle(pointPool: PointPoolF32, A: PolygonF32, B: PolygonF32): Float32Array[] {
     const pointIndices = pointPool.alloc(2);
     const minDiff = pointPool.get(pointIndices, 0).update(A.position).sub(B.position);
     const maxDiff = pointPool.get(pointIndices, 1).update(A.size).sub(B.size);
@@ -758,7 +759,7 @@ function applyVectors(
 }
 
 // if A and B start on a touching horizontal line, the end point may not be the start point
-function getNfpLooped(nfp: number[], reference: PointF64, pointPool: PointPool): boolean {
+function getNfpLooped(nfp: number[], reference: PointF64, pointPool: PointPoolF32): boolean {
     const pointCount: number = nfp.length >> 1;
 
     if (pointCount === 0) {
@@ -766,7 +767,7 @@ function getNfpLooped(nfp: number[], reference: PointF64, pointPool: PointPool):
     }
 
     const pointIndices: number = pointPool.alloc(1);
-    const point: PointF64 = pointPool.get(pointIndices, 0);
+    const point: PointF32 = pointPool.get(pointIndices, 0);
     let i: number = 0;
 
     for (i = 0; i < pointCount - 1; ++i) {
@@ -843,10 +844,12 @@ function findTranslate(
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
 function noFitPolygon(
+    pointPoolF32: PointPoolF32,
     pointPool: PointPool,
     polygon: PolygonF32,
     polygonA: PolygonF32,
     polygonB: PolygonF32,
+    memSegF32: Float32Array,
     memSeg: Float64Array,
     inside: boolean
 ): Float32Array[] {
@@ -954,7 +957,7 @@ function noFitPolygon(
 
             reference.add(translate);
 
-            if (reference.almostEqual(start) || getNfpLooped(nfp, reference, pointPool)) {
+            if (reference.almostEqual(start) || getNfpLooped(nfp, reference, pointPoolF32)) {
                 // we've made a full loop
                 break;
             }
@@ -992,7 +995,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
         return new ArrayBuffer(0);
     }
 
-    const { pointPool, polygonsF32, memSeg } = config;
+    const { pointPool, pointPoolF32, polygonsF32, memSeg, memSegF32 } = config;
     const polygonA: PolygonF32 = polygonsF32[0];
     const polygonB: PolygonF32 = polygonsF32[1];
 
@@ -1005,8 +1008,8 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
 
     if (pairContent.isInside) {
         nfp = polygonA.isRectangle
-            ? noFitPolygonRectangle(pointPool, polygonA, polygonB)
-            : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, true);
+            ? noFitPolygonRectangle(pointPoolF32, polygonA, polygonB)
+            : noFitPolygon(pointPoolF32, pointPool, tmpPolygon, polygonA, polygonB, memSegF32, memSeg, true);
 
         // ensure all interior NFPs have the same winding direction
         nfpSize = nfp.length;
@@ -1028,7 +1031,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
         return pairContent.getResult(nfp);
     }
 
-    nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, false);
+    nfp = noFitPolygon(pointPoolF32, pointPool, tmpPolygon, polygonA, polygonB, memSegF32, memSeg, false);
     // sanity check
     if (nfp.length === 0) {
         pairContent.logError('NFP Error');
@@ -1077,7 +1080,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
 
             // no need to find nfp if B's bounding box is too big
             if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
-                const noFitPolygons: Float32Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, memSeg, true);
+                const noFitPolygons: Float32Array[] = noFitPolygon(pointPoolF32, pointPool, tmpPolygon, child, polygonB, memSegF32, memSeg, true);
                 const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                 // ensure all interior NFPs have the same winding direction
                 if (noFitCount !== 0) {
