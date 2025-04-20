@@ -1,4 +1,4 @@
-import { NFP_KEY_INDICES, TOL, UINT16_BIT_COUNT } from './constants';
+import { NFP_KEY_INDICES, TOL_F64, UINT16_BIT_COUNT } from './constants';
 import { NestConfig, NFPCache, PolygonNode } from './types';
 
 function getMask(bitCount: number, offset: number = 0): number {
@@ -23,7 +23,7 @@ export function joinUint16(value1: number, value2: number): number {
     return value1 | (value2 << UINT16_BIT_COUNT);
 }
 
-export function almostEqual(a: number, b: number = 0, tolerance: number = TOL): boolean {
+export function almostEqual(a: number, b: number = 0, tolerance: number = TOL_F64): boolean {
     return Math.abs(a - b) < tolerance;
 }
 

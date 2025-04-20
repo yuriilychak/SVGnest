@@ -1,4 +1,4 @@
-import { ANGLE_CACHE, TOL } from '../constants';
+import { ANGLE_CACHE, TOL_F64 } from '../constants';
 import { almostEqual, clipperRound, midValue, slopesEqual } from '../helpers';
 import type { Point, TypedArray } from '../types';
 
@@ -161,7 +161,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return this.set(-this.x, -this.y);
     }
 
-    public almostEqual(point: Point, tolerance: number = TOL): boolean {
+    public almostEqual(point: Point, tolerance: number = TOL_F64): boolean {
         return almostEqual(this.x, point.x, tolerance) && almostEqual(this.y, point.y, tolerance);
     }
 
@@ -223,13 +223,13 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         const subA = this.clone().sub(pointA);
         const subAB = this.clone(pointB).sub(pointA);
 
-        if (Math.abs(subA.cross(subAB)) > TOL) {
+        if (Math.abs(subA.cross(subAB)) > TOL_F64) {
             return false;
         }
 
         const dot = subA.dot(subAB);
 
-        if (dot < TOL) {
+        if (dot < TOL_F64) {
             return false;
         }
 
