@@ -1,13 +1,12 @@
-import { almostEqual, cycleIndex, midValue, setBits, getBits, getUint16, joinUint16 } from '../helpers';
+import { almostEqual, cycleIndex, midValue, setBits, getBits } from '../helpers';
 import { PolygonNode } from '../types';
 import { PointF64 } from '../point';
-import Polygon from '../polygon';
+import PolygonF32 from '../polygon-f32';
 import { TOL } from '../constants';
 import PointPool from '../point-pool';
 import { WorkerConfig, SegmentCheck } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
 import PairContent from './pair-content';
-import PolygonF32 from '../polygon-f32';
 
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
@@ -39,7 +38,7 @@ function lineIntersect(A: PointF64, B: PointF64, E: PointF64, F: PointF64): bool
 // old-todo: swap this for a more efficient sweep-line implementation
 // returnEdges: if set, return all edges on A that have intersections
 
-function updateIntersectPoint(point: PointF64, polygon: Polygon, index: number, offset: number): void {
+function updateIntersectPoint(point: PointF64, polygon: PolygonF32, index: number, offset: number): void {
     const pointCount: number = polygon.length;
     let currentIndex = cycleIndex(index, pointCount, offset);
 
@@ -54,7 +53,7 @@ function updateIntersectPoint(point: PointF64, polygon: Polygon, index: number, 
 
 function getSegmentCheck(
     point: PointF64,
-    polygon: Polygon,
+    polygon: PolygonF32,
     segmentStart: PointF64,
     segmentEnd: PointF64,
     checkStart: PointF64,
@@ -86,7 +85,7 @@ function getSegmentStats({
     return null;
 }
 
-function intersect(pointPool: PointPool, polygonA: Polygon, polygonB: Polygon, offset: PointF64): boolean {
+function intersect(pointPool: PointPool, polygonA: PolygonF32, polygonB: PolygonF32, offset: PointF64): boolean {
     const pointIndices: number = pointPool.alloc(9);
     const a0: PointF64 = pointPool.get(pointIndices, 0);
     const a1: PointF64 = pointPool.get(pointIndices, 1);
@@ -327,8 +326,8 @@ function segmentDistance(pointPool: PointPool, A: PointF64, B: PointF64, E: Poin
 
 function polygonSlideDistance(
     pointPool: PointPool,
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     direction: PointF64,
     offset: PointF64
 ): number {
@@ -375,8 +374,8 @@ function polygonSlideDistance(
 // project each point of B onto A in the given direction, and return the
 function polygonProjectionDistance(
     pointPool: PointPool,
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     direction: PointF64,
     offset: PointF64
 ): number {
@@ -426,7 +425,7 @@ function polygonProjectionDistance(
 }
 
 // returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle(pointPool: PointPool, A: Polygon, B: Polygon): Float32Array[] {
+function noFitPolygonRectangle(pointPool: PointPool, A: PolygonF32, B: PolygonF32): Float32Array[] {
     const pointIndices = pointPool.alloc(2);
     const minDiff = pointPool.get(pointIndices, 0).update(A.position).sub(B.position);
     const maxDiff = pointPool.get(pointIndices, 1).update(A.size).sub(B.size);
@@ -472,8 +471,8 @@ function inNfp(polygon: PolygonF32, point: PointF64, nfp: Float32Array[]): boole
 
 function getInside(
     pointPool: PointPool,
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     offset: PointF64,
     defaultValue: boolean | null
 ): boolean | null {
@@ -504,8 +503,8 @@ function getInside(
 function searchStartPoint(
     pointPool: PointPool,
     polygon: PolygonF32,
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     inside: boolean,
     markedIndices: number[],
     nfp: Float32Array[] = []
@@ -658,8 +657,8 @@ function getTouch(
 }
 
 function fillVectors(
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     pointPool: PointPool,
     offset: PointF64,
     memSeg: Float64Array,
@@ -703,8 +702,8 @@ function fillVectors(
 }
 
 function applyVectors(
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     pointPool: PointPool,
     offset: PointF64,
     touch: number,
@@ -785,8 +784,8 @@ function getNfpLooped(nfp: number[], reference: PointF64, pointPool: PointPool):
 }
 
 function findTranslate(
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     pointPool: PointPool,
     offset: PointF64,
     memSeg: Float64Array,
@@ -846,8 +845,8 @@ function findTranslate(
 function noFitPolygon(
     pointPool: PointPool,
     polygon: PolygonF32,
-    polygonA: Polygon,
-    polygonB: Polygon,
+    polygonA: PolygonF32,
+    polygonB: PolygonF32,
     memSeg: Float64Array,
     inside: boolean
 ): Float32Array[] {
@@ -993,12 +992,12 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
         return new ArrayBuffer(0);
     }
 
-    const { pointPool, polygons, polygonsF32, memSeg } = config;
-    const polygonA: Polygon = polygons[0];
-    const polygonB: Polygon = polygons[1];
+    const { pointPool, polygonsF32, memSeg } = config;
+    const polygonA: PolygonF32 = polygonsF32[0];
+    const polygonB: PolygonF32 = polygonsF32[1];
 
-    polygonA.bind(Float64Array.from(pairContent.firstNode.memSeg));
-    polygonB.bind(Float64Array.from(pairContent.secondNode.memSeg));
+    polygonA.bind(pairContent.firstNode.memSeg);
+    polygonB.bind(pairContent.secondNode.memSeg);
     const tmpPolygon: PolygonF32 = polygonsF32[2];
     let nfp: Float32Array[] = null;
     let nfpSize: number = 0;
@@ -1070,11 +1069,11 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
     if (pairContent.isUseHoles) {
         const childCount: number = pairContent.firstNode.children.length;
         let node: PolygonNode = null;
-        const child: Polygon = polygons[4];
+        const child: PolygonF32 = polygonsF32[4];
 
         for (i = 0; i < childCount; ++i) {
             node = pairContent.firstNode.children[i];
-            child.bind(Float64Array.from(node.memSeg));
+            child.bind(node.memSeg);
 
             // no need to find nfp if B's bounding box is too big
             if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {

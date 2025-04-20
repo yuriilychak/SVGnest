@@ -1,4 +1,3 @@
-import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import { THREAD_TYPE } from '../types';
 import { pairData } from './pair-flow';
@@ -18,13 +17,12 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
         config.pointPool = new PointPool(config.buffer);
         config.memSeg = new Float64Array(config.buffer, config.pointPool.size);
         config.isInit = true;
-        config.polygons = [Polygon.create(), Polygon.create(), Polygon.create(), Polygon.create(), Polygon.create()];
         config.polygonsF32 = [PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create()];
         config.pairContent = new PairContent();
         config.placeContent = new PlaceContent();
     }
 
-    const polygonCount: number = config.polygons.length;
+    const polygonCount: number = config.polygonsF32.length;
     const view: DataView = new DataView(buffer);
     const dataType: THREAD_TYPE = view.getUint32(0) as THREAD_TYPE;
     const isPair: boolean = dataType === THREAD_TYPE.PAIR;
@@ -33,7 +31,7 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
     let i: number = 0;
 
     for (i = 0; i < polygonCount; ++i) {
-        config.polygons[i].clean();
+        config.polygonsF32[i].clean();
     }
     
     if (isPair) {

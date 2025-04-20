@@ -1,6 +1,7 @@
 import { almostEqual, cycleIndex } from './helpers';
 import { PointF32 } from './point';
 import BoundRectF32 from './bound-rect-f32';
+import { Point } from './types';
 
 export default class PolygonF32 {
     private memSeg: Float32Array;
@@ -72,7 +73,7 @@ export default class PolygonF32 {
         return this.point.bind(this.memSeg, this.getPointOffset(pointIndex));
     }
 
-    public pointIn(point: PointF32, offset: PointF32 = null): boolean {
+    public pointIn(point: Point, offset: Point = null): boolean {
         if (this.isBroken) {
             return null;
         }

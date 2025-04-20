@@ -1,4 +1,3 @@
-import Polygon from '../polygon';
 import PointPool from '../point-pool';
 import { PointF64 } from '../point';
 import PlaceContent from './place-content';
@@ -10,7 +9,6 @@ export type WorkerConfig = {
     pointPool: PointPool;
     pointPoolF32: PointPoolF32;
     isInit: boolean;
-    polygons: Polygon[];
     polygonsF32: PolygonF32[];
     buffer: ArrayBuffer;
     bufferF32: ArrayBuffer;
@@ -22,7 +20,7 @@ export type WorkerConfig = {
 
 export type SegmentCheck = {
     point: PointF64;
-    polygon: Polygon;
+    polygon: PolygonF32;
     segmentStart: PointF64;
     segmentEnd: PointF64;
     checkStart: PointF64;
