@@ -204,11 +204,11 @@ function coincedentDistance<T extends TypedArray>(
     return Number.isNaN(defaultValue) ? result : Math.min(result, defaultValue);
 }
 
-function segmentDistance(pointPool: PointPool<Float64Array>, A: Point<Float64Array>, B: Point<Float64Array>, E: Point<Float64Array>, F: Point<Float64Array>, direction: Point<Float64Array>): number {
+function segmentDistance<T extends TypedArray>(pointPool: PointPool<T>, A: Point<T>, B: Point<T>, E: Point<T>, F: Point<T>, direction: Point<T>): number {
     let sharedPointIndices: number = pointPool.alloc(3);
-    const normal = pointPool.get(sharedPointIndices, 0).update(direction).normal();
-    const reverse = pointPool.get(sharedPointIndices, 1).update(direction).reverse();
-    const dir = pointPool.get(sharedPointIndices, 2).update(direction);
+    const normal: Point<T> = pointPool.get(sharedPointIndices, 0).update(direction).normal();
+    const reverse: Point<T> = pointPool.get(sharedPointIndices, 1).update(direction).reverse();
+    const dir: Point<T> = pointPool.get(sharedPointIndices, 2).update(direction);
     const dotA: number = normal.dot(A);
     const dotB: number = normal.dot(B);
     const dotE: number = normal.dot(E);
@@ -234,11 +234,11 @@ function segmentDistance(pointPool: PointPool<Float64Array>, A: Point<Float64Arr
             ? 1
             : (Math.min(maxAB, maxEF) - Math.max(minAB, minEF)) / (Math.max(maxAB, maxEF) - Math.min(minAB, minEF));
     const pointIndices2: number = pointPool.alloc(3);
-    const diffAB: Point<Float64Array> = pointPool.get(pointIndices2, 0).update(B).sub(A);
-    const diffAE: Point<Float64Array> = pointPool.get(pointIndices2, 1).update(E).sub(A);
-    const diffAF: Point<Float64Array> = pointPool.get(pointIndices2, 2).update(F).sub(A);
-    const crossABE = diffAE.cross(diffAB);
-    const crossABF = diffAF.cross(diffAB);
+    const diffAB: Point<T> = pointPool.get(pointIndices2, 0).update(B).sub(A);
+    const diffAE: Point<T> = pointPool.get(pointIndices2, 1).update(E).sub(A);
+    const diffAF: Point<T> = pointPool.get(pointIndices2, 2).update(F).sub(A);
+    const crossABE: number = diffAE.cross(diffAB);
+    const crossABF: number = diffAF.cross(diffAB);
 
     sharedPointIndices |= pointIndices2;
 
@@ -300,18 +300,18 @@ function segmentDistance(pointPool: PointPool<Float64Array>, A: Point<Float64Arr
     return result;
 }
 
-function polygonSlideDistance(
-    pointPool: PointPool<Float64Array>,
+function polygonSlideDistance<T extends TypedArray>(
+    pointPool: PointPool<T>,
     polygonA: Polygon<Float32Array>,
     polygonB: Polygon<Float32Array>,
-    direction: Point<Float64Array>,
+    direction: Point<T>,
     offset: Point<Float64Array>
 ): number {
     const pointIndices: number = pointPool.alloc(5);
-    const a1: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const a2: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const b1: Point<Float64Array> = pointPool.get(pointIndices, 2);
-    const b2: Point<Float64Array> = pointPool.get(pointIndices, 3);
+    const a1: Point<T> = pointPool.get(pointIndices, 0);
+    const a2: Point<T> = pointPool.get(pointIndices, 1);
+    const b1: Point<T> = pointPool.get(pointIndices, 2);
+    const b2: Point<T> = pointPool.get(pointIndices, 3);
     const dir = pointPool.get(pointIndices, 4).update(direction).normalize();
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
@@ -759,10 +759,10 @@ function getNfpLooped(nfp: number[], reference: Point<Float64Array>, pointPool: 
     return false;
 }
 
-function findTranslate(
+function findTranslate<T extends TypedArray>(
     polygonA: Polygon<Float32Array>,
     polygonB: Polygon<Float32Array>,
-    pointPool: PointPool<Float64Array>,
+    pointPool: PointPool<T>,
     offset: Point<Float64Array>,
     memSeg: Float64Array,
     prevTranslate: Point<Float64Array>
@@ -771,9 +771,9 @@ function findTranslate(
     // that will cause immediate intersection. For now just check them all
     const vectorCount: number = memSeg[0];
     const pointIndices = pointPool.alloc(3);
-    const currUnitV: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const prevUnitV: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const currVector: Point<Float64Array> = pointPool.get(pointIndices, 2);
+    const currUnitV: Point<T> = pointPool.get(pointIndices, 0);
+    const prevUnitV: Point<T> = pointPool.get(pointIndices, 1);
+    const currVector: Point<T> = pointPool.get(pointIndices, 2);
     let translate: number = -1;
     let maxDistance: number = 0;
     let distance: number = 0;
@@ -834,10 +834,10 @@ function noFitPolygon(
 
     const markedIndices: number[] = [];
     let i: number = 0;
-    let minA = polygonA.first.y;
-    let minIndexA = 0;
-    let maxB = polygonB.first.y;
-    let maxIndexB = 0;
+    let minA: number = polygonA.first.y;
+    let minIndexA: number = 0;
+    let maxB: number = polygonB.first.y;
+    let maxIndexB: number = 0;
 
     for (i = 1; i < polygonA.length; ++i) {
         if (polygonA.at(i).y < minA) {
@@ -853,7 +853,7 @@ function noFitPolygon(
         }
     }
 
-    const pointIndices = pointPool.alloc(7);
+    const pointIndices: number = pointPool.alloc(7);
     const reference: Point<Float64Array> = pointPool.get(pointIndices, 0);
     const start: Point<Float64Array> = pointPool.get(pointIndices, 1);
     const offset: Point<Float64Array> = pointPool.get(pointIndices, 2);
