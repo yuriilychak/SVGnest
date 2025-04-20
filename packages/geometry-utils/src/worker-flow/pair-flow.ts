@@ -986,11 +986,11 @@ function noFitPolygon(
     return result;
 }
 
-export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
+export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer {
     const pairContent: PairContent = config.pairContent.init(buffer);
 
     if (pairContent.isBroken) {
-        return new Float64Array(0);
+        return new ArrayBuffer(0);
     }
 
     const { pointPool, polygons, polygonsF32, memSeg } = config;
@@ -1034,7 +1034,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
     if (nfp.length === 0) {
         pairContent.logError('NFP Error');
 
-        return new Float64Array(0);
+        return new ArrayBuffer(0);
     }
 
     tmpPolygon.bind(nfp[0]);
@@ -1044,7 +1044,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): Float64Arra
         console.log('Area: ', tmpPolygon.absArea);
         nfp.splice(i, 1);
 
-        return new Float64Array(0);
+        return new ArrayBuffer(0);
     }
 
     const firstNfp: PolygonF32 = polygonsF32[3];

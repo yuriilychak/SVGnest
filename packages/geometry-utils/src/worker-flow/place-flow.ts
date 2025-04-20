@@ -33,7 +33,7 @@ function fillPointMemSeg(
     return prevValue + pointCount;
 }
 
-function getResult(placements: number[][], pathItems: number[][], fitness: number): Float32Array {
+function getResult(placements: number[][], pathItems: number[][], fitness: number): ArrayBuffer {
     const placementCount: number = pathItems.length;
     const info: Uint32Array = new Uint32Array(placementCount);
     let totalSize: number = NFP_INFO_START_INDEX + placementCount;
@@ -68,10 +68,10 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
         result.set(placements[i], offset + size);
     }
 
-    return result;
+    return result.buffer;
 }
 
-export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float32Array {
+export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer {
     const { pointPoolF32, polygonsF32, memSegF32 } = config;
     const placeContent: PlaceContent = config.placeContent.init(buffer);
     const polygon1: PolygonF32 = polygonsF32[0];
