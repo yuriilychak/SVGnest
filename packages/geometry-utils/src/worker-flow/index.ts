@@ -7,6 +7,7 @@ import PairContent from './pair-content';
 import PlaceContent from './place-content';
 import PolygonF32 from '../polygon-f32';
 import PointPoolF32 from '../point-pool-f32';
+import PolygonF64 from '../polygon-f64';
 
 export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): ArrayBuffer {
     if (!config.isInit) {
@@ -17,6 +18,7 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
         config.pointPool = new PointPoolF64(config.buffer);
         config.memSeg = new Float64Array(config.buffer, config.pointPool.size);
         config.isInit = true;
+        config.polygons = [PolygonF64.create(), PolygonF64.create(), PolygonF64.create(), PolygonF64.create(), PolygonF64.create()];
         config.polygonsF32 = [PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create()];
         config.pairContent = new PairContent();
         config.placeContent = new PlaceContent();

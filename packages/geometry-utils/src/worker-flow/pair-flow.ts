@@ -1,6 +1,6 @@
 import { almostEqual, cycleIndex, midValue, setBits, getBits } from '../helpers';
 import { PointBase } from '../point';
-import { TOL_F32, TOL_F64 } from '../constants';
+import { TOL_F64 } from '../constants';
 import { WorkerConfig, SegmentCheck } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
 import PairContent from './pair-content';
@@ -16,7 +16,7 @@ function updateIntersectPoint<T extends TypedArray>(point: Point<T>, polygon: Po
     point.update(polygon.at(index));
 
     // go even further back if we happen to hit on a loop end point
-    if (point.almostEqual(polygon.at(currentIndex), TOL_F32)) {
+    if (point.almostEqual(polygon.at(currentIndex), TOL_F64)) {
         currentIndex = cycleIndex(currentIndex, pointCount, offset);
         point.update(polygon.at(currentIndex));
     }
@@ -45,7 +45,7 @@ function getSegmentStats<T extends TypedArray>({
     checkEnd,
     offset
 }: SegmentCheck<T>): boolean {
-    if (point.onSegment(segmentStart, segmentEnd) || point.almostEqual(target, TOL_F32)) {
+    if (point.onSegment(segmentStart, segmentEnd) || point.almostEqual(target, TOL_F64)) {
         // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
         const pointIn1 = polygon.pointIn(checkStart, offset);
         const pointIn2 = polygon.pointIn(checkEnd, offset);
@@ -155,7 +155,7 @@ function pointDistance<T extends TypedArray>(
             return NaN; // dot doesn't collide with segment, or lies directly on the vertex
         }
 
-        if (almostEqual(pdot, s1dot, TOL_F32) && almostEqual(pdot, s2dot, TOL_F32) && midValue(pdotnorm, s1dotnorm, s2dotnorm) > 0) {
+        if (almostEqual(pdot, s1dot, TOL_F64) && almostEqual(pdot, s2dot, TOL_F64) && midValue(pdotnorm, s1dotnorm, s2dotnorm) > 0) {
             pointPool.malloc(pointIndices);
 
             return pdotnorm - Math.max(s1dotnorm, s2dotnorm);
@@ -192,11 +192,11 @@ function coincedentDistance<T extends TypedArray>(
         return defaultValue;
     }
 
-    if (almostEqual(result, 0, TOL_F32)) {
+    if (almostEqual(result, 0, TOL_F64)) {
         //  A currently touches EF, but AB is moving away from EF
         const distance = pointDistance(pointPool, point2, point3, point4, direction, true);
 
-        if (distance < 0 || almostEqual(distance * overlap, 0, TOL_F32)) {
+        if (distance < 0 || almostEqual(distance * overlap, 0, TOL_F64)) {
             return defaultValue;
         }
     }
@@ -243,7 +243,7 @@ function segmentDistance<T extends TypedArray>(pointPool: PointPool<T>, A: Point
     sharedPointIndices |= pointIndices2;
 
     // lines are colinear
-    if (almostEqual(crossABE, 0, TOL_F32) && almostEqual(crossABF, 0, TOL_F32)) {
+    if (almostEqual(crossABE, 0, TOL_F64) && almostEqual(crossABF, 0, TOL_F64)) {
         const pointIndices3: number = pointPool.alloc(2);
         const normAB = pointPool.get(pointIndices3, 0).update(B).sub(A).normal().normalize();
         const normEF = pointPool.get(pointIndices3, 1).update(F).sub(E).normal().normalize();
@@ -251,7 +251,7 @@ function segmentDistance<T extends TypedArray>(pointPool: PointPool<T>, A: Point
         sharedPointIndices |= pointIndices3;
 
         // segment normals must point in opposite directions
-        if (almostEqual(normAB.cross(normEF), 0, TOL_F32) && normAB.dot(normEF) < 0) {
+        if (almostEqual(normAB.cross(normEF), 0, TOL_F64) && normAB.dot(normEF) < 0) {
             // normal of AB segment must point in same direction as given direction vector
             const normdot = normAB.dot(direction);
             // the segments merely slide along eachother
@@ -276,17 +276,17 @@ function segmentDistance<T extends TypedArray>(pointPool: PointPool<T>, A: Point
     let result: number = NaN;
 
     // coincident points
-    if (almostEqual(dotA, dotE, TOL_F32)) {
+    if (almostEqual(dotA, dotE, TOL_F64)) {
         result = crossA - crossE;
-    } else if (almostEqual(dotA, dotF, TOL_F32)) {
+    } else if (almostEqual(dotA, dotF, TOL_F64)) {
         result = crossA - crossF;
     } else {
         result = coincedentDistance(pointPool, A, B, E, F, reverse, normal, overlap, result);
     }
 
-    if (almostEqual(dotB, dotE, TOL_F32)) {
+    if (almostEqual(dotB, dotE, TOL_F64)) {
         result = Number.isNaN(result) ? crossB - crossE : Math.min(crossB - crossE, result);
-    } else if (almostEqual(dotB, dotF, TOL_F32)) {
+    } else if (almostEqual(dotB, dotF, TOL_F64)) {
         result = Number.isNaN(result) ? crossB - crossF : Math.min(crossB - crossF, result);
     } else {
         result = coincedentDistance(pointPool, B, A, E, F, reverse, normal, overlap, result);
@@ -302,10 +302,10 @@ function segmentDistance<T extends TypedArray>(pointPool: PointPool<T>, A: Point
 
 function polygonSlideDistance<T extends TypedArray>(
     pointPool: PointPool<T>,
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
     direction: Point<T>,
-    offset: Point<Float64Array>
+    offset: Point<T>
 ): number {
     const pointIndices: number = pointPool.alloc(5);
     const a1: Point<T> = pointPool.get(pointIndices, 0);
@@ -328,14 +328,14 @@ function polygonSlideDistance<T extends TypedArray>(
             a1.update(polygonA.at(j));
             a2.update(polygonA.at(cycleIndex(j, sizeA, 1)));
 
-            if (a1.almostEqual(a2, TOL_F32) || b1.almostEqual(b2, TOL_F32)) {
+            if (a1.almostEqual(a2, TOL_F64) || b1.almostEqual(b2, TOL_F64)) {
                 continue; // ignore extremely small lines
             }
 
             d = segmentDistance(pointPool, a1, a2, b1, b2, dir);
 
             if (!Number.isNaN(d) && (Number.isNaN(distance) || d < distance)) {
-                if (d > 0 || almostEqual(d, 0, TOL_F32)) {
+                if (d > 0 || almostEqual(d, 0, TOL_F64)) {
                     distance = d;
                 }
             }
@@ -378,7 +378,7 @@ function polygonProjectionDistance<T extends TypedArray>(
             s2.update(polygonA.at(cycleIndex(j, sizeA, 1)));
             sOffset.update(s2).sub(s1);
 
-            if (almostEqual(sOffset.cross(direction), 0, TOL_F32)) {
+            if (almostEqual(sOffset.cross(direction), 0, TOL_F64)) {
                 continue;
             }
 
@@ -401,7 +401,7 @@ function polygonProjectionDistance<T extends TypedArray>(
 }
 
 // returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle(pointPool: PointPool<Float32Array>, A: Polygon<Float32Array>, B: Polygon<Float32Array>): Float32Array[] {
+function noFitPolygonRectangle<T extends TypedArray>(pointPool: PointPool<T>, A: Polygon<T>, B: Polygon<T>): Float32Array[] {
     const pointIndices = pointPool.alloc(2);
     const minDiff = pointPool.get(pointIndices, 0).update(A.position).sub(B.position);
     const maxDiff = pointPool.get(pointIndices, 1).update(A.size).sub(B.size);
@@ -421,7 +421,7 @@ function noFitPolygonRectangle(pointPool: PointPool<Float32Array>, A: Polygon<Fl
 }
 
 // returns true if point already exists in the given nfp
-function inNfp<T extends TypedArray>(polygon: Polygon<T>, point: Point<T>, nfp: T[]): boolean {
+function inNfp<T extends TypedArray>(polygon: Polygon<Float32Array>, point: Point<T>, nfp: Float32Array[]): boolean {
     if (nfp.length === 0) {
         return false;
     }
@@ -436,7 +436,7 @@ function inNfp<T extends TypedArray>(polygon: Polygon<T>, point: Point<T>, nfp: 
         pointCount = polygon.length;
 
         for (j = 0; j < pointCount; ++j) {
-            if (point.almostEqual(polygon.at(j), TOL_F32)) {
+            if (point.almostEqual(polygon.at(j), TOL_F64)) {
                 return true;
             }
         }
@@ -478,12 +478,12 @@ function getInside<T extends TypedArray>(
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
 function searchStartPoint<T extends TypedArray>(
     pointPool: PointPool<T>,
-    polygon: Polygon<T>,
+    polygon: Polygon<Float32Array>,
     polygonA: Polygon<T>,
     polygonB: Polygon<T>,
     inside: boolean,
     markedIndices: number[],
-    nfp: T[] = []
+    nfp: Float32Array[] = []
 ): T {
     polygonA.close();
     polygonB.close();
@@ -578,13 +578,13 @@ function searchStartPoint<T extends TypedArray>(
 }
 
 function applyVector<T extends TypedArray>(
-    memSeg: Float64Array,
+    memSeg: T,
     point: Point<T>,
     start: number,
     end: number,
     baseValue: Point<T>,
     subValue: Point<T>,
-    offset: Point<Float64Array> = null
+    offset: Point<T> = null
 ): void {
     point.update(baseValue).sub(subValue);
 
@@ -621,7 +621,7 @@ function getTouch<T extends TypedArray>(
     indexBNext: number
 ): number {
     switch (true) {
-        case pointB.almostEqual(pointA, TOL_F32):
+        case pointB.almostEqual(pointA, TOL_F64):
             return serializeTouch(0, indexA, indexB);
         case pointB.onSegment(pointA, pointANext):
             return serializeTouch(1, indexANext, indexB);
@@ -633,11 +633,11 @@ function getTouch<T extends TypedArray>(
 }
 
 function fillVectors<T extends TypedArray>(
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
     pointPool: PointPool<T>,
-    offset: Point<Float64Array>,
-    memSeg: Float64Array,
+    offset: Point<T>,
+    memSeg: T,
     markedIndices: number[]
 ): void {
     // sanity check, prevent infinite loop
@@ -678,12 +678,12 @@ function fillVectors<T extends TypedArray>(
 }
 
 function applyVectors<T extends TypedArray>(
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
     pointPool: PointPool<T>,
-    offset: Point<Float64Array>,
+    offset: Point<T>,
     touch: number,
-    memSeg: Float64Array
+    memSeg: T
 ): void {
     const type: number = getBits(touch, 0, 2);
     const currIndexA: number = getBits(touch, 2, 15);
@@ -734,7 +734,7 @@ function applyVectors<T extends TypedArray>(
 }
 
 // if A and B start on a touching horizontal line, the end point may not be the start point
-function getNfpLooped<T extends TypedArray>(nfp: number[], reference: Point<Float64Array>, pointPool: PointPool<T>): boolean {
+function getNfpLooped<T extends TypedArray>(nfp: number[], reference: Point<T>, pointPool: PointPool<T>): boolean {
     const pointCount: number = nfp.length >> 1;
 
     if (pointCount === 0) {
@@ -748,7 +748,7 @@ function getNfpLooped<T extends TypedArray>(nfp: number[], reference: Point<Floa
     for (i = 0; i < pointCount - 1; ++i) {
         point.fromMemSeg(nfp, i);
 
-        if (point.almostEqual(reference, TOL_F32)) {
+        if (point.almostEqual(reference, TOL_F64)) {
             pointPool.malloc(pointIndices);
             return true;
         }
@@ -760,12 +760,12 @@ function getNfpLooped<T extends TypedArray>(nfp: number[], reference: Point<Floa
 }
 
 function findTranslate<T extends TypedArray>(
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
     pointPool: PointPool<T>,
-    offset: Point<Float64Array>,
-    memSeg: Float64Array,
-    prevTranslate: Point<Float64Array>
+    offset: Point<T>,
+    memSeg: T,
+    prevTranslate: Point<T>
 ): void {
     // old-todo: there should be a faster way to reject vectors
     // that will cause immediate intersection. For now just check them all
@@ -818,14 +818,12 @@ function findTranslate<T extends TypedArray>(
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
 // if the inside flag is set, B is orbited inside of A rather than outside
 // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
-function noFitPolygon(
-    pointPoolF32: PointPool<Float32Array>,
-    pointPool: PointPool<Float64Array>,
+function noFitPolygon<T extends TypedArray>(
+    pointPool: PointPool<T>,
     polygon: Polygon<Float32Array>,
-    polygonA: Polygon<Float32Array>,
-    polygonB: Polygon<Float32Array>,
-    memSegF32: Float32Array,
-    memSeg: Float64Array,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
+    memSeg: T,
     inside: boolean
 ): Float32Array[] {
     if (polygonA.isBroken || polygonB.isBroken) {
@@ -854,20 +852,20 @@ function noFitPolygon(
     }
 
     const pointIndices: number = pointPool.alloc(7);
-    const reference: Point<Float64Array> = pointPool.get(pointIndices, 0);
-    const start: Point<Float64Array> = pointPool.get(pointIndices, 1);
-    const offset: Point<Float64Array> = pointPool.get(pointIndices, 2);
-    const startPoint: Point<Float64Array> = pointPool.get(pointIndices, 3).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
-    const prevTranslate: Point<Float64Array> = pointPool.get(pointIndices, 4);
-    const translate: Point<Float64Array> = pointPool.get(pointIndices, 5);
-    const indices: Point<Float64Array> = pointPool.get(pointIndices, 6);
+    const reference: Point<T> = pointPool.get(pointIndices, 0);
+    const start: Point<T> = pointPool.get(pointIndices, 1);
+    const offset: Point<T> = pointPool.get(pointIndices, 2);
+    const startPoint: Point<T> = pointPool.get(pointIndices, 3).update(polygonA.at(minIndexA)).sub(polygonB.at(maxIndexB));
+    const prevTranslate: Point<T> = pointPool.get(pointIndices, 4);
+    const translate: Point<T> = pointPool.get(pointIndices, 5);
+    const indices: Point<T> = pointPool.get(pointIndices, 6);
     const result: Float32Array[] = [];
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const condition: number = 10 * (sizeA + sizeB);
     let counter: number = 0;
     let nfp: number[] = null;
-    let startPointRaw: Float32Array = null;
+    let startPointRaw: T = null;
     let maxDistance: number = 0;
     let vLength: number = 0;
     let translateIndex: number = 0;
@@ -876,7 +874,7 @@ function noFitPolygon(
     // point of A. This guarantees an initial placement with no intersections
     // no reliable heuristic for inside
     if (inside) {
-        startPointRaw = searchStartPoint<Float32Array>(pointPoolF32, polygon, polygonA, polygonB, true, markedIndices);
+        startPointRaw = searchStartPoint(pointPool, polygon, polygonA, polygonB, true, markedIndices);
 
         if (startPointRaw === null) {
             pointPool.malloc(pointIndices);
@@ -905,7 +903,7 @@ function noFitPolygon(
             translateIndex = memSeg[1];
             maxDistance = memSeg[2];
 
-            if (translateIndex === -1 || almostEqual(maxDistance, 0, TOL_F32)) {
+            if (translateIndex === -1 || almostEqual(maxDistance, 0, TOL_F64)) {
                 // didn't close the loop, something went wrong here
                 nfp = null;
                 break;
@@ -926,13 +924,13 @@ function noFitPolygon(
                 markedIndices.push(indices.y);
             }
 
-            if (maxDistance < vLength && !almostEqual(maxDistance, vLength, TOL_F32)) {
+            if (maxDistance < vLength && !almostEqual(maxDistance, vLength, TOL_F64)) {
                 translate.scaleUp(maxDistance / vLength);
             }
 
             reference.add(translate);
 
-            if (reference.almostEqual(start, TOL_F32) || getNfpLooped(nfp, reference, pointPoolF32)) {
+            if (reference.almostEqual(start, TOL_F64) || getNfpLooped(nfp, reference, pointPool)) {
                 // we've made a full loop
                 break;
             }
@@ -949,7 +947,7 @@ function noFitPolygon(
             result.push(new Float32Array(nfp));
         }
 
-        startPointRaw = searchStartPoint<Float32Array>(pointPoolF32, polygon, polygonA, polygonB, inside, markedIndices, result);
+        startPointRaw = searchStartPoint(pointPool, polygon, polygonA, polygonB, inside, markedIndices, result);
 
         if (startPointRaw === null) {
             break;
@@ -970,12 +968,12 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
         return new ArrayBuffer(0);
     }
 
-    const { pointPool, pointPoolF32, polygonsF32, memSeg, memSegF32 } = config;
-    const polygonA: Polygon<Float32Array> = polygonsF32[0];
-    const polygonB: Polygon<Float32Array> = polygonsF32[1];
+    const { pointPool, pointPoolF32, polygons, polygonsF32, memSeg, memSegF32 } = config;
+    const polygonA: Polygon<Float64Array> = polygons[0];
+    const polygonB: Polygon<Float64Array> = polygons[1];
 
-    polygonA.bind(pairContent.firstNode.memSeg);
-    polygonB.bind(pairContent.secondNode.memSeg);
+    polygonA.bind(Float64Array.from(pairContent.firstNode.memSeg));
+    polygonB.bind(Float64Array.from(pairContent.secondNode.memSeg));
     const tmpPolygon: Polygon<Float32Array> = polygonsF32[2];
     let nfp: Float32Array[] = null;
     let nfpSize: number = 0;
@@ -983,8 +981,8 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
 
     if (pairContent.isInside) {
         nfp = polygonA.isRectangle
-            ? noFitPolygonRectangle(pointPoolF32, polygonA, polygonB)
-            : noFitPolygon(pointPoolF32, pointPool, tmpPolygon, polygonA, polygonB, memSegF32, memSeg, true);
+            ? noFitPolygonRectangle(pointPool, polygonA, polygonB)
+            : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, true);
 
         // ensure all interior NFPs have the same winding direction
         nfpSize = nfp.length;
@@ -1006,7 +1004,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
         return pairContent.getResult(nfp);
     }
 
-    nfp = noFitPolygon(pointPoolF32, pointPool, tmpPolygon, polygonA, polygonB, memSegF32, memSeg, false);
+    nfp = noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, false);
     // sanity check
     if (nfp.length === 0) {
         pairContent.logError('NFP Error');
@@ -1047,15 +1045,15 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
     if (pairContent.isUseHoles) {
         const childCount: number = pairContent.firstNode.children.length;
         let node: PolygonNode = null;
-        const child: Polygon<Float32Array> = polygonsF32[4];
+        const child: Polygon<Float64Array> = polygons[4];
 
         for (i = 0; i < childCount; ++i) {
             node = pairContent.firstNode.children[i];
-            child.bind(node.memSeg);
+            child.bind(Float64Array.from(node.memSeg));
 
             // no need to find nfp if B's bounding box is too big
             if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
-                const noFitPolygons: Float32Array[] = noFitPolygon(pointPoolF32, pointPool, tmpPolygon, child, polygonB, memSegF32, memSeg, true);
+                const noFitPolygons: Float32Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, memSeg, true);
                 const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
                 // ensure all interior NFPs have the same winding direction
                 if (noFitCount !== 0) {

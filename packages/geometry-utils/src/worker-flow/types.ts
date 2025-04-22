@@ -6,6 +6,7 @@ export type WorkerConfig = {
     pointPool: PointPool<Float64Array>;
     pointPoolF32: PointPool<Float32Array>;
     isInit: boolean;
+    polygons: Polygon<Float64Array>[];
     polygonsF32: Polygon<Float32Array>[];
     buffer: ArrayBuffer;
     bufferF32: ArrayBuffer;
