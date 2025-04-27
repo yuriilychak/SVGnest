@@ -6,7 +6,6 @@ import PlaceContent from './worker-flow/place-content';
 import PolygonF32 from './polygon-f32';
 import BoundRectF32 from './bound-rect-f32';
 import { PointF32, PointF64 } from './point';
-import PointPoolF32 from './point-pool-f32';
 import NFPWrapper from './worker-flow/nfp-wrapper';
 
 export default class ClipperWrapper {

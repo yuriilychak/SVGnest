@@ -1,5 +1,5 @@
 export const TOL_F64: number = 1e-9;
-export const TOL_F32: number = 1e-6;
+export const TOL_F32: number = 1e-5;
 
 export const NFP_KEY_INDICES: Uint8Array = new Uint8Array([0, 10, 19, 23, 27, 32]);
 
