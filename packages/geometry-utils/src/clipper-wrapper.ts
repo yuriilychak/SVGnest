@@ -4,7 +4,7 @@ import type { NestConfig, Point, PointPool, PolygonNode } from './types';
 import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import PolygonF32 from './polygon-f32';
-import BoundRectF32 from './bound-rect-f32';
+import BoundRectF32 from './bound-rect/bound-rect-f32';
 import { PointF32, PointF64 } from './point';
 import NFPWrapper from './worker-flow/nfp-wrapper';
 

@@ -1,9 +1,15 @@
 import PointBase from './point-base';
+import { almostEqualF32 } from '../helpers';
 import type { Point } from '../types';
+import { TOL_F32 } from '../constants';
 
 export default class PointF32 extends PointBase<Float32Array> {
     public clone(point: Point = null): PointF32 {
         return PointF32.from(point !== null ? point : this);
+    }
+
+    public almostEqual(point: Point, tolerance: number = TOL_F32): boolean {
+        return almostEqualF32(this.x, point.x, tolerance) && almostEqualF32(this.y, point.y, tolerance);
     }
 
     public static create(x: number = 0, y: number = 0): PointF32 {

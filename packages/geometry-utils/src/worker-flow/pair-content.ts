@@ -37,8 +37,8 @@ export default class PairContent extends WorkerContent {
 
     public logError(message: string): void {
         console.log(`${message}: `, this._key);
-        console.log('A: ', this.firstNode);
-        console.log('B: ', this.secondNode);
+        console.log('A: ', this.firstNode.source, this.firstNode.rotation, this.firstNode.memSeg.join(', '));
+        console.log('B: ', this.secondNode.source, this.secondNode.rotation, this.secondNode.memSeg.join(', '));
     }
 
     public get firstNode(): PolygonNode {

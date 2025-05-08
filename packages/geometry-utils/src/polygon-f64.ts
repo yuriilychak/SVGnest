@@ -1,6 +1,6 @@
 import { almostEqual, cycleIndex } from './helpers';
 import { PointF64 } from './point';
-import BoundRectF64 from './bound-rect-f64';
+import { BoundRectF64 } from './bound-rect';
 import type { Point, Polygon } from './types';
 
 export default class PolygonF64 implements Polygon<Float64Array> {
@@ -282,11 +282,11 @@ export default class PolygonF64 implements Polygon<Float64Array> {
     }
 
     public get position(): PointF64 {
-        return this.bounds.position;
+        return this.bounds.position as PointF64;
     }
 
     public get size(): PointF64 {
-        return this.bounds.size;
+        return this.bounds.size as PointF64;
     }
 
     public static create(): PolygonF64 {

@@ -1,4 +1,4 @@
-import { NFP_KEY_INDICES, TOL_F64, UINT16_BIT_COUNT } from './constants';
+import { NFP_KEY_INDICES, TOL_F32, TOL_F64, UINT16_BIT_COUNT } from './constants';
 import { NestConfig, NFPCache, PolygonNode } from './types';
 
 function getMask(bitCount: number, offset: number = 0): number {
@@ -26,6 +26,14 @@ export function joinUint16(value1: number, value2: number): number {
 export function almostEqual(a: number, b: number = 0, tolerance: number = TOL_F64): boolean {
     return Math.abs(a - b) < tolerance;
 }
+
+export function almostEqualF32(a: number, b: number = 0, tolerance: number = TOL_F32): boolean {
+    const diff = Math.fround(Math.abs(a - b));
+    const scale = Math.fround(Math.max(Math.abs(a), Math.abs(b), 1));
+    
+    return diff <= tolerance * scale;
+}
+
 
 export function midValue(value: number, leftRange: number, rightRange: number): number {
     return Math.abs(2 * value - leftRange - rightRange) - Math.abs(leftRange - rightRange);
@@ -227,4 +235,8 @@ export function writeUint32ToF32(array: Float32Array, index: number, value: numb
     const view = new DataView(array.buffer);
 
     view.setUint32(byteOffset, value >>> 0, true); 
+}
+
+export function roundToHundredths(value: number): number {
+  return Math.round(value * 100) / 100;
 }

@@ -1,6 +1,6 @@
 import { almostEqual, cycleIndex } from './helpers';
 import { PointF32 } from './point';
-import BoundRectF32 from './bound-rect-f32';
+import { BoundRectF32 } from './bound-rect';
 import type { Point, Polygon } from './types';
 
 export default class PolygonF32 implements Polygon<Float32Array> {
@@ -282,11 +282,11 @@ export default class PolygonF32 implements Polygon<Float32Array> {
     }
 
     public get position(): PointF32 {
-        return this.bounds.position;
+        return this.bounds.position as PointF32;
     }
 
     public get size(): PointF32 {
-        return this.bounds.size;
+        return this.bounds.size as PointF32;
     }
 
     public static create(): PolygonF32 {

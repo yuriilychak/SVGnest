@@ -1,5 +1,5 @@
 import { ANGLE_CACHE, TOL_F64 } from '../constants';
-import { almostEqual, clipperRound, midValue, slopesEqual } from '../helpers';
+import { almostEqual, clipperRound, midValue, roundToHundredths, slopesEqual } from '../helpers';
 import type { Point, TypedArray } from '../types';
 
 export default abstract class PointBase<T extends TypedArray> implements Point<T> {
@@ -20,15 +20,19 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     }
 
     public fromMemSeg(data: ArrayLike<number>, index: number = 0, offset: number = 0): this {
-        this.x = data[offset + (index << 1)];
-        this.y = data[offset + (index << 1) + 1];
+        const memIndex: number = offset + (index << 1);
+
+        this.x = data[memIndex];
+        this.y = data[memIndex + 1];
 
         return this;
     }
 
     public fill(memSeg: TypedArray, index: number, offset: number = 0): void {
-        memSeg[offset + (index << 1)] = this.x;
-        memSeg[offset + (index << 1) + 1] = this.y;
+        const memIndex: number = offset + (index << 1);
+
+        memSeg[memIndex] = this.x;
+        memSeg[memIndex + 1] = this.y;
     }
 
     public set(x: number, y: number): this {
@@ -94,7 +98,10 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         const sin: number = angleData[0];
         const cos: number = angleData[1];
 
-        return this.set(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
+        return this.set(
+            roundToHundredths(this.x * cos - this.y * sin),
+            roundToHundredths(this.x * sin + this.y * cos)
+        );
     }
 
     public cross(point: Point): number {
@@ -132,8 +139,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         const length: number = this.length;
 
         if (!almostEqual(length, 1) && !this.isEmpty) {
-            this.x = this.x / length;
-            this.y = this.y / length;
+            this.scaleDown(length);
         }
 
         return this;
@@ -223,7 +229,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         const subA = this.clone().sub(pointA);
         const subAB = this.clone(pointB).sub(pointA);
 
-        if (Math.abs(subA.cross(subAB)) > TOL_F64) {
+        if (!almostEqual(subA.cross(subAB))) {
             return false;
         }
 
