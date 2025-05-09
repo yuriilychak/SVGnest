@@ -1,10 +1,9 @@
-import { almostEqual, cycleIndex } from './helpers';
-import { PointF32 } from './point';
-import { BoundRectF32 } from './bound-rect';
-import type { Point, Polygon } from './types';
 
-export default class PolygonF32 implements Polygon<Float32Array> {
-    private memSeg: Float32Array;
+import { almostEqual, cycleIndex } from '../../helpers';
+import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
+
+export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
+    private memSeg: T;
 
     private offset: number;
 
@@ -14,22 +13,22 @@ export default class PolygonF32 implements Polygon<Float32Array> {
 
     private closedDirty: boolean;
 
-    private point: PointF32;
+    private point: Point<T>;
 
     private rectangle: boolean;
 
-    private bounds: BoundRectF32;
+    private bounds: BoundRect<T>;
 
-    private constructor() {
-        this.point = PointF32.create();
+    protected constructor(point: Point<T>, bounds: BoundRect<T>) {
+        this.point = point;
         this.closed = false;
         this.pointCount = 0;
         this.offset = 0;
         this.rectangle = false;
-        this.bounds = new BoundRectF32();
+        this.bounds = bounds;
     }
 
-    public bind(data: Float32Array, offset: number = 0, pointCount: number = data.length >> 1): void {
+    public bind(data: T, offset: number = 0, pointCount: number = data.length >> 1): void {
         this.closedDirty = false;
         this.rectangle = false;
         this.closed = false;
@@ -63,7 +62,7 @@ export default class PolygonF32 implements Polygon<Float32Array> {
         this.calculateBounds();
     }
 
-    public at(index: number): PointF32 | null {
+    public at(index: number): Point<T> | null {
         if (index >= this.length) {
             return null;
         }
@@ -78,9 +77,9 @@ export default class PolygonF32 implements Polygon<Float32Array> {
             return null;
         }
 
-        const innerPoint: PointF32 = PointF32.from(point);
-        const currPoint: PointF32 = PointF32.create();
-        const prevPoint: PointF32 = PointF32.create();
+        const innerPoint: Point = point.clone();
+        const currPoint: Point = point.clone().set(0, 0);
+        const prevPoint: Point = point.clone().set(0, 0);
         const pointCount: number = this.pointCount;
         let inside: boolean = false;
         let i: number = 0;
@@ -149,12 +148,12 @@ export default class PolygonF32 implements Polygon<Float32Array> {
         }
     }
 
-    public exportBounds(): BoundRectF32 {
+    public exportBounds(): BoundRect<T> {
         return this.bounds.clone();
     }
 
     public resetPosition(): void {
-        const position: PointF32 = PointF32.from(this.position);
+        const position: Point<T> = this.position.clone();
         const binSize = this.length;
         let i: number = 0;
 
@@ -166,10 +165,10 @@ export default class PolygonF32 implements Polygon<Float32Array> {
     }
 
     // remove duplicate endpoints, ensure counterclockwise winding direction
-    public normalize(): Float32Array {
+    public normalize(): T {
         let pointCount: number = this.pointCount;
-        const first: PointF32 = PointF32.from(this.first);
-        const last: PointF32 = PointF32.from(this.last);
+        const first: Point<T> = this.first.clone();
+        const last: Point<T> = this.last.clone();
 
         while (first.almostEqual(last)) {
             --pointCount;
@@ -178,7 +177,7 @@ export default class PolygonF32 implements Polygon<Float32Array> {
 
         if (this.pointCount !== pointCount) {
             this.pointCount = pointCount;
-            this.memSeg = this.memSeg.slice(this.offset, this.offset + (pointCount << 1));
+            this.memSeg = this.memSeg.slice(this.offset, this.offset + (pointCount << 1)) as T;
         }
 
         if (this.area > 0) {
@@ -197,14 +196,14 @@ export default class PolygonF32 implements Polygon<Float32Array> {
             return;
         }
 
-        const point1: PointF32 = PointF32.from(this.first);
-        const point2: PointF32 = PointF32.from(this.last);
+        const point1: Point<T> = this.first.clone();
+        const point2: Point<T> = this.last.clone();
 
         this.closed = point1.almostEqual(point2);
 
         const pointCount: number = this.pointCount;
         let i: number = 0;
-        let point: PointF32 = null;
+        let point: Point<T> = null;
 
         for (i = 0; i < pointCount; ++i) {
             point = this.at(i);
@@ -239,11 +238,11 @@ export default class PolygonF32 implements Polygon<Float32Array> {
         return this.pointCount + offset;
     }
 
-    public get first(): PointF32 {
+    public get first(): Point<T> {
         return this.at(0);
     }
 
-    public get last(): PointF32 {
+    public get last(): Point<T> {
         return this.at(cycleIndex(this.length, this.pointCount, -1));
     }
 
@@ -263,8 +262,8 @@ export default class PolygonF32 implements Polygon<Float32Array> {
     // a negative area indicates counter-clockwise winding direction
     public get area(): number {
         const pointCount = this.pointCount;
-        const prevPoint: PointF32 = PointF32.create();
-        const currPoint: PointF32 = PointF32.create();
+        const prevPoint: Point<T> = this.point.clone();
+        const currPoint: Point<T> = this.point.clone();
         let result: number = 0;
         let i: number = 0;
 
@@ -281,23 +280,11 @@ export default class PolygonF32 implements Polygon<Float32Array> {
         return Math.abs(this.area);
     }
 
-    public get position(): PointF32 {
-        return this.bounds.position as PointF32;
+    public get position(): Point<T> {
+        return this.bounds.position;
     }
 
-    public get size(): PointF32 {
-        return this.bounds.size as PointF32;
-    }
-
-    public static create(): PolygonF32 {
-        return new PolygonF32();
-    }
-
-    public static fromMemSeg(memSeg: Float32Array): PolygonF32 {
-        const result = new PolygonF32();
-
-        result.bind(memSeg);
-
-        return result;
+    public get size(): Point<T> {
+        return this.bounds.size;
     }
 }

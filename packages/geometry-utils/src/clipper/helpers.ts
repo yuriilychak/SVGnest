@@ -1,5 +1,5 @@
 import OutPt from './out-pt';
-import { PointF64 } from '../point';
+import { PointF64 } from '../geometry';
 import { cycleIndex } from '../helpers';
 
 export function getArea(poly: PointF64[]): number {

@@ -1,22 +1,17 @@
-import { PointF32 } from './point';
-import type { PointPool } from './types';
+import { PointF32 } from '../point';
+import type { Point, PointPool, TypedArray } from '../../types';
 
-export default class PointPoolF32 implements PointPool<Float32Array> {
-    private items: PointF32[];
+export default class PointPoolBase<T extends TypedArray> implements PointPool<T> {
+    private items: Point<T>[];
 
     private used: number;
 
-    private memSeg: Float32Array;
+    private memSeg: T;
 
-    constructor(buffer: ArrayBuffer, offset: number = 0) {
-        this.items = new Array(PointPoolF32.POOL_SIZE);
+    constructor(memSeg: T, items: Point<T>[]) {
+        this.memSeg = memSeg;
+        this.items = items;
         this.used = 0;
-        this.memSeg = new Float32Array(buffer, offset, PointPoolF32.POOL_SIZE << 1);
-        this.memSeg.fill(0);
-
-        for (let i = 0; i < PointPoolF32.POOL_SIZE; ++i) {
-            this.items[i] = new PointF32(this.memSeg, i << 1);
-        }
     }
 
     alloc(count: number): number {
@@ -26,7 +21,7 @@ export default class PointPoolF32 implements PointPool<Float32Array> {
         let currentBit: number = 0;
 
         while (freeBits !== 0) {
-            currentBit = 1 << (PointPoolF32.MAX_BITS - Math.clz32(freeBits));
+            currentBit = 1 << (PointPoolBase.MAX_BITS - Math.clz32(freeBits));
             result |= currentBit;
             freeBits &= ~currentBit;
             ++currentCount;
@@ -44,14 +39,14 @@ export default class PointPoolF32 implements PointPool<Float32Array> {
         this.used &= ~indices;
     }
 
-    get(indices: number, index: number): PointF32 {
+    get(indices: number, index: number): Point<T> {
         let currentIndex: number = 0;
         let bitIndex: number = 0;
         let currentBit: number = 0;
         let currentIndices: number = indices;
 
         while (currentIndices !== 0) {
-            bitIndex = PointPoolF32.MAX_BITS - Math.clz32(currentIndices);
+            bitIndex = PointPoolBase.MAX_BITS - Math.clz32(currentIndices);
             currentBit = 1 << bitIndex;
 
             if (currentIndex === index) {

@@ -1,4 +1,4 @@
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../geometry';
 import OutPt from './out-pt';
 import OutRec from './out-rec';
 import { NullPtr } from './types';

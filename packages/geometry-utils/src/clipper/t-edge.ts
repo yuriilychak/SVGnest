@@ -1,4 +1,4 @@
-import { PointF64 } from '../point';
+import { PointF64 } from '../geometry';
 import { HORIZONTAL } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';

@@ -1,7 +1,7 @@
 import PointBase from './point-base';
-import { almostEqualF32 } from '../helpers';
-import type { Point } from '../types';
-import { TOL_F32 } from '../constants';
+import { almostEqualF32 } from '../../helpers';
+import type { Point } from '../../types';
+import { TOL_F32 } from '../../constants';
 
 export default class PointF32 extends PointBase<Float32Array> {
     public clone(point: Point = null): PointF32 {

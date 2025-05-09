@@ -2,7 +2,7 @@ import Clipper from './clipper';
 import { getArea } from './helpers';
 import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './types';
 import { cycleIndex } from '../helpers';
-import { PointF64 } from '../point';
+import { PointF64 } from '../geometry';
 
 export default class ClipperOffset {
     private srcPolygon: PointF64[] = [];

@@ -1,5 +1,5 @@
 import { almostEqual, cycleIndex, midValue, setBits, getBits } from '../helpers';
-import { PointBase } from '../point';
+import { PointBase } from '../geometry';
 import { TOL_F64 } from '../constants';
 import { WorkerConfig, SegmentCheck } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';

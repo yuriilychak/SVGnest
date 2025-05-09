@@ -1,4 +1,4 @@
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../geometry/point';
 import { HORIZONTAL } from './constants';
 import { DIRECTION, NullPtr } from './types';
 

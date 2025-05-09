@@ -1,13 +1,10 @@
-import PointPoolF64 from '../point-pool';
 import { THREAD_TYPE } from '../types';
 import { pairData } from './pair-flow';
 import { placePaths } from './place-flow';
 import { WorkerConfig } from './types';
 import PairContent from './pair-content';
 import PlaceContent from './place-content';
-import PolygonF32 from '../polygon-f32';
-import PointPoolF32 from '../point-pool-f32';
-import PolygonF64 from '../polygon-f64';
+import { PolygonF64, PolygonF32, PointPoolF64, PointPoolF32 } from '../geometry';
 
 export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): ArrayBuffer {
     if (!config.isInit) {

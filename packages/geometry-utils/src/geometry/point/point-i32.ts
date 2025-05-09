@@ -1,5 +1,5 @@
 import PointBase from './point-base';
-import type { Point } from '../types';
+import type { Point } from '../../types';
 
 export default class PointI32 extends PointBase<Int32Array> {
     public clone(point: Point = null): PointI32 {

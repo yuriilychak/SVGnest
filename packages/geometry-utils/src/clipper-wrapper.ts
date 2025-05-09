@@ -1,17 +1,14 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
-
-import type { NestConfig, Point, PointPool, PolygonNode } from './types';
+import type { BoundRect, NestConfig, Point, PointPool, Polygon, PolygonNode } from './types';
 import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
-import PolygonF32 from './polygon-f32';
-import BoundRectF32 from './bound-rect/bound-rect-f32';
-import { PointF32, PointF64 } from './point';
+import { PointF32, PointF64, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
 
-    private polygon: PolygonF32;
+    private polygon: Polygon<Float32Array>;
 
     constructor(configuration: NestConfig) {
         this.configuration = configuration;
@@ -20,8 +17,8 @@ export default class ClipperWrapper {
 
     public generateBounds(memSeg: Float32Array): {
         binNode: PolygonNode;
-        bounds: BoundRectF32;
-        resultBounds: BoundRectF32;
+        bounds: BoundRect<Float32Array>;
+        resultBounds: BoundRect<Float32Array>;
         area: number;
     } {
         this.polygon.bind(memSeg);
@@ -31,7 +28,7 @@ export default class ClipperWrapper {
         }
 
         const binNode: PolygonNode = getPolygonNode(-1, memSeg);
-        const bounds: BoundRectF32 = this.polygon.exportBounds();
+        const bounds: BoundRect<Float32Array> = this.polygon.exportBounds();
         const clipperOffset: ClipperOffset = ClipperOffset.create();
 
         this.cleanNode(binNode);

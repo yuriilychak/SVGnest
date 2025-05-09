@@ -1,7 +1,7 @@
 import PointBase from './point-base';
-import type { Point } from '../types';
-import { almostEqual, midValue } from '../helpers';
-import { TOL_F64 } from '../constants';
+import type { Point } from '../../types';
+import { almostEqual, midValue } from '../../helpers';
+import { TOL_F64 } from '../../constants';
 
 export default class PointF64 extends PointBase<Float64Array> {
     public clone(point: Point = null): PointF64 {

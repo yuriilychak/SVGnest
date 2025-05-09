@@ -1,4 +1,4 @@
-import { PointF64 } from '../point';
+import { PointF64 } from '../geometry';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { DIRECTION, POLY_TYPE } from './types';

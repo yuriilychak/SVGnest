@@ -1,4 +1,4 @@
-import type { BoundRect, Point, TypedArray } from '../types';
+import type { BoundRect, Point, TypedArray } from '../../types';
 
 export default abstract class BoundRectBase<T extends TypedArray> implements BoundRect<T> {
     private _memSeg: T;

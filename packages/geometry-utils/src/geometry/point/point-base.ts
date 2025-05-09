@@ -1,6 +1,6 @@
-import { ANGLE_CACHE, TOL_F64 } from '../constants';
-import { almostEqual, clipperRound, midValue, roundToHundredths, slopesEqual } from '../helpers';
-import type { Point, TypedArray } from '../types';
+import { ANGLE_CACHE, TOL_F64 } from '../../constants';
+import { almostEqual, clipperRound, midValue, slopesEqual } from '../../helpers';
+import type { Point, TypedArray } from '../../types';
 
 export default abstract class PointBase<T extends TypedArray> implements Point<T> {
     private memSeg: T;
@@ -99,8 +99,8 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         const cos: number = angleData[1];
 
         return this.set(
-            roundToHundredths(this.x * cos - this.y * sin),
-            roundToHundredths(this.x * sin + this.y * cos)
+            this.x * cos - this.y * sin,
+            this.x * sin + this.y * cos
         );
     }
 

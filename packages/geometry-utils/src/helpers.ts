@@ -236,7 +236,3 @@ export function writeUint32ToF32(array: Float32Array, index: number, value: numb
 
     view.setUint32(byteOffset, value >>> 0, true); 
 }
-
-export function roundToHundredths(value: number): number {
-  return Math.round(value * 100) / 100;
-}

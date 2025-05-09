@@ -1,4 +1,4 @@
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../geometry';
 import ClipperBase from './clipper-base';
 import { showError } from './helpers';
 import IntersectNode from './intersect-node';

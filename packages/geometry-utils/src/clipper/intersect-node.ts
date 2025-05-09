@@ -1,4 +1,4 @@
-import PointF64 from '../point/point-f64';
+import { PointF64 } from '../geometry';
 import TEdge from './t-edge';
 import { NullPtr } from './types';
 
