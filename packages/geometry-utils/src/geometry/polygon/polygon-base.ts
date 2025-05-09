@@ -1,5 +1,5 @@
 
-import { almostEqual, cycleIndex } from '../../helpers';
+import { cycleIndex } from '../../helpers';
 import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
 
 export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
@@ -218,8 +218,8 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
 
             if (
                 !(
-                    (almostEqual(point.x, point1.x) || almostEqual(point.x, point2.x)) &&
-                    (almostEqual(point.y, point1.y) || almostEqual(point.y, point2.y))
+                    (point.almostEqualX(point1) || point.almostEqualX(point2)) &&
+                    (point.almostEqualY(point1) || point.almostEqualY(point2))
                 )
             ) {
                 this.rectangle = false;

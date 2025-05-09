@@ -80,6 +80,10 @@ export interface Point<T extends TypedArray = TypedArray> {
 
     almostEqual(point: Point, tolerance?: number): boolean;
 
+    almostEqualX(point: Point, tolerance?: number): boolean;
+
+    almostEqualY(point: Point, tolerance?: number): boolean;
+
     interpolateX(beginPoint: Point, endPoint: Point): number;
 
     interpolateY(beginPoint: Point, endPoint: Point): number;

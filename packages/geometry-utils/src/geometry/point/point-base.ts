@@ -168,8 +168,17 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     }
 
     public almostEqual(point: Point, tolerance: number = TOL_F64): boolean {
-        return almostEqual(this.x, point.x, tolerance) && almostEqual(this.y, point.y, tolerance);
+        return this.almostEqualX(point, tolerance) && this.almostEqualY(point, tolerance);
     }
+
+    public almostEqualX(point: Point, tolerance: number = TOL_F64): boolean {
+        return almostEqual(this.x, point.x, tolerance);
+    }
+
+    public almostEqualY(point: Point, tolerance: number = TOL_F64): boolean {
+        return almostEqual(this.y, point.y, tolerance);
+    }
+
 
     public interpolateX(beginPoint: Point, endPoint: Point): number {
         return ((beginPoint.x - endPoint.x) * (this.y - endPoint.y)) / (beginPoint.y - endPoint.y) + endPoint.x;
@@ -206,13 +215,13 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         const midY: number = midValue(this.y, pointA.y, pointB.y);
 
         // vertical line
-        if (almostEqual(pointA.x, pointB.x) && almostEqual(this.x, pointA.x)) {
-            return !almostEqual(this.y, pointB.y) && !almostEqual(this.y, pointA.y) && midY < 0;
+        if (pointA.almostEqualX(pointB) && pointA.almostEqualX(this)) {
+            return !this.almostEqualY(pointB) && !this.almostEqualY(pointA) && midY < 0;
         }
 
         // horizontal line
-        if (almostEqual(pointA.y, pointB.y) && almostEqual(this.y, pointA.y)) {
-            return !almostEqual(this.x, pointB.x) && !almostEqual(this.x, pointA.x) && midX < 0;
+        if (pointA.almostEqualY(pointB) && pointA.almostEqualY(this)) {
+            return !this.almostEqualX(pointB) && !this.almostEqualX(pointA) && midX < 0;
         }
 
         if (
@@ -313,10 +322,10 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return !(
             !(isFinite(x) && isFinite(y)) ||
             // coincident points do not count as intersecting
-            (!almostEqual(A.x, B.x) && midValue(x, A.x, B.x) > 0) ||
-            (!almostEqual(A.y, B.y) && midValue(y, A.y, B.y) > 0) ||
-            (!almostEqual(E.x, F.x) && midValue(x, E.x, F.x) > 0) ||
-            (!almostEqual(E.y, F.y) && midValue(y, E.y, F.y) > 0)
+            (!A.almostEqualX(B) && midValue(x, A.x, B.x) > 0) ||
+            (!A.almostEqualY(B) && midValue(y, A.y, B.y) > 0) ||
+            (!E.almostEqualX(F) && midValue(x, E.x, F.x) > 0) ||
+            (!E.almostEqualY(F) && midValue(y, E.y, F.y) > 0)
         );
     }
 

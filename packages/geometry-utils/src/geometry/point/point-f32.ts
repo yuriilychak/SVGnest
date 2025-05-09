@@ -9,7 +9,15 @@ export default class PointF32 extends PointBase<Float32Array> {
     }
 
     public almostEqual(point: Point, tolerance: number = TOL_F32): boolean {
-        return almostEqualF32(this.x, point.x, tolerance) && almostEqualF32(this.y, point.y, tolerance);
+        return this.almostEqualX(point, tolerance) && this.almostEqualY(point, tolerance);
+    }
+
+    public almostEqualX(point: Point, tolerance: number = TOL_F32): boolean {
+        return almostEqualF32(this.x, point.x, tolerance);
+    }
+
+    public almostEqualY(point: Point, tolerance: number = TOL_F32): boolean {
+        return almostEqualF32(this.y, point.y, tolerance);
     }
 
     public static create(x: number = 0, y: number = 0): PointF32 {
