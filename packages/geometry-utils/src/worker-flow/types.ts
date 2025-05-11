@@ -2,16 +2,17 @@ import PlaceContent from './place-content';
 import PairContent from './pair-content';
 import type { Point, PointPool, Polygon, TypedArray } from '../types';
 
+export type TypedConfig<T extends TypedArray = Float64Array> = {
+    pointPool: PointPool<T>;
+    polygons: Polygon<T>[];
+    memSeg: T;
+}
+
 export type WorkerConfig = {
-    pointPool: PointPool<Float64Array>;
-    pointPoolF32: PointPool<Float32Array>;
+    f32: TypedConfig<Float32Array>;
+    f64: TypedConfig<Float64Array>;
     isInit: boolean;
-    polygons: Polygon<Float64Array>[];
-    polygonsF32: Polygon<Float32Array>[];
     buffer: ArrayBuffer;
-    bufferF32: ArrayBuffer;
-    memSeg: Float64Array;
-    memSegF32: Float32Array;
     placeContent: PlaceContent;
     pairContent: PairContent;
 };

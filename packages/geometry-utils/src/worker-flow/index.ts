@@ -5,23 +5,31 @@ import { WorkerConfig } from './types';
 import PairContent from './pair-content';
 import PlaceContent from './place-content';
 import { PolygonF64, PolygonF32, PointPoolF64, PointPoolF32 } from '../geometry';
+import { WORKER_CONFIG_POLY_COUNT } from './ constants';
 
 export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): ArrayBuffer {
     if (!config.isInit) {
         config.buffer = new ArrayBuffer(8192 * Float64Array.BYTES_PER_ELEMENT);
-        config.bufferF32 = new ArrayBuffer(8192 * Float32Array.BYTES_PER_ELEMENT);
-        config.pointPoolF32 = new PointPoolF32(config.bufferF32);
-        config.memSegF32 = new Float32Array(config.bufferF32, config.pointPoolF32.size);
-        config.pointPool = new PointPoolF64(config.buffer);
-        config.memSeg = new Float64Array(config.buffer, config.pointPool.size);
         config.isInit = true;
-        config.polygons = [PolygonF64.create(), PolygonF64.create(), PolygonF64.create(), PolygonF64.create(), PolygonF64.create()];
-        config.polygonsF32 = [PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create(), PolygonF32.create()];
         config.pairContent = new PairContent();
         config.placeContent = new PlaceContent();
+
+        const pool32 = new PointPoolF32(config.buffer);
+        const pool64 = new PointPoolF64(config.buffer);
+
+        config.f32 = {
+            pointPool: pool32,
+            memSeg: new Float32Array(config.buffer, pool32.size),
+            polygons: new Array(WORKER_CONFIG_POLY_COUNT).fill(null).map(() => PolygonF32.create())
+        }
+
+        config.f64 = {
+            pointPool: pool64,
+            memSeg: new Float64Array(config.buffer, pool64.size),
+            polygons: new Array(WORKER_CONFIG_POLY_COUNT).fill(null).map(() => PolygonF64.create())
+        };
     }
 
-    const polygonCount: number = config.polygonsF32.length;
     const view: DataView = new DataView(buffer);
     const dataType: THREAD_TYPE = view.getUint32(0) as THREAD_TYPE;
     const isPair: boolean = dataType === THREAD_TYPE.PAIR;
@@ -29,8 +37,9 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
 
     let i: number = 0;
 
-    for (i = 0; i < polygonCount; ++i) {
-        config.polygonsF32[i].clean();
+    for (i = 0; i < WORKER_CONFIG_POLY_COUNT; ++i) {
+        config.f32.polygons[i].clean();
+        config.f64.polygons[i].clean();
     }
     
     if (isPair) {

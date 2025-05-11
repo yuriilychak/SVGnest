@@ -969,13 +969,14 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
         return new ArrayBuffer(0);
     }
 
-    const { pointPool, polygons, polygonsF32, memSeg } = config;
+    const { f32, f64 } = config;
+    const { memSeg, polygons, pointPool } = f64;
     const polygonA: Polygon<Float64Array> = polygons[0];
     const polygonB: Polygon<Float64Array> = polygons[1];
 
     polygonA.bind(Float64Array.from(pairContent.firstNode.memSeg));
     polygonB.bind(Float64Array.from(pairContent.secondNode.memSeg));
-    const tmpPolygon: Polygon<Float32Array> = polygonsF32[2];
+    const tmpPolygon: Polygon<Float32Array> = f32.polygons[2];
     let nfp: Float32Array[] = null;
     let nfpSize: number = 0;
     let i: number = 0;
@@ -1023,7 +1024,7 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
         return new ArrayBuffer(0);
     }
 
-    const firstNfp: Polygon<Float32Array> = polygonsF32[3];
+    const firstNfp: Polygon<Float32Array> = f32.polygons[3];
 
     firstNfp.bind(nfp[0]);
 

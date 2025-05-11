@@ -70,13 +70,13 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 }
 
 export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer {
-    const { pointPoolF32, polygonsF32, memSegF32 } = config;
+    const { pointPool, polygons, memSeg } = config.f32;
     const placeContent: PlaceContent = config.placeContent.init(buffer);
-    const polygon1: Polygon<Float32Array> = polygonsF32[0];
-    const polygon2: Polygon<Float32Array> = polygonsF32[1];
-    const pointIndices: number = pointPoolF32.alloc(2);
-    const tmpPoint: Point<Float32Array> = pointPoolF32.get(pointIndices, 0);
-    const firstPoint: Point<Float32Array> = pointPoolF32.get(pointIndices, 1);
+    const polygon1: Polygon<Float32Array> = polygons[0];
+    const polygon2: Polygon<Float32Array> = polygons[1];
+    const pointIndices: number = pointPool.alloc(2);
+    const tmpPoint: Point<Float32Array> = pointPool.get(pointIndices, 0);
+    const firstPoint: Point<Float32Array> = pointPool.get(pointIndices, 1);
     const placements: number[][] = [];
     const pathItems: number[][] = [];
     let node: PolygonNode = null;
@@ -148,7 +148,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
                 continue;
             }
 
-            finalNfp = ClipperWrapper.getFinalNfps(pointPoolF32, placeContent, placed, node, binNfp, placement);
+            finalNfp = ClipperWrapper.getFinalNfps(pointPool, placeContent, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
@@ -165,8 +165,8 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
 
             for (j = 0; j < finalNfp.length; ++j) {
                 nfpSize = finalNfp[j].length;
-                ClipperWrapper.toMemSegF32(finalNfp[j], memSegF32);
-                polygon1.bind(memSegF32, 0, nfpSize);
+                ClipperWrapper.toMemSegF32(finalNfp[j], memSeg);
+                polygon1.bind(memSeg, 0, nfpSize);
                 nfpOffset = nfpSize << 1;
 
                 if (polygon1.absArea < 2) {
@@ -178,14 +178,14 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
 
                     for (m = 0; m < placed.length; ++m) {
                         tmpPoint.fromMemSeg(placement, m);
-                        pointCount = fillPointMemSeg(pointPoolF32, memSegF32, placed[m], tmpPoint, pointCount, nfpOffset);
+                        pointCount = fillPointMemSeg(pointPool, memSeg, placed[m], tmpPoint, pointCount, nfpOffset);
                     }
 
                     tmpPoint.update(polygon1.at(k)).sub(firstPoint);
 
-                    pointCount = fillPointMemSeg(pointPoolF32, memSegF32, node, tmpPoint, pointCount, nfpOffset);
+                    pointCount = fillPointMemSeg(pointPool, memSeg, node, tmpPoint, pointCount, nfpOffset);
 
-                    polygon2.bind(memSegF32, nfpOffset, pointCount);
+                    polygon2.bind(memSeg, nfpOffset, pointCount);
                     // weigh width more, to help compress in direction of gravity
                     curArea = polygon2.size.x * 2 + polygon2.size.y;
 
@@ -230,7 +230,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
     // there were parts that couldn't be placed
     fitness += placeContent.nodeCount << 1;
 
-    pointPoolF32.malloc(pointIndices);
+    pointPool.malloc(pointIndices);
 
     return getResult(placements, pathItems, fitness);
 }
