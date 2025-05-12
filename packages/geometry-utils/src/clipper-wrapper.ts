@@ -76,7 +76,27 @@ export default class ClipperWrapper {
 
         this.offsetNodes(clipperOffset, nodes, 1);
 
+        this.simplifyNodes(nodes);
+
         return nodes;
+    }
+
+
+    private simplifyNodes(nodes: PolygonNode[]): void {
+        const nodeCount: number = nodes.length;
+        let size: number = 0;
+        let i: number = 0;
+        let j: number = 0;
+
+        for(i = 0; i < nodeCount; ++i) {
+            size = nodes[i].memSeg.length;
+
+            this.simplifyNodes(nodes[i].children);
+            
+            for(j = 0; j < size; ++j) {
+                nodes[i].memSeg[j] = Math.round(nodes[i].memSeg[j] * 100) / 100;
+            }
+        }
     }
 
     // Main function to nest polygons
@@ -357,7 +377,7 @@ export default class ClipperWrapper {
         return finalNfp.length === 0 ? null : finalNfp;
     }
 
-    private static CLIPPER_SCALE: number = 10000000;
+    private static CLIPPER_SCALE: number = 100;
 
     public static AREA_TRASHOLD: number = 0.1 * ClipperWrapper.CLIPPER_SCALE * ClipperWrapper.CLIPPER_SCALE;
 
