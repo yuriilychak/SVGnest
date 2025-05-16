@@ -1,10 +1,9 @@
-import { Polygon } from 'geometry-utils';
+import { PolygonF32 } from 'geometry-utils';
 
-import { BoundRect, NestConfig, PolygonNode } from '../types';
+import { BoundRectF32, NestConfig, PolygonNode } from '../types';
 import Phenotype from './phenotype';
-
 export default class GeneticAlgorithm {
-    #binBounds: BoundRect;
+    #binBounds: BoundRectF32;
 
     #population: Phenotype[] = [];
 
@@ -14,7 +13,7 @@ export default class GeneticAlgorithm {
 
     #trashold: number = 0;
 
-    public init(nodes: PolygonNode[], bounds: BoundRect, config: NestConfig): void {
+    public init(nodes: PolygonNode[], bounds: BoundRectF32, config: NestConfig): void {
         if (!this.#isEmpty) {
             return;
         }
@@ -25,7 +24,7 @@ export default class GeneticAlgorithm {
         this.#binBounds = bounds;
 
         // initiate new GA
-        const polygon: Polygon = Polygon.create();
+        const polygon: PolygonF32 = PolygonF32.create();
         const adam: PolygonNode[] = nodes.slice();
         let areaA: number = 0;
         let areaB: number = 0;
@@ -68,7 +67,7 @@ export default class GeneticAlgorithm {
 
     // returns a mutated individual with the given mutation rate
     private mutate(individual: Phenotype): Phenotype {
-        const polygon: Polygon = Polygon.create();
+        const polygon: PolygonF32 = PolygonF32.create();
         const clone: Phenotype = individual.clone();
         const size: number = clone.size;
         let i: number = 0;
@@ -128,7 +127,7 @@ export default class GeneticAlgorithm {
     }
 
     // returns a random angle of insertion
-    private randomAngle(polygon: Polygon, node: PolygonNode): number {
+    private randomAngle(polygon: PolygonF32, node: PolygonNode): number {
         const lastIndex: number = this.#rotations - 1;
         const angles: number[] = [];
         const step: number = 360 / this.#rotations;

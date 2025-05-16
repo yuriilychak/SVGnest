@@ -1,4 +1,4 @@
-import Point from '../point';
+import { PointI32 } from '../geometry';
 import OutPt from './out-pt';
 import OutRec from './out-rec';
 import { NullPtr } from './types';
@@ -6,12 +6,12 @@ import { NullPtr } from './types';
 export default class Join {
     public OutPt1: OutPt;
     public OutPt2: OutPt;
-    public OffPt: Point;
+    public OffPt: PointI32;
 
-    constructor(outPt1: NullPtr<OutPt> = null, outPt2: NullPtr<OutPt> = null, offPoint: NullPtr<Point> = null) {
+    constructor(outPt1: NullPtr<OutPt> = null, outPt2: NullPtr<OutPt> = null, offPoint: NullPtr<PointI32> = null) {
         this.OutPt1 = outPt1;
         this.OutPt2 = outPt2;
-        this.OffPt = offPoint === null ? Point.zero() : Point.from(offPoint);
+        this.OffPt = PointI32.from(offPoint);
     }
 
     public joinPoints(isRecordsSame: boolean, isUseFullRange: boolean): boolean {
@@ -86,7 +86,7 @@ export default class Join {
             //a flat 'polygon'
             //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
-            const value: Point = Join.getOverlap(op1.point.x, op1b.point.x, op2.point.x, op2b.point.x);
+            const value: PointI32 = Join.getOverlap(op1.point.x, op1b.point.x, op2.point.x, op2b.point.x);
             const isOverlapped = value.x < value.y;
 
             if (!isOverlapped) {
@@ -96,7 +96,7 @@ export default class Join {
             //DiscardLeftSide: when overlapping edges are joined, a spike will created
             //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
             //on the discard Side as either may still be needed for other joins ...
-            const Pt: Point = Point.zero();
+            const Pt: PointI32 = PointI32.create();
             let DiscardLeftSide: boolean = false;
             if (op1.point.x >= value.x && op1.point.x <= value.y) {
                 //Pt = op1.Pt;
@@ -130,7 +130,7 @@ export default class Join {
             }
 
             const reverse1: boolean =
-                op1b.point.y > op1.point.y || !Point.slopesEqual(op1.point, op1b.point, this.OffPt, isUseFullRange);
+                op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, this.OffPt, isUseFullRange);
 
             if (reverse1) {
                 op1b = op1.prev;
@@ -139,7 +139,7 @@ export default class Join {
                     op1b = op1b.prev;
                 }
 
-                if (op1b.point.y > op1.point.y || !Point.slopesEqual(op1.point, op1b.point, this.OffPt, isUseFullRange)) {
+                if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, this.OffPt, isUseFullRange)) {
                     return false;
                 }
             }
@@ -151,7 +151,7 @@ export default class Join {
             }
 
             const reverse2: boolean =
-                op2b.point.y > op2.point.y || !Point.slopesEqual(op2.point, op2b.point, this.OffPt, isUseFullRange);
+                op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, this.OffPt, isUseFullRange);
 
             if (reverse2) {
                 op2b = op2.prev;
@@ -160,7 +160,7 @@ export default class Join {
                     op2b = op2b.prev;
                 }
 
-                if (op2b.point.y > op2.point.y || !Point.slopesEqual(op2.point, op2b.point, this.OffPt, isUseFullRange)) {
+                if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, this.OffPt, isUseFullRange)) {
                     return false;
                 }
             }
@@ -236,13 +236,13 @@ export default class Join {
         outRec2.FirstLeft = outRec1;
     }
 
-    public static getOverlap(a1: number, a2: number, b1: number, b2: number): Point {
+    public static getOverlap(a1: number, a2: number, b1: number, b2: number): PointI32 {
         if (a1 < a2) {
             return b1 < b2
-                ? Point.create(Math.max(a1, b1), Math.min(a2, b2))
-                : Point.create(Math.max(a1, b2), Math.min(a2, b1));
+                ? PointI32.create(Math.max(a1, b1), Math.min(a2, b2))
+                : PointI32.create(Math.max(a1, b2), Math.min(a2, b1));
         }
 
-        return b1 < b2 ? Point.create(Math.max(a2, b1), Math.min(a1, b2)) : Point.create(Math.max(a2, b2), Math.min(a1, b1));
+        return b1 < b2 ? PointI32.create(Math.max(a2, b1), Math.min(a1, b2)) : PointI32.create(Math.max(a2, b2), Math.min(a1, b1));
     }
 }

@@ -3,7 +3,7 @@ import { INode } from 'svgson';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class EllipseBuilder extends BasicShapeBuilder {
-    public getResult(): Float64Array {
+    public getResult(): Float32Array {
         const rx: number = this.getFloatAtrribute('rx');
         const ry: number = this.getFloatAtrribute('ry');
         const cx: number = this.getFloatAtrribute('cx');

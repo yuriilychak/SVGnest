@@ -1,21 +1,17 @@
-import Point from './point';
+import { PointF32 } from '../point';
+import type { Point, PointPool, TypedArray } from '../../types';
 
-export default class PointPool {
-    private items: Point[];
+export default class PointPoolBase<T extends TypedArray> implements PointPool<T> {
+    private items: Point<T>[];
 
     private used: number;
 
-    private memSeg: Float64Array;
+    private memSeg: T;
 
-    constructor(buffer: ArrayBuffer) {
-        this.items = new Array(PointPool.POOL_SIZE);
+    constructor(memSeg: T, items: Point<T>[]) {
+        this.memSeg = memSeg;
+        this.items = items;
         this.used = 0;
-        this.memSeg = new Float64Array(buffer, 0, PointPool.POOL_SIZE << 1);
-        this.memSeg.fill(0);
-
-        for (let i = 0; i < PointPool.POOL_SIZE; ++i) {
-            this.items[i] = new Point(this.memSeg, i << 1);
-        }
     }
 
     alloc(count: number): number {
@@ -25,7 +21,7 @@ export default class PointPool {
         let currentBit: number = 0;
 
         while (freeBits !== 0) {
-            currentBit = 1 << (PointPool.MAX_BITS - Math.clz32(freeBits));
+            currentBit = 1 << (PointPoolBase.MAX_BITS - Math.clz32(freeBits));
             result |= currentBit;
             freeBits &= ~currentBit;
             ++currentCount;
@@ -43,14 +39,14 @@ export default class PointPool {
         this.used &= ~indices;
     }
 
-    get(indices: number, index: number): Point {
+    get(indices: number, index: number): Point<T> {
         let currentIndex: number = 0;
         let bitIndex: number = 0;
         let currentBit: number = 0;
         let currentIndices: number = indices;
 
         while (currentIndices !== 0) {
-            bitIndex = PointPool.MAX_BITS - Math.clz32(currentIndices);
+            bitIndex = PointPoolBase.MAX_BITS - Math.clz32(currentIndices);
             currentBit = 1 << bitIndex;
 
             if (currentIndex === index) {
@@ -70,5 +66,5 @@ export default class PointPool {
 
     private static readonly MAX_BITS: number = 31;
 
-    public static POOL_SIZE: number = 32;
+    public static readonly POOL_SIZE: number = 32;
 }

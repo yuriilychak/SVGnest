@@ -3,7 +3,7 @@ import { INode } from 'svgson';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class CircleBuilder extends BasicShapeBuilder {
-    public getResult(): Float64Array {
+    public getResult(): Float32Array {
         const radius: number = this.getFloatAtrribute('r');
         const cx: number = this.getFloatAtrribute('cx');
         const cy: number = this.getFloatAtrribute('cy');

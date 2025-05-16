@@ -1,4 +1,4 @@
-import Point from '../point';
+import { PointI32 } from '../geometry';
 import ClipperBase from './clipper-base';
 import { showError } from './helpers';
 import IntersectNode from './intersect-node';
@@ -23,7 +23,7 @@ export default class Clipper extends ClipperBase {
     public ReverseSolution: boolean = false;
     public StrictlySimple: boolean = false;
 
-    public execute(clipType: CLIP_TYPE, solution: Point[][], fillType: POLY_FILL_TYPE): boolean {
+    public execute(clipType: CLIP_TYPE, solution: PointI32[][], fillType: POLY_FILL_TYPE): boolean {
         if (this.isExecuteLocked) {
             return false;
         }
@@ -328,7 +328,7 @@ export default class Clipper extends ClipperBase {
                     //the 'ghost' join to a real join ready for later ...
                     join = this.ghostJoins[i];
 
-                    if (Point.horzSegmentsOverlap(join.OutPt1.point, join.OffPt, rightBound.Bot, rightBound.Top)) {
+                    if (PointI32.horzSegmentsOverlap(join.OutPt1.point, join.OffPt, rightBound.Bot, rightBound.Top)) {
                         this.joins.push(new Join(join.OutPt1, outPt, join.OffPt));
                     }
                 }
@@ -412,7 +412,7 @@ export default class Clipper extends ClipperBase {
         this.intersections = [];
     }
 
-    private intersectEdges(edge1: TEdge, edge2: TEdge, point: Point, isProtect: boolean): void {
+    private intersectEdges(edge1: TEdge, edge2: TEdge, point: PointI32, isProtect: boolean): void {
         //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
         //e2 in AEL except when e1 is being inserted at the intersection point ...
         let edge1Stops: boolean = !isProtect && edge1.NextInLML === null && edge1.Top.almostEqual(point);
@@ -606,7 +606,7 @@ export default class Clipper extends ClipperBase {
         }
     }
 
-    private AddLocalMinPoly(edge1: TEdge, edge2: TEdge, point: Point) {
+    private AddLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32) {
         let result: OutPt = null;
         let edge: TEdge = null;
         let edgePrev: TEdge;
@@ -641,10 +641,10 @@ export default class Clipper extends ClipperBase {
         return result;
     }
 
-    private buildResult(polygons: Point[][]): void {
+    private buildResult(polygons: PointI32[][]): void {
         const polygonCount = this.polyOuts.length;
         let outRec: OutRec = null;
-        let polygon: NullPtr<Point[]> = null;
+        let polygon: NullPtr<PointI32[]> = null;
         let i: number = 0;
 
         for (i = 0; i < polygonCount; ++i) {
@@ -749,7 +749,7 @@ export default class Clipper extends ClipperBase {
                         return;
                     }
 
-                    const Pt: Point = Point.create(e.Curr.x, horzEdge.Curr.y);
+                    const Pt: PointI32 = PointI32.create(e.Curr.x, horzEdge.Curr.y);
 
                     if (dir === DIRECTION.RIGHT) {
                         this.intersectEdges(horzEdge, e, Pt, true);
@@ -859,7 +859,7 @@ export default class Clipper extends ClipperBase {
                 outPt = outPt.prev;
             }
 
-            const offPoint: Point = outPt.point.almostEqual(horzEdge.Top) ? horzEdge.Bot : horzEdge.Top;
+            const offPoint: PointI32 = outPt.point.almostEqual(horzEdge.Top) ? horzEdge.Bot : horzEdge.Top;
 
             this.ghostJoins.push(new Join(outPt, null, offPoint));
         }
@@ -1002,7 +1002,7 @@ export default class Clipper extends ClipperBase {
         //bubblesort ...
         let isModified: boolean = true;
         let nextEdge: TEdge = null;
-        let point: Point = null;
+        let point: PointI32 = null;
 
         while (isModified && this.sortedEdges !== null) {
             isModified = false;
@@ -1010,7 +1010,7 @@ export default class Clipper extends ClipperBase {
 
             while (edge.NextInSEL !== null) {
                 nextEdge = edge.NextInSEL;
-                point = Point.zero();
+                point = PointI32.create();
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.Curr.x > nextEdge.Curr.x) {
                     if (

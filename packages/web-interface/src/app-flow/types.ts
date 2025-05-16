@@ -7,8 +7,7 @@ export enum SETTING_ID {
     ROTATIONS = 'rotations',
     POPULATION_SIZE = 'populationSize',
     MUTATION_RATE = 'mutationRate',
-    USE_HOLES = 'useHoles',
-    EXPLORE_CONCAVE = 'exploreConcave'
+    USE_HOLES = 'useHoles'
 }
 
 export enum INPUT_TYPE {
@@ -21,7 +20,7 @@ export interface AppFlowProps {
     onClose(): void;
 }
 
-export interface SettingsData {
+export interface SettingsData extends Record<SETTING_ID, number | boolean> {
     [SETTING_ID.CURVE_TOLERANCE]: number;
     [SETTING_ID.SPACING]: number;
     [SETTING_ID.ROTATIONS]: number;

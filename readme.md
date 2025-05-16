@@ -6,6 +6,7 @@
 -   Migrate SVG parsing logic to non-DOM libs.
 -   Optimized worker flow (Now workers created only once and reused).
 -   Moved workers to ArrayBuffer input/output for better memory usage.
+-   Migrated from Float64 to Float32/Int32 values in point for decrease memory usage and increase worker performance (Pair flow still use F64. If someone could help port this part of the code it would be great. There have been several attempts to port this part of the code to float32 but all of them have been unsuccessful).
 -   Optimized concave flow. Now it faster then original. Original flow removed.
 -   Isolated and refactored js-clipper logic to avoid of full lib usage (it decrease package size twice).
 -   Migrated UI to React.
@@ -14,8 +15,8 @@
 
 -   Add node package for ability to run nesting tool from terminal on server-side.
 -   Add es-doc for all files.
--   Migrate from Float64 to Float32 values in point for decrease memory usage and increase worker performance.
--   Migrate geometry calculations to WASM using Rust with SIMD 
+-   Migrate geometry calculations to WASM using Rust.
+-   Rewrite complex calculations with SIMD usage. 
 
 ## Why I do it
 

@@ -1,23 +1,21 @@
-import { PolygonNode } from '../types';
+import type { Point, PointPool, Polygon, PolygonNode, TypedArray } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { almostEqual, getUint16, joinUint16 } from '../helpers';
-import Point from '../point';
-import Polygon from '../polygon';
-import PointPool from '../point-pool';
+import { almostEqual, getUint16, joinUint16, writeUint32ToF32 } from '../helpers';
 import { NFP_INFO_START_INDEX } from '../constants';
 import { WorkerConfig } from './types';
 import PlaceContent from './place-content';
+import NFPWrapper from './nfp-wrapper';
 
-function fillPointMemSeg(
-    pointPool: PointPool,
-    memSeg: Float64Array,
+function fillPointMemSeg<T extends TypedArray = Float32Array>(
+    pointPool: PointPool<T>,
+    memSeg: T,
     node: PolygonNode,
-    offset: Point,
+    offset: Point<T>,
     prevValue: number,
     memOffset: number
 ): number {
     const pointIndices: number = pointPool.alloc(1);
-    const tmpPoint: Point = pointPool.get(pointIndices, 0);
+    const tmpPoint: Point<T> = pointPool.get(pointIndices, 0);
     const pointCount = node.memSeg.length >> 1;
     let i: number = 0;
 
@@ -33,45 +31,52 @@ function fillPointMemSeg(
     return prevValue + pointCount;
 }
 
-function getResult(placements: number[][], pathItems: number[][], fitness: number): Float64Array {
+function getResult(placements: number[][], pathItems: number[][], fitness: number): ArrayBuffer {
     const placementCount: number = pathItems.length;
-    const info = new Float64Array(placementCount);
+    const info: Uint32Array = new Uint32Array(placementCount);
     let totalSize: number = NFP_INFO_START_INDEX + placementCount;
+    let mergedSize: number = 0;
     let offset: number = 0;
     let size: number = 0;
     let i: number = 0;
+    let j: number = 0;
 
     for (i = 0; i < placementCount; ++i) {
         size = pathItems[i].length;
-        info[i] = joinUint16(size, totalSize);
+        mergedSize = joinUint16(size, totalSize)
+        info[i] = mergedSize;
         totalSize += size * 3;
     }
 
-    const result = new Float64Array(totalSize);
+    const result = new Float32Array(totalSize);
 
     result[0] = fitness;
     result[1] = placementCount;
 
-    result.set(info, NFP_INFO_START_INDEX);
-
     for (i = 0; i < placementCount; ++i) {
-        offset = getUint16(info[i], 1);
-        size = getUint16(info[i], 0);
-        result.set(pathItems[i], offset);
+        mergedSize = info[i];
+        offset = getUint16(mergedSize, 1);
+        size = getUint16(mergedSize, 0);
+        writeUint32ToF32(result, NFP_INFO_START_INDEX + i, mergedSize);
+
+        for (j = 0; j < size; ++j) {
+            writeUint32ToF32(result, offset + j, pathItems[i][j]);
+        }
+
         result.set(placements[i], offset + size);
     }
 
-    return result;
+    return result.buffer;
 }
 
-export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Array {
-    const { pointPool, polygons, memSeg } = config;
+export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer {
+    const { pointPool, polygons, memSeg } = config.f32;
     const placeContent: PlaceContent = config.placeContent.init(buffer);
-    const polygon1: Polygon = polygons[0];
-    const polygon2: Polygon = polygons[1];
+    const polygon1: Polygon<Float32Array> = polygons[0];
+    const polygon2: Polygon<Float32Array> = polygons[1];
     const pointIndices: number = pointPool.alloc(2);
-    const tmpPoint: Point = pointPool.get(pointIndices, 0);
-    const firstPoint: Point = pointPool.get(pointIndices, 1);
+    const tmpPoint: Point<Float32Array> = pointPool.get(pointIndices, 0);
+    const firstPoint: Point<Float32Array> = pointPool.get(pointIndices, 1);
     const placements: number[][] = [];
     const pathItems: number[][] = [];
     let node: PolygonNode = null;
@@ -85,8 +90,8 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
     let curArea: number = 0;
     let nfpOffset: number = 0;
     let placed: PolygonNode[] = [];
-    let binNfp: Float64Array = null;
-    let finalNfp: Point[][] = null;
+    let binNfp: NFPWrapper = new NFPWrapper();
+    let finalNfp: Point<Int32Array>[][] = null;
     let minArea: number = 0;
     let minX: number = 0;
     let nfpSize: number = 0;
@@ -109,21 +114,21 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
             pathKey = placeContent.getPathKey(i);
 
             // inner NFP
-            binNfp = placeContent.getBinNfp(i);
+            binNfp.buffer = placeContent.getBinNfp(i);
 
             // part unplaceable, skip             part unplaceable, skip
-            if (!binNfp || binNfp.length < 3 || placeContent.getNfpError(placed, node)) {
+            if (binNfp.isBroken || placeContent.getNfpError(placed, node)) {
                 continue;
             }
 
             positionX = NaN;
 
-            binNfpCount = binNfp[1];
+            binNfpCount = binNfp.count;
 
             if (placed.length === 0) {
                 // first placement, put it on the left
                 for (j = 0; j < binNfpCount; ++j) {
-                    polygon1.bindNFP(binNfp, j);
+                    polygon1.bind(binNfp.getNFPMemSeg(j));
 
                     for (k = 0; k < polygon1.length; ++k) {
                         tmpPoint.update(polygon1.at(k)).sub(firstPoint);
@@ -160,7 +165,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): Float64Ar
 
             for (j = 0; j < finalNfp.length; ++j) {
                 nfpSize = finalNfp[j].length;
-                ClipperWrapper.toMemSeg(finalNfp[j], memSeg);
+                ClipperWrapper.toMemSegF32(finalNfp[j], memSeg);
                 polygon1.bind(memSeg, 0, nfpSize);
                 nfpOffset = nfpSize << 1;
 
