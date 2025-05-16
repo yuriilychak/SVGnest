@@ -1,26 +1,29 @@
-import Polygon from '../polygon';
-import PointPool from '../point-pool';
-import Point from '../point';
 import PlaceContent from './place-content';
 import PairContent from './pair-content';
+import type { Point, PointPool, Polygon, TypedArray } from '../types';
+
+export type TypedConfig<T extends TypedArray = Float64Array> = {
+    pointPool: PointPool<T>;
+    polygons: Polygon<T>[];
+    memSeg: T;
+}
 
 export type WorkerConfig = {
-    pointPool: PointPool;
+    f32: TypedConfig<Float32Array>;
+    f64: TypedConfig<Float64Array>;
     isInit: boolean;
-    polygons: Polygon[];
     buffer: ArrayBuffer;
-    memSeg: Float64Array;
     placeContent: PlaceContent;
     pairContent: PairContent;
 };
 
-export type SegmentCheck = {
-    point: Point;
-    polygon: Polygon;
-    segmentStart: Point;
-    segmentEnd: Point;
-    checkStart: Point;
-    checkEnd: Point;
-    target: Point;
-    offset: Point;
+export type SegmentCheck<T extends TypedArray = Float64Array> = {
+    point: Point<T>;
+    polygon: Polygon<T>;
+    segmentStart: Point<T>;
+    segmentEnd: Point<T>;
+    checkStart: Point<T>;
+    checkEnd: Point<T>;
+    target: Point<T>;
+    offset: Point<T>;
 };

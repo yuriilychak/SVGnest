@@ -4,7 +4,7 @@ import { IPoint } from '../types';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class PolygonBuilder extends BasicShapeBuilder {
-    public getResult(): Float64Array {
+    public getResult(): Float32Array {
         const points: IPoint[] = this.convertPointsToArray();
         const pointCount = points.length;
         let i: number = 0;

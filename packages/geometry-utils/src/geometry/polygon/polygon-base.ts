@@ -1,11 +1,9 @@
 import { polygon_area, polygon_area_simd } from 'wasm-nesting';
-import Point from './point';
-import { almostEqual, cycleIndex, getUint16 } from './helpers';
-import { NFP_INFO_START_INDEX } from './constants';
-import BoundRect from './bound-rect';
+import { cycleIndex } from '../../helpers';
+import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
 
-export default class Polygon {
-    private memSeg: Float64Array;
+export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
+    private memSeg: T;
 
     private offset: number;
 
@@ -15,22 +13,22 @@ export default class Polygon {
 
     private closedDirty: boolean;
 
-    private point: Point;
+    private point: Point<T>;
 
     private rectangle: boolean;
 
-    private bounds: BoundRect;
+    private bounds: BoundRect<T>;
 
-    private constructor() {
-        this.point = Point.zero();
+    protected constructor(point: Point<T>, bounds: BoundRect<T>) {
+        this.point = point;
         this.closed = false;
         this.pointCount = 0;
         this.offset = 0;
         this.rectangle = false;
-        this.bounds = new BoundRect();
+        this.bounds = bounds;
     }
 
-    public bind(data: Float64Array, offset: number = 0, pointCount: number = data.length >> 1): void {
+    public bind(data: T, offset: number = 0, pointCount: number = data.length >> 1): void {
         this.closedDirty = false;
         this.rectangle = false;
         this.closed = false;
@@ -41,14 +39,6 @@ export default class Polygon {
         this.memSeg = data;
 
         this.calculateBounds();
-    }
-
-    public bindNFP(memSeg: Float64Array, index: number): void {
-        const compressedInfo: number = memSeg[NFP_INFO_START_INDEX + index];
-        const offset: number = getUint16(compressedInfo, 1);
-        const size: number = getUint16(compressedInfo, 0) >>> 1;
-
-        this.bind(memSeg, offset, size);
     }
 
     public clean(): void {
@@ -72,7 +62,7 @@ export default class Polygon {
         this.calculateBounds();
     }
 
-    public at(index: number): Point | null {
+    public at(index: number): Point<T> | null {
         if (index >= this.length) {
             return null;
         }
@@ -87,9 +77,9 @@ export default class Polygon {
             return null;
         }
 
-        const innerPoint: Point = Point.from(point);
-        const currPoint: Point = Point.zero();
-        const prevPoint: Point = Point.zero();
+        const innerPoint: Point = point.clone();
+        const currPoint: Point = point.clone().set(0, 0);
+        const prevPoint: Point = point.clone().set(0, 0);
         const pointCount: number = this.pointCount;
         let inside: boolean = false;
         let i: number = 0;
@@ -158,12 +148,12 @@ export default class Polygon {
         }
     }
 
-    public exportBounds(): BoundRect {
+    public exportBounds(): BoundRect<T> {
         return this.bounds.clone();
     }
 
     public resetPosition(): void {
-        const position: Point = Point.from(this.position);
+        const position: Point<T> = this.position.clone();
         const binSize = this.length;
         let i: number = 0;
 
@@ -175,10 +165,10 @@ export default class Polygon {
     }
 
     // remove duplicate endpoints, ensure counterclockwise winding direction
-    public normalize(): Float64Array {
+    public normalize(): T {
         let pointCount: number = this.pointCount;
-        const first: Point = Point.from(this.first);
-        const last: Point = Point.from(this.last);
+        const first: Point<T> = this.first.clone();
+        const last: Point<T> = this.last.clone();
 
         while (first.almostEqual(last)) {
             --pointCount;
@@ -187,7 +177,7 @@ export default class Polygon {
 
         if (this.pointCount !== pointCount) {
             this.pointCount = pointCount;
-            this.memSeg = this.memSeg.slice(this.offset, this.offset + (pointCount << 1));
+            this.memSeg = this.memSeg.slice(this.offset, this.offset + (pointCount << 1)) as T;
         }
 
         if (this.area > 0) {
@@ -206,14 +196,14 @@ export default class Polygon {
             return;
         }
 
-        const point1: Point = Point.from(this.first);
-        const point2: Point = Point.from(this.last);
+        const point1: Point<T> = this.first.clone();
+        const point2: Point<T> = this.last.clone();
 
         this.closed = point1.almostEqual(point2);
 
         const pointCount: number = this.pointCount;
         let i: number = 0;
-        let point: Point = null;
+        let point: Point<T> = null;
 
         for (i = 0; i < pointCount; ++i) {
             point = this.at(i);
@@ -228,8 +218,8 @@ export default class Polygon {
 
             if (
                 !(
-                    (almostEqual(point.x, point1.x) || almostEqual(point.x, point2.x)) &&
-                    (almostEqual(point.y, point1.y) || almostEqual(point.y, point2.y))
+                    (point.almostEqualX(point1) || point.almostEqualX(point2)) &&
+                    (point.almostEqualY(point1) || point.almostEqualY(point2))
                 )
             ) {
                 this.rectangle = false;
@@ -248,11 +238,11 @@ export default class Polygon {
         return this.pointCount + offset;
     }
 
-    public get first(): Point {
+    public get first(): Point<T> {
         return this.at(0);
     }
 
-    public get last(): Point {
+    public get last(): Point<T> {
         return this.at(cycleIndex(this.length, this.pointCount, -1));
     }
 
@@ -272,8 +262,8 @@ export default class Polygon {
     // a negative area indicates counter-clockwise winding direction
     public get area(): number {
         const pointCount = this.pointCount;
-        const prevPoint: Point = Point.zero();
-        const currPoint: Point = Point.zero();
+        const prevPoint: Point<T> = this.point.clone();
+        const currPoint: Point<T> = this.point.clone();
         let result: number = 0;
         let i: number = 0;
 
@@ -294,23 +284,11 @@ export default class Polygon {
         return Math.abs(this.area);
     }
 
-    public get position(): Point {
+    public get position(): Point<T> {
         return this.bounds.position;
     }
 
-    public get size(): Point {
+    public get size(): Point<T> {
         return this.bounds.size;
-    }
-
-    public static create(): Polygon {
-        return new Polygon();
-    }
-
-    public static fromMemSeg(memSeg: Float64Array): Polygon {
-        const result = new Polygon();
-
-        result.bind(memSeg);
-
-        return result;
     }
 }

@@ -46,18 +46,18 @@ export default abstract class WorkerContent {
         let childrenCount: number = 0;
         let source: number = 0;
         let rotation: number = 0;
-        let memSeg: Float64Array = null;
+        let memSeg: Float32Array = null;
         let children: PolygonNode[] = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
-            source = view.getFloat64(offset) - 1;
-            offset += Float64Array.BYTES_PER_ELEMENT;
-            rotation = view.getFloat64(offset);
-            offset += Float64Array.BYTES_PER_ELEMENT;
+            source = view.getUint32(offset) - 1;
+            offset += Uint32Array.BYTES_PER_ELEMENT;
+            rotation = view.getFloat32(offset);
+            offset += Uint32Array.BYTES_PER_ELEMENT;
             memSegLength = view.getUint32(offset) << 1;
             offset += Uint32Array.BYTES_PER_ELEMENT;
-            memSeg = new Float64Array(buffer, offset, memSegLength);
+            memSeg = new Float32Array(buffer, offset, memSegLength);
             offset += memSeg.byteLength;
             childrenCount = view.getUint32(offset);
             offset += Uint32Array.BYTES_PER_ELEMENT;

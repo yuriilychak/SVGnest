@@ -68,13 +68,12 @@ export type NestConfig = {
     populationSize: number;
     mutationRate: number;
     useHoles: boolean;
-    exploreConcave: boolean;
 };
 
 export type PolygonNode = {
     source: number;
     rotation: number;
-    memSeg: Float64Array;
+    memSeg: Float32Array;
     children: PolygonNode[];
 };
 

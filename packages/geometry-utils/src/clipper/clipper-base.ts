@@ -1,4 +1,4 @@
-import Point from '../point';
+import { PointI32 } from '../geometry';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { DIRECTION, POLY_TYPE } from './types';
@@ -8,7 +8,7 @@ export default class ClipperBase {
     protected isUseFullRange: boolean = false;
     protected currentLM: LocalMinima = null;
 
-    public addPath(polygon: Point[], polyType: POLY_TYPE): boolean {
+    public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
         let lastIndex = polygon.length - 1;
 
         while (
@@ -34,14 +34,14 @@ export default class ClipperBase {
         //edges[1].Curr = pg[1];
         edges[1].Curr.update(polygon[1]);
 
-        this.isUseFullRange = Point.rangeTest(polygon[0], this.isUseFullRange);
-        this.isUseFullRange = Point.rangeTest(polygon[lastIndex], this.isUseFullRange);
+        this.isUseFullRange = polygon[0].rangeTest(this.isUseFullRange);
+        this.isUseFullRange = polygon[lastIndex].rangeTest(this.isUseFullRange);
 
         edges[0].init(edges[1], edges[lastIndex], polygon[0]);
         edges[lastIndex].init(edges[0], edges[lastIndex - 1], polygon[lastIndex]);
 
         for (i = lastIndex - 1; i >= 1; --i) {
-            this.isUseFullRange = Point.rangeTest(polygon[i], this.isUseFullRange);
+            this.isUseFullRange = polygon[i].rangeTest(this.isUseFullRange);
 
             edges[i].init(edges[i + 1], edges[i - 1], polygon[i]);
         }
@@ -71,7 +71,7 @@ export default class ClipperBase {
                 break;
             }
 
-            if (Point.slopesEqual(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
+            if (PointI32.slopesEqual(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
                 //Collinear edges are allowed for open paths but in closed paths
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
@@ -159,7 +159,7 @@ export default class ClipperBase {
         return true;
     }
 
-    public addPaths(polygons: Point[][], polyType: POLY_TYPE): boolean {
+    public addPaths(polygons: PointI32[][], polyType: POLY_TYPE): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;

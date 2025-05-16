@@ -7,3 +7,5 @@ packages/**/target
 .vscode
 dist
 node_modules
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md

@@ -1,8 +1,8 @@
 import OutPt from './out-pt';
-import Point from '../point';
+import { PointI32 } from '../geometry';
 import { cycleIndex } from '../helpers';
 
-export function getArea(poly: Point[]): number {
+export function getArea(poly: PointI32[]): number {
     const pointCount: number = poly.length;
 
     if (pointCount < 3) {
@@ -21,22 +21,22 @@ export function getArea(poly: Point[]): number {
     return -result * 0.5;
 }
 
-export function absArea(poly: Point[]): number {
+export function absArea(poly: PointI32[]): number {
     return Math.abs(getArea(poly));
 }
 
-export function distanceFromLineSqrd(point: Point, line1: Point, line2: Point): number {
-    const equation: number[] = Point.lineEquation(line2, line1);
+export function distanceFromLineSqrd(point: PointI32, line1: PointI32, line2: PointI32): number {
+    const equation: number[] = PointI32.lineEquation(line2, line1);
     const c: number = equation[0] * point.x + equation[1] * point.y - equation[2];
 
     return (c * c) / (equation[0] * equation[0] + equation[1] * equation[1]);
 }
 
-export function slopesNearCollinear(pt1: Point, pt2: Point, pt3: Point, distSqrd: number) {
+export function slopesNearCollinear(pt1: PointI32, pt2: PointI32, pt3: PointI32, distSqrd: number) {
     return distanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
 }
 
-export function cleanPolygon(path: Point[], distance: number): Point[] {
+export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
     //distance = proximity in units/pixels below which vertices will be stripped.
     //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have
     //both x & y coords within 1 unit, then the second vertex will be stripped.
@@ -57,10 +57,10 @@ export function cleanPolygon(path: Point[], distance: number): Point[] {
     let op: OutPt = outPts[0];
 
     while (op.index === 0 && op.next != op.prev) {
-        if (Point.pointsAreClose(op.point, op.prev.point, distSqrd)) {
+        if (op.point.closeTo(op.prev.point, distSqrd)) {
             op = op.exclude();
             --pointCount;
-        } else if (Point.pointsAreClose(op.prev.point, op.next.point, distSqrd)) {
+        } else if (op.prev.point.closeTo(op.next.point, distSqrd)) {
             op.next.exclude();
             op = op.exclude();
             pointCount -= 2;
@@ -80,16 +80,16 @@ export function cleanPolygon(path: Point[], distance: number): Point[] {
     const result = new Array(pointCount);
 
     for (i = 0; i < pointCount; ++i) {
-        result[i] = Point.from(op.point);
+        result[i] = PointI32.from(op.point);
         op = op.next;
     }
 
     return result;
 }
 
-export function cleanPolygons(polys: Point[][], distance: number): Point[][] {
+export function cleanPolygons(polys: PointI32[][], distance: number): PointI32[][] {
     const polygonCount: number = polys.length;
-    const result: Point[][] = new Array(polygonCount);
+    const result: PointI32[][] = new Array(polygonCount);
     let i: number = 0;
 
     for (i = 0; i < polygonCount; ++i) {

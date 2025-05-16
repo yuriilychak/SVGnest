@@ -1,6 +1,6 @@
 {
     "name": "svgnest.ts",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Typescript version of https://github.com/Jack000/SVGnest migrated to webpack and splitted to packages.",
     "private": true,
     "workspaces": [

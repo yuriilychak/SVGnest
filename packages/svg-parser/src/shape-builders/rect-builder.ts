@@ -3,7 +3,7 @@ import { INode } from 'svgson';
 import BasicShapeBuilder from './basic-shape-builder';
 
 export default class RectBuilder extends BasicShapeBuilder {
-    public getResult(): Float64Array {
+    public getResult(): Float32Array {
         const x: number = this.getFloatAtrribute('x');
         const y: number = this.getFloatAtrribute('y');
         const width: number = this.getFloatAtrribute('width');
