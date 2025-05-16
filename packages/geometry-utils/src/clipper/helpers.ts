@@ -1,8 +1,8 @@
 import OutPt from './out-pt';
-import { PointF64 } from '../geometry';
+import { PointI32 } from '../geometry';
 import { cycleIndex } from '../helpers';
 
-export function getArea(poly: PointF64[]): number {
+export function getArea(poly: PointI32[]): number {
     const pointCount: number = poly.length;
 
     if (pointCount < 3) {
@@ -21,22 +21,22 @@ export function getArea(poly: PointF64[]): number {
     return -result * 0.5;
 }
 
-export function absArea(poly: PointF64[]): number {
+export function absArea(poly: PointI32[]): number {
     return Math.abs(getArea(poly));
 }
 
-export function distanceFromLineSqrd(point: PointF64, line1: PointF64, line2: PointF64): number {
-    const equation: number[] = PointF64.lineEquation(line2, line1);
+export function distanceFromLineSqrd(point: PointI32, line1: PointI32, line2: PointI32): number {
+    const equation: number[] = PointI32.lineEquation(line2, line1);
     const c: number = equation[0] * point.x + equation[1] * point.y - equation[2];
 
     return (c * c) / (equation[0] * equation[0] + equation[1] * equation[1]);
 }
 
-export function slopesNearCollinear(pt1: PointF64, pt2: PointF64, pt3: PointF64, distSqrd: number) {
+export function slopesNearCollinear(pt1: PointI32, pt2: PointI32, pt3: PointI32, distSqrd: number) {
     return distanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
 }
 
-export function cleanPolygon(path: PointF64[], distance: number): PointF64[] {
+export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
     //distance = proximity in units/pixels below which vertices will be stripped.
     //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have
     //both x & y coords within 1 unit, then the second vertex will be stripped.
@@ -80,16 +80,16 @@ export function cleanPolygon(path: PointF64[], distance: number): PointF64[] {
     const result = new Array(pointCount);
 
     for (i = 0; i < pointCount; ++i) {
-        result[i] = PointF64.from(op.point);
+        result[i] = PointI32.from(op.point);
         op = op.next;
     }
 
     return result;
 }
 
-export function cleanPolygons(polys: PointF64[][], distance: number): PointF64[][] {
+export function cleanPolygons(polys: PointI32[][], distance: number): PointI32[][] {
     const polygonCount: number = polys.length;
-    const result: PointF64[][] = new Array(polygonCount);
+    const result: PointI32[][] = new Array(polygonCount);
     let i: number = 0;
 
     for (i = 0; i < polygonCount; ++i) {

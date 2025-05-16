@@ -1,16 +1,16 @@
-import { PointF64 } from '../geometry';
+import { PointI32 } from '../geometry';
 import TEdge from './t-edge';
 import { NullPtr } from './types';
 
 export default class IntersectNode {
     public Edge1: TEdge;
     public Edge2: TEdge;
-    public Pt: PointF64;
+    public Pt: PointI32;
 
-    constructor(edge1: NullPtr<TEdge> = null, edge2: NullPtr<TEdge> = null, point: NullPtr<PointF64> = null) {
+    constructor(edge1: NullPtr<TEdge> = null, edge2: NullPtr<TEdge> = null, point: NullPtr<PointI32> = null) {
         this.Edge1 = edge1;
         this.Edge2 = edge2;
-        this.Pt = PointF64.from(point);
+        this.Pt = PointI32.from(point);
     }
 
     public get edgesAdjacent(): boolean {

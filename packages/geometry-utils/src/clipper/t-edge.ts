@@ -1,14 +1,14 @@
-import { PointF64 } from '../geometry';
+import { PointI32 } from '../geometry';
 import { HORIZONTAL } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
 import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION, NullPtr } from './types';
 
 export default class TEdge {
-    public Bot: PointF64;
-    public Curr: PointF64;
-    public Top: PointF64;
-    public Delta: PointF64;
+    public Bot: PointI32;
+    public Curr: PointI32;
+    public Top: PointI32;
+    public Delta: PointI32;
     public Dx: number;
     public PolyTyp: POLY_TYPE;
     public Side: DIRECTION;
@@ -25,10 +25,10 @@ export default class TEdge {
     public PrevInSEL: TEdge;
 
     constructor() {
-        this.Bot = PointF64.create();
-        this.Curr = PointF64.create();
-        this.Top = PointF64.create();
-        this.Delta = PointF64.create();
+        this.Bot = PointI32.create();
+        this.Curr = PointI32.create();
+        this.Top = PointI32.create();
+        this.Delta = PointI32.create();
         this.Dx = 0;
         this.PolyTyp = POLY_TYPE.SUBJECT;
         this.Side = DIRECTION.LEFT;
@@ -45,7 +45,7 @@ export default class TEdge {
         this.PrevInSEL = null;
     }
 
-    public init(nextEdge: TEdge, prevEdge: TEdge, point: PointF64): void {
+    public init(nextEdge: TEdge, prevEdge: TEdge, point: PointI32): void {
         this.Next = nextEdge;
         this.Prev = prevEdge;
         //e.Curr = pt;
@@ -365,11 +365,11 @@ export default class TEdge {
         }
     }
 
-    public static intersectPoint(edge1: TEdge, edge2: TEdge, intersectPoint: PointF64, useFullRange: boolean): boolean {
+    public static intersectPoint(edge1: TEdge, edge2: TEdge, intersectPoint: PointI32, useFullRange: boolean): boolean {
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
         if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.Dx === edge2.Dx) {
-            const point: PointF64 = edge2.Bot.y > edge1.Bot.y ? edge2.Bot : edge1.Bot;
+            const point: PointI32 = edge2.Bot.y > edge1.Bot.y ? edge2.Bot : edge1.Bot;
 
             intersectPoint.update(point);
 

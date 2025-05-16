@@ -1,4 +1,4 @@
-import { PointF64 } from '../geometry';
+import { PointI32 } from '../geometry';
 import LocalMinima from './local-minima';
 import TEdge from './t-edge';
 import { DIRECTION, POLY_TYPE } from './types';
@@ -8,7 +8,7 @@ export default class ClipperBase {
     protected isUseFullRange: boolean = false;
     protected currentLM: LocalMinima = null;
 
-    public addPath(polygon: PointF64[], polyType: POLY_TYPE): boolean {
+    public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
         let lastIndex = polygon.length - 1;
 
         while (
@@ -71,7 +71,7 @@ export default class ClipperBase {
                 break;
             }
 
-            if (PointF64.slopesEqual(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
+            if (PointI32.slopesEqual(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
                 //Collinear edges are allowed for open paths but in closed paths
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
@@ -159,7 +159,7 @@ export default class ClipperBase {
         return true;
     }
 
-    public addPaths(polygons: PointF64[][], polyType: POLY_TYPE): boolean {
+    public addPaths(polygons: PointI32[][], polyType: POLY_TYPE): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;

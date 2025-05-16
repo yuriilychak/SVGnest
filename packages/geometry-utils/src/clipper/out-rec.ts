@@ -1,4 +1,4 @@
-import { PointF64 } from '../geometry';
+import { PointI32 } from '../geometry';
 import OutPt from './out-pt';
 import TEdge from './t-edge';
 import { DIRECTION, NullPtr } from './types';
@@ -38,7 +38,7 @@ export default class OutRec {
             if (
                 outPt.point.almostEqual(outPt.next.point) ||
                 outPt.point.almostEqual(outPt.prev.point) ||
-                (PointF64.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point, useFullRange) &&
+                (PointI32.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point, useFullRange) &&
                     (!preserveCollinear || !outPt.point.getBetween(outPt.prev.point, outPt.next.point)))
             ) {
                 lastOutPt = null;
@@ -75,14 +75,14 @@ export default class OutRec {
         }
     }
 
-    public export(): NullPtr<PointF64[]> {
+    public export(): NullPtr<PointI32[]> {
         const pointCount = this.pointCount;
 
         if (pointCount < 2) {
             return null;
         }
 
-        const result: PointF64[] = new Array(pointCount);
+        const result: PointI32[] = new Array(pointCount);
         let outPt: OutPt = this.Pts.prev as OutPt;
         let i: number = 0;
 
@@ -277,7 +277,7 @@ export default class OutRec {
         }
     }
 
-    public static addOutPt(records: OutRec[], edge: TEdge, point: PointF64): OutPt {
+    public static addOutPt(records: OutRec[], edge: TEdge, point: PointI32): OutPt {
         const isToFront: boolean = edge.Side === DIRECTION.LEFT;
         let outRec: OutRec = null;
         let newOp: OutPt = null;
@@ -342,7 +342,7 @@ export default class OutRec {
         }
     }
 
-    public static addLocalMaxPoly(records: OutRec[], edge1: TEdge, edge2: TEdge, point: PointF64, activeEdge: TEdge): void {
+    public static addLocalMaxPoly(records: OutRec[], edge1: TEdge, edge2: TEdge, point: PointI32, activeEdge: TEdge): void {
         OutRec.addOutPt(records, edge1, point);
 
         if (edge2.isWindDeletaEmpty) {

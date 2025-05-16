@@ -91,7 +91,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
     let nfpOffset: number = 0;
     let placed: PolygonNode[] = [];
     let binNfp: NFPWrapper = new NFPWrapper();
-    let finalNfp: Point<Float64Array>[][] = null;
+    let finalNfp: Point<Int32Array>[][] = null;
     let minArea: number = 0;
     let minX: number = 0;
     let nfpSize: number = 0;
