@@ -1,4 +1,5 @@
-import { almostEqual, cycleIndex, midValue, setBits, getBits } from '../helpers';
+import { set_bits_u32, get_bits_u32 } from 'wasm-nesting';
+import { almostEqual, cycleIndex, midValue } from '../helpers';
 import { PointBase } from '../geometry';
 import { TOL_F64 } from '../constants';
 import { WorkerConfig, SegmentCheck } from './types';
@@ -603,11 +604,11 @@ function applyVector<T extends TypedArray>(
 }
 
 function serializeTouch(type: number, firstIndex: number, secondIndex: number): number {
-    let result: number = setBits(0, type, 0, 2);
+    let result: number = set_bits_u32(0, type, 0, 2);
 
-    result = setBits(result, firstIndex, 2, 15);
+    result = set_bits_u32(result, firstIndex, 2, 15);
 
-    return setBits(result, secondIndex, 17, 15);
+    return set_bits_u32(result, secondIndex, 17, 15);
 }
 
 function getTouch<T extends TypedArray>(
@@ -669,7 +670,7 @@ function fillVectors<T extends TypedArray>(
             touch = getTouch(pointA, pointANext, pointB, pointBNext, i, iNext, j, jNext);
 
             if (touch !== -1) {
-                markedIndices.push(getBits(touch, 2, 15));
+                markedIndices.push(get_bits_u32(touch, 2, 15));
                 applyVectors(polygonA, polygonB, pointPool, offset, touch, memSeg);
             }
         }
@@ -686,9 +687,9 @@ function applyVectors<T extends TypedArray>(
     touch: number,
     memSeg: T
 ): void {
-    const type: number = getBits(touch, 0, 2);
-    const currIndexA: number = getBits(touch, 2, 15);
-    const currIndexB: number = getBits(touch, 17, 15);
+    const type: number = get_bits_u32(touch, 0, 2);
+    const currIndexA: number = get_bits_u32(touch, 2, 15);
+    const currIndexB: number = get_bits_u32(touch, 17, 15);
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
     const prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop

@@ -1,6 +1,7 @@
+import { join_u16_to_u32, get_u16_from_u32 } from 'wasm-nesting';
 import type { Point, PointPool, Polygon, PolygonNode, TypedArray } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { almostEqual, getUint16, joinUint16, writeUint32ToF32 } from '../helpers';
+import { almostEqual, writeUint32ToF32 } from '../helpers';
 import { NFP_INFO_START_INDEX } from '../constants';
 import { WorkerConfig } from './types';
 import PlaceContent from './place-content';
@@ -43,7 +44,7 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 
     for (i = 0; i < placementCount; ++i) {
         size = pathItems[i].length;
-        mergedSize = joinUint16(size, totalSize)
+        mergedSize = join_u16_to_u32(size, totalSize)
         info[i] = mergedSize;
         totalSize += size * 3;
     }
@@ -55,8 +56,8 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 
     for (i = 0; i < placementCount; ++i) {
         mergedSize = info[i];
-        offset = getUint16(mergedSize, 1);
-        size = getUint16(mergedSize, 0);
+        offset = get_u16_from_u32(mergedSize, 1);
+        size = get_u16_from_u32(mergedSize, 0);
         writeUint32ToF32(result, NFP_INFO_START_INDEX + i, mergedSize);
 
         for (j = 0; j < size; ++j) {

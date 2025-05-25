@@ -1,4 +1,5 @@
-import { getUint16, joinUint16, writeUint32ToF32 } from "../helpers";
+import { join_u16_to_u32 } from 'wasm-nesting';
+import { getUint16, writeUint32ToF32 } from "../helpers";
 
 export default class NFPWrapper {
     private _buffer: ArrayBuffer;
@@ -52,7 +53,7 @@ export default class NFPWrapper {
     
             for (i = 0; i < nfpCount; ++i) {
                 size = nfpArrays[i].length;
-                info[i] = joinUint16(size, totalSize);
+                info[i] = join_u16_to_u32(size, totalSize);
                 totalSize += size;
             }
     

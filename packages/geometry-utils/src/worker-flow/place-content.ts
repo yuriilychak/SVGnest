@@ -1,4 +1,5 @@
-import { generateNFPCacheKey, getBits, getPolygonNode, joinUint16, toRotationIndex } from '../helpers';
+import { get_bits_u32, join_u16_to_u32 } from 'wasm-nesting';
+import { generateNFPCacheKey, getPolygonNode, toRotationIndex } from '../helpers';
 import { NFPCache, PolygonNode } from '../types';
 import WorkerContent from './worker-content';
 
@@ -23,7 +24,7 @@ export default class PlaceContent extends WorkerContent {
 
         this.initNodes(buffer, Uint32Array.BYTES_PER_ELEMENT * 4 + mapBufferSize);
 
-        this._rotations = getBits(nestConfig, 9, 5);
+        this._rotations = get_bits_u32(nestConfig, 9, 5);
         this._area = view.getFloat32(Uint32Array.BYTES_PER_ELEMENT * 2);
         this._nfpCache = PlaceContent.deserializeBufferToMap(buffer, Uint32Array.BYTES_PER_ELEMENT * 4, mapBufferSize);
 
@@ -60,7 +61,7 @@ export default class PlaceContent extends WorkerContent {
     }
 
     public getPathKey(index: number): number {
-        return joinUint16(toRotationIndex(this.nodeAt(index).rotation, this.rotations), this.nodeAt(index).source);
+        return join_u16_to_u32(toRotationIndex(this.nodeAt(index).rotation, this.rotations), this.nodeAt(index).source);
     }
 
     public get rotations(): number {

@@ -1,4 +1,4 @@
-import { polygon_area, polygon_area_simd } from 'wasm-nesting';
+import { polygon_area } from 'wasm-nesting';
 import { cycleIndex } from '../../helpers';
 import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
 
@@ -273,11 +273,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
             result += (prevPoint.x + currPoint.x) * (prevPoint.y - currPoint.y);
         }
 
-        const testData = Float32Array.from(this.memSeg.slice(this.offset, this.offset + (pointCount << 1)));
-
-        console.log(pointCount, 0.5 * result, polygon_area(testData), polygon_area_simd(testData));
-
-        return 0.5 * result;
+        return polygon_area(Float32Array.from(this.memSeg.slice(this.offset, this.offset + (pointCount << 1))));
     }
 
     public get absArea(): number {

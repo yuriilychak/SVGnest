@@ -1,5 +1,11 @@
-use wasm_bindgen::prelude::*;
 use std::arch::wasm32::*;
+use wasm_bindgen::prelude::*;
+
+pub mod constants;
+pub mod utils;
+
+use utils::almost_equal::AlmostEqual;
+use utils::bit_ops::*;
 
 fn wrap(index: usize, offset: usize, len: usize) -> usize {
     return (index + offset) % len;
@@ -9,24 +15,6 @@ fn wrap(index: usize, offset: usize, len: usize) -> usize {
 pub fn polygon_area(points: &[f32]) -> f32 {
     let len = points.len();
 
-    if len < 6 || len & 1 != 0 {
-        return 0.0;
-    }
-
-    let mut area = 0.0;
-
-    for i in (0..len).step_by(2) {
-        area += 
-            points[wrap(i, 1, len)] * points[wrap(i, 2, len)] - points[wrap(i, 0, len)] * points[wrap(i, 3, len)];
-    }
-
-    return area * 0.5;
-}
-
-#[wasm_bindgen]
-pub fn polygon_area_simd(points: &[f32]) -> f32 {
-    let len = points.len();
-    
     if len < 6 || len & 1 != 0 {
         return 0.0;
     }
@@ -58,12 +46,36 @@ pub fn polygon_area_simd(points: &[f32]) -> f32 {
         acc = f32x4_add(acc, f32x4_mul(stack1, stack2));
     }
 
-    return 0.5 * (
-        f32x4_extract_lane::<0>(acc) +
-        f32x4_extract_lane::<1>(acc) +
-        f32x4_extract_lane::<2>(acc) +
-        f32x4_extract_lane::<3>(acc) +
-        ((n_points & 1) as f32) *
-        (points[len - 1] * points[0] - points[len - 2] * points[1])
-    );
+    return 0.5
+        * (f32x4_extract_lane::<0>(acc)
+            + f32x4_extract_lane::<1>(acc)
+            + f32x4_extract_lane::<2>(acc)
+            + f32x4_extract_lane::<3>(acc)
+            + ((n_points & 1) as f32)
+                * (points[len - 1] * points[0] - points[len - 2] * points[1]));
+}
+
+#[wasm_bindgen]
+pub fn almost_equal(a: f64, b: f64, tolerance: f64) -> bool {
+    a.almost_equal(b, Some(tolerance))
+}
+
+#[wasm_bindgen]
+pub fn set_bits_u32(source: u32, value: u16, index: u8, bit_count: u8) -> u32 {
+    set_bits(source, value, index, bit_count)
+}
+
+#[wasm_bindgen]
+pub fn get_bits_u32(source: u32, index: u8, num_bits: u8) -> u16 {
+    get_bits(source, index, num_bits)
+}
+
+#[wasm_bindgen]
+pub fn get_u16_from_u32(source: u32, index: u8) -> u16 {
+    get_u16(source, index)
+}
+
+#[wasm_bindgen]
+pub fn join_u16_to_u32(value1: u16, value2: u16) -> u32 {
+    join_u16(value1, value2)
 }
