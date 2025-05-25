@@ -1,5 +1,5 @@
-import { set_bits_u32, get_bits_u32 } from 'wasm-nesting';
-import { almostEqual, cycleIndex, midValue } from '../helpers';
+import { set_bits_u32, get_bits_u32, cycle_index_wasm, mid_value_f64 } from 'wasm-nesting';
+import { almostEqual } from '../helpers';
 import { PointBase } from '../geometry';
 import { TOL_F64 } from '../constants';
 import { WorkerConfig, SegmentCheck } from './types';
@@ -12,13 +12,13 @@ import type { Point, PolygonNode, Polygon, PointPool, TypedArray } from '../type
 
 function updateIntersectPoint<T extends TypedArray>(point: Point<T>, polygon: Polygon<T>, index: number, offset: number): void {
     const pointCount: number = polygon.length;
-    let currentIndex = cycleIndex(index, pointCount, offset);
+    let currentIndex = cycle_index_wasm(index, pointCount, offset);
 
     point.update(polygon.at(index));
 
     // go even further back if we happen to hit on a loop end point
     if (point.almostEqual(polygon.at(currentIndex))) {
-        currentIndex = cycleIndex(currentIndex, pointCount, offset);
+        currentIndex = cycle_index_wasm(currentIndex, pointCount, offset);
         point.update(polygon.at(currentIndex));
     }
 }
@@ -150,13 +150,13 @@ function pointDistance<T extends TypedArray>(
     const s2dotnorm = normal.dot(s2);
 
     if (!infinite) {
-        if (midValue(pdot, s1dot, s2dot) > TOL_F64) {
+        if (mid_value_f64(pdot, s1dot, s2dot) > TOL_F64) {
             pointPool.malloc(pointIndices);
 
             return NaN; // dot doesn't collide with segment, or lies directly on the vertex
         }
 
-        if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && midValue(pdotnorm, s1dotnorm, s2dotnorm) > 0) {
+        if (almostEqual(pdot, s1dot) && almostEqual(pdot, s2dot) && mid_value_f64(pdotnorm, s1dotnorm, s2dotnorm) > 0) {
             pointPool.malloc(pointIndices);
 
             return pdotnorm - Math.max(s1dotnorm, s2dotnorm);
@@ -183,7 +183,7 @@ function coincedentDistance<T extends TypedArray>(
     const dot3: number = normal.dot(point3);
     const dot4: number = normal.dot(point4);
 
-    if (midValue(dot1, dot3, dot4) >= 0) {
+    if (mid_value_f64(dot1, dot3, dot4) >= 0) {
         return defaultValue;
     }
 
@@ -323,11 +323,11 @@ function polygonSlideDistance<T extends TypedArray>(
 
     for (i = 0; i < sizeB; ++i) {
         b1.update(polygonB.at(i)).add(offset);
-        b2.update(polygonB.at(cycleIndex(i, sizeB, 1))).add(offset);
+        b2.update(polygonB.at(cycle_index_wasm(i, sizeB, 1))).add(offset);
 
         for (j = 0; j < sizeA; ++j) {
             a1.update(polygonA.at(j));
-            a2.update(polygonA.at(cycleIndex(j, sizeA, 1)));
+            a2.update(polygonA.at(cycle_index_wasm(j, sizeA, 1)));
 
             if (a1.almostEqual(a2) || b1.almostEqual(b2)) {
                 continue; // ignore extremely small lines
@@ -376,7 +376,7 @@ function polygonProjectionDistance<T extends TypedArray>(
 
         for (j = 0; j < sizeA - 1; ++j) {
             s1.update(polygonA.at(j));
-            s2.update(polygonA.at(cycleIndex(j, sizeA, 1)));
+            s2.update(polygonA.at(cycle_index_wasm(j, sizeA, 1)));
             sOffset.update(s2).sub(s1);
 
             if (almostEqual(sOffset.cross(direction))) {
@@ -505,7 +505,7 @@ function searchStartPoint<T extends TypedArray>(
             markedIndices.push(i);
 
             for (j = 0; j < sizeB; ++j) {
-                startPoint.update(polygonA.at(i)).sub(polygonB.at(cycleIndex(j, sizeB, 0)));
+                startPoint.update(polygonA.at(i)).sub(polygonB.at(cycle_index_wasm(j, sizeB, 0)));
 
                 isInside = getInside(pointPool, polygonA, polygonB, startPoint, null);
 
@@ -527,7 +527,7 @@ function searchStartPoint<T extends TypedArray>(
                 }
 
                 // slide B along vector
-                v.update(polygonA.at(cycleIndex(i, sizeA, 1))).sub(polygonA.at(i));
+                v.update(polygonA.at(cycle_index_wasm(i, sizeA, 1))).sub(polygonA.at(i));
                 vNeg.update(v).reverse();
 
                 const d1 = polygonProjectionDistance(pointPool, polygonA, polygonB, v, startPoint);
@@ -659,12 +659,12 @@ function fillVectors<T extends TypedArray>(
 
     // find touching vertices/edges
     for (i = 0; i < sizeA; ++i) {
-        iNext = cycleIndex(i, sizeA, 1);
+        iNext = cycle_index_wasm(i, sizeA, 1);
         pointA.update(polygonA.at(i));
         pointANext.update(polygonA.at(iNext));
 
         for (j = 0; j < sizeB; ++j) {
-            jNext = cycleIndex(j, sizeB, 1);
+            jNext = cycle_index_wasm(j, sizeB, 1);
             pointB.update(polygonB.at(j)).add(offset);
             pointBNext.update(polygonB.at(jNext)).add(offset);
             touch = getTouch(pointA, pointANext, pointB, pointBNext, i, iNext, j, jNext);
@@ -692,10 +692,10 @@ function applyVectors<T extends TypedArray>(
     const currIndexB: number = get_bits_u32(touch, 17, 15);
     const sizeA: number = polygonA.length;
     const sizeB: number = polygonB.length;
-    const prevIndexA = cycleIndex(currIndexA, sizeA, -1); // loop
-    const nextIndexA = cycleIndex(currIndexA, sizeA, 1); // loop
-    const prevIndexB = cycleIndex(currIndexB, sizeB, -1); // loop
-    const nextIndexB = cycleIndex(currIndexB, sizeB, 1); // loop
+    const prevIndexA = cycle_index_wasm(currIndexA, sizeA, -1); // loop
+    const nextIndexA = cycle_index_wasm(currIndexA, sizeA, 1); // loop
+    const prevIndexB = cycle_index_wasm(currIndexB, sizeB, -1); // loop
+    const nextIndexB = cycle_index_wasm(currIndexB, sizeB, 1); // loop
     const pointIndices = pointPool.alloc(7);
     const prevA: Point<T> = pointPool.get(pointIndices, 0);
     const currA: Point<T> = pointPool.get(pointIndices, 1);

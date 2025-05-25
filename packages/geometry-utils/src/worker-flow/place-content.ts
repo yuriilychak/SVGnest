@@ -1,5 +1,5 @@
-import { get_bits_u32, join_u16_to_u32 } from 'wasm-nesting';
-import { generateNFPCacheKey, getPolygonNode, toRotationIndex } from '../helpers';
+import { get_bits_u32, join_u16_to_u32, to_rotation_index_wasm } from 'wasm-nesting';
+import { generateNFPCacheKey, getPolygonNode } from '../helpers';
 import { NFPCache, PolygonNode } from '../types';
 import WorkerContent from './worker-content';
 
@@ -61,7 +61,7 @@ export default class PlaceContent extends WorkerContent {
     }
 
     public getPathKey(index: number): number {
-        return join_u16_to_u32(toRotationIndex(this.nodeAt(index).rotation, this.rotations), this.nodeAt(index).source);
+        return join_u16_to_u32(to_rotation_index_wasm(this.nodeAt(index).rotation, this.rotations), this.nodeAt(index).source);
     }
 
     public get rotations(): number {

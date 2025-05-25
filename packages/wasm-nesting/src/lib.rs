@@ -6,6 +6,8 @@ pub mod utils;
 
 use utils::almost_equal::AlmostEqual;
 use utils::bit_ops::*;
+use utils::math::*;
+use utils::mid_value::MidValue;
 
 fn wrap(index: usize, offset: usize, len: usize) -> usize {
     return (index + offset) % len;
@@ -78,4 +80,19 @@ pub fn get_u16_from_u32(source: u32, index: u8) -> u16 {
 #[wasm_bindgen]
 pub fn join_u16_to_u32(value1: u16, value2: u16) -> u32 {
     join_u16(value1, value2)
+}
+
+#[wasm_bindgen]
+pub fn cycle_index_wasm(index: usize, size: usize, offset: isize) -> usize {
+    cycle_index(index, size, offset)
+}
+
+#[wasm_bindgen]
+pub fn to_rotation_index_wasm(angle: u16, rotation_split: u16) -> u16 {
+    to_rotation_index(angle, rotation_split)
+}
+
+#[wasm_bindgen]
+pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
+    value.mid_value(left, right)
 }

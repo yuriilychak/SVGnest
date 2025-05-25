@@ -1,4 +1,4 @@
-import { set_bits_u32, get_u16_from_u32, almost_equal } from 'wasm-nesting';
+import { set_bits_u32, get_u16_from_u32, almost_equal, to_rotation_index_wasm } from 'wasm-nesting';
 import { NFP_KEY_INDICES, TOL_F32, TOL_F64 } from './constants';
 import { NestConfig, NFPCache, PolygonNode } from './types';
 
@@ -17,27 +17,14 @@ export function almostEqualF32(a: number, b: number = 0, tolerance: number = TOL
     return diff <= tolerance * scale;
 }
 
-
-export function midValue(value: number, leftRange: number, rightRange: number): number {
-    return Math.abs(2 * value - leftRange - rightRange) - Math.abs(leftRange - rightRange);
-}
-
-export function cycleIndex(index: number, size: number, offset: number): number {
-    return (index + size + offset) % size;
-}
-
-export function toRotationIndex(angle: number, rotationSplit: number): number {
-    return Math.round((angle * rotationSplit) / 360);
-}
-
 export function generateNFPCacheKey(
     rotationSplit: number,
     inside: boolean,
     polygon1: PolygonNode,
     polygon2: PolygonNode
 ): number {
-    const rotationIndex1 = toRotationIndex(polygon1.rotation, rotationSplit);
-    const rotationIndex2 = toRotationIndex(polygon2.rotation, rotationSplit);
+    const rotationIndex1 = to_rotation_index_wasm(polygon1.rotation, rotationSplit);
+    const rotationIndex2 = to_rotation_index_wasm(polygon2.rotation, rotationSplit);
     const data = new Uint8Array([polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0]);
     const elementCount: number = data.length;
     let result: number = 0;

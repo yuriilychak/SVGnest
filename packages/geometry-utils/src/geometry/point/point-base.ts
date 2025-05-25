@@ -1,5 +1,6 @@
+import { mid_value_f64 } from 'wasm-nesting';
 import { ANGLE_CACHE, TOL_F64 } from '../../constants';
-import { almostEqual, clipperRound, midValue, slopesEqual } from '../../helpers';
+import { almostEqual, clipperRound, slopesEqual } from '../../helpers';
 import type { Point, TypedArray } from '../../types';
 
 export default abstract class PointBase<T extends TypedArray> implements Point<T> {
@@ -211,8 +212,8 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     }
 
     public onSegment(pointA: Point, pointB: Point): boolean {
-        const midX: number = midValue(this.x, pointA.x, pointB.x);
-        const midY: number = midValue(this.y, pointA.y, pointB.y);
+        const midX: number = mid_value_f64(this.x, pointA.x, pointB.x);
+        const midY: number = mid_value_f64(this.y, pointA.y, pointB.y);
 
         // vertical line
         if (pointA.almostEqualX(pointB) && pointA.almostEqualX(this)) {
@@ -322,10 +323,10 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return !(
             !(isFinite(x) && isFinite(y)) ||
             // coincident points do not count as intersecting
-            (!A.almostEqualX(B) && midValue(x, A.x, B.x) > 0) ||
-            (!A.almostEqualY(B) && midValue(y, A.y, B.y) > 0) ||
-            (!E.almostEqualX(F) && midValue(x, E.x, F.x) > 0) ||
-            (!E.almostEqualY(F) && midValue(y, E.y, F.y) > 0)
+            (!A.almostEqualX(B) && mid_value_f64(x, A.x, B.x) > 0) ||
+            (!A.almostEqualY(B) && mid_value_f64(y, A.y, B.y) > 0) ||
+            (!E.almostEqualX(F) && mid_value_f64(x, E.x, F.x) > 0) ||
+            (!E.almostEqualY(F) && mid_value_f64(y, E.y, F.y) > 0)
         );
     }
 

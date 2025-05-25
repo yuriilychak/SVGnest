@@ -1,7 +1,7 @@
+import { cycle_index_wasm } from 'wasm-nesting';
 import Clipper from './clipper';
 import { getArea } from './helpers';
 import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './types';
-import { cycleIndex } from '../helpers';
 import { PointF32, PointI32 } from '../geometry';
 
 export default class ClipperOffset {
@@ -85,7 +85,7 @@ export default class ClipperOffset {
             const normals: PointF32[] = new Array(pointCount);
             //this.m_normals.set_Capacity(len);
             for (i = 0; i < pointCount; ++i) {
-                normals[i] = PointF32.from(this.srcPolygon[cycleIndex(i, this.srcPolygon.length, 1)])
+                normals[i] = PointF32.from(this.srcPolygon[cycle_index_wasm(i, this.srcPolygon.length, 1)])
                     .sub(this.srcPolygon[i])
                     .normal()
                     .normalize();

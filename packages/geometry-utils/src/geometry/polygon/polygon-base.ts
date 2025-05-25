@@ -1,5 +1,4 @@
-import { polygon_area } from 'wasm-nesting';
-import { cycleIndex } from '../../helpers';
+import { polygon_area, cycle_index_wasm } from 'wasm-nesting';
 import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
 
 export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
@@ -67,7 +66,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
             return null;
         }
 
-        const pointIndex: number = cycleIndex(index, this.pointCount, 0);
+        const pointIndex: number = cycle_index_wasm(index, this.pointCount, 0);
 
         return this.point.bind(this.memSeg, this.getPointOffset(pointIndex));
     }
@@ -86,7 +85,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
 
         for (i = 0; i < pointCount; ++i) {
             currPoint.update(this.at(i));
-            prevPoint.update(this.at(cycleIndex(i, pointCount, -1)));
+            prevPoint.update(this.at(cycle_index_wasm(i, pointCount, -1)));
 
             if (offset !== null) {
                 currPoint.add(offset);
@@ -243,7 +242,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
     }
 
     public get last(): Point<T> {
-        return this.at(cycleIndex(this.length, this.pointCount, -1));
+        return this.at(cycle_index_wasm(this.length, this.pointCount, -1));
     }
 
     public get isBroken(): boolean {
@@ -268,7 +267,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            prevPoint.update(this.at(cycleIndex(i, pointCount, -1)));
+            prevPoint.update(this.at(cycle_index_wasm(i, pointCount, -1)));
             currPoint.update(this.at(i));
             result += (prevPoint.x + currPoint.x) * (prevPoint.y - currPoint.y);
         }
