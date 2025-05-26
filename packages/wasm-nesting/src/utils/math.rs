@@ -13,5 +13,7 @@ pub fn to_rotation_index(angle: u16, rotation_split: u16) -> u16 {
         angle, rotation_split
     );
 
-    ((angle * rotation_split + 180) / 360)
+    (angle * rotation_split + 180) / 360
 }
+
+

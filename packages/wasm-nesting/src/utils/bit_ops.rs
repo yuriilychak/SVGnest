@@ -1,4 +1,4 @@
-use crate::constants::UINT16_BIT_COUNT;
+use crate::constants::{UINT16_BIT_COUNT, MAX_U32_BITS};
 
 #[inline(always)]
 fn get_mask(bit_count: u8, offset: u8) -> u32 {
@@ -24,4 +24,10 @@ pub fn get_u16(source: u32, index: u8) -> u16 {
 #[inline(always)]
 pub fn join_u16(value1: u16, value2: u16) -> u32 {
     (value1 as u32) | ((value2 as u32) << UINT16_BIT_COUNT)
+}
+
+#[inline(always)]
+pub fn highest_bit_index(mask: u32) -> u8 {
+    debug_assert!(mask != 0, "highest_bit_index called with 0");
+    MAX_U32_BITS - (mask.leading_zeros() as u8)
 }
