@@ -14,12 +14,6 @@ use utils::bit_ops::*;
 use utils::math::*;
 use utils::mid_value::MidValue;
 
-use web_sys::console;
-
-pub fn debug_log(msg: &str) {
-    console::log_1(&msg.into());
-}
-
 fn wrap(index: usize, offset: usize, len: usize) -> usize {
     return (index + offset) % len;
 }

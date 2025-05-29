@@ -20,13 +20,13 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
         config.f32 = {
             pointPool: pool32,
             memSeg: new Float32Array(config.buffer, pool32.size),
-            polygons: new Array(WORKER_CONFIG_POLY_COUNT).fill(null).map(() => PolygonF32.create())
+            polygons: new Array(WORKER_CONFIG_POLY_COUNT).fill(null).map(() => new PolygonF32())
         }
 
         config.f64 = {
             pointPool: pool64,
             memSeg: new Float64Array(config.buffer, pool64.size),
-            polygons: new Array(WORKER_CONFIG_POLY_COUNT).fill(null).map(() => PolygonF64.create())
+            polygons: new Array(WORKER_CONFIG_POLY_COUNT).fill(null).map(() => new PolygonF64())
         };
     }
 

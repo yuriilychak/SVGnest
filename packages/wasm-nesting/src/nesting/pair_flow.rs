@@ -35,7 +35,7 @@ pub fn point_distance<T: Number>(
         let s2dotnorm = (*normal).dot(s2);
 
         if !infinite {
-            if T::mid_value(pdot, s1dot, s2dot) > T::from_f64(TOL_F64).unwrap() {
+            if T::mid_value(pdot, s1dot, s2dot) > T::tol() {
                 pool.malloc(indices);
                 return f64::NAN;
             }
@@ -62,7 +62,7 @@ pub fn point_distance<T: Number>(
     }
 }
 
-pub fn coincedent_distance<T: Number>(
+fn coincedent_distance<T: Number>(
     pool: &mut PointPool<T>,
     point1: *const Point<T>,
     point2: *const Point<T>,

@@ -24,7 +24,7 @@ export default class GeneticAlgorithm {
         this.#binBounds = bounds;
 
         // initiate new GA
-        const polygon: PolygonF32 = PolygonF32.create();
+        const polygon: PolygonF32 = new PolygonF32();
         const adam: PolygonNode[] = nodes.slice();
         let areaA: number = 0;
         let areaB: number = 0;
@@ -67,7 +67,7 @@ export default class GeneticAlgorithm {
 
     // returns a mutated individual with the given mutation rate
     private mutate(individual: Phenotype): Phenotype {
-        const polygon: PolygonF32 = PolygonF32.create();
+        const polygon: PolygonF32 = new PolygonF32();
         const clone: Phenotype = individual.clone();
         const size: number = clone.size;
         let i: number = 0;

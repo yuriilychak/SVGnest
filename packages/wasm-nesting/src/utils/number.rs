@@ -1,11 +1,12 @@
-use std::ops::{Add, Sub, Mul, Div, Neg};
-use num_traits::{Num, FromPrimitive, ToPrimitive};
 use crate::utils::{
     almost_equal::AlmostEqual,
+    interpolate::Interpolate,
     mid_value::MidValue,
     round::{ClipperRound, Round},
-    interpolate::Interpolate,
 };
+use crate::constants::{TOL_F32, TOL_F64};
+use num_traits::{FromPrimitive, Num, ToPrimitive};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 pub trait Number:
     Num
@@ -26,6 +27,7 @@ pub trait Number:
 {
     fn min_num(self, other: Self) -> Self;
     fn max_num(self, other: Self) -> Self;
+    fn tol() -> Self;
 }
 
 impl Number for f64 {
@@ -37,6 +39,8 @@ impl Number for f64 {
     fn max_num(self, other: Self) -> Self {
         self.max(other)
     }
+    #[inline(always)]
+    fn tol() -> Self { TOL_F64 }
 }
 
 impl Number for f32 {
@@ -48,6 +52,8 @@ impl Number for f32 {
     fn max_num(self, other: Self) -> Self {
         self.max(other)
     }
+    #[inline(always)]
+    fn tol() -> Self { TOL_F32 }
 }
 
 impl Number for i32 {
@@ -59,4 +65,6 @@ impl Number for i32 {
     fn max_num(self, other: Self) -> Self {
         self.max(other)
     }
+    #[inline(always)]
+    fn tol() -> Self { 0 }
 }

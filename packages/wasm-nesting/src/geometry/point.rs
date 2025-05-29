@@ -50,6 +50,16 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
+    pub unsafe fn max(&self, other: *const Self) -> *mut Self {
+        self.set(self.x().max_num((*other).x()), self.y().max_num((*other).y()))
+    }
+
+    #[inline(always)]
+    pub unsafe fn min(&self, other: *const Self) -> *mut Self {
+        self.set(self.x().min_num((*other).x()), self.y().min_num((*other).y()))
+    }
+
+    #[inline(always)]
     pub unsafe fn scale_up(&self, value: T) -> *mut Self {
         self.set(self.x() * value, self.y() * value)
     }
@@ -80,9 +90,19 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
-    pub unsafe fn almost_equal(&self, other: *const Self, tolerance: T) -> bool {
+    pub unsafe fn almost_equal_x(&self, other: *const Self, tolerance: T) -> bool {
         self.x().almost_equal((*other).x(), Some(tolerance))
-            && self.y().almost_equal((*other).y(), Some(tolerance))
+    }
+
+    #[inline(always)]
+    pub unsafe fn almost_equal_y(&self, other: *const Self, tolerance: T) -> bool {
+        self.y().almost_equal((*other).y(), Some(tolerance))
+    }
+
+    #[inline(always)]
+    pub unsafe fn almost_equal(&self, other: *const Self, tolerance: T) -> bool {
+        self.almost_equal_x(other, tolerance)
+            && self.almost_equal_y(other, tolerance)
     }
 
     #[inline(always)]
