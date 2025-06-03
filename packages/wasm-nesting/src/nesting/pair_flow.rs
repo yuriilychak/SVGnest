@@ -1,10 +1,12 @@
 use crate::constants::TOL_F64;
 use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
+use crate::geometry::polygon::Polygon;
 use crate::utils::almost_equal::AlmostEqual;
+use crate::utils::math::cycle_index;
 use crate::utils::number::Number;
 
-pub fn point_distance<T: Number>(
+fn point_distance<T: Number>(
     pool: &mut PointPool<T>,
     p: *const Point<T>,
     s1: *const Point<T>,
@@ -104,7 +106,7 @@ fn coincedent_distance<T: Number>(
     }
 }
 
-pub fn segment_distance<T: Number>(
+fn segment_distance<T: Number>(
     pool: &mut PointPool<T>,
     a: *const Point<T>,
     b: *const Point<T>,
@@ -245,5 +247,128 @@ pub fn segment_distance<T: Number>(
         pool.malloc(shared_point_indices);
 
         result
+    }
+}
+
+pub fn polygon_projection_distance<T: Number>(
+    pool: &mut PointPool<T>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    direction: *const Point<T>,
+    offset: *const Point<T>,
+) -> f64 {
+    let size_a = unsafe { (*polygon_a).length() };
+    let size_b = unsafe { (*polygon_b).length() };
+
+    let point_indices = pool.alloc(4);
+    let p = pool.get(point_indices, 0);
+    let s1 = pool.get(point_indices, 1);
+    let s2 = pool.get(point_indices, 2);
+    let s_offset = pool.get(point_indices, 3);
+
+    let mut result = f64::NAN;
+
+    for i in 0..size_b {
+        let mut min_projection = f64::NAN;
+
+        // p = polygonB.at(i) + offset
+        unsafe {
+            (*p).update(&*(*polygon_b).at(i));
+            (*p).add(&*offset);
+        }
+
+        for j in 0..(size_a - 1) {
+            unsafe {
+                (*s1).update(&*(*polygon_a).at(j));
+                (*s2).update(&*(*polygon_a).at(cycle_index(j, size_a, 1)));
+                (*s_offset).update(s2);
+                (*s_offset).sub(s1);
+
+                if (*s_offset)
+                    .cross(&*direction)
+                    .almost_equal(T::zero(), Some(T::tol()))
+                {
+                    continue;
+                }
+
+                let d = point_distance(pool, p, s1, s2, direction, false);
+
+                if !d.is_nan() && (min_projection.is_nan() || d < min_projection) {
+                    min_projection = d;
+                }
+            }
+        }
+
+        if !min_projection.is_nan() && (result.is_nan() || min_projection > result) {
+            result = min_projection;
+        }
+    }
+
+    pool.malloc(point_indices);
+
+    result
+}
+
+pub fn polygon_slide_distance<T: Number>(
+    pool: &mut PointPool<T>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    direction: *const Point<T>,
+    offset: *const Point<T>,
+) -> f64 {
+    let point_indices = pool.alloc(5);
+    let a1 = pool.get(point_indices, 0);
+    let a2 = pool.get(point_indices, 1);
+    let b1 = pool.get(point_indices, 2);
+    let b2 = pool.get(point_indices, 3);
+    let dir = pool.get(point_indices, 4);
+
+    let mut distance = f64::NAN;
+
+    unsafe {
+        (*dir).update(&*direction);
+        (*dir).normalize();
+
+        let size_a = (*polygon_a).length();
+        let size_b = (*polygon_b).length();
+
+        for i in 0..size_b {
+            (*b1).update(&*(*polygon_b).at(i));
+            (*b1).add(&*offset);
+            (*b2).update(&*(*polygon_b).at(cycle_index(i, size_b, 1)));
+            (*b2).add(&*offset);
+
+            for j in 0..size_a {
+                (*a1).update(&*(*polygon_a).at(j));
+                (*a2).update(&*(*polygon_a).at(cycle_index(j, size_a, 1)));
+
+                if (*a1).almost_equal(a2, T::tol()) || (*b1).almost_equal(b2, T::tol()) {
+                    continue;
+                }
+
+                let d = segment_distance(
+                    pool,
+                    a1 as *const Point<T>,
+                    a2 as *const Point<T>,
+                    b1 as *const Point<T>,
+                    b2 as *const Point<T>,
+                    dir as *const Point<T>,
+                );
+
+                if !d.is_nan() && (distance.is_nan() || d < distance) {
+                    if d > 0.0 || d.almost_equal(0.0, Some(f64::tol())) {
+                        distance = d;
+                    }
+                }
+            }
+        }
+    }
+
+    pool.malloc(point_indices);
+
+    if distance.is_nan() {
+        distance
+    } else {
+        distance.max(0.0)
     }
 }

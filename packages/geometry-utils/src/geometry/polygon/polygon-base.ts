@@ -71,6 +71,10 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
         return this.point.bind(this.memSeg, this.getPointOffset(pointIndex));
     }
 
+    public export(): T {
+        return this.memSeg.slice(this.offset, this.offset + (this.pointCount << 1)) as T;
+    }
+
     public pointIn(point: Point, offset: Point = null): boolean {
         if (this.isBroken) {
             return null;

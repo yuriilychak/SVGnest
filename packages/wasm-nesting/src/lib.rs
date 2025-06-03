@@ -8,7 +8,11 @@ pub mod utils;
 
 use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
-use crate::nesting::pair_flow::{point_distance, segment_distance};
+use crate::geometry::polygon::Polygon;
+use crate::nesting::pair_flow::{
+    polygon_projection_distance, polygon_slide_distance,
+};
+
 use utils::almost_equal::AlmostEqual;
 use utils::bit_ops::*;
 use utils::math::*;
@@ -103,67 +107,99 @@ pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
 }
 
 #[wasm_bindgen]
-pub fn point_distance_f64(input: &[f64]) -> f64 {
-    assert!(
-        input.len() == 9,
-        "Input must have exactly 9 elements: 4 points (x, y) + bool"
-    );
+pub fn polygon_projection_distance_f64(
+    poly_a: &[f64],
+    poly_b: &[f64],
+    direction: &[f64],
+    offset: &[f64],
+    closed_a: bool,
+    closed_b: bool,
+) -> f64 {
+    let count_a = poly_a.len() / 2;
+    let count_b = poly_b.len() / 2;
 
-    // Окремі буфери для кожної точки
-    let mut buf_p = [input[0], input[1]];
-    let mut buf_s1 = [input[2], input[3]];
-    let mut buf_s2 = [input[4], input[5]];
-    let mut buf_normal = [input[6], input[7]];
+    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
+    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
 
-    let p = Point::<f64>::new(buf_p.as_mut_ptr(), 0);
-    let s1 = Point::<f64>::new(buf_s1.as_mut_ptr(), 0);
-    let s2 = Point::<f64>::new(buf_s2.as_mut_ptr(), 0);
-    let input_normal = Point::<f64>::new(buf_normal.as_mut_ptr(), 0);
+    let mut polygon_a = Polygon::<f64>::new();
+    unsafe {
+        polygon_a.bind(buf_a, 0, count_a);
 
-    // 2 тимчасові точки в пулі (максимум 32, але нам достатньо 2)
+        if closed_a {
+            polygon_a.close();
+        }
+    }
+
+    let mut polygon_b = Polygon::<f64>::new();
+    unsafe {
+        polygon_b.bind(buf_b, 0, count_b);
+
+        if closed_b {
+            polygon_b.close();
+        }
+    }
+
+    let mut buf_direction = [direction[0], direction[1]];
+    let mut buf_offset = [offset[0], offset[1]];
+    let direction_point = Point::<f64>::new(buf_direction.as_mut_ptr(), 0);
+    let offset_point = Point::<f64>::new(buf_offset.as_mut_ptr(), 0);
     let mut pool = PointPool::<f64>::new();
 
-    let infinite = input[8] != 0.0;
-
-    // Передаємо поінтери (raw pointers) на точки
-    point_distance(
+    let result = polygon_projection_distance(
         &mut pool,
-        &p as *const Point<f64>,
-        &s1 as *const Point<f64>,
-        &s2 as *const Point<f64>,
-        &input_normal as *const Point<f64>,
-        infinite,
-    )
+        &mut polygon_a as *mut Polygon<f64>,
+        &mut polygon_b as *mut Polygon<f64>,
+        &direction_point as *const Point<f64>,
+        &offset_point as *const Point<f64>,
+    );
+
+    result
 }
 
 #[wasm_bindgen]
-pub fn segment_distance_f64(input: &[f64]) -> f64 {
-    assert!(
-        input.len() == 10,
-        "Input must have exactly 10 elements: 5 points (x, y)"
-    );
+pub fn polygon_slide_distance_f64(
+    poly_a: &[f64],
+    poly_b: &[f64],
+    direction: &[f64],
+    offset: &[f64],
+    closed_a: bool,
+    closed_b: bool,
+) -> f64 {
+    let count_a = poly_a.len() / 2;
+    let count_b = poly_b.len() / 2;
 
-    // Кожна точка у власному локальному буфері
-    let mut buf_a = [input[0], input[1]];
-    let mut buf_b = [input[2], input[3]];
-    let mut buf_e = [input[4], input[5]];
-    let mut buf_f = [input[6], input[7]];
-    let mut buf_direction = [input[8], input[9]];
+    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
+    let mut polygon_b = Polygon::<f64>::new();
+    unsafe {
+        polygon_b.bind(buf_b, 0, count_b);
 
-    let a = Point::<f64>::new(buf_a.as_mut_ptr(), 0);
-    let b = Point::<f64>::new(buf_b.as_mut_ptr(), 0);
-    let e = Point::<f64>::new(buf_e.as_mut_ptr(), 0);
-    let f = Point::<f64>::new(buf_f.as_mut_ptr(), 0);
-    let direction = Point::<f64>::new(buf_direction.as_mut_ptr(), 0);
+        if closed_b {
+            polygon_b.close();
+        }
+    }
+
+    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
+    let mut polygon_a = Polygon::<f64>::new();
+    unsafe {
+        polygon_a.bind(buf_a, 0, count_a);
+
+        if closed_a {
+            polygon_a.close();
+        }
+    }
+
+    let mut buf_direction = [direction[0], direction[1]];
+    let mut buf_offset = [offset[0], offset[1]];
+    let direction_point = Point::<f64>::new(buf_direction.as_mut_ptr(), 0);
+    let offset_point = Point::<f64>::new(buf_offset.as_mut_ptr(), 0);
 
     let mut pool = PointPool::<f64>::new();
 
-    segment_distance(
+    polygon_slide_distance(
         &mut pool,
-        &a as *const Point<f64>,
-        &b as *const Point<f64>,
-        &e as *const Point<f64>,
-        &f as *const Point<f64>,
-        &direction as *const Point<f64>,
+        &mut polygon_a as *mut Polygon<f64>,
+        &mut polygon_b as *mut Polygon<f64>,
+        &direction_point as *const Point<f64>,
+        &offset_point as *const Point<f64>,
     )
 }

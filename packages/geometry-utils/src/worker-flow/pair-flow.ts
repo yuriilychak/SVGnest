@@ -1,4 +1,4 @@
-import { set_bits_u32, get_bits_u32, cycle_index_wasm, point_distance_f64, segment_distance_f64 } from 'wasm-nesting';
+import { set_bits_u32, get_bits_u32, cycle_index_wasm, polygon_projection_distance_f64, polygon_slide_distance_f64 } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
 import { PointBase } from '../geometry';
 import { TOL_F64 } from '../constants';
@@ -131,21 +131,6 @@ function intersect<T extends TypedArray>(
     return false;
 }
 
-function pointDistance<T extends TypedArray>(
-    pointPool: PointPool<T>,
-    p: Point<T>,
-    s1: Point<T>,
-    s2: Point<T>,
-    inputNormal: Point<T>,
-    infinite: boolean = false
-): number {
-    return point_distance_f64(new Float64Array([p.x, p.y, s1.x, s1.y, s2.x, s2.y, inputNormal.x, inputNormal.y, Number(infinite)]));
-}
-
-function segmentDistance<T extends TypedArray>(pointPool: PointPool<T>, A: Point<T>, B: Point<T>, E: Point<T>, F: Point<T>, direction: Point<T>): number {
-    return segment_distance_f64(new Float64Array([A.x, A.y, B.x, B.y, E.x, E.y, F.x, F.y, direction.x, direction.y]));
-}
-
 function polygonSlideDistance<T extends TypedArray>(
     pointPool: PointPool<T>,
     polygonA: Polygon<T>,
@@ -153,44 +138,7 @@ function polygonSlideDistance<T extends TypedArray>(
     direction: Point<T>,
     offset: Point<T>
 ): number {
-    const pointIndices: number = pointPool.alloc(5);
-    const a1: Point<T> = pointPool.get(pointIndices, 0);
-    const a2: Point<T> = pointPool.get(pointIndices, 1);
-    const b1: Point<T> = pointPool.get(pointIndices, 2);
-    const b2: Point<T> = pointPool.get(pointIndices, 3);
-    const dir = pointPool.get(pointIndices, 4).update(direction).normalize();
-    const sizeA: number = polygonA.length;
-    const sizeB: number = polygonB.length;
-    let distance: number = NaN;
-    let d: number = 0;
-    let i: number = 0;
-    let j: number = 0;
-
-    for (i = 0; i < sizeB; ++i) {
-        b1.update(polygonB.at(i)).add(offset);
-        b2.update(polygonB.at(cycle_index_wasm(i, sizeB, 1))).add(offset);
-
-        for (j = 0; j < sizeA; ++j) {
-            a1.update(polygonA.at(j));
-            a2.update(polygonA.at(cycle_index_wasm(j, sizeA, 1)));
-
-            if (a1.almostEqual(a2) || b1.almostEqual(b2)) {
-                continue; // ignore extremely small lines
-            }
-
-            d = segmentDistance(pointPool, a1, a2, b1, b2, dir);
-
-            if (!Number.isNaN(d) && (Number.isNaN(distance) || d < distance)) {
-                if (d > 0 || almostEqual(d)) {
-                    distance = d;
-                }
-            }
-        }
-    }
-
-    pointPool.malloc(pointIndices);
-
-    return Number.isNaN(distance) ? distance : Math.max(distance, 0);
+    return polygon_slide_distance_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, direction.export() as Float64Array, offset.export() as Float64Array, polygonA.isClosed, polygonB.isClosed);
 }
 
 // project each point of B onto A in the given direction, and return the
@@ -201,49 +149,7 @@ function polygonProjectionDistance<T extends TypedArray>(
     direction: Point<T>,
     offset: Point<T>
 ): number {
-    const sizeA: number = polygonA.length;
-    const sizeB: number = polygonB.length;
-    const pointIndices: number = pointPool.alloc(4);
-    const p: Point<T> = pointPool.get(pointIndices, 0);
-    const s1: Point<T> = pointPool.get(pointIndices, 1);
-    const s2: Point<T> = pointPool.get(pointIndices, 2);
-    const sOffset: Point<T> = pointPool.get(pointIndices, 3);
-    let result: number = NaN;
-    let d: number = 0;
-    let i: number = 0;
-    let j: number = 0;
-    let minProjection: number = 0;
-
-    for (i = 0; i < sizeB; ++i) {
-        // the shortest/most negative projection of B onto A
-        minProjection = NaN;
-        p.update(polygonB.at(i)).add(offset);
-
-        for (j = 0; j < sizeA - 1; ++j) {
-            s1.update(polygonA.at(j));
-            s2.update(polygonA.at(cycle_index_wasm(j, sizeA, 1)));
-            sOffset.update(s2).sub(s1);
-
-            if (almostEqual(sOffset.cross(direction))) {
-                continue;
-            }
-
-            // project point, ignore edge boundaries
-            d = pointDistance(pointPool, p, s1, s2, direction);
-
-            if (!Number.isNaN(d) && (Number.isNaN(minProjection) || d < minProjection)) {
-                minProjection = d;
-            }
-        }
-
-        if (!Number.isNaN(minProjection) && (Number.isNaN(result) || minProjection > result)) {
-            result = minProjection;
-        }
-    }
-
-    pointPool.malloc(pointIndices);
-
-    return result;
+    return polygon_projection_distance_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, direction.export() as Float64Array, offset.export() as Float64Array, polygonA.isClosed, polygonB.isClosed);
 }
 
 // returns an interior NFP for the special case where A is a rectangle

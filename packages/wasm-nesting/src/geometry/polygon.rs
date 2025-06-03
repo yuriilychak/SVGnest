@@ -17,9 +17,11 @@ pub struct Polygon<T: Number> {
 
 impl<T: Number> Polygon<T> {
     pub fn new() -> Self {
-        let mut cursor_buf = [T::zero(), T::zero()];
-        let cursor = Point::new(cursor_buf.as_mut_ptr(), 0);
-        Self {
+        // 1) Спочатку створюємо cursor_buf як поле структури:
+        let cursor_buf = [T::zero(), T::zero()];
+
+        // 2) Створюємо самої структуру Polygon з тимчасовим cursor (null-pointer):
+        let mut poly = Polygon {
             buffer: None,
             offset: 0,
             point_count: 0,
@@ -27,9 +29,17 @@ impl<T: Number> Polygon<T> {
             closed_dirty: false,
             rectangle: false,
             bounds: BoundRect::new(T::zero(), T::zero(), T::zero(), T::zero()),
+
             cursor_buf,
-            cursor,
-        }
+            cursor: Point::new(std::ptr::null_mut(), 0),
+        };
+
+        // 3) Як тільки cursor_buf стало полем Polygon,
+        //    змінюємо cursor, щоб він справді «дивився» у cursor_buf:
+        let ptr = poly.cursor_buf.as_mut_ptr();
+        poly.cursor = Point::new(ptr, 0);
+
+        poly
     }
 
     pub unsafe fn bind(&mut self, buffer: Box<[T]>, offset: usize, point_count: usize) {
@@ -56,13 +66,11 @@ impl<T: Number> Polygon<T> {
         if let Some(ref buf) = self.buffer {
             let point_index = cycle_index(index, self.point_count, 0);
             let idx = self.offset + (point_index << 1);
-            self.cursor_buf[0] = buf[idx];
-            self.cursor_buf[1] = buf[idx + 1];
+
+            self.cursor.set(buf[idx], buf[idx + 1])
         } else {
-            self.cursor_buf[0] = T::zero();
-            self.cursor_buf[1] = T::zero();
+            self.cursor.set(T::zero(), T::zero())
         }
-        &self.cursor as *const Point<T>
     }
 
     pub unsafe fn first(&mut self) -> *const Point<T> {

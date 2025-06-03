@@ -145,6 +145,8 @@ export interface Polygon<T extends TypedArray = TypedArray> {
 
     normalize(): T;
 
+    export(): T;
+
     readonly length: number;
 
     readonly first: Point<T>;

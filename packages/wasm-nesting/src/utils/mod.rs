@@ -5,3 +5,4 @@ pub mod math;
 pub mod mid_value;
 pub mod number;
 pub mod round;
+pub mod wasm_logger;
