@@ -1,4 +1,4 @@
-import { set_bits_u32, get_bits_u32, cycle_index_wasm, polygon_projection_distance_f64, polygon_slide_distance_f64 } from 'wasm-nesting';
+import { set_bits_u32, get_bits_u32, cycle_index_wasm, polygon_projection_distance_f64, polygon_slide_distance_f64, no_fit_polygon_rectangle_f64, intersect_f64 } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
 import { PointBase } from '../geometry';
 import { TOL_F64 } from '../constants';
@@ -7,55 +7,7 @@ import { VECTOR_MEM_OFFSET } from './ constants';
 import PairContent from './pair-content';
 import type { Point, PolygonNode, Polygon, PointPool, TypedArray } from '../types';
 
-// old-todo: swap this for a more efficient sweep-line implementation
-// returnEdges: if set, return all edges on A that have intersections
 
-function updateIntersectPoint<T extends TypedArray>(point: Point<T>, polygon: Polygon<T>, index: number, offset: number): void {
-    const pointCount: number = polygon.length;
-    let currentIndex = cycle_index_wasm(index, pointCount, offset);
-
-    point.update(polygon.at(index));
-
-    // go even further back if we happen to hit on a loop end point
-    if (point.almostEqual(polygon.at(currentIndex))) {
-        currentIndex = cycle_index_wasm(currentIndex, pointCount, offset);
-        point.update(polygon.at(currentIndex));
-    }
-}
-
-function getSegmentCheck<T extends TypedArray>(
-    point: Point<T>,
-    polygon: Polygon<T>,
-    segmentStart: Point<T>,
-    segmentEnd: Point<T>,
-    checkStart: Point<T>,
-    checkEnd: Point<T>,
-    target: Point<T>,
-    offset: Point<T>
-): SegmentCheck<T> {
-    return { point, polygon, segmentStart, segmentEnd, checkStart, checkEnd, target, offset };
-}
-
-function getSegmentStats<T extends TypedArray>({
-    point,
-    segmentStart,
-    segmentEnd,
-    target,
-    polygon,
-    checkStart,
-    checkEnd,
-    offset
-}: SegmentCheck<T>): boolean {
-    if (point.onSegment(segmentStart, segmentEnd) || point.almostEqual(target)) {
-        // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-        const pointIn1 = polygon.pointIn(checkStart, offset);
-        const pointIn2 = polygon.pointIn(checkEnd, offset);
-
-        return pointIn1 !== null && pointIn2 !== null && pointIn1 !== pointIn2;
-    }
-
-    return null;
-}
 
 function intersect<T extends TypedArray>(
     pointPool: PointPool<T>, 
@@ -63,72 +15,7 @@ function intersect<T extends TypedArray>(
     polygonB: Polygon<T>, 
     offset: Point<T>
 ): boolean {
-    const pointIndices: number = pointPool.alloc(9);
-    const a0: Point<T> = pointPool.get(pointIndices, 0);
-    const a1: Point<T> = pointPool.get(pointIndices, 1);
-    const a2: Point<T> = pointPool.get(pointIndices, 2);
-    const a3: Point<T> = pointPool.get(pointIndices, 3);
-    const b0: Point<T> = pointPool.get(pointIndices, 4);
-    const b1: Point<T> = pointPool.get(pointIndices, 5);
-    const b2: Point<T> = pointPool.get(pointIndices, 6);
-    const b3: Point<T> = pointPool.get(pointIndices, 7);
-    const offsetA: Point<T> = pointPool.get(pointIndices, 8).set(0, 0);
-    const pointCountA: number = polygonA.length;
-    const pointCountB: number = polygonB.length;
-    const segmentChecks: SegmentCheck<T>[] = [
-        getSegmentCheck(b1, polygonA, a1, a2, b0, b2, a1, offset),
-        getSegmentCheck(b2, polygonA, a1, a2, b1, b3, a2, offset),
-        getSegmentCheck(a1, polygonB, b1, b2, a0, a2, b2, offsetA),
-        getSegmentCheck(a2, polygonB, b1, b2, a1, a3, a1, offsetA)
-    ];
-    const segmentCheckCount = segmentChecks.length;
-    let i: number = 0;
-    let j: number = 0;
-    let k: number = 0;
-    let segmentStats: boolean = false;
-
-    for (i = 0; i < pointCountA - 1; ++i) {
-        a1.update(polygonA.at(i));
-        a2.update(polygonA.at(i + 1));
-
-        updateIntersectPoint(a0, polygonA, i, -1);
-        updateIntersectPoint(a3, polygonA, i + 1, 1);
-
-        for (j = 0; j < pointCountB - 1; ++j) {
-            b1.update(polygonB.at(j));
-            b2.update(polygonB.at(j + 1));
-
-            updateIntersectPoint(b0, polygonB, j, -1);
-            updateIntersectPoint(b3, polygonB, j + 1, 1);
-
-            b0.add(offset);
-            b1.add(offset);
-            b3.add(offset);
-            b2.add(offset);
-
-            segmentStats = null;
-
-            for (k = 0; k < segmentCheckCount; ++k) {
-                segmentStats = getSegmentStats(segmentChecks[k]);
-
-                if (segmentStats !== null) {
-                    break;
-                }
-            }
-
-            if (segmentStats || (segmentStats === null && PointBase.lineIntersect(b1, b2, a1, a2))) {
-                pointPool.malloc(pointIndices);
-
-                return true;
-            } else if (segmentStats === false) {
-                continue;
-            }
-        }
-    }
-
-    pointPool.malloc(pointIndices);
-
-    return false;
+    return intersect_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array);
 }
 
 function polygonSlideDistance<T extends TypedArray>(
@@ -154,22 +41,7 @@ function polygonProjectionDistance<T extends TypedArray>(
 
 // returns an interior NFP for the special case where A is a rectangle
 function noFitPolygonRectangle<T extends TypedArray>(pointPool: PointPool<T>, A: Polygon<T>, B: Polygon<T>): Float32Array[] {
-    const pointIndices = pointPool.alloc(2);
-    const minDiff = pointPool.get(pointIndices, 0).update(A.position).sub(B.position);
-    const maxDiff = pointPool.get(pointIndices, 1).update(A.size).sub(B.size);
-
-    if (maxDiff.x <= 0 || maxDiff.y <= 0) {
-        return [];
-    }
-
-    minDiff.add(B.first);
-    maxDiff.add(minDiff);
-
-    const result = [new Float32Array([minDiff.x, minDiff.y, maxDiff.x, minDiff.y, maxDiff.x, maxDiff.y, minDiff.x, maxDiff.y])];
-
-    pointPool.malloc(pointIndices);
-
-    return result;
+    return [no_fit_polygon_rectangle_f64(A.export() as Float64Array, B.export() as Float64Array)];
 }
 
 // returns true if point already exists in the given nfp

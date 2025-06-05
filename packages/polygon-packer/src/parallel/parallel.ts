@@ -1,7 +1,7 @@
 ﻿export default class Parallel {
     #threadsUsage: boolean[];
 
-    #threadCount: number;
+    #threadCount: number = 1;
 
     #threads: Worker[];
 

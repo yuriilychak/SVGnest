@@ -251,7 +251,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
 
         const len2 = pointA.len2(pointB);
 
-        return !(dot > len2 || almostEqual(dot, len2));
+        return dot < len2 && !almostEqual(dot, len2);
     }
 
     public get x(): number {
@@ -320,14 +320,12 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
                 return null;
             }*/
     
-        return !(
-            !(isFinite(x) && isFinite(y)) ||
+        return (isFinite(x) && isFinite(y)) &&
             // coincident points do not count as intersecting
-            (!A.almostEqualX(B) && mid_value_f64(x, A.x, B.x) > 0) ||
-            (!A.almostEqualY(B) && mid_value_f64(y, A.y, B.y) > 0) ||
-            (!E.almostEqualX(F) && mid_value_f64(x, E.x, F.x) > 0) ||
-            (!E.almostEqualY(F) && mid_value_f64(y, E.y, F.y) > 0)
-        );
+            (A.almostEqualX(B) || mid_value_f64(x, A.x, B.x) <= 0) &&
+            (A.almostEqualY(B) || mid_value_f64(y, A.y, B.y) <= 0) &&
+            (E.almostEqualX(F) || mid_value_f64(x, E.x, F.x) <= 0) &&
+            (E.almostEqualY(F) || mid_value_f64(y, E.y, F.y) <= 0);
     }
 
     private static LOW_RANGE = 47453132; // sqrt(2^53 -1)/2

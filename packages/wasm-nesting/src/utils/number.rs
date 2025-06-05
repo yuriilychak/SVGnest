@@ -5,7 +5,7 @@ use crate::utils::{
     round::{ClipperRound, Round},
 };
 use crate::constants::{TOL_F32, TOL_F64};
-use num_traits::{FromPrimitive, Num, ToPrimitive};
+use num_traits::{FromPrimitive, Num, ToPrimitive, Signed};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 pub trait Number:
@@ -19,6 +19,7 @@ pub trait Number:
     + ClipperRound
     + Round
     + Interpolate
+    + Signed
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>

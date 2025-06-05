@@ -1,5 +1,6 @@
 use std::arch::wasm32::*;
 use wasm_bindgen::prelude::*;
+use web_sys::js_sys::Float32Array;
 
 pub mod constants;
 pub mod geometry;
@@ -10,7 +11,7 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::nesting::pair_flow::{
-    polygon_projection_distance, polygon_slide_distance,
+    intersect, no_fit_polygon_rectangle, polygon_projection_distance, polygon_slide_distance,
 };
 
 use utils::almost_equal::AlmostEqual;
@@ -139,10 +140,8 @@ pub fn polygon_projection_distance_f64(
         }
     }
 
-    let mut buf_direction = [direction[0], direction[1]];
-    let mut buf_offset = [offset[0], offset[1]];
-    let direction_point = Point::<f64>::new(buf_direction.as_mut_ptr(), 0);
-    let offset_point = Point::<f64>::new(buf_offset.as_mut_ptr(), 0);
+    let direction_point = Point::<f64>::new(Some(direction[0]), Some(direction[1]));
+    let offset_point = Point::<f64>::new(Some(offset[0]), Some(offset[1]));
     let mut pool = PointPool::<f64>::new();
 
     let result = polygon_projection_distance(
@@ -188,11 +187,8 @@ pub fn polygon_slide_distance_f64(
         }
     }
 
-    let mut buf_direction = [direction[0], direction[1]];
-    let mut buf_offset = [offset[0], offset[1]];
-    let direction_point = Point::<f64>::new(buf_direction.as_mut_ptr(), 0);
-    let offset_point = Point::<f64>::new(buf_offset.as_mut_ptr(), 0);
-
+    let direction_point = Point::<f64>::new(Some(direction[0]), Some(direction[1]));
+    let offset_point = Point::<f64>::new(Some(offset[0]), Some(offset[1]));
     let mut pool = PointPool::<f64>::new();
 
     polygon_slide_distance(
@@ -202,4 +198,83 @@ pub fn polygon_slide_distance_f64(
         &direction_point as *const Point<f64>,
         &offset_point as *const Point<f64>,
     )
+}
+
+#[wasm_bindgen]
+pub fn no_fit_polygon_rectangle_f64(poly_a: &[f64], poly_b: &[f64]) -> Float32Array {
+    // Розмір у точках (дві координати на точку)
+    let count_a = poly_a.len() / 2;
+    let count_b = poly_b.len() / 2;
+
+    // Створюємо Box<[f64]> для A і B, щоб передати в Polygon
+    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
+    let mut polygon_a = Polygon::<f64>::new();
+
+    unsafe {
+        polygon_a.bind(buf_a, 0, count_a);
+    }
+
+    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
+    let mut polygon_b = Polygon::<f64>::new();
+
+    unsafe {
+        polygon_b.bind(buf_b, 0, count_b);
+    }
+
+    let mut pool = PointPool::<f64>::new();
+
+    let vec_rects: Vec<[f32; 8]> = unsafe {
+        no_fit_polygon_rectangle(
+            &mut pool,
+            &mut polygon_a as *mut Polygon<f64>,
+            &mut polygon_b as *mut Polygon<f64>,
+        )
+    };
+
+    // Якщо результат порожній, повертаємо пустий Float32Array
+    if vec_rects.is_empty() {
+        Float32Array::new_with_length(0)
+    } else {
+        // vec_rects містить рівно один елемент [f32; 8]
+        let arr = &vec_rects[0];
+        let result = Float32Array::new_with_length(8);
+        result.copy_from(arr);
+        result
+    }
+}
+
+#[wasm_bindgen]
+pub fn intersect_f64(poly_a: &[f64], poly_b: &[f64], offset: &[f64]) -> bool {
+    let count_a = poly_a.len() / 2;
+    let count_b = poly_b.len() / 2;
+
+    // Створюємо Box<[f64]> для poly_a і ініціалізуємо Polygon
+    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
+    let mut polygon_a = Polygon::<f64>::new();
+    unsafe {
+        polygon_a.bind(buf_a, 0, count_a);
+        polygon_a.close();
+    }
+
+    // Створюємо Box<[f64]> для poly_b і ініціалізуємо Polygon
+    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
+    let mut polygon_b = Polygon::<f64>::new();
+    unsafe {
+        polygon_b.bind(buf_b, 0, count_b);
+        polygon_b.close();
+    }
+
+    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
+    let mut pool = PointPool::<f64>::new();
+
+    let result = unsafe {
+        intersect(
+            &mut pool,
+            &mut polygon_a as *mut Polygon<f64>,
+            &mut polygon_b as *mut Polygon<f64>,
+            &offset_pt as *const Point<f64>,
+        )
+    };
+
+    result
 }

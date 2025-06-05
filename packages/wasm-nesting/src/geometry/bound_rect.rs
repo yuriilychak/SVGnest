@@ -8,10 +8,8 @@ pub struct BoundRect<T: Number> {
 
 impl<T: Number> BoundRect<T> {
     pub fn new(x: T, y: T, width: T, height: T) -> Self {
-        let mut buffer = Box::new([x, y, width, height]);
-        let ptr = buffer.as_mut_ptr();
-        let position = Point::new(ptr, 0);
-        let size = Point::new(ptr, 2);
+        let position = Point::new(Some(x), Some(y));
+        let size = Point::new(Some(width), Some(height));
 
         Self { position, size }
     }
@@ -30,19 +28,19 @@ impl<T: Number> BoundRect<T> {
     }
 
     pub unsafe fn x(&self) -> T {
-        self.position.x()
+        self.position.x
     }
 
     pub unsafe fn y(&self) -> T {
-        self.position.y()
+        self.position.y
     }
 
     pub unsafe fn width(&self) -> T {
-        self.size.x()
+        self.size.x
     }
 
     pub unsafe fn height(&self) -> T {
-        self.size.y()
+        self.size.y
     }
 
     // Якщо треба clone (глибоке копіювання)

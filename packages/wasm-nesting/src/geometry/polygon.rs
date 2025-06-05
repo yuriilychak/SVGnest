@@ -9,37 +9,25 @@ pub struct Polygon<T: Number> {
     point_count: usize,
     closed: bool,
     closed_dirty: bool,
+    calculate_bounds_dirty: bool,
     rectangle: bool,
     bounds: BoundRect<T>,
-    cursor_buf: [T; 2],
     cursor: Point<T>,
 }
 
 impl<T: Number> Polygon<T> {
     pub fn new() -> Self {
-        // 1) Спочатку створюємо cursor_buf як поле структури:
-        let cursor_buf = [T::zero(), T::zero()];
-
-        // 2) Створюємо самої структуру Polygon з тимчасовим cursor (null-pointer):
-        let mut poly = Polygon {
+        Self {
             buffer: None,
             offset: 0,
             point_count: 0,
             closed: false,
             closed_dirty: false,
             rectangle: false,
+            calculate_bounds_dirty: true,
             bounds: BoundRect::new(T::zero(), T::zero(), T::zero(), T::zero()),
-
-            cursor_buf,
-            cursor: Point::new(std::ptr::null_mut(), 0),
-        };
-
-        // 3) Як тільки cursor_buf стало полем Polygon,
-        //    змінюємо cursor, щоб він справді «дивився» у cursor_buf:
-        let ptr = poly.cursor_buf.as_mut_ptr();
-        poly.cursor = Point::new(ptr, 0);
-
-        poly
+            cursor: Point::new(None, None),
+        }
     }
 
     pub unsafe fn bind(&mut self, buffer: Box<[T]>, offset: usize, point_count: usize) {
@@ -49,8 +37,7 @@ impl<T: Number> Polygon<T> {
         self.closed_dirty = false;
         self.closed = false;
         self.rectangle = false;
-
-        self.calculate_bounds();
+        self.calculate_bounds_dirty = true;
     }
 
     pub fn clean(&mut self) {
@@ -60,6 +47,7 @@ impl<T: Number> Polygon<T> {
         self.closed_dirty = false;
         self.closed = false;
         self.rectangle = false;
+        self.calculate_bounds_dirty = true;
     }
 
     pub unsafe fn at(&mut self, index: usize) -> *const Point<T> {
@@ -95,7 +83,8 @@ impl<T: Number> Polygon<T> {
         self.closed || self.closed_dirty
     }
 
-    pub fn is_rectangle(&self) -> bool {
+    pub unsafe fn is_rectangle(&mut self) -> bool {
+        self.calculate_bounds();
         self.rectangle
     }
 
@@ -106,7 +95,7 @@ impl<T: Number> Polygon<T> {
         for i in 0..point_count {
             let prev = self.at(cycle_index(i, point_count, -1));
             let curr = self.at(i);
-            result = result + ((*prev).x() + (*curr).x()) * ((*prev).y() - (*curr).y());
+            result = result + ((*prev).x + (*curr).x) * ((*prev).y - (*curr).y);
         }
 
         result.to_f64().unwrap() / 2.0
@@ -116,36 +105,32 @@ impl<T: Number> Polygon<T> {
         self.area().abs()
     }
 
-    pub unsafe fn position(&self) -> *const Point<T> {
+    pub unsafe fn position(&mut self) -> *const Point<T> {
+        self.calculate_bounds();
         self.bounds.position()
     }
 
-    pub unsafe fn size(&self) -> *const Point<T> {
+    pub unsafe fn size(&mut self) -> *const Point<T> {
+        self.calculate_bounds();
         self.bounds.size()
     }
 
-    pub unsafe fn export_bounds(&self) -> BoundRect<T> {
+    pub unsafe fn export_bounds(&mut self) -> BoundRect<T> {
+        self.calculate_bounds();
         self.bounds.clone()
     }
 
     unsafe fn calculate_bounds(&mut self) {
-        if self.is_broken() {
+        if self.is_broken() || !self.calculate_bounds_dirty {
             return;
         }
 
-        let zero = T::zero();
-        let tol = T::tol();
+        self.calculate_bounds_dirty = false;
 
-        let mut min_buf = [zero, zero];
-        let mut max_buf = [zero, zero];
+        let mut min_point = Point::from(self.first());
+        let mut max_point = Point::from(self.last());
 
-        let min_point = Point::new(min_buf.as_mut_ptr(), 0);
-        let max_point = Point::new(max_buf.as_mut_ptr(), 0);
-
-        min_point.update(self.first());
-        max_point.update(self.last());
-
-        self.closed = min_point.almost_equal(&max_point as *const Point<T>, tol);
+        self.closed = min_point.almost_equal(&max_point as *const Point<T>, None);
 
         for i in 0..self.point_count {
             let pt = self.at(i);
@@ -157,10 +142,11 @@ impl<T: Number> Polygon<T> {
 
         for i in 0..self.point_count {
             let pt = self.at(i);
-            if !(((*pt).almost_equal_x(&min_point as *const Point<T>, tol)
-                || (*pt).almost_equal_x(&max_point as *const Point<T>, tol))
-                && ((*pt).almost_equal_y(&min_point as *const Point<T>, tol)
-                    || (*pt).almost_equal_y(&max_point as *const Point<T>, tol)))
+
+            if !(((*pt).almost_equal_x(&min_point as *const Point<T>, None)
+                || (*pt).almost_equal_x(&max_point as *const Point<T>, None))
+                && ((*pt).almost_equal_y(&min_point as *const Point<T>, None)
+                    || (*pt).almost_equal_y(&max_point as *const Point<T>, None)))
             {
                 self.rectangle = false;
                 break;
@@ -212,25 +198,17 @@ impl<T: Number> Polygon<T> {
             return None;
         }
 
-        let zero = T::zero();
-        let mut first_buf = [zero, zero];
-        let mut last_buf = [zero, zero];
-        let first = Point::new(first_buf.as_mut_ptr(), 0);
-        let last = Point::new(last_buf.as_mut_ptr(), 0);
+        let first = Point::from(self.first());
+        let mut last = Point::from(self.last());
         let mut point_count = self.point_count;
 
-        first.update(self.first());
-        last.update(self.last());
-
-        // Видаляємо дублікати кінцевих точок
-        while first.almost_equal(&last, T::tol()) && point_count > 1 {
+        while first.almost_equal(&last, None) && point_count > 1 {
             point_count -= 1;
             last.update(self.at(point_count - 1));
         }
 
         let buf = self.buffer.as_mut().unwrap();
 
-        // Якщо були дублікати - скорочуємо буфер і point_count
         if self.point_count != point_count {
             self.point_count = point_count;
             let start = self.offset;
@@ -240,12 +218,65 @@ impl<T: Number> Polygon<T> {
             self.buffer = Some(boxed);
         }
 
-        // Якщо площа додатна — reverse
         if self.area() > 0.0 {
             self.reverse();
         }
 
-        // Повертаємо оновлений буфер (або None, якщо полігон пустий)
         self.buffer.as_ref().map(|b| b.clone())
+    }
+
+    pub unsafe fn point_in(
+        &mut self,
+        point: *const Point<T>,
+        offset: Option<*const Point<T>>,
+    ) -> Option<bool> {
+        if self.is_broken() {
+            return None;
+        }
+
+        let inner_point = Point::<T>::from(point);
+        let mut curr_point = Point::<T>::new(None, None);
+        let mut prev_point = Point::<T>::new(None, None);
+
+        let point_count = self.point_count as usize;
+
+        let mut inside = false;
+        for i in 0..point_count {
+            unsafe {
+                curr_point.update(self.at(i));
+            }
+
+            let prev_idx = cycle_index(i, point_count, -1);
+
+                prev_point.update(self.at(prev_idx));
+
+            if let Some(off) = offset {
+                curr_point.add(off);
+                prev_point.add(off);
+            }
+
+            // Якщо точка точно лежить на вершині або на сегменті — повертаємо None
+            if curr_point.almost_equal(&inner_point, None)
+                || inner_point.on_segment(&curr_point, &prev_point)
+            {
+                return None;
+            }
+
+            if curr_point.almost_equal(&prev_point, None) {
+                continue;
+            }
+
+            let curr_y_gt = curr_point.y > inner_point.y;
+            let prev_y_gt = prev_point.y > inner_point.y;
+            
+            if curr_y_gt != prev_y_gt {
+                let inter_x = inner_point.interpolate_x(&prev_point, &curr_point);
+                if inner_point.x < inter_x {
+                    inside = !inside;
+                }
+            }
+        }
+
+        Some(inside)
     }
 }

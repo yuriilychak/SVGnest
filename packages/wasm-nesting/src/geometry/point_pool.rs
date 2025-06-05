@@ -10,12 +10,12 @@ pub struct PointPool<T: Number> {
 
 impl<T: Number> PointPool<T> {
     pub fn new() -> Self {
-        let mut buffer = vec![T::zero(); POOL_SIZE * 2].into_boxed_slice();
-        let ptr = buffer.as_mut_ptr();
         let mut items_vec = Vec::with_capacity(POOL_SIZE);
-        for i in 0..POOL_SIZE {
-            items_vec.push(Point::<T>::new(ptr, i * 2));
+
+        for _i in 0..POOL_SIZE {
+            items_vec.push(Point::<T>::new(None, None));
         }
+
         let items = items_vec.into_boxed_slice();
         Self { items, used: 0 }
     }
@@ -24,6 +24,7 @@ impl<T: Number> PointPool<T> {
         let mut result = 0u32;
         let mut current_count = 0;
         let mut free_bits = !self.used;
+
         while free_bits != 0 {
             let bit = highest_bit_index(free_bits);
             let mask = 1 << bit;
@@ -36,6 +37,7 @@ impl<T: Number> PointPool<T> {
                 return result;
             }
         }
+
         panic!("PointPool: out of space");
     }
 
@@ -46,6 +48,7 @@ impl<T: Number> PointPool<T> {
     pub fn get(&mut self, mask: u32, index: u8) -> *mut Point<T> {
         let mut current_index = 0;
         let mut bit_mask = mask;
+
         while bit_mask != 0 {
             let bit = highest_bit_index(bit_mask);
             let flag = 1 << bit;
@@ -55,6 +58,7 @@ impl<T: Number> PointPool<T> {
             bit_mask &= !flag;
             current_index += 1;
         }
+
         panic!("PointPool::get: index out of bounds");
     }
 }

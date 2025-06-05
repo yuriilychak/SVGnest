@@ -4,7 +4,43 @@ use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::utils::almost_equal::AlmostEqual;
 use crate::utils::math::cycle_index;
+use crate::utils::mid_value::MidValue;
 use crate::utils::number::Number;
+
+struct SegmentCheck<T: Number> {
+    pub point: *mut Point<T>,
+    pub polygon: *mut Polygon<T>,
+    pub segment_start: *mut Point<T>,
+    pub segment_end: *mut Point<T>,
+    pub check_start: *mut Point<T>,
+    pub check_end: *mut Point<T>,
+    pub target: *mut Point<T>,
+    pub offset: *const Point<T>,
+}
+
+impl<T: Number> SegmentCheck<T> {
+    pub unsafe fn new(
+        point: *mut Point<T>,
+        polygon: *mut Polygon<T>,
+        segment_start: *mut Point<T>,
+        segment_end: *mut Point<T>,
+        check_start: *mut Point<T>,
+        check_end: *mut Point<T>,
+        target: *mut Point<T>,
+        offset: *const Point<T>,
+    ) -> Self {
+        SegmentCheck {
+            point,
+            polygon,
+            segment_start,
+            segment_end,
+            check_start,
+            check_end,
+            target,
+            offset,
+        }
+    }
+}
 
 fn point_distance<T: Number>(
     pool: &mut PointPool<T>,
@@ -284,10 +320,7 @@ pub fn polygon_projection_distance<T: Number>(
                 (*s_offset).update(s2);
                 (*s_offset).sub(s1);
 
-                if (*s_offset)
-                    .cross(&*direction)
-                    .almost_equal(T::zero(), Some(T::tol()))
-                {
+                if (*s_offset).cross(&*direction).almost_equal(T::zero(), None) {
                     continue;
                 }
 
@@ -342,7 +375,7 @@ pub fn polygon_slide_distance<T: Number>(
                 (*a1).update(&*(*polygon_a).at(j));
                 (*a2).update(&*(*polygon_a).at(cycle_index(j, size_a, 1)));
 
-                if (*a1).almost_equal(a2, T::tol()) || (*b1).almost_equal(b2, T::tol()) {
+                if (*a1).almost_equal(a2, None) || (*b1).almost_equal(b2, None) {
                     continue;
                 }
 
@@ -356,7 +389,7 @@ pub fn polygon_slide_distance<T: Number>(
                 );
 
                 if !d.is_nan() && (distance.is_nan() || d < distance) {
-                    if d > 0.0 || d.almost_equal(0.0, Some(f64::tol())) {
+                    if d > 0.0 || d.almost_equal(0.0, None) {
                         distance = d;
                     }
                 }
@@ -371,4 +404,179 @@ pub fn polygon_slide_distance<T: Number>(
     } else {
         distance.max(0.0)
     }
+}
+
+pub unsafe fn no_fit_polygon_rectangle<T: Number>(
+    pool: &mut PointPool<T>,
+    a: *mut Polygon<T>,
+    b: *mut Polygon<T>,
+) -> Vec<[f32; 8]> {
+    let indices = pool.alloc(2);
+
+    let min_diff = pool.get(indices, 0);
+    let max_diff = pool.get(indices, 1);
+
+    (*min_diff).update((*a).position());
+    (*min_diff).sub((*b).position());
+
+    (*max_diff).update((*a).size());
+    (*max_diff).sub((*b).size());
+
+    if (*max_diff).x <= T::zero() || (*max_diff).y <= T::zero() {
+        pool.malloc(indices);
+        return Vec::new();
+    }
+
+    (*min_diff).add((*b).first());
+    (*max_diff).add(min_diff);
+
+    let x0 = (*min_diff).x.to_f32().unwrap();
+    let y0 = (*min_diff).y.to_f32().unwrap();
+    let x1 = (*max_diff).x.to_f32().unwrap();
+    let y1 = (*max_diff).y.to_f32().unwrap();
+
+    let rect: [f32; 8] = [x0, y0, x1, y0, x1, y1, x0, y1];
+
+    pool.malloc(indices);
+
+    vec![rect]
+}
+
+unsafe fn update_intersect_point<T: Number>(
+    point: *mut Point<T>,
+    polygon: *mut Polygon<T>,
+    index: usize,
+    offset: isize,
+) {
+    let point_count = (*polygon).length();
+    let mut current_index = cycle_index(index, point_count, offset);
+
+    (*point).update((*polygon).at(index));
+
+    if (*point).almost_equal((*polygon).at(current_index), None) {
+        current_index = cycle_index(current_index, point_count, offset);
+        (*point).update((*polygon).at(current_index));
+    }
+}
+
+unsafe fn get_segment_stats<T: Number>(sc: &SegmentCheck<T>) -> Option<bool> {
+    if (*sc.point).on_segment(sc.segment_start, sc.segment_end)
+        || (*sc.point).almost_equal(sc.target, None)
+    {
+        let point_in1 = (*sc.polygon).point_in(sc.check_start, Some(sc.offset));
+        let point_in2 = (*sc.polygon).point_in(sc.check_end, Some(sc.offset));
+
+        return Some(point_in1.is_some() && point_in2.is_some() && point_in1 != point_in2);
+    }
+
+    None
+}
+
+unsafe fn line_equation<T: Number>(p1: *mut Point<T>, p2: *mut Point<T>) -> (T, T, T) {
+    let x1 = (*p1).x;
+    let y1 = (*p1).y;
+    let x2 = (*p2).x;
+    let y2 = (*p2).y;
+
+    let a = y2 - y1;
+    let b = x1 - x2;
+    let c = x2 * y1 - x1 * y2;
+
+    (a, b, c)
+}
+
+fn check_mid_value<T: Number>(x: f64, a: T, b: T) -> bool {
+    x.mid_value(a.to_f64().unwrap(), b.to_f64().unwrap()) <= 0.0
+}
+
+unsafe fn line_intersect<T: Number>(
+    a: *mut Point<T>,
+    b: *mut Point<T>,
+    e: *mut Point<T>,
+    f: *mut Point<T>,
+) -> bool {
+    let (a1, b1, c1) = line_equation(a, b);
+    let (a2, b2, c2) = line_equation(e, f);
+    let denom = (a1 * b2 - a2 * b1).to_f64().unwrap();
+    let x: f64 = (b1 * c2 - b2 * c1).to_f64().unwrap() / denom;
+    let y: f64 = (a2 * c1 - a1 * c2).to_f64().unwrap() / denom;
+
+    return (x.is_finite() && y.is_finite()) 
+        && ((*a).almost_equal_x(b, None) || check_mid_value(x, (*a).x, (*b).x))
+        && ((*a).almost_equal_y(b, None) || check_mid_value(y, (*a).y, (*b).y))
+        && ((*e).almost_equal_x(f, None) || check_mid_value(x, (*e).x, (*f).x))
+        && ((*e).almost_equal_y(f, None) || check_mid_value(y, (*e).y, (*f).y));
+}
+
+pub unsafe fn intersect<T: Number>(
+    point_pool: &mut PointPool<T>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    offset: *const Point<T>,
+) -> bool {
+    let indices = point_pool.alloc(9);
+    let a0 = point_pool.get(indices, 0);
+    let a1 = point_pool.get(indices, 1);
+    let a2 = point_pool.get(indices, 2);
+    let a3 = point_pool.get(indices, 3);
+    let b0 = point_pool.get(indices, 4);
+    let b1 = point_pool.get(indices, 5);
+    let b2 = point_pool.get(indices, 6);
+    let b3 = point_pool.get(indices, 7);
+    let offset_a = point_pool.get(indices, 8);
+
+    (*offset_a).set(T::zero(), T::zero());
+
+    let point_count_a = (*polygon_a).length();
+    let point_count_b = (*polygon_b).length();
+
+    let segment_checks: [SegmentCheck<T>; 4] = [
+        SegmentCheck::new(b1, polygon_a, a1, a2, b0, b2, a1, offset),
+        SegmentCheck::new(b2, polygon_a, a1, a2, b1, b3, a2, offset),
+        SegmentCheck::new(a1, polygon_b, b1, b2, a0, a2, b2, offset_a),
+        SegmentCheck::new(a2, polygon_b, b1, b2, a1, a3, a1, offset_a),
+    ];
+    let segment_check_count = segment_checks.len();
+
+    for i in 0..(point_count_a - 1) {
+        (*a1).update((*polygon_a).at(i));
+        (*a2).update((*polygon_a).at(i + 1));
+
+        update_intersect_point(a0, polygon_a, i, -1);
+        update_intersect_point(a3, polygon_a, i + 1, 1);
+
+        for j in 0..(point_count_b - 1) {
+            (*b1).update((*polygon_b).at(j));
+            (*b2).update((*polygon_b).at(j + 1));
+
+            update_intersect_point(b0, polygon_b, j, -1);
+            update_intersect_point(b3, polygon_b, j + 1, 1);
+
+            (*b0).add(offset);
+            (*b1).add(offset);
+            (*b2).add(offset);
+            (*b3).add(offset);
+
+            let mut segment_stats: Option<bool> = None;
+
+            for k in 0..segment_check_count {
+                segment_stats = get_segment_stats(&segment_checks[k]);
+                if segment_stats.is_some() {
+                    break;
+                }
+            }
+
+            if segment_stats == Some(true)
+                || (segment_stats.is_none() && line_intersect(b1, b2, a1, a2))
+            {
+                point_pool.malloc(indices);
+
+                return true;
+            }
+        }
+    }
+
+    point_pool.malloc(indices);
+
+    false
 }
