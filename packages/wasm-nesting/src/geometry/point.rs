@@ -1,6 +1,4 @@
 use crate::utils::number::Number;
-use crate::utils::almost_equal::AlmostEqual;
-
 #[derive(Debug)]
 pub struct Point<T: Number> {
     pub x: T,

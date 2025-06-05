@@ -580,3 +580,36 @@ pub unsafe fn intersect<T: Number>(
 
     false
 }
+
+pub unsafe fn get_nfp_looped<T: Number>(
+    nfp: &[T],
+    reference: *const Point<T>,
+    pool: &mut PointPool<T>,
+) -> bool {
+    let point_count = nfp.len() >> 1;
+
+    if point_count == 0 {
+        return false;
+    }
+
+    let indices = pool.alloc(1);
+    let point = pool.get(indices, 0);
+
+    for i in 0..(point_count - 1) {
+        let base = i << 1;
+        let x = *nfp.get_unchecked(base);
+        let y = *nfp.get_unchecked(base + 1);
+
+        (*point).set(x, y);
+
+        if (*point).almost_equal(reference, None) {
+            pool.malloc(indices);
+            return true;
+        }
+    }
+
+    pool.malloc(indices);
+
+    false
+}
+

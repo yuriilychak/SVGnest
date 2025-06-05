@@ -11,7 +11,8 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::nesting::pair_flow::{
-    intersect, no_fit_polygon_rectangle, polygon_projection_distance, polygon_slide_distance,
+    get_nfp_looped, intersect, no_fit_polygon_rectangle, polygon_projection_distance,
+    polygon_slide_distance,
 };
 
 use utils::almost_equal::AlmostEqual;
@@ -277,4 +278,13 @@ pub fn intersect_f64(poly_a: &[f64], poly_b: &[f64], offset: &[f64]) -> bool {
     };
 
     result
+}
+
+#[wasm_bindgen]
+pub fn get_nfp_looped_f64(nfp_coords: &[f64], reference_coords: &[f64]) -> bool {
+    let reference_pt = Point::<f64>::new(Some(reference_coords[0]), Some(reference_coords[1]));
+
+    let mut pool = PointPool::<f64>::new();
+
+    unsafe { get_nfp_looped(nfp_coords, &reference_pt, &mut pool) }
 }

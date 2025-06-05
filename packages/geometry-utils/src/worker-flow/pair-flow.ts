@@ -1,13 +1,19 @@
-import { set_bits_u32, get_bits_u32, cycle_index_wasm, polygon_projection_distance_f64, polygon_slide_distance_f64, no_fit_polygon_rectangle_f64, intersect_f64 } from 'wasm-nesting';
+import { 
+    set_bits_u32, 
+    get_bits_u32, 
+    cycle_index_wasm, 
+    polygon_projection_distance_f64, 
+    polygon_slide_distance_f64, 
+    no_fit_polygon_rectangle_f64, 
+    intersect_f64,
+    get_nfp_looped_f64
+ } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
-import { PointBase } from '../geometry';
 import { TOL_F64 } from '../constants';
-import { WorkerConfig, SegmentCheck } from './types';
+import { WorkerConfig } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
 import PairContent from './pair-content';
 import type { Point, PolygonNode, Polygon, PointPool, TypedArray } from '../types';
-
-
 
 function intersect<T extends TypedArray>(
     pointPool: PointPool<T>, 
@@ -360,28 +366,7 @@ function applyVectors<T extends TypedArray>(
 
 // if A and B start on a touching horizontal line, the end point may not be the start point
 function getNfpLooped<T extends TypedArray>(nfp: number[], reference: Point<T>, pointPool: PointPool<T>): boolean {
-    const pointCount: number = nfp.length >> 1;
-
-    if (pointCount === 0) {
-        return false;
-    }
-
-    const pointIndices: number = pointPool.alloc(1);
-    const point: Point<T> = pointPool.get(pointIndices, 0);
-    let i: number = 0;
-
-    for (i = 0; i < pointCount - 1; ++i) {
-        point.fromMemSeg(nfp, i);
-
-        if (point.almostEqual(reference)) {
-            pointPool.malloc(pointIndices);
-            return true;
-        }
-    }
-
-    pointPool.malloc(pointIndices);
-
-    return false;
+    return get_nfp_looped_f64(new Float64Array(nfp), reference.export() as Float64Array) 
 }
 
 function findTranslate<T extends TypedArray>(
