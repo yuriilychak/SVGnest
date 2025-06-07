@@ -3,10 +3,10 @@ import {
     get_bits_u32, 
     cycle_index_wasm, 
     polygon_projection_distance_f64, 
-    polygon_slide_distance_f64, 
     no_fit_polygon_rectangle_f64, 
     intersect_f64,
-    get_nfp_looped_f64
+    get_nfp_looped_f64, 
+    find_translate_f64
  } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
 import { TOL_F64 } from '../constants';
@@ -22,16 +22,6 @@ function intersect<T extends TypedArray>(
     offset: Point<T>
 ): boolean {
     return intersect_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array);
-}
-
-function polygonSlideDistance<T extends TypedArray>(
-    pointPool: PointPool<T>,
-    polygonA: Polygon<T>,
-    polygonB: Polygon<T>,
-    direction: Point<T>,
-    offset: Point<T>
-): number {
-    return polygon_slide_distance_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, direction.export() as Float64Array, offset.export() as Float64Array, polygonA.isClosed, polygonB.isClosed);
 }
 
 // project each point of B onto A in the given direction, and return the
@@ -377,52 +367,10 @@ function findTranslate<T extends TypedArray>(
     memSeg: T,
     prevTranslate: Point<T>
 ): void {
-    // old-todo: there should be a faster way to reject vectors
-    // that will cause immediate intersection. For now just check them all
-    const vectorCount: number = memSeg[0];
-    const pointIndices = pointPool.alloc(3);
-    const currUnitV: Point<T> = pointPool.get(pointIndices, 0);
-    const prevUnitV: Point<T> = pointPool.get(pointIndices, 1);
-    const currVector: Point<T> = pointPool.get(pointIndices, 2);
-    let translate: number = -1;
-    let maxDistance: number = 0;
-    let distance: number = 0;
-    let vecDistance: number = 0;
-    let i: number = 0;
+    const wasmRes = find_translate_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array, memSeg.slice() as Float64Array, prevTranslate.export() as Float64Array);
 
-    for (i = 0; i < vectorCount; ++i) {
-        currVector.fromMemSeg(memSeg, i << 1, VECTOR_MEM_OFFSET);
-
-        // if this vector points us back to where we came from, ignore it.
-        // ie cross product = 0, dot product < 0
-        if (!prevTranslate.isEmpty && currVector.dot(prevTranslate) < 0) {
-            // compare magnitude with unit vectors
-            currUnitV.update(currVector).normalize();
-            prevUnitV.update(prevTranslate).normalize();
-
-            // we need to scale down to unit vectors to normalize vector length. Could also just do a tan here
-            if (Math.abs(currUnitV.cross(prevUnitV)) < 0.0001) {
-                continue;
-            }
-        }
-
-        distance = polygonSlideDistance(pointPool, polygonA, polygonB, currVector, offset);
-        vecDistance = currVector.length;
-
-        if (Number.isNaN(distance) || Math.abs(distance) > vecDistance) {
-            distance = vecDistance;
-        }
-
-        if (!Number.isNaN(distance) && distance > maxDistance) {
-            maxDistance = distance;
-            translate = i << 1;
-        }
-    }
-
-    memSeg[1] = translate;
-    memSeg[2] = maxDistance;
-
-    pointPool.malloc(pointIndices);
+    memSeg[1] = wasmRes[0];
+    memSeg[2] = wasmRes[1];
 }
 
 // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A

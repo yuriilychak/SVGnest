@@ -1,6 +1,6 @@
 use std::arch::wasm32::*;
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys::Float32Array;
+use web_sys::js_sys::{Float32Array, Float64Array};
 
 pub mod constants;
 pub mod geometry;
@@ -11,8 +11,8 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::nesting::pair_flow::{
-    get_nfp_looped, intersect, no_fit_polygon_rectangle, polygon_projection_distance,
-    polygon_slide_distance,
+    find_translate, get_nfp_looped, intersect, no_fit_polygon_rectangle,
+    polygon_projection_distance,
 };
 
 use utils::almost_equal::AlmostEqual;
@@ -157,51 +157,6 @@ pub fn polygon_projection_distance_f64(
 }
 
 #[wasm_bindgen]
-pub fn polygon_slide_distance_f64(
-    poly_a: &[f64],
-    poly_b: &[f64],
-    direction: &[f64],
-    offset: &[f64],
-    closed_a: bool,
-    closed_b: bool,
-) -> f64 {
-    let count_a = poly_a.len() / 2;
-    let count_b = poly_b.len() / 2;
-
-    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
-    let mut polygon_b = Polygon::<f64>::new();
-    unsafe {
-        polygon_b.bind(buf_b, 0, count_b);
-
-        if closed_b {
-            polygon_b.close();
-        }
-    }
-
-    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
-    let mut polygon_a = Polygon::<f64>::new();
-    unsafe {
-        polygon_a.bind(buf_a, 0, count_a);
-
-        if closed_a {
-            polygon_a.close();
-        }
-    }
-
-    let direction_point = Point::<f64>::new(Some(direction[0]), Some(direction[1]));
-    let offset_point = Point::<f64>::new(Some(offset[0]), Some(offset[1]));
-    let mut pool = PointPool::<f64>::new();
-
-    polygon_slide_distance(
-        &mut pool,
-        &mut polygon_a as *mut Polygon<f64>,
-        &mut polygon_b as *mut Polygon<f64>,
-        &direction_point as *const Point<f64>,
-        &offset_point as *const Point<f64>,
-    )
-}
-
-#[wasm_bindgen]
 pub fn no_fit_polygon_rectangle_f64(poly_a: &[f64], poly_b: &[f64]) -> Float32Array {
     // Розмір у точках (дві координати на точку)
     let count_a = poly_a.len() / 2;
@@ -287,4 +242,52 @@ pub fn get_nfp_looped_f64(nfp_coords: &[f64], reference_coords: &[f64]) -> bool 
     let mut pool = PointPool::<f64>::new();
 
     unsafe { get_nfp_looped(nfp_coords, &reference_pt, &mut pool) }
+}
+
+#[wasm_bindgen]
+pub fn find_translate_f64(
+    poly_a: &[f64],
+    poly_b: &[f64],
+    offset: &[f64],
+    mem_seg: &mut [f64],
+    prev_translate: &[f64],
+) -> Float64Array {
+    let count_a = poly_a.len() / 2;
+    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
+    let mut polygon_a = Polygon::<f64>::new();
+    unsafe {
+        polygon_a.bind(buf_a, 0, count_a);
+        polygon_a.close();
+    }
+
+    let count_b = poly_b.len() / 2;
+    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
+    let mut polygon_b = Polygon::<f64>::new();
+    unsafe {
+        polygon_b.bind(buf_b, 0, count_b);
+        polygon_b.close();
+    }
+
+    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
+    let prev_pt = Point::new(Some(prev_translate[0]), Some(prev_translate[1]));
+
+    let mut pool = PointPool::<f64>::new();
+
+    unsafe {
+        find_translate(
+            &mut polygon_a,
+            &mut polygon_b,
+            &mut pool,
+            &offset_pt,
+            mem_seg,
+            &prev_pt,
+        );
+    }
+
+    let translate_index = mem_seg[1];
+    let max_distance = mem_seg[2];
+
+    let result = Float64Array::new_with_length(2);
+    result.copy_from(&[translate_index, max_distance]);
+    result
 }

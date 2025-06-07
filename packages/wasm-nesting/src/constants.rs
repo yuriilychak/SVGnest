@@ -7,3 +7,5 @@ pub const UINT16_BIT_COUNT: u8 = 16;
 pub const MAX_U32_BITS: u8 = 31;
 
 pub const POOL_SIZE: usize = 32;
+
+pub const VECTOR_MEM_OFFSET: usize = 3;

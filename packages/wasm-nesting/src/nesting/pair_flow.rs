@@ -1,4 +1,4 @@
-use crate::constants::TOL_F64;
+use crate::constants::VECTOR_MEM_OFFSET;
 use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
@@ -178,9 +178,7 @@ fn segment_distance<T: Number>(
         let max_ef = dot_e.max_num(dot_f);
         let min_ef = dot_e.min_num(dot_f);
 
-        if ((max_ab - min_ef).to_f64().unwrap() < TOL_F64)
-            || ((max_ef - min_ab).to_f64().unwrap() < TOL_F64)
-        {
+        if (max_ab - min_ef < T::tol()) || (max_ef - min_ab < T::tol()) {
             pool.malloc(shared_point_indices);
             return f64::NAN;
         }
@@ -342,7 +340,7 @@ pub fn polygon_projection_distance<T: Number>(
     result
 }
 
-pub fn polygon_slide_distance<T: Number>(
+fn polygon_slide_distance<T: Number>(
     pool: &mut PointPool<T>,
     polygon_a: *mut Polygon<T>,
     polygon_b: *mut Polygon<T>,
@@ -501,7 +499,7 @@ unsafe fn line_intersect<T: Number>(
     let x: f64 = (b1 * c2 - b2 * c1).to_f64().unwrap() / denom;
     let y: f64 = (a2 * c1 - a1 * c2).to_f64().unwrap() / denom;
 
-    return (x.is_finite() && y.is_finite()) 
+    return (x.is_finite() && y.is_finite())
         && ((*a).almost_equal_x(b, None) || check_mid_value(x, (*a).x, (*b).x))
         && ((*a).almost_equal_y(b, None) || check_mid_value(y, (*a).y, (*b).y))
         && ((*e).almost_equal_x(f, None) || check_mid_value(x, (*e).x, (*f).x))
@@ -613,3 +611,73 @@ pub unsafe fn get_nfp_looped<T: Number>(
     false
 }
 
+pub unsafe fn find_translate<T: Number>(
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    point_pool: &mut PointPool<T>,
+    offset: *const Point<T>,
+    mem_seg: &mut [T],
+    prev_translate: &Point<T>,
+) {
+    let vector_count = mem_seg
+        .get(0)
+        .and_then(|v| v.to_f64())
+        .map(|f| f as usize)
+        .unwrap_or(0);
+
+    if vector_count == 0 {
+        return;
+    }
+
+    let indices = point_pool.alloc(3);
+    let curr_unit_v = point_pool.get(indices, 0);
+    let prev_unit_v = point_pool.get(indices, 1);
+    let curr_vector = point_pool.get(indices, 2);
+
+    let mut translate_index: f64 = -1.0;
+    let mut max_distance: f64 = 0.0;
+    let mut distance: f64;
+    let mut vec_distance: f64;
+
+    for i in 0..vector_count {
+        let base_idx = VECTOR_MEM_OFFSET + (i << 2);
+        let x = *mem_seg.get_unchecked(base_idx);
+        let y = *mem_seg.get_unchecked(base_idx + 1);
+
+        (*curr_vector).set(x, y);
+
+        if !(*prev_translate).is_empty() && (*curr_vector).dot(prev_translate) < T::zero() {
+            (*curr_unit_v).update(curr_vector);
+            (*curr_unit_v).normalize();
+            (*prev_unit_v).update(prev_translate);
+            (*prev_unit_v).normalize();
+
+            let cross = (*curr_unit_v).cross(prev_unit_v).to_f64().unwrap().abs();
+
+            if cross < 0.0001 {
+                continue;
+            }
+        }
+
+        distance = polygon_slide_distance(point_pool, polygon_a, polygon_b, curr_vector, offset);
+        vec_distance = (*curr_vector).length();
+        if distance.is_nan() || distance.abs() > vec_distance {
+            distance = vec_distance;
+        }
+
+        if !distance.is_nan() && distance > max_distance {
+            max_distance = distance;
+
+            translate_index = (i << 1) as f64;
+        }
+    }
+
+    if let Some(slot) = mem_seg.get_mut(1) {
+        *slot = T::from_f64(translate_index).unwrap();
+    }
+    if let Some(slot) = mem_seg.get_mut(2) {
+        *slot = T::from_f64(max_distance).unwrap();
+    }
+
+    point_pool.malloc(indices);
+}
