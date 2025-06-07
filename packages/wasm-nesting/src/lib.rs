@@ -11,8 +11,8 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::nesting::pair_flow::{
-    deserialize_loops, find_translate, get_nfp_looped, get_touch, no_fit_polygon_rectangle,
-    search_start_point,
+    apply_vectors, deserialize_loops, find_translate, get_nfp_looped, get_touch,
+    no_fit_polygon_rectangle, search_start_point,
 };
 
 use utils::almost_equal::AlmostEqual;
@@ -298,4 +298,53 @@ pub unsafe fn get_touch_f64(
         index_b,
         index_b_next,
     );
+}
+
+#[wasm_bindgen]
+pub fn apply_vectors_f64(
+    poly_a: &[f64],
+    poly_b: &[f64],
+    offset: &[f64],
+    touch: u32,
+    mem_seg: &mut [f64],
+    poly_a_close: bool,
+    poly_b_close: bool,
+) -> Float64Array {
+    let count_a = poly_a.len() / 2;
+    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
+    let mut polygon_a = Polygon::<f64>::new();
+    unsafe {
+        polygon_a.bind(buf_a, 0, count_a);
+        if poly_a_close {
+            polygon_a.close();
+        }
+    }
+
+    let count_b = poly_b.len() / 2;
+    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
+    let mut polygon_b = Polygon::<f64>::new();
+    unsafe {
+        polygon_b.bind(buf_b, 0, count_b);
+        if poly_b_close {
+            polygon_b.close();
+        }
+    }
+
+    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
+    let mut pool = PointPool::<f64>::new();
+
+    unsafe {
+        apply_vectors(
+            &mut polygon_a,
+            &mut polygon_b,
+            &mut pool,
+            &offset_pt,
+            touch,
+            mem_seg,
+        );
+    }
+
+    let out = Float64Array::new_with_length(mem_seg.len() as u32);
+    out.copy_from(&mem_seg);
+    out
 }

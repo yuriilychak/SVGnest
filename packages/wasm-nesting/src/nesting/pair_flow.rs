@@ -3,10 +3,11 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::utils::almost_equal::AlmostEqual;
-use crate::utils::bit_ops::set_bits;
+use crate::utils::bit_ops::{set_bits, get_bits};
 use crate::utils::math::cycle_index;
 use crate::utils::mid_value::MidValue;
 use crate::utils::number::Number;
+use crate::utils::wasm_logger::wasm_log;
 
 struct SegmentCheck<T: Number> {
     pub point: *mut Point<T>,
@@ -902,4 +903,89 @@ pub unsafe fn get_touch<T: Number>(
     }
 
     return 0;
+}
+
+unsafe fn apply_vector<T: Number>(
+    mem_seg: &mut [T],
+    point: *mut Point<T>,
+    start: T,
+    end: T,
+    base_value: *const Point<T>,
+    sub_value: *const Point<T>
+) {
+    (*point).update(base_value);
+    (*point).sub(sub_value);
+
+    if !(*point).is_empty() {
+        let count = mem_seg[0].to_usize().unwrap();           // assuming T can convert to usize
+        let idx = count << 1;
+
+        (*point).fill(mem_seg, idx, Some(VECTOR_MEM_OFFSET));
+
+        (*point).set(start, end);
+        (*point).fill(mem_seg, idx + 1, Some(VECTOR_MEM_OFFSET));
+
+        mem_seg[0] = T::from_usize(count + 1).unwrap();
+    }
+}
+
+pub unsafe fn apply_vectors<T: Number>(
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    pool: &mut PointPool<T>,
+    offset: *const Point<T>,
+    touch: u32,
+    mem_seg: &mut [T],
+) {
+    let type_ = get_bits(touch, 0, 2);
+    let curr_index_a = get_bits(touch, 2, 15) as usize;
+    let curr_index_b = get_bits(touch, 17, 15) as usize;
+
+    let size_a = (*polygon_a).length();
+    let size_b = (*polygon_b).length();
+
+    let prev_index_a = cycle_index(curr_index_a, size_a, -1);
+    let next_index_a = cycle_index(curr_index_a, size_a,  1);
+    let prev_index_b = cycle_index(curr_index_b, size_b, -1);
+    let next_index_b = cycle_index(curr_index_b, size_b,  1);
+
+    let indices = pool.alloc(7);
+    let prev_a  = pool.get(indices, 0);
+    let curr_a  = pool.get(indices, 1);
+    let next_a  = pool.get(indices, 2);
+    let prev_b  = pool.get(indices, 3);
+    let curr_b  = pool.get(indices, 4);
+    let next_b  = pool.get(indices, 5);
+    let point   = pool.get(indices, 6);
+
+    (*prev_a).update(&*(*polygon_a).at(prev_index_a));
+    (*curr_a).update(&*(*polygon_a).at(curr_index_a));
+    (*next_a).update(&*(*polygon_a).at(next_index_a));
+    (*prev_b).update(&*(*polygon_b).at(prev_index_b));
+    (*curr_b).update(&*(*polygon_b).at(curr_index_b));
+    (*next_b).update(&*(*polygon_b).at(next_index_b));
+
+    let neg_one = T::from_f64(-1.0).unwrap();
+
+    match type_ {
+        1 => {
+            apply_vector(mem_seg, point, T::from_usize(curr_index_a).unwrap(), T::from_usize(prev_index_a).unwrap(), prev_a, curr_a);
+            apply_vector(mem_seg, point, T::from_usize(curr_index_a).unwrap(), T::from_usize(next_index_a).unwrap(), next_a, curr_a);
+            apply_vector(mem_seg, point, neg_one, neg_one, curr_b, prev_b);
+            apply_vector(mem_seg, point, neg_one, neg_one, curr_b, next_b);
+        }
+        2 => {
+            (*curr_b).add(offset);
+            apply_vector(mem_seg, point, T::from_usize(prev_index_a).unwrap(), T::from_usize(curr_index_a).unwrap(), curr_a, curr_b);
+            apply_vector(mem_seg, point, T::from_usize(curr_index_a).unwrap(), T::from_usize(prev_index_a).unwrap(), prev_a, curr_b);
+        }
+        _ => {
+            (*curr_b).add(offset);
+            (*prev_b).add(offset);
+            apply_vector(mem_seg, point, neg_one, neg_one, curr_a, curr_b);
+            apply_vector(mem_seg, point, neg_one, neg_one, curr_a, prev_b);
+        }
+    }
+
+    pool.malloc(indices);
 }

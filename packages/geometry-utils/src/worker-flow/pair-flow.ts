@@ -1,12 +1,12 @@
 import { 
-    set_bits_u32, 
     get_bits_u32, 
     cycle_index_wasm, 
     no_fit_polygon_rectangle_f64, 
     get_nfp_looped_f64, 
     find_translate_f64,
     search_start_point_f64,
-    get_touch_f64
+    get_touch_f64,
+    apply_vectors_f64
  } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
 import { WorkerConfig } from './types';
@@ -60,31 +60,6 @@ function searchStartPoint<T extends TypedArray>(
     }
 
     return wasmRes[0] ? new Float64Array([wasmRes[1], wasmRes[2]]) as T : null;
-}
-
-function applyVector<T extends TypedArray>(
-    memSeg: T,
-    point: Point<T>,
-    start: number,
-    end: number,
-    baseValue: Point<T>,
-    subValue: Point<T>,
-    offset: Point<T> = null
-): void {
-    point.update(baseValue).sub(subValue);
-
-    if (offset !== null) {
-        point.sub(offset);
-    }
-
-    if (!point.isEmpty) {
-        const index: number = memSeg[0] << 1;
-
-        point.fill(memSeg, index, VECTOR_MEM_OFFSET);
-        point.set(start, end);
-        point.fill(memSeg, index + 1, VECTOR_MEM_OFFSET);
-        memSeg[0] += 1;
-    }
 }
 
 function getTouch<T extends TypedArray>(
@@ -163,52 +138,16 @@ function applyVectors<T extends TypedArray>(
     touch: number,
     memSeg: T
 ): void {
-    const type: number = get_bits_u32(touch, 0, 2);
-    const currIndexA: number = get_bits_u32(touch, 2, 15);
-    const currIndexB: number = get_bits_u32(touch, 17, 15);
-    const sizeA: number = polygonA.length;
-    const sizeB: number = polygonB.length;
-    const prevIndexA = cycle_index_wasm(currIndexA, sizeA, -1); // loop
-    const nextIndexA = cycle_index_wasm(currIndexA, sizeA, 1); // loop
-    const prevIndexB = cycle_index_wasm(currIndexB, sizeB, -1); // loop
-    const nextIndexB = cycle_index_wasm(currIndexB, sizeB, 1); // loop
-    const pointIndices = pointPool.alloc(7);
-    const prevA: Point<T> = pointPool.get(pointIndices, 0);
-    const currA: Point<T> = pointPool.get(pointIndices, 1);
-    const nextA: Point<T> = pointPool.get(pointIndices, 2);
-    const prevB: Point<T> = pointPool.get(pointIndices, 3);
-    const currB: Point<T> = pointPool.get(pointIndices, 4);
-    const nextB: Point<T> = pointPool.get(pointIndices, 5);
-    const point: Point<T> = pointPool.get(pointIndices, 6);
-
-    prevA.update(polygonA.at(prevIndexA));
-    currA.update(polygonA.at(currIndexA));
-    nextA.update(polygonA.at(nextIndexA));
-    prevB.update(polygonB.at(prevIndexB));
-    currB.update(polygonB.at(currIndexB));
-    nextB.update(polygonB.at(nextIndexB));
-
-    switch (type) {
-        case 1: {
-            applyVector(memSeg, point, currIndexA, prevIndexA, prevA, currA);
-            applyVector(memSeg, point, currIndexA, nextIndexA, nextA, currA);
-            // B vectors need to be inverted
-            applyVector(memSeg, point, -1, -1, currB, prevB);
-            applyVector(memSeg, point, -1, -1, currB, nextB);
-            break;
-        }
-        case 2: {
-            applyVector(memSeg, point, prevIndexA, currIndexA, currA, currB, offset);
-            applyVector(memSeg, point, currIndexA, prevIndexA, prevA, currB, offset);
-            break;
-        }
-        default: {
-            applyVector(memSeg, point, -1, -1, currA, currB, offset);
-            applyVector(memSeg, point, -1, -1, currA, prevB, offset);
-        }
-    }
-
-    pointPool.malloc(pointIndices);
+    const rustResult = apply_vectors_f64(
+        polygonA.export() as Float64Array,
+        polygonB.export() as Float64Array,
+        offset.export() as Float64Array,
+        touch,
+        memSeg.slice() as Float64Array,
+        polygonA.isClosed,
+        polygonB.isClosed
+    );
+    memSeg.set(rustResult)
 }
 
 // if A and B start on a touching horizontal line, the end point may not be the start point
