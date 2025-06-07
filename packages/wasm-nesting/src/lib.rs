@@ -11,8 +11,8 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::nesting::pair_flow::{
-    deserialize_loops, find_translate, get_nfp_looped,
-    no_fit_polygon_rectangle, search_start_point,
+    deserialize_loops, find_translate, get_nfp_looped, get_touch, no_fit_polygon_rectangle,
+    search_start_point,
 };
 
 use utils::almost_equal::AlmostEqual;
@@ -270,4 +270,32 @@ pub fn search_start_point_f64(
     result.copy_from(&out);
 
     result
+}
+
+#[wasm_bindgen]
+pub unsafe fn get_touch_f64(
+    point_a: &[f64],
+    point_a_next: &[f64],
+    point_b: &[f64],
+    point_b_next: &[f64],
+    index_a: u16,
+    index_a_next: u16,
+    index_b: u16,
+    index_b_next: u16,
+) -> u32 {
+    let pa = Point::new(Some(point_a[0]), Some(point_a[1]));
+    let pa2 = Point::new(Some(point_a_next[0]), Some(point_a_next[1]));
+    let pb = Point::new(Some(point_b[0]), Some(point_b[1]));
+    let pb2 = Point::new(Some(point_b_next[0]), Some(point_b_next[1]));
+
+    return get_touch::<f64>(
+        &pa as *const Point<f64>,
+        &pa2 as *const Point<f64>,
+        &pb as *const Point<f64>,
+        &pb2 as *const Point<f64>,
+        index_a,
+        index_a_next,
+        index_b,
+        index_b_next,
+    );
 }

@@ -3,6 +3,7 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::utils::almost_equal::AlmostEqual;
+use crate::utils::bit_ops::set_bits;
 use crate::utils::math::cycle_index;
 use crate::utils::mid_value::MidValue;
 use crate::utils::number::Number;
@@ -805,10 +806,14 @@ pub unsafe fn search_start_point<T: Number>(
 
                 if is_inside == Some(inside)
                     && !intersect(pool, polygon_a, polygon_b, start_pt)
-                    && !in_nfp::<f32>(scan_polygon, start_pt_f32.set(
-                        (*start_pt).x.to_f32().unwrap(),
-                        (*start_pt).y.to_f32().unwrap(),
-                    ), nfp)
+                    && !in_nfp::<f32>(
+                        scan_polygon,
+                        start_pt_f32.set(
+                            (*start_pt).x.to_f32().unwrap(),
+                            (*start_pt).y.to_f32().unwrap(),
+                        ),
+                        nfp,
+                    )
                 {
                     pool.malloc(indices);
                     return [Some((*start_pt).x), Some((*start_pt).y)];
@@ -846,10 +851,14 @@ pub unsafe fn search_start_point<T: Number>(
 
                 if is_inside == Some(inside)
                     && !intersect(pool, polygon_a, polygon_b, start_pt)
-                    && !in_nfp::<f32>(scan_polygon, start_pt_f32.set(
-                        (*start_pt).x.to_f32().unwrap(),
-                        (*start_pt).y.to_f32().unwrap(),
-                    ), nfp)
+                    && !in_nfp::<f32>(
+                        scan_polygon,
+                        start_pt_f32.set(
+                            (*start_pt).x.to_f32().unwrap(),
+                            (*start_pt).y.to_f32().unwrap(),
+                        ),
+                        nfp,
+                    )
                 {
                     pool.malloc(indices);
                     return [Some((*start_pt).x), Some((*start_pt).y)];
@@ -861,4 +870,36 @@ pub unsafe fn search_start_point<T: Number>(
     pool.malloc(indices);
 
     return [None, None];
+}
+
+pub fn serialize_touch(type_: u16, first_index: u16, second_index: u16) -> u32 {
+    let mut result = set_bits(0, type_, 0, 2);
+    result = set_bits(result, first_index, 2, 15);
+
+    set_bits(result, second_index, 17, 15)
+}
+
+pub unsafe fn get_touch<T: Number>(
+    point_a: *const Point<T>,
+    point_a_next: *const Point<T>,
+    point_b: *const Point<T>,
+    point_b_next: *const Point<T>,
+    index_a: u16,
+    index_a_next: u16,
+    index_b: u16,
+    index_b_next: u16,
+) -> u32 {
+    if (*point_b).almost_equal(point_a, None) {
+        return serialize_touch(1, index_a, index_b);
+    }
+
+    if (*point_b).on_segment(point_a, point_a_next) {
+        return serialize_touch(2, index_a_next, index_b);
+    }
+
+    if (*point_a).on_segment(point_b, point_b_next) {
+        return serialize_touch(3, index_a, index_b_next);
+    }
+
+    return 0;
 }

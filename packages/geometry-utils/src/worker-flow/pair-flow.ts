@@ -6,6 +6,7 @@ import {
     get_nfp_looped_f64, 
     find_translate_f64,
     search_start_point_f64,
+    get_touch_f64
  } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
 import { WorkerConfig } from './types';
@@ -86,14 +87,6 @@ function applyVector<T extends TypedArray>(
     }
 }
 
-function serializeTouch(type: number, firstIndex: number, secondIndex: number): number {
-    let result: number = set_bits_u32(0, type, 0, 2);
-
-    result = set_bits_u32(result, firstIndex, 2, 15);
-
-    return set_bits_u32(result, secondIndex, 17, 15);
-}
-
 function getTouch<T extends TypedArray>(
     pointA: Point<T>,
     pointANext: Point<T>,
@@ -104,16 +97,16 @@ function getTouch<T extends TypedArray>(
     indexB: number,
     indexBNext: number
 ): number {
-    switch (true) {
-        case pointB.almostEqual(pointA):
-            return serializeTouch(0, indexA, indexB);
-        case pointB.onSegment(pointA, pointANext):
-            return serializeTouch(1, indexANext, indexB);
-        case pointA.onSegment(pointB, pointBNext):
-            return serializeTouch(2, indexA, indexBNext);
-        default:
-            return -1;
-    }
+    return get_touch_f64(
+        pointA.export() as Float64Array, 
+        pointANext.export() as Float64Array,
+        pointB.export() as Float64Array, 
+        pointBNext.export() as Float64Array, 
+        indexA, 
+        indexANext, 
+        indexB, 
+        indexBNext
+    )
 }
 
 function fillVectors<T extends TypedArray>(
@@ -152,7 +145,7 @@ function fillVectors<T extends TypedArray>(
             pointBNext.update(polygonB.at(jNext)).add(offset);
             touch = getTouch(pointA, pointANext, pointB, pointBNext, i, iNext, j, jNext);
 
-            if (touch !== -1) {
+            if (touch !== 0) {
                 markedIndices.push(get_bits_u32(touch, 2, 15));
                 applyVectors(polygonA, polygonB, pointPool, offset, touch, memSeg);
             }
@@ -196,7 +189,7 @@ function applyVectors<T extends TypedArray>(
     nextB.update(polygonB.at(nextIndexB));
 
     switch (type) {
-        case 0: {
+        case 1: {
             applyVector(memSeg, point, currIndexA, prevIndexA, prevA, currA);
             applyVector(memSeg, point, currIndexA, nextIndexA, nextA, currA);
             // B vectors need to be inverted
@@ -204,7 +197,7 @@ function applyVectors<T extends TypedArray>(
             applyVector(memSeg, point, -1, -1, currB, nextB);
             break;
         }
-        case 1: {
+        case 2: {
             applyVector(memSeg, point, prevIndexA, currIndexA, currA, currB, offset);
             applyVector(memSeg, point, currIndexA, prevIndexA, prevA, currB, offset);
             break;
