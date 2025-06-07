@@ -681,3 +681,31 @@ pub unsafe fn find_translate<T: Number>(
 
     point_pool.malloc(indices);
 }
+
+pub unsafe fn get_inside<T: Number>(
+    pool: &mut PointPool<T>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    offset: *const Point<T>,
+    default_value: Option<bool>,
+) -> Option<bool> {
+    let indices = pool.alloc(1);
+    let temp_pt = pool.get(indices, 0);
+
+    let size_b = (*polygon_b).length();
+
+    for i in 0..size_b {
+        (*temp_pt).update((*polygon_b).at(i));
+        (*temp_pt).add(offset);
+
+        if let Some(is_inside) = (*polygon_a).point_in(&*temp_pt, None) {
+            pool.malloc(indices);
+
+            return Some(is_inside);
+        }
+    }
+
+    pool.malloc(indices);
+
+    default_value
+}

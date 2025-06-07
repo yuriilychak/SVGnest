@@ -6,7 +6,8 @@ import {
     no_fit_polygon_rectangle_f64, 
     intersect_f64,
     get_nfp_looped_f64, 
-    find_translate_f64
+    find_translate_f64,
+    get_inside_f64
  } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
 import { TOL_F64 } from '../constants';
@@ -72,26 +73,10 @@ function getInside<T extends TypedArray>(
     offset: Point<T>,
     defaultValue: boolean | null
 ): boolean | null {
-    const pointIndices: number = pointPool.alloc(1);
-    const point: Point<T> = pointPool.get(pointIndices, 0);
-    const sizeB: number = polygonB.length;
-    let i: number = 0;
-    let inPoly: boolean = false;
-
-    for (i = 0; i < sizeB; ++i) {
-        point.update(polygonB.at(i)).add(offset);
-        inPoly = polygonA.pointIn(point);
-
-        if (inPoly !== null) {
-            pointPool.malloc(pointIndices);
-
-            return inPoly;
-        }
-    }
-
-    pointPool.malloc(pointIndices);
-
-    return defaultValue;
+    const wasmRes = defaultValue !== null 
+        ? get_inside_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array, defaultValue)
+        : get_inside_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array);
+    return wasmRes === undefined ? null : wasmRes;
 }
 
 // searches for an arrangement of A and B such that they do not overlap

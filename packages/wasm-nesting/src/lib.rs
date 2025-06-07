@@ -12,7 +12,7 @@ use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::nesting::pair_flow::{
     find_translate, get_nfp_looped, intersect, no_fit_polygon_rectangle,
-    polygon_projection_distance,
+    polygon_projection_distance, get_inside
 };
 
 use utils::almost_equal::AlmostEqual;
@@ -289,5 +289,43 @@ pub fn find_translate_f64(
 
     let result = Float64Array::new_with_length(2);
     result.copy_from(&[translate_index, max_distance]);
+    result
+}
+
+#[wasm_bindgen]
+pub fn get_inside_f64(
+    poly_a: &[f64],
+    poly_b: &[f64],
+    offset: &[f64],
+    default_value: Option<bool>,
+) -> Option<bool> {
+    let count_a = poly_a.len() / 2;
+    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
+    let mut polygon_a = Polygon::<f64>::new();
+    unsafe {
+        polygon_a.bind(buf_a, 0, count_a);
+    }
+
+    let count_b = poly_b.len() / 2;
+    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
+    let mut polygon_b = Polygon::<f64>::new();
+    unsafe {
+        polygon_b.bind(buf_b, 0, count_b);
+    }
+
+    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
+
+    let mut pool = PointPool::<f64>::new();
+
+    let result = unsafe {
+        get_inside(
+            &mut pool,
+            &mut polygon_a,
+            &mut polygon_b,
+            &offset_pt,
+            default_value,
+        )
+    };
+
     result
 }
