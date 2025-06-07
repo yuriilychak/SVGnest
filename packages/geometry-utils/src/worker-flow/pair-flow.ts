@@ -2,82 +2,35 @@ import {
     set_bits_u32, 
     get_bits_u32, 
     cycle_index_wasm, 
-    polygon_projection_distance_f64, 
     no_fit_polygon_rectangle_f64, 
-    intersect_f64,
     get_nfp_looped_f64, 
     find_translate_f64,
-    get_inside_f64
+    search_start_point_f64,
  } from 'wasm-nesting';
 import { almostEqual } from '../helpers';
-import { TOL_F64 } from '../constants';
 import { WorkerConfig } from './types';
 import { VECTOR_MEM_OFFSET } from './ constants';
 import PairContent from './pair-content';
 import type { Point, PolygonNode, Polygon, PointPool, TypedArray } from '../types';
-
-function intersect<T extends TypedArray>(
-    pointPool: PointPool<T>, 
-    polygonA: Polygon<T>, 
-    polygonB: Polygon<T>, 
-    offset: Point<T>
-): boolean {
-    return intersect_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array);
-}
-
-// project each point of B onto A in the given direction, and return the
-function polygonProjectionDistance<T extends TypedArray>(
-    pointPool: PointPool<T>,
-    polygonA: Polygon<T>,
-    polygonB: Polygon<T>,
-    direction: Point<T>,
-    offset: Point<T>
-): number {
-    return polygon_projection_distance_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, direction.export() as Float64Array, offset.export() as Float64Array, polygonA.isClosed, polygonB.isClosed);
-}
 
 // returns an interior NFP for the special case where A is a rectangle
 function noFitPolygonRectangle<T extends TypedArray>(pointPool: PointPool<T>, A: Polygon<T>, B: Polygon<T>): Float32Array[] {
     return [no_fit_polygon_rectangle_f64(A.export() as Float64Array, B.export() as Float64Array)];
 }
 
-// returns true if point already exists in the given nfp
-function inNfp<T extends TypedArray>(polygon: Polygon<Float32Array>, point: Point<T>, nfp: Float32Array[]): boolean {
-    if (nfp.length === 0) {
-        return false;
-    }
-
+function serializeNfp(nfp: Float32Array[]) {
     const nfpCount: number = nfp.length;
-    let pointCount: number = 0;
-    let i: number = 0;
-    let j: number = 0;
+    const nfpInput = new Array<number>(nfpCount + 1);
+    nfpInput[0] = nfpCount;
+    const source = nfp.reduce<number[]>((result, eleme, index) => {
+        result[index + 1] = eleme.length;
+        
+        return result.concat(Array.from(eleme));
+    }, nfpInput);
 
-    for (i = 0; i < nfpCount; ++i) {
-        polygon.bind(nfp[i]);
-        pointCount = polygon.length;
-
-        for (j = 0; j < pointCount; ++j) {
-            if (point.almostEqual(polygon.at(j))) {
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return new Float32Array(source);
 }
 
-function getInside<T extends TypedArray>(
-    pointPool: PointPool<T>,
-    polygonA: Polygon<T>,
-    polygonB: Polygon<T>,
-    offset: Point<T>,
-    defaultValue: boolean | null
-): boolean | null {
-    const wasmRes = defaultValue !== null 
-        ? get_inside_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array, defaultValue)
-        : get_inside_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, offset.export() as Float64Array);
-    return wasmRes === undefined ? null : wasmRes;
-}
 
 // searches for an arrangement of A and B such that they do not overlap
 // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
@@ -90,96 +43,22 @@ function searchStartPoint<T extends TypedArray>(
     markedIndices: number[],
     nfp: Float32Array[] = []
 ): T {
+    const wasmRes = search_start_point_f64(
+        polygonA.export() as Float64Array, 
+        polygonB.export() as Float64Array, 
+        inside, 
+        new Uint32Array(markedIndices), 
+        serializeNfp(nfp)
+    );
+
     polygonA.close();
     polygonB.close();
-    const sizeA: number = polygonA.length;
-    const sizeB: number = polygonB.length;
-    const pointIndices = pointPool.alloc(3);
-    const startPoint: Point<T> = pointPool.get(pointIndices, 0);
-    const v: Point<T> = pointPool.get(pointIndices, 1);
-    const vNeg: Point<T> = pointPool.get(pointIndices, 2);
-    let i: number = 0;
-    let j: number = 0;
-    let d: number = 0;
-    let isInside: boolean = false;
-    let result: T = null;
 
-    for (i = 0; i < sizeA - 1; ++i) {
-        if (markedIndices.indexOf(i) === -1) {
-            markedIndices.push(i);
-
-            for (j = 0; j < sizeB; ++j) {
-                startPoint.update(polygonA.at(i)).sub(polygonB.at(cycle_index_wasm(j, sizeB, 0)));
-
-                isInside = getInside(pointPool, polygonA, polygonB, startPoint, null);
-
-                if (isInside === null) {
-                    pointPool.malloc(pointIndices);
-                    // A and B are the same
-                    return null;
-                }
-
-                if (
-                    isInside === inside &&
-                    !intersect(pointPool, polygonA, polygonB, startPoint) &&
-                    !inNfp(polygon, startPoint, nfp)
-                ) {
-                    result = startPoint.export();
-                    pointPool.malloc(pointIndices);
-
-                    return result;
-                }
-
-                // slide B along vector
-                v.update(polygonA.at(cycle_index_wasm(i, sizeA, 1))).sub(polygonA.at(i));
-                vNeg.update(v).reverse();
-
-                const d1 = polygonProjectionDistance(pointPool, polygonA, polygonB, v, startPoint);
-                const d2 = polygonProjectionDistance(pointPool, polygonB, polygonA, vNeg, startPoint);
-
-                d = -1;
-
-                if (!Number.isNaN(d1) && !Number.isNaN(d2)) {
-                    d = Math.min(d1, d2);
-                } else if (!Number.isNaN(d2)) {
-                    d = d2;
-                } else if (!Number.isNaN(d1)) {
-                    d = d1;
-                }
-
-                // only slide until no longer negative
-                // old-todo: clean this up
-                if (d < TOL_F64) {
-                    continue;
-                }
-
-                const vd = v.length;
-
-                if (vd - d >= TOL_F64) {
-                    v.scaleUp(d / vd);
-                }
-
-                startPoint.add(v);
-
-                isInside = getInside(pointPool, polygonA, polygonB, startPoint, isInside);
-
-                if (
-                    isInside === inside &&
-                    !intersect(pointPool, polygonA, polygonB, startPoint) &&
-                    !inNfp(polygon, startPoint, nfp)
-                ) {
-                    result = startPoint.export();
-                    pointPool.malloc(pointIndices);
-
-                    return result;
-                }
-            }
-        }
+    for(let i = 3; i < wasmRes.length; ++i) {
+        markedIndices.push(wasmRes[i]);
     }
 
-    pointPool.malloc(pointIndices);
-
-    return null;
+    return wasmRes[0] ? new Float64Array([wasmRes[1], wasmRes[2]]) as T : null;
 }
 
 function applyVector<T extends TypedArray>(

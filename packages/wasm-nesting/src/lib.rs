@@ -11,8 +11,8 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::nesting::pair_flow::{
-    find_translate, get_nfp_looped, intersect, no_fit_polygon_rectangle,
-    polygon_projection_distance, get_inside
+    deserialize_loops, find_translate, get_nfp_looped,
+    no_fit_polygon_rectangle, search_start_point,
 };
 
 use utils::almost_equal::AlmostEqual;
@@ -109,54 +109,6 @@ pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
 }
 
 #[wasm_bindgen]
-pub fn polygon_projection_distance_f64(
-    poly_a: &[f64],
-    poly_b: &[f64],
-    direction: &[f64],
-    offset: &[f64],
-    closed_a: bool,
-    closed_b: bool,
-) -> f64 {
-    let count_a = poly_a.len() / 2;
-    let count_b = poly_b.len() / 2;
-
-    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
-    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
-
-    let mut polygon_a = Polygon::<f64>::new();
-    unsafe {
-        polygon_a.bind(buf_a, 0, count_a);
-
-        if closed_a {
-            polygon_a.close();
-        }
-    }
-
-    let mut polygon_b = Polygon::<f64>::new();
-    unsafe {
-        polygon_b.bind(buf_b, 0, count_b);
-
-        if closed_b {
-            polygon_b.close();
-        }
-    }
-
-    let direction_point = Point::<f64>::new(Some(direction[0]), Some(direction[1]));
-    let offset_point = Point::<f64>::new(Some(offset[0]), Some(offset[1]));
-    let mut pool = PointPool::<f64>::new();
-
-    let result = polygon_projection_distance(
-        &mut pool,
-        &mut polygon_a as *mut Polygon<f64>,
-        &mut polygon_b as *mut Polygon<f64>,
-        &direction_point as *const Point<f64>,
-        &offset_point as *const Point<f64>,
-    );
-
-    result
-}
-
-#[wasm_bindgen]
 pub fn no_fit_polygon_rectangle_f64(poly_a: &[f64], poly_b: &[f64]) -> Float32Array {
     // Розмір у точках (дві координати на точку)
     let count_a = poly_a.len() / 2;
@@ -197,42 +149,6 @@ pub fn no_fit_polygon_rectangle_f64(poly_a: &[f64], poly_b: &[f64]) -> Float32Ar
         result.copy_from(arr);
         result
     }
-}
-
-#[wasm_bindgen]
-pub fn intersect_f64(poly_a: &[f64], poly_b: &[f64], offset: &[f64]) -> bool {
-    let count_a = poly_a.len() / 2;
-    let count_b = poly_b.len() / 2;
-
-    // Створюємо Box<[f64]> для poly_a і ініціалізуємо Polygon
-    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
-    let mut polygon_a = Polygon::<f64>::new();
-    unsafe {
-        polygon_a.bind(buf_a, 0, count_a);
-        polygon_a.close();
-    }
-
-    // Створюємо Box<[f64]> для poly_b і ініціалізуємо Polygon
-    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
-    let mut polygon_b = Polygon::<f64>::new();
-    unsafe {
-        polygon_b.bind(buf_b, 0, count_b);
-        polygon_b.close();
-    }
-
-    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
-    let mut pool = PointPool::<f64>::new();
-
-    let result = unsafe {
-        intersect(
-            &mut pool,
-            &mut polygon_a as *mut Polygon<f64>,
-            &mut polygon_b as *mut Polygon<f64>,
-            &offset_pt as *const Point<f64>,
-        )
-    };
-
-    result
 }
 
 #[wasm_bindgen]
@@ -293,39 +209,65 @@ pub fn find_translate_f64(
 }
 
 #[wasm_bindgen]
-pub fn get_inside_f64(
+pub fn search_start_point_f64(
     poly_a: &[f64],
     poly_b: &[f64],
-    offset: &[f64],
-    default_value: Option<bool>,
-) -> Option<bool> {
+    inside: bool,
+    marked_indices: &[u32],
+    nfp_serialized: &[f32],
+) -> Float64Array {
     let count_a = poly_a.len() / 2;
-    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
-    let mut polygon_a = Polygon::<f64>::new();
+    let buf_a = poly_a.to_vec().into_boxed_slice();
+    let mut a = Polygon::<f64>::new();
     unsafe {
-        polygon_a.bind(buf_a, 0, count_a);
+        a.bind(buf_a, 0, count_a);
     }
 
     let count_b = poly_b.len() / 2;
-    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
-    let mut polygon_b = Polygon::<f64>::new();
+    let buf_b = poly_b.to_vec().into_boxed_slice();
+    let mut b = Polygon::<f64>::new();
     unsafe {
-        polygon_b.bind(buf_b, 0, count_b);
+        b.bind(buf_b, 0, count_b);
     }
 
-    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
+    let orig_len = marked_indices.len();
+    let mut marked: Vec<usize> = marked_indices.iter().map(|&x| x as usize).collect();
+
+    let nfp_refs: Vec<&[f32]> = deserialize_loops(nfp_serialized);
 
     let mut pool = PointPool::<f64>::new();
 
-    let result = unsafe {
-        get_inside(
+    let mut scan_polygon = Polygon::<f32>::new();
+
+    let [opt_x, opt_y] = unsafe {
+        search_start_point::<f64>(
             &mut pool,
-            &mut polygon_a,
-            &mut polygon_b,
-            &offset_pt,
-            default_value,
+            &mut scan_polygon,
+            &mut a,
+            &mut b,
+            inside,
+            &mut marked,
+            &nfp_refs,
         )
     };
+
+    let mut out = Vec::new();
+    if let (Some(x), Some(y)) = (opt_x, opt_y) {
+        out.push(1.0);
+        out.push(x);
+        out.push(y);
+    } else {
+        out.push(0.0);
+        out.push(0.0);
+        out.push(0.0);
+    }
+
+    for &idx in &marked[orig_len..] {
+        out.push(idx as f64);
+    }
+
+    let result = Float64Array::new_with_length(out.len() as u32);
+    result.copy_from(&out);
 
     result
 }

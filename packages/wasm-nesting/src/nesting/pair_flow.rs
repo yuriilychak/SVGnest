@@ -284,7 +284,7 @@ fn segment_distance<T: Number>(
     }
 }
 
-pub fn polygon_projection_distance<T: Number>(
+fn polygon_projection_distance<T: Number>(
     pool: &mut PointPool<T>,
     polygon_a: *mut Polygon<T>,
     polygon_b: *mut Polygon<T>,
@@ -506,7 +506,7 @@ unsafe fn line_intersect<T: Number>(
         && ((*e).almost_equal_y(f, None) || check_mid_value(y, (*e).y, (*f).y));
 }
 
-pub unsafe fn intersect<T: Number>(
+unsafe fn intersect<T: Number>(
     point_pool: &mut PointPool<T>,
     polygon_a: *mut Polygon<T>,
     polygon_b: *mut Polygon<T>,
@@ -682,7 +682,7 @@ pub unsafe fn find_translate<T: Number>(
     point_pool.malloc(indices);
 }
 
-pub unsafe fn get_inside<T: Number>(
+unsafe fn get_inside<T: Number>(
     pool: &mut PointPool<T>,
     polygon_a: *mut Polygon<T>,
     polygon_b: *mut Polygon<T>,
@@ -708,4 +708,157 @@ pub unsafe fn get_inside<T: Number>(
     pool.malloc(indices);
 
     default_value
+}
+
+unsafe fn in_nfp<T: Number>(
+    polygon: *mut Polygon<T>,
+    point: *const Point<T>,
+    nfp_loops: &[&[T]],
+) -> bool {
+    if nfp_loops.is_empty() {
+        return false;
+    }
+
+    for seg in nfp_loops {
+        let pt_count = seg.len() >> 1;
+        let buf: Box<[T]> = seg.to_vec().into_boxed_slice();
+
+        (*polygon).bind(buf, 0, pt_count);
+
+        let len = (*polygon).length();
+
+        for j in 0..len {
+            if (*point).almost_equal((*polygon).at(j), None) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+pub fn deserialize_loops<T: Number>(data: &[T]) -> Vec<&[T]> {
+    if data.is_empty() {
+        return Vec::new();
+    }
+    // 1) Зчитуємо count
+    let count = data[0]
+        .to_usize()
+        .expect("deserialize_loops: count must fit in usize");
+    let mut idx = 1;
+    // 2) Зчитуємо довжини
+    let mut lengths = Vec::with_capacity(count);
+    for _ in 0..count {
+        let len = data[idx]
+            .to_usize()
+            .expect("deserialize_loops: length must fit in usize");
+        lengths.push(len);
+        idx += 1;
+    }
+    // 3) Формуємо зрізи
+    let mut out = Vec::with_capacity(count);
+    for len in lengths {
+        let slice = &data[idx..idx + len];
+        out.push(slice);
+        idx += len;
+    }
+    out
+}
+
+pub unsafe fn search_start_point<T: Number>(
+    pool: &mut PointPool<T>,
+    scan_polygon: *mut Polygon<f32>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    inside: bool,
+    marked_indices: &mut Vec<usize>,
+    nfp: &[&[f32]],
+) -> [Option<T>; 2] {
+    (*polygon_a).close();
+    (*polygon_b).close();
+    let size_a = (*polygon_a).length();
+    let size_b = (*polygon_b).length();
+
+    let indices = pool.alloc(3);
+    let start_pt = pool.get(indices, 0);
+    let v = pool.get(indices, 1);
+    let v_neg = pool.get(indices, 2);
+    let mut start_pt_f32 = Point::<f32>::new(None, None);
+
+    for i in 0..(size_a - 1) {
+        if !marked_indices.contains(&i) {
+            marked_indices.push(i);
+
+            for j in 0..size_b {
+                let a_i = (*polygon_a).at(i);
+                let b_j = (*polygon_b).at(cycle_index(j, size_b, 0));
+                (*start_pt).update(&*a_i);
+                (*start_pt).sub(&*b_j);
+
+                let mut is_inside = get_inside(pool, polygon_a, polygon_b, start_pt, None);
+
+                if is_inside.is_none() {
+                    pool.malloc(indices);
+
+                    return [None, None];
+                }
+
+                if is_inside == Some(inside)
+                    && !intersect(pool, polygon_a, polygon_b, start_pt)
+                    && !in_nfp::<f32>(scan_polygon, start_pt_f32.set(
+                        (*start_pt).x.to_f32().unwrap(),
+                        (*start_pt).y.to_f32().unwrap(),
+                    ), nfp)
+                {
+                    pool.malloc(indices);
+                    return [Some((*start_pt).x), Some((*start_pt).y)];
+                }
+
+                let next_i = cycle_index(i, size_a, 1);
+                (*v).update((*polygon_a).at(next_i));
+                (*v).sub(&*a_i);
+                (*v_neg).update(v);
+                (*v_neg).reverse();
+
+                let d1 = polygon_projection_distance(pool, polygon_a, polygon_b, v, start_pt);
+                let d2 = polygon_projection_distance(pool, polygon_b, polygon_a, v_neg, start_pt);
+
+                let mut d = -1.0;
+                if !d1.is_nan() && !d2.is_nan() {
+                    d = d1.min(d2);
+                } else if !d2.is_nan() {
+                    d = d2;
+                } else if !d1.is_nan() {
+                    d = d1;
+                }
+
+                if d < f64::tol() {
+                    continue;
+                }
+
+                let vd = (*v).length();
+                if vd - d >= f64::tol() {
+                    (*v).scale_up(T::from_f64(d / vd).unwrap());
+                }
+                (*start_pt).add(v);
+
+                is_inside = get_inside(pool, polygon_a, polygon_b, start_pt, is_inside);
+
+                if is_inside == Some(inside)
+                    && !intersect(pool, polygon_a, polygon_b, start_pt)
+                    && !in_nfp::<f32>(scan_polygon, start_pt_f32.set(
+                        (*start_pt).x.to_f32().unwrap(),
+                        (*start_pt).y.to_f32().unwrap(),
+                    ), nfp)
+                {
+                    pool.malloc(indices);
+                    return [Some((*start_pt).x), Some((*start_pt).y)];
+                }
+            }
+        }
+    }
+
+    pool.malloc(indices);
+
+    return [None, None];
 }
