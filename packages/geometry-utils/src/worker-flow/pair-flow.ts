@@ -14,7 +14,7 @@ function noFitPolygonRectangle<T extends TypedArray>(pointPool: PointPool<T>, A:
 export function deserializeNfp(flat: Float32Array): Float32Array[] {
     const count = flat[0] >>> 0;
     const result: Float32Array[] = [];
-    let coordIdx = 1 + count; // початок координат після блоків довжин
+    let coordIdx = 1 + count;
   
     for (let i = 0; i < count; i++) {
       const len = flat[i + 1] >>> 0;
