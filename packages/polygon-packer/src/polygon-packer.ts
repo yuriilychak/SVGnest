@@ -111,7 +111,7 @@ export default class PolygonPacker {
             this.#best = placementsData;
 
             const binArea: number = Math.abs(this.#binArea);
-            const polygon: PolygonF32 = PolygonF32.create();
+            const polygon: PolygonF32 = new PolygonF32();
             const placementCount = placementsData[1];
             let placedCount: number = 0;
             let placedArea: number = 0;

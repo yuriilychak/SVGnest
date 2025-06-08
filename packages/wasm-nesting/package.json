@@ -1,0 +1,13 @@
+{
+  "name": "wasm-nesting",
+  "version": "0.1.0",
+  "description": "A WebAssembly package for nesting using Rust",
+  "main": "index.js",
+  "types": "pkg/wasm-nesting.d.ts",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/wasm-build.js && npm run bundle",
+    "bundle": "webpack"
+  }
+}

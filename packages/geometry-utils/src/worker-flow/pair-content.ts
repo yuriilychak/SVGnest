@@ -1,5 +1,5 @@
+import { get_bits_u32 } from 'wasm-nesting';
 import { NFP_KEY_INDICES } from '../constants';
-import { getBits } from '../helpers';
 import { PolygonNode } from '../types';
 import NFPWrapper from './nfp-wrapper';
 import WorkerContent from './worker-content';
@@ -19,7 +19,7 @@ export default class PairContent extends WorkerContent {
 
         this._key = view.getUint32(Uint32Array.BYTES_PER_ELEMENT);
         this._isInside = PairContent.getInside(this._key);
-        this._useHoles = Boolean(getBits(nestConfig, 28, 1));
+        this._useHoles = Boolean(get_bits_u32(nestConfig, 28, 1));
 
         return this;
     }
@@ -59,7 +59,7 @@ export default class PairContent extends WorkerContent {
 
     private static getInside(numKey: number): boolean {
         const insideBitIndex = NFP_KEY_INDICES[4];
-        const insideValue = getBits(numKey, insideBitIndex, 1);
+        const insideValue = get_bits_u32(numKey, insideBitIndex, 1);
 
         return Boolean(insideValue);
     }

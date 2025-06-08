@@ -3,8 +3,6 @@ export const TOL_F32: number = 1e-4;
 
 export const NFP_KEY_INDICES: Uint8Array = new Uint8Array([0, 10, 19, 23, 27, 32]);
 
-export const UINT16_BIT_COUNT: number = 16;
-
 export const NFP_INFO_START_INDEX: number = 2;
 
 function getAngleCache() {

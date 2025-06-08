@@ -1,4 +1,5 @@
-import { getUint16, joinUint16, writeUint32ToF32 } from "../helpers";
+import { join_u16_to_u32, get_u16_from_u32 } from 'wasm-nesting';
+import { writeUint32ToF32 } from "../helpers";
 
 export default class NFPWrapper {
     private _buffer: ArrayBuffer;
@@ -16,8 +17,8 @@ export default class NFPWrapper {
         }
 
         const compressedInfo: number = this.getUint32(NFPWrapper.NFP_INFO_START_INDEX + index);
-        const offset: number = getUint16(compressedInfo, 1) * Float32Array.BYTES_PER_ELEMENT;
-        const size: number = getUint16(compressedInfo, 0);
+        const offset: number = get_u16_from_u32(compressedInfo, 1) * Float32Array.BYTES_PER_ELEMENT;
+        const size: number = get_u16_from_u32(compressedInfo, 0);
 
         return new Float32Array(this._buffer, offset, size);
     }
@@ -52,7 +53,7 @@ export default class NFPWrapper {
     
             for (i = 0; i < nfpCount; ++i) {
                 size = nfpArrays[i].length;
-                info[i] = joinUint16(size, totalSize);
+                info[i] = join_u16_to_u32(size, totalSize);
                 totalSize += size;
             }
     
@@ -63,7 +64,7 @@ export default class NFPWrapper {
     
             for (i = 0; i < nfpCount; ++i) {
                 writeUint32ToF32(result, NFPWrapper.NFP_INFO_START_INDEX + i, info[i]);
-                result.set(nfpArrays[i], getUint16(info[i], 1));
+                result.set(nfpArrays[i], get_u16_from_u32(info[i], 1));
             }
     
             return result.buffer;

@@ -20,7 +20,7 @@ export default class NFPStore {
         this.#angleSplit = config.rotations;
         this.#nfpPairs = [];
 
-        const polygon: PolygonF32 = PolygonF32.create();
+        const polygon: PolygonF32 = new PolygonF32();
         const nodes: PolygonNode[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = nodes.length;
@@ -88,7 +88,7 @@ export default class NFPStore {
     }
 
     public getPlacementData(area: number): ArrayBuffer[] {
-        const polygon: PolygonF32 = PolygonF32.create();
+        const polygon: PolygonF32 = new PolygonF32();
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
         const nodes = NFPStore.rotateNodes(polygon, this.#individual.placement);

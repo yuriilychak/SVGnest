@@ -1,6 +1,6 @@
+import { cycle_index_wasm } from 'wasm-nesting';
 import OutPt from './out-pt';
 import { PointI32 } from '../geometry';
-import { cycleIndex } from '../helpers';
 
 export function getArea(poly: PointI32[]): number {
     const pointCount: number = poly.length;
@@ -49,7 +49,7 @@ export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
     }
 
     for (i = 0; i < pointCount; ++i) {
-        outPts[i].next = outPts[cycleIndex(i, pointCount, 1)];
+        outPts[i].next = outPts[cycle_index_wasm(i, pointCount, 1)];
         outPts[i].next.prev = outPts[i];
     }
 

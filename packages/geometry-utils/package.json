@@ -11,6 +11,9 @@
     },
     "description": "Geometry utils for polygon packing algorythm",
     "devDependencies": {},
+    "dependencies": {
+        "wasm-nesting": "workspace:*"
+    },
     "keywords": [
         "polygons",
         "algorythm",

@@ -1,30 +1,13 @@
-import { NFP_KEY_INDICES, TOL_F32, TOL_F64, UINT16_BIT_COUNT } from './constants';
+import { set_bits_u32, get_u16_from_u32, almost_equal, to_rotation_index_wasm } from 'wasm-nesting';
+import { NFP_KEY_INDICES, TOL_F32, TOL_F64 } from './constants';
 import { NestConfig, NFPCache, PolygonNode } from './types';
 
-function getMask(bitCount: number, offset: number = 0): number {
-    return ((1 << bitCount) - 1) << offset;
-}
-
-export function setBits(source: number, value: number, index: number, bitCount: number): number {
-    const mask = getMask(bitCount, index);
-
-    return (source & ~mask) | ((value << index) & mask);
-}
-
-export function getBits(source: number, index: number, numBits: number): number {
-    return (source >>> index) & getMask(numBits);
-}
-
 export function getUint16(source: number, index: number): number {
-    return getBits(source, index * UINT16_BIT_COUNT, UINT16_BIT_COUNT);
-}
-
-export function joinUint16(value1: number, value2: number): number {
-    return value1 | (value2 << UINT16_BIT_COUNT);
+    return get_u16_from_u32(source, index);
 }
 
 export function almostEqual(a: number, b: number = 0, tolerance: number = TOL_F64): boolean {
-    return Math.abs(a - b) < tolerance;
+    return almost_equal(a, b, tolerance);
 }
 
 export function almostEqualF32(a: number, b: number = 0, tolerance: number = TOL_F32): boolean {
@@ -34,34 +17,21 @@ export function almostEqualF32(a: number, b: number = 0, tolerance: number = TOL
     return diff <= tolerance * scale;
 }
 
-
-export function midValue(value: number, leftRange: number, rightRange: number): number {
-    return Math.abs(2 * value - leftRange - rightRange) - Math.abs(leftRange - rightRange);
-}
-
-export function cycleIndex(index: number, size: number, offset: number): number {
-    return (index + size + offset) % size;
-}
-
-export function toRotationIndex(angle: number, rotationSplit: number): number {
-    return Math.round((angle * rotationSplit) / 360);
-}
-
 export function generateNFPCacheKey(
     rotationSplit: number,
     inside: boolean,
     polygon1: PolygonNode,
     polygon2: PolygonNode
 ): number {
-    const rotationIndex1 = toRotationIndex(polygon1.rotation, rotationSplit);
-    const rotationIndex2 = toRotationIndex(polygon2.rotation, rotationSplit);
+    const rotationIndex1 = to_rotation_index_wasm(polygon1.rotation, rotationSplit);
+    const rotationIndex2 = to_rotation_index_wasm(polygon2.rotation, rotationSplit);
     const data = new Uint8Array([polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0]);
     const elementCount: number = data.length;
     let result: number = 0;
     let i: number = 0;
 
     for (i = 0; i < elementCount; ++i) {
-        result = setBits(result, data[i], NFP_KEY_INDICES[i], NFP_KEY_INDICES[i + 1] - NFP_KEY_INDICES[i]);
+        result = set_bits_u32(result, data[i], NFP_KEY_INDICES[i], NFP_KEY_INDICES[i + 1] - NFP_KEY_INDICES[i]);
     }
 
     return result;
@@ -120,12 +90,12 @@ export function serializeConfig(config: NestConfig): number {
     let result: number = 0;
 
     // Кодуємо значення в число
-    result = setBits(result, config.curveTolerance * 10, 0, 4);
-    result = setBits(result, config.spacing, 4, 5);
-    result = setBits(result, config.rotations, 9, 5);
-    result = setBits(result, config.populationSize, 14, 7);
-    result = setBits(result, config.mutationRate, 21, 7);
-    result = setBits(result, Number(config.useHoles), 28, 1);
+    result = set_bits_u32(result, config.curveTolerance * 10, 0, 4);
+    result = set_bits_u32(result, config.spacing, 4, 5);
+    result = set_bits_u32(result, config.rotations, 9, 5);
+    result = set_bits_u32(result, config.populationSize, 14, 7);
+    result = set_bits_u32(result, config.mutationRate, 21, 7);
+    result = set_bits_u32(result, Number(config.useHoles), 28, 1);
 
     return result;
 }

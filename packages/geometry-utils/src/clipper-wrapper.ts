@@ -12,7 +12,7 @@ export default class ClipperWrapper {
 
     constructor(configuration: NestConfig) {
         this.configuration = configuration;
-        this.polygon = PolygonF32.create();
+        this.polygon = new PolygonF32();
     }
 
     public generateBounds(memSeg: Float32Array): {
