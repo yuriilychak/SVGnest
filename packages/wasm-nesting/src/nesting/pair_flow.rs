@@ -3,11 +3,11 @@ use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
 use crate::utils::almost_equal::AlmostEqual;
-use crate::utils::bit_ops::{set_bits, get_bits};
+use crate::utils::bit_ops::{get_bits, set_bits};
 use crate::utils::math::cycle_index;
 use crate::utils::mid_value::MidValue;
 use crate::utils::number::Number;
-use crate::utils::wasm_logger::wasm_log;
+use num_traits::ToPrimitive;
 
 struct SegmentCheck<T: Number> {
     pub point: *mut Point<T>,
@@ -252,7 +252,6 @@ fn segment_distance<T: Number>(
 
         let mut result = f64::NAN;
 
-        // coincident points
         if dot_a.almost_equal(dot_e, None) {
             result = (cross_a - cross_e).to_f64().unwrap();
         } else if dot_a.almost_equal(dot_f, None) {
@@ -581,7 +580,7 @@ unsafe fn intersect<T: Number>(
     false
 }
 
-pub unsafe fn get_nfp_looped<T: Number>(
+unsafe fn get_nfp_looped<T: Number>(
     nfp: &[T],
     reference: *const Point<T>,
     pool: &mut PointPool<T>,
@@ -613,13 +612,13 @@ pub unsafe fn get_nfp_looped<T: Number>(
     false
 }
 
-pub unsafe fn find_translate<T: Number>(
+unsafe fn find_translate<T: Number>(
     polygon_a: *mut Polygon<T>,
     polygon_b: *mut Polygon<T>,
     point_pool: &mut PointPool<T>,
     offset: *const Point<T>,
     mem_seg: &mut [T],
-    prev_translate: &Point<T>,
+    prev_translate: *mut Point<T>,
 ) {
     let vector_count = mem_seg
         .get(0)
@@ -715,7 +714,7 @@ unsafe fn get_inside<T: Number>(
 unsafe fn in_nfp<T: Number>(
     polygon: *mut Polygon<T>,
     point: *const Point<T>,
-    nfp_loops: &[&[T]],
+    nfp_loops: &mut Vec<Vec<T>>,
 ) -> bool {
     if nfp_loops.is_empty() {
         return false;
@@ -739,7 +738,7 @@ unsafe fn in_nfp<T: Number>(
     false
 }
 
-pub fn deserialize_loops<T: Number>(data: &[T]) -> Vec<&[T]> {
+fn deserialize_loops<T: Number>(data: &[T]) -> Vec<Vec<T>> {
     if data.is_empty() {
         return Vec::new();
     }
@@ -759,22 +758,24 @@ pub fn deserialize_loops<T: Number>(data: &[T]) -> Vec<&[T]> {
     }
     // 3) Формуємо зрізи
     let mut out = Vec::with_capacity(count);
+
     for len in lengths {
         let slice = &data[idx..idx + len];
-        out.push(slice);
+        out.push(slice.to_vec());
         idx += len;
     }
+
     out
 }
 
-pub unsafe fn search_start_point<T: Number>(
+unsafe fn search_start_point<T: Number>(
     pool: &mut PointPool<T>,
     scan_polygon: *mut Polygon<f32>,
     polygon_a: *mut Polygon<T>,
     polygon_b: *mut Polygon<T>,
     inside: bool,
     marked_indices: &mut Vec<usize>,
-    nfp: &[&[f32]],
+    nfp: &mut Vec<Vec<f32>>,
 ) -> [Option<T>; 2] {
     (*polygon_a).close();
     (*polygon_b).close();
@@ -873,14 +874,14 @@ pub unsafe fn search_start_point<T: Number>(
     return [None, None];
 }
 
-pub fn serialize_touch(type_: u16, first_index: u16, second_index: u16) -> u32 {
+fn serialize_touch(type_: u16, first_index: u16, second_index: u16) -> u32 {
     let mut result = set_bits(0, type_, 0, 2);
     result = set_bits(result, first_index, 2, 15);
 
     set_bits(result, second_index, 17, 15)
 }
 
-pub unsafe fn get_touch<T: Number>(
+unsafe fn get_touch<T: Number>(
     point_a: *const Point<T>,
     point_a_next: *const Point<T>,
     point_b: *const Point<T>,
@@ -911,13 +912,13 @@ unsafe fn apply_vector<T: Number>(
     start: T,
     end: T,
     base_value: *const Point<T>,
-    sub_value: *const Point<T>
+    sub_value: *const Point<T>,
 ) {
     (*point).update(base_value);
     (*point).sub(sub_value);
 
     if !(*point).is_empty() {
-        let count = mem_seg[0].to_usize().unwrap();           // assuming T can convert to usize
+        let count = mem_seg[0].to_usize().unwrap(); // assuming T can convert to usize
         let idx = count << 1;
 
         (*point).fill(mem_seg, idx, Some(VECTOR_MEM_OFFSET));
@@ -929,7 +930,7 @@ unsafe fn apply_vector<T: Number>(
     }
 }
 
-pub unsafe fn apply_vectors<T: Number>(
+unsafe fn apply_vectors<T: Number>(
     polygon_a: *mut Polygon<T>,
     polygon_b: *mut Polygon<T>,
     pool: &mut PointPool<T>,
@@ -945,39 +946,67 @@ pub unsafe fn apply_vectors<T: Number>(
     let size_b = (*polygon_b).length();
 
     let prev_index_a = cycle_index(curr_index_a, size_a, -1);
-    let next_index_a = cycle_index(curr_index_a, size_a,  1);
+    let next_index_a = cycle_index(curr_index_a, size_a, 1);
     let prev_index_b = cycle_index(curr_index_b, size_b, -1);
-    let next_index_b = cycle_index(curr_index_b, size_b,  1);
+    let next_index_b = cycle_index(curr_index_b, size_b, 1);
 
     let indices = pool.alloc(7);
-    let prev_a  = pool.get(indices, 0);
-    let curr_a  = pool.get(indices, 1);
-    let next_a  = pool.get(indices, 2);
-    let prev_b  = pool.get(indices, 3);
-    let curr_b  = pool.get(indices, 4);
-    let next_b  = pool.get(indices, 5);
-    let point   = pool.get(indices, 6);
+    let prev_a = pool.get(indices, 0);
+    let curr_a = pool.get(indices, 1);
+    let next_a = pool.get(indices, 2);
+    let prev_b = pool.get(indices, 3);
+    let curr_b = pool.get(indices, 4);
+    let next_b = pool.get(indices, 5);
+    let point = pool.get(indices, 6);
 
-    (*prev_a).update(&*(*polygon_a).at(prev_index_a));
-    (*curr_a).update(&*(*polygon_a).at(curr_index_a));
-    (*next_a).update(&*(*polygon_a).at(next_index_a));
-    (*prev_b).update(&*(*polygon_b).at(prev_index_b));
-    (*curr_b).update(&*(*polygon_b).at(curr_index_b));
-    (*next_b).update(&*(*polygon_b).at(next_index_b));
+    (*prev_a).update((*polygon_a).at(prev_index_a));
+    (*curr_a).update((*polygon_a).at(curr_index_a));
+    (*next_a).update((*polygon_a).at(next_index_a));
+    (*prev_b).update((*polygon_b).at(prev_index_b));
+    (*curr_b).update((*polygon_b).at(curr_index_b));
+    (*next_b).update((*polygon_b).at(next_index_b));
 
     let neg_one = T::from_f64(-1.0).unwrap();
 
     match type_ {
         1 => {
-            apply_vector(mem_seg, point, T::from_usize(curr_index_a).unwrap(), T::from_usize(prev_index_a).unwrap(), prev_a, curr_a);
-            apply_vector(mem_seg, point, T::from_usize(curr_index_a).unwrap(), T::from_usize(next_index_a).unwrap(), next_a, curr_a);
+            apply_vector(
+                mem_seg,
+                point,
+                T::from_usize(curr_index_a).unwrap(),
+                T::from_usize(prev_index_a).unwrap(),
+                prev_a,
+                curr_a,
+            );
+            apply_vector(
+                mem_seg,
+                point,
+                T::from_usize(curr_index_a).unwrap(),
+                T::from_usize(next_index_a).unwrap(),
+                next_a,
+                curr_a,
+            );
             apply_vector(mem_seg, point, neg_one, neg_one, curr_b, prev_b);
             apply_vector(mem_seg, point, neg_one, neg_one, curr_b, next_b);
         }
         2 => {
             (*curr_b).add(offset);
-            apply_vector(mem_seg, point, T::from_usize(prev_index_a).unwrap(), T::from_usize(curr_index_a).unwrap(), curr_a, curr_b);
-            apply_vector(mem_seg, point, T::from_usize(curr_index_a).unwrap(), T::from_usize(prev_index_a).unwrap(), prev_a, curr_b);
+            apply_vector(
+                mem_seg,
+                point,
+                T::from_usize(prev_index_a).unwrap(),
+                T::from_usize(curr_index_a).unwrap(),
+                curr_a,
+                curr_b,
+            );
+            apply_vector(
+                mem_seg,
+                point,
+                T::from_usize(curr_index_a).unwrap(),
+                T::from_usize(prev_index_a).unwrap(),
+                prev_a,
+                curr_b,
+            );
         }
         _ => {
             (*curr_b).add(offset);
@@ -988,4 +1017,217 @@ pub unsafe fn apply_vectors<T: Number>(
     }
 
     pool.malloc(indices);
+}
+
+unsafe fn fill_vectors<T: Number>(
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    pool: &mut PointPool<T>,
+    offset: *const Point<T>,
+    mem_seg: &mut [T],
+    marked_indices: &mut Vec<usize>,
+) {
+    let indices = pool.alloc(4);
+    let point_a = pool.get(indices, 0);
+    let point_a_next = pool.get(indices, 1);
+    let point_b = pool.get(indices, 2);
+    let point_b_next = pool.get(indices, 3);
+
+    let size_a = (*polygon_a).length();
+    let size_b = (*polygon_b).length();
+
+    mem_seg[0] = T::zero();
+
+    for i in 0..size_a {
+        let i_next = cycle_index(i, size_a, 1);
+
+        (*point_a).update((*polygon_a).at(i));
+        (*point_a_next).update((*polygon_a).at(i_next));
+
+        for j in 0..size_b {
+            let j_next = cycle_index(j, size_b, 1);
+
+            (*point_b).update((*polygon_b).at(j));
+            (*point_b).add(offset);
+            (*point_b_next).update((*polygon_b).at(j_next));
+            (*point_b_next).add(offset);
+
+            let touch = get_touch(
+                point_a,
+                point_a_next,
+                point_b,
+                point_b_next,
+                i as u16,
+                i_next as u16,
+                j as u16,
+                j_next as u16,
+            );
+
+            if touch != 0 {
+                let idx_a = get_bits(touch, 2, 15);
+                marked_indices.push(idx_a as usize);
+
+                apply_vectors(polygon_a, polygon_b, pool, offset, touch, mem_seg);
+            }
+        }
+    }
+
+    pool.malloc(indices);
+}
+
+pub unsafe fn no_fit_polygon<T: Number>(
+    pool: &mut PointPool<T>,
+    scan_polygon: *mut Polygon<f32>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    mem_seg: &mut [T],
+    inside: bool,
+) -> Vec<Vec<f32>> {
+    if (*polygon_a).is_broken() || (*polygon_b).is_broken() {
+        return Vec::new();
+    }
+
+    let mut min_index_a = 0;
+    let mut min_y = (*(*polygon_a).at(0)).y;
+
+    for i in 1..(*polygon_a).length() {
+        let y = (*(*polygon_a).at(i)).y;
+        if y < min_y {
+            min_y = y;
+            min_index_a = i;
+        }
+    }
+
+    let mut max_index_b = 0;
+    let mut max_y = (*(*polygon_b).at(0)).y;
+
+    for j in 1..(*polygon_b).length() {
+        let y = (*(*polygon_b).at(j)).y;
+        if y > max_y {
+            max_y = y;
+            max_index_b = j;
+        }
+    }
+
+    let pts = pool.alloc(7);
+    let reference = pool.get(pts, 0);
+    let start = pool.get(pts, 1);
+    let offset = pool.get(pts, 2);
+    let start_point = pool.get(pts, 3);
+    let prev_translate = pool.get(pts, 4);
+    let translate = pool.get(pts, 5);
+    let idx_pt = pool.get(pts, 6);
+
+    let mut marked_indices: Vec<usize> = Vec::new();
+    let mut result: Vec<Vec<f32>> = Vec::new();
+    let size_a = (*polygon_a).length();
+    let size_b = (*polygon_b).length();
+    let condition = 10 * (size_a + size_b);
+
+    (*start_point).update((*polygon_a).at(min_index_a));
+    (*start_point).sub((*polygon_b).at(max_index_b));
+
+    if inside {
+        let [s_x, s_y] = search_start_point(
+            pool,
+            scan_polygon,
+            polygon_a,
+            polygon_b,
+            true,
+            &mut marked_indices,
+            &mut result,
+        );
+
+        if let (Some(x), Some(y)) = (s_x, s_y) {
+            (*start_point).set(x, y);
+        } else {
+            pool.malloc(pts);
+
+            return result;
+        }
+    }
+
+    // Основний цикл побудови NFP
+    loop {
+        (*offset).update(start_point);
+        (*prev_translate).set(T::zero(), T::zero());
+        (*reference).update((*polygon_b).at(0));
+        (*reference).add(start_point);
+        (*start).update(reference);
+
+        let mut counter = 0;
+        let mut nfp: Vec<T> = Vec::new();
+
+        nfp.push((*reference).x);
+        nfp.push((*reference).y);
+
+        while counter < condition {
+            fill_vectors(
+                polygon_a,
+                polygon_b,
+                pool,
+                offset,
+                mem_seg,
+                &mut marked_indices,
+            );
+
+            find_translate(polygon_a, polygon_b, pool, offset, mem_seg, prev_translate);
+
+            let ti = mem_seg[1].to_f64().unwrap();
+            let max_dist = mem_seg[2].to_f64().unwrap().abs();
+
+            if ti == -1.0 || max_dist.almost_equal(0.0, None) {
+                nfp.clear();
+                break;
+            }
+
+            (*translate).from_mem_seg(mem_seg, ti.to_usize().unwrap(), VECTOR_MEM_OFFSET);
+            (*idx_pt).from_mem_seg(mem_seg, ti.to_usize().unwrap() + 1, VECTOR_MEM_OFFSET);
+            (*prev_translate).update(translate);
+
+            let v_len = (*translate).length();
+
+            if max_dist < v_len && !max_dist.almost_equal(v_len, None) {
+                (*translate).scale_up(T::from_f64(max_dist / v_len).unwrap());
+            }
+
+            (*reference).add(translate);
+
+            // якщо повернулися до початку, або замкнули NFP — виходимо
+            if (*reference).almost_equal(start, None) || get_nfp_looped(&nfp, reference, pool) {
+                break;
+            }
+
+            nfp.push((*reference).x);
+            nfp.push((*reference).y);
+
+            (*offset).add(translate);
+            counter += 1;
+        }
+
+        if !nfp.is_empty() {
+            let vec_f32: Vec<f32> = nfp.into_iter().map(|x| x.to_f32().unwrap()).collect();
+            result.push(vec_f32);
+        }
+
+        let [s_x, s_y] = search_start_point(
+            pool,
+            scan_polygon,
+            polygon_a,
+            polygon_b,
+            inside,
+            &mut marked_indices,
+            &mut result,
+        );
+
+        if let (Some(x), Some(y)) = (s_x, s_y) {
+            (*start_point).set(x, y);
+        } else {
+            break;
+        }
+    }
+
+    pool.malloc(pts);
+
+    result
 }

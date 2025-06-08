@@ -5,7 +5,7 @@ const path = require('path');
 const wasmPackPath = path.join(process.env.HOME, '.cargo', 'bin', 'wasm-pack');
 
 // Set RUSTFLAGS to enable SIMD support
-const command = `RUST_BACKTRACE=1 RUSTFLAGS="-C target-feature=+simd128" ${wasmPackPath} build --target web --out-name wasm-nesting --out-dir ./pkg`;
+const command = `RUSTFLAGS="-C target-feature=+simd128" ${wasmPackPath} build --target web --out-name wasm-nesting --out-dir ./pkg`;
 console.log(`Running command: ${command}`);
 
 exec(command, (error, stdout, stderr) => {

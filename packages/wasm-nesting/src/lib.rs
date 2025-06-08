@@ -10,10 +10,7 @@ pub mod utils;
 use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
-use crate::nesting::pair_flow::{
-    apply_vectors, deserialize_loops, find_translate, get_nfp_looped, get_touch,
-    no_fit_polygon_rectangle, search_start_point,
-};
+use crate::nesting::pair_flow::{ no_fit_polygon_rectangle, no_fit_polygon };
 
 use utils::almost_equal::AlmostEqual;
 use utils::bit_ops::*;
@@ -152,199 +149,53 @@ pub fn no_fit_polygon_rectangle_f64(poly_a: &[f64], poly_b: &[f64]) -> Float32Ar
 }
 
 #[wasm_bindgen]
-pub fn get_nfp_looped_f64(nfp_coords: &[f64], reference_coords: &[f64]) -> bool {
-    let reference_pt = Point::<f64>::new(Some(reference_coords[0]), Some(reference_coords[1]));
-
-    let mut pool = PointPool::<f64>::new();
-
-    unsafe { get_nfp_looped(nfp_coords, &reference_pt, &mut pool) }
-}
-
-#[wasm_bindgen]
-pub fn find_translate_f64(
-    poly_a: &[f64],
-    poly_b: &[f64],
-    offset: &[f64],
-    mem_seg: &mut [f64],
-    prev_translate: &[f64],
-) -> Float64Array {
-    let count_a = poly_a.len() / 2;
-    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
-    let mut polygon_a = Polygon::<f64>::new();
-    unsafe {
-        polygon_a.bind(buf_a, 0, count_a);
-        polygon_a.close();
-    }
-
-    let count_b = poly_b.len() / 2;
-    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
-    let mut polygon_b = Polygon::<f64>::new();
-    unsafe {
-        polygon_b.bind(buf_b, 0, count_b);
-        polygon_b.close();
-    }
-
-    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
-    let prev_pt = Point::new(Some(prev_translate[0]), Some(prev_translate[1]));
-
-    let mut pool = PointPool::<f64>::new();
-
-    unsafe {
-        find_translate(
-            &mut polygon_a,
-            &mut polygon_b,
-            &mut pool,
-            &offset_pt,
-            mem_seg,
-            &prev_pt,
-        );
-    }
-
-    let translate_index = mem_seg[1];
-    let max_distance = mem_seg[2];
-
-    let result = Float64Array::new_with_length(2);
-    result.copy_from(&[translate_index, max_distance]);
-    result
-}
-
-#[wasm_bindgen]
-pub fn search_start_point_f64(
-    poly_a: &[f64],
-    poly_b: &[f64],
+pub fn no_fit_polygon_f64(
+    poly_a_coords: &[f64],
+    poly_b_coords: &[f64],
     inside: bool,
-    marked_indices: &[u32],
-    nfp_serialized: &[f32],
-) -> Float64Array {
-    let count_a = poly_a.len() / 2;
-    let buf_a = poly_a.to_vec().into_boxed_slice();
-    let mut a = Polygon::<f64>::new();
-    unsafe {
-        a.bind(buf_a, 0, count_a);
-    }
+) -> Float32Array {
+    let count_a = poly_a_coords.len() / 2;
+    let buf_a = poly_a_coords.to_vec().into_boxed_slice();
+    let mut polygon_a = Polygon::<f64>::new();
+    unsafe { polygon_a.bind(buf_a, 0, count_a) };
 
-    let count_b = poly_b.len() / 2;
-    let buf_b = poly_b.to_vec().into_boxed_slice();
-    let mut b = Polygon::<f64>::new();
-    unsafe {
-        b.bind(buf_b, 0, count_b);
-    }
-
-    let orig_len = marked_indices.len();
-    let mut marked: Vec<usize> = marked_indices.iter().map(|&x| x as usize).collect();
-
-    let nfp_refs: Vec<&[f32]> = deserialize_loops(nfp_serialized);
+    let count_b = poly_b_coords.len() / 2;
+    let buf_b = poly_b_coords.to_vec().into_boxed_slice();
+    let mut polygon_b = Polygon::<f64>::new();
+    unsafe { polygon_b.bind(buf_b, 0, count_b) };
 
     let mut pool = PointPool::<f64>::new();
 
     let mut scan_polygon = Polygon::<f32>::new();
 
-    let [opt_x, opt_y] = unsafe {
-        search_start_point::<f64>(
+    let mut mem_seg = vec![0.0_f64; 1024];
+
+    let loops_f32: Vec<Vec<f32>> = unsafe {
+        no_fit_polygon(
             &mut pool,
             &mut scan_polygon,
-            &mut a,
-            &mut b,
+            &mut polygon_a,
+            &mut polygon_b,
+            &mut mem_seg,
             inside,
-            &mut marked,
-            &nfp_refs,
         )
     };
 
-    let mut out = Vec::new();
-    if let (Some(x), Some(y)) = (opt_x, opt_y) {
-        out.push(1.0);
-        out.push(x);
-        out.push(y);
-    } else {
-        out.push(0.0);
-        out.push(0.0);
-        out.push(0.0);
+    let n = loops_f32.len();
+    let total_len: usize = 1
+        + n
+        + loops_f32.iter().map(|v| v.len()).sum::<usize>();
+
+    let mut flat = Vec::with_capacity(total_len);
+    flat.push(n as f32);
+    for v in &loops_f32 {
+        flat.push(v.len() as f32);
+    }
+    for v in &loops_f32 {
+        flat.extend_from_slice(v);
     }
 
-    for &idx in &marked[orig_len..] {
-        out.push(idx as f64);
-    }
-
-    let result = Float64Array::new_with_length(out.len() as u32);
-    result.copy_from(&out);
-
-    result
-}
-
-#[wasm_bindgen]
-pub unsafe fn get_touch_f64(
-    point_a: &[f64],
-    point_a_next: &[f64],
-    point_b: &[f64],
-    point_b_next: &[f64],
-    index_a: u16,
-    index_a_next: u16,
-    index_b: u16,
-    index_b_next: u16,
-) -> u32 {
-    let pa = Point::new(Some(point_a[0]), Some(point_a[1]));
-    let pa2 = Point::new(Some(point_a_next[0]), Some(point_a_next[1]));
-    let pb = Point::new(Some(point_b[0]), Some(point_b[1]));
-    let pb2 = Point::new(Some(point_b_next[0]), Some(point_b_next[1]));
-
-    return get_touch::<f64>(
-        &pa as *const Point<f64>,
-        &pa2 as *const Point<f64>,
-        &pb as *const Point<f64>,
-        &pb2 as *const Point<f64>,
-        index_a,
-        index_a_next,
-        index_b,
-        index_b_next,
-    );
-}
-
-#[wasm_bindgen]
-pub fn apply_vectors_f64(
-    poly_a: &[f64],
-    poly_b: &[f64],
-    offset: &[f64],
-    touch: u32,
-    mem_seg: &mut [f64],
-    poly_a_close: bool,
-    poly_b_close: bool,
-) -> Float64Array {
-    let count_a = poly_a.len() / 2;
-    let buf_a: Box<[f64]> = poly_a.to_vec().into_boxed_slice();
-    let mut polygon_a = Polygon::<f64>::new();
-    unsafe {
-        polygon_a.bind(buf_a, 0, count_a);
-        if poly_a_close {
-            polygon_a.close();
-        }
-    }
-
-    let count_b = poly_b.len() / 2;
-    let buf_b: Box<[f64]> = poly_b.to_vec().into_boxed_slice();
-    let mut polygon_b = Polygon::<f64>::new();
-    unsafe {
-        polygon_b.bind(buf_b, 0, count_b);
-        if poly_b_close {
-            polygon_b.close();
-        }
-    }
-
-    let offset_pt = Point::new(Some(offset[0]), Some(offset[1]));
-    let mut pool = PointPool::<f64>::new();
-
-    unsafe {
-        apply_vectors(
-            &mut polygon_a,
-            &mut polygon_b,
-            &mut pool,
-            &offset_pt,
-            touch,
-            mem_seg,
-        );
-    }
-
-    let out = Float64Array::new_with_length(mem_seg.len() as u32);
-    out.copy_from(&mem_seg);
+    let out = Float32Array::new_with_length(flat.len() as u32);
+    out.copy_from(&flat);
     out
 }

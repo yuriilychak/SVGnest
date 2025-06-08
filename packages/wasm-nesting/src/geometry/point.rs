@@ -25,6 +25,15 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
+    pub unsafe fn from_mem_seg(&mut self, data: &[T], index: usize, offset: usize) -> *mut Self {
+        let mem_index = offset + (index << 1);
+        let x = data[mem_index];
+        let y = data[mem_index + 1];
+
+        self.set(x, y)
+    }
+
+    #[inline(always)]
     pub fn fill(&self, mem_seg: &mut [T], index: usize, offset: Option<usize>) {
         let mem_index = offset.unwrap_or(0) + (index << 1);
         mem_seg[mem_index] = self.x;
