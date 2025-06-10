@@ -94,8 +94,12 @@ impl<T: Number> Polygon<T> {
 
         for i in 0..point_count {
             let prev = self.at(cycle_index(i, point_count, -1));
+            let prevX = (*prev).x;
+            let prevY = (*prev).y;
             let curr = self.at(i);
-            result = result + ((*prev).x + (*curr).x) * ((*prev).y - (*curr).y);
+            let currX = (*curr).x;
+            let currY = (*curr).y;
+            result = result + (prevX + currX) * (prevY - currY);
         }
 
         result.to_f64().unwrap() / 2.0
