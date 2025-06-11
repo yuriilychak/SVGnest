@@ -1,15 +1,10 @@
 import { 
-    no_fit_polygon_rectangle_f64, 
-    no_fit_polygon_f64
+    no_fit_polygon_f64,
+    pair_inside_f64
  } from 'wasm-nesting';
 import { WorkerConfig } from './types';
 import PairContent from './pair-content';
 import type { PolygonNode, Polygon, PointPool, TypedArray } from '../types';
-
-// returns an interior NFP for the special case where A is a rectangle
-function noFitPolygonRectangle<T extends TypedArray>(pointPool: PointPool<T>, A: Polygon<T>, B: Polygon<T>): Float32Array[] {
-    return [no_fit_polygon_rectangle_f64(A.export() as Float64Array, B.export() as Float64Array)];
-}
 
 export function deserializeNfp(flat: Float32Array): Float32Array[] {
     const count = flat[0] >>> 0;
@@ -36,9 +31,21 @@ export function noFitPolygon<T extends TypedArray>(
     memSeg: T,
     inside: boolean
 ): Float32Array[] {
-    const rawRustResult = no_fit_polygon_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, inside);
+    const result = no_fit_polygon_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, inside);
 
-    return deserializeNfp(rawRustResult);
+    return deserializeNfp(result);
+}
+
+export function pairInside<T extends TypedArray>(
+    pointPool: PointPool<T>,
+    polygon: Polygon<Float32Array>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
+    memSeg: T,
+): Float32Array[] {
+    const result =  pair_inside_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array);
+
+    return deserializeNfp(result);
 }
 
 export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer {
@@ -61,22 +68,9 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
     let i: number = 0;
 
     if (pairContent.isInside) {
-        nfp = polygonA.isRectangle
-            ? noFitPolygonRectangle(pointPool, polygonA, polygonB)
-            : noFitPolygon(pointPool, tmpPolygon, polygonA, polygonB, memSeg, true);
+        nfp = pairInside(pointPool, tmpPolygon, polygonA, polygonB, memSeg);
 
-        // ensure all interior NFPs have the same winding direction
-        nfpSize = nfp.length;
-
-        if (nfpSize !== 0) {
-            for (i = 0; i < nfpSize; ++i) {
-                tmpPolygon.bind(nfp[i]);
-
-                if (tmpPolygon.area > 0) {
-                    tmpPolygon.reverse();
-                }
-            }
-        } else {
+        if (nfp.length === 0) {
             // warning on null inner NFP
             // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
             pairContent.logError('NFP Warning');
