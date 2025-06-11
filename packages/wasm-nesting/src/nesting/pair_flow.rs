@@ -7,6 +7,7 @@ use crate::utils::bit_ops::{get_bits, set_bits};
 use crate::utils::math::cycle_index;
 use crate::utils::mid_value::MidValue;
 use crate::utils::number::Number;
+use crate::utils::wasm_logger::wasm_log;
 use num_traits::ToPrimitive;
 
 struct SegmentCheck<T: Number> {
@@ -1219,6 +1220,10 @@ pub unsafe fn pair_inside<T: Number>(
         no_fit_polygon(pool, scan_polygon, polygon_a, polygon_b, mem_seg, true)
     };
 
+    if result.is_empty() {
+        //Log warn
+    }
+
     for pts in result.iter_mut() {
         let point_count = pts.len() >> 1;
 
@@ -1228,4 +1233,59 @@ pub unsafe fn pair_inside<T: Number>(
     }
 
     result
+}
+
+pub unsafe fn pair_outside<T: Number>(
+    pool: &mut PointPool<T>,
+    scan_polygon: *mut Polygon<f32>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    mem_seg: &mut [T],
+) -> Vec<Vec<f32>> {
+    let mut result = no_fit_polygon(pool, scan_polygon, polygon_a, polygon_b, mem_seg, false);
+    // sanity check
+    if result.is_empty() {
+        //pairContent.logError('NFP Error');
+
+        return result;
+    }
+
+    // if searchedges is active, only the first NFP is guaranteed to pass sanity check
+    if f32::polygon_area(&mut result[0]).abs() < (*polygon_a).abs_area() {
+        //pairContent.logError('NFP Area Error');
+        //console.log('Area: ', tmpPolygon.absArea);
+        result.clear();
+
+        return result;
+    }
+
+    let cloned = result[0].clone();
+    let boxed: Box<[f32]> = cloned.into_boxed_slice();
+
+    (*scan_polygon).bind(boxed, 0, result[0].len() >> 1);
+
+    let mut i: usize = 0;
+
+    let mut point = Point::<f32>::new(None, None);
+
+    for pts in result.iter_mut() {
+        let point_count = pts.len() >> 1;
+
+        if f32::polygon_area(pts) > 0.0 {
+            f32::reverse_polygon(pts, 0, point_count);
+        }
+
+        point.set(pts[0], pts[1]);
+
+        if i > 0
+            && (*scan_polygon).point_in(&point as *const Point<f32>, None) == Some(true)
+            && f32::polygon_area(pts) < 0.0
+        {
+            f32::reverse_polygon(pts, 0, point_count);
+        }
+
+        i += 1;
+    }
+
+    return result;
 }

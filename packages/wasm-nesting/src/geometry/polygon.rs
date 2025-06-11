@@ -218,9 +218,7 @@ impl<T: Number> Polygon<T> {
 
         let mut inside = false;
         for i in 0..point_count {
-            unsafe {
-                curr_point.update(self.at(i));
-            }
+            curr_point.update(self.at(i));
 
             let prev_idx = cycle_index(i, point_count, -1);
 
