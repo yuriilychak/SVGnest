@@ -1,7 +1,7 @@
 import { 
-    no_fit_polygon_f64,
     pair_inside_f64,
-    pair_outside_f64
+    pair_outside_f64,
+    pair_child_f64
  } from 'wasm-nesting';
 import { WorkerConfig } from './types';
 import PairContent from './pair-content';
@@ -21,23 +21,7 @@ export function deserializeNfp(flat: Float32Array): Float32Array[] {
     return result;
 }
 
-// given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
-// if the inside flag is set, B is orbited inside of A rather than outside
-// if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
-export function noFitPolygon<T extends TypedArray>(
-    pointPool: PointPool<T>,
-    polygon: Polygon<Float32Array>,
-    polygonA: Polygon<T>,
-    polygonB: Polygon<T>,
-    memSeg: T,
-    inside: boolean
-): Float32Array[] {
-    const result = no_fit_polygon_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array, inside);
-
-    return deserializeNfp(result);
-}
-
-export function pairInside<T extends TypedArray>(
+function pairInside<T extends TypedArray>(
     pointPool: PointPool<T>,
     polygon: Polygon<Float32Array>,
     polygonA: Polygon<T>,
@@ -49,7 +33,7 @@ export function pairInside<T extends TypedArray>(
     return deserializeNfp(result);
 }
 
-export function pairOutside<T extends TypedArray>(
+function pairOutside<T extends TypedArray>(
     pointPool: PointPool<T>,
     polygon: Polygon<Float32Array>,
     polygonA: Polygon<T>,
@@ -57,6 +41,18 @@ export function pairOutside<T extends TypedArray>(
     memSeg: T,
 ): Float32Array[] {
     const result =  pair_outside_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array);
+
+    return deserializeNfp(result);
+}
+
+function pairChild<T extends TypedArray>(
+    pointPool: PointPool<T>,
+    polygon: Polygon<Float32Array>,
+    polygonA: Polygon<T>,
+    polygonB: Polygon<T>,
+    memSeg: T,
+): Float32Array[] {
+    const result = pair_child_f64(polygonA.export() as Float64Array, polygonB.export() as Float64Array);
 
     return deserializeNfp(result);
 }
@@ -112,21 +108,9 @@ export function pairData(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer
 
             // no need to find nfp if B's bounding box is too big
             if (child.size.x > polygonB.size.x && child.size.y > polygonB.size.y) {
-                const noFitPolygons: Float32Array[] = noFitPolygon(pointPool, tmpPolygon, child, polygonB, memSeg, true);
-                const noFitCount: number = noFitPolygons ? noFitPolygons.length : 0;
-                // ensure all interior NFPs have the same winding direction
-                if (noFitCount !== 0) {
-                    let j: number = 0;
+                const noFitPolygons: Float32Array[] = pairChild(pointPool, tmpPolygon, child, polygonB, memSeg);
 
-                    for (j = 0; j < noFitCount; ++j) {
-                        tmpPolygon.bind(noFitPolygons[j]);
-                        if (tmpPolygon.area < 0) {
-                            tmpPolygon.reverse();
-                        }
-
-                        nfp.push(noFitPolygons[j]);
-                    }
-                }
+                nfp = nfp.concat(noFitPolygons);
             }
         }
     }

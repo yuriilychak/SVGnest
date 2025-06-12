@@ -7,7 +7,6 @@ use crate::utils::bit_ops::{get_bits, set_bits};
 use crate::utils::math::cycle_index;
 use crate::utils::mid_value::MidValue;
 use crate::utils::number::Number;
-use crate::utils::wasm_logger::wasm_log;
 use num_traits::ToPrimitive;
 
 struct SegmentCheck<T: Number> {
@@ -1050,7 +1049,7 @@ unsafe fn fill_vectors<T: Number>(
     pool.malloc(indices);
 }
 
-pub unsafe fn no_fit_polygon<T: Number>(
+unsafe fn no_fit_polygon<T: Number>(
     pool: &mut PointPool<T>,
     scan_polygon: *mut Polygon<f32>,
     polygon_a: *mut Polygon<T>,
@@ -1288,4 +1287,28 @@ pub unsafe fn pair_outside<T: Number>(
     }
 
     return result;
+}
+
+pub unsafe fn pair_child<T: Number>(
+    pool: &mut PointPool<T>,
+    scan_polygon: *mut Polygon<f32>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    mem_seg: &mut [T],
+) -> Vec<Vec<f32>> {
+    let mut result = no_fit_polygon(pool, scan_polygon, polygon_a, polygon_b, mem_seg, true);
+
+    if result.is_empty() {
+        //Log warn
+    }
+
+    for pts in result.iter_mut() {
+        let point_count = pts.len() >> 1;
+
+        if f32::polygon_area(pts) < 0.0 {
+            f32::reverse_polygon(pts, 0, point_count);
+        }
+    }
+
+    result
 }
