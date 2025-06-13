@@ -72,8 +72,8 @@ export default class NFPStore {
             const view: DataView = new DataView(buffer);
 
             view.setUint32(0, THREAD_TYPE.PAIR);
-            view.setUint32(Uint32Array.BYTES_PER_ELEMENT, key);
-            view.setUint32(Uint32Array.BYTES_PER_ELEMENT << 1, this.#configCompressed);
+            view.setUint32(Uint32Array.BYTES_PER_ELEMENT, this.#configCompressed);
+            view.setUint32(Uint32Array.BYTES_PER_ELEMENT << 1, key);
 
             this.#nfpPairs.push(buffer);
         } else {
