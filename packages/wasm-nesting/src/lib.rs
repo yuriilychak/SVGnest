@@ -1,17 +1,14 @@
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys::Float32Array;
 
+pub mod clipper;
 pub mod constants;
 pub mod geometry;
 pub mod nest_config;
 pub mod nesting;
 pub mod utils;
 
-use crate::geometry::point_pool::PointPool;
-use crate::geometry::polygon::Polygon;
-use crate::nesting::pair_content::PairContent;
-use crate::nesting::pair_flow::{pair_data};
-use crate::utils::wasm_logger::wasm_log;
+use crate::nesting::pair_flow::pair_data;
 
 use utils::almost_equal::AlmostEqual;
 use utils::bit_ops::*;
@@ -62,24 +59,6 @@ pub fn to_rotation_index_wasm(angle: u16, rotation_split: u16) -> u16 {
 #[wasm_bindgen]
 pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
     value.mid_value(left, right)
-}
-
-fn serialize_loops(loops_f32: Vec<Vec<f32>>) -> Float32Array {
-    let n = loops_f32.len();
-    let total_len: usize = 1 + n + loops_f32.iter().map(|v| v.len()).sum::<usize>();
-
-    let mut flat = Vec::with_capacity(total_len);
-    flat.push(n as f32);
-    for v in &loops_f32 {
-        flat.push(v.len() as f32);
-    }
-    for v in &loops_f32 {
-        flat.extend_from_slice(v);
-    }
-
-    let out = Float32Array::new_with_length(flat.len() as u32);
-    out.copy_from(&flat);
-    out
 }
 
 #[wasm_bindgen]

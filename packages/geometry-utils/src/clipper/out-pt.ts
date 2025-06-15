@@ -144,6 +144,32 @@ export default class OutPt {
         return result;
     }
 
+    private getNeighboar(isNext: boolean): NullPtr<OutPt> {
+        return isNext ? this.next : this.prev;
+    }
+
+    private getDistance(isNext: boolean): number {
+        let p: OutPt = this.getNeighboar(isNext);
+
+        if(p === null) {
+            return Number.NaN;
+        }
+
+        while (p.point.almostEqual(this.point) && p !== this) {
+            p = p.getNeighboar(isNext);
+
+            if(p === null) {
+                return Number.NaN;
+            }
+        }
+
+        const offsetY: number = p.point.y - this.point.y;
+        const offsetX: number = p.point.x - this.point.x;
+        const result = offsetY === 0 ? HORIZONTAL : offsetX / offsetY;
+
+        return Math.abs(result);
+    }
+
     public getBottomPt(): OutPt {
         let outPt1: OutPt = this;
         let outPt2: OutPt = this.next;
@@ -169,7 +195,9 @@ export default class OutPt {
                 if (!OutPt.firstIsBottomPt(outPt2, dups)) {
                     outPt1 = dups;
                 }
+
                 dups = dups.next;
+                
                 while (!dups.point.almostEqual(outPt1.point)) {
                     dups = dups.next;
                 }
@@ -178,46 +206,67 @@ export default class OutPt {
         return outPt1;
     }
 
+    public getDirection(outPt: OutPt): DIRECTION {
+        return this.point.x > outPt.point.x ? DIRECTION.LEFT : DIRECTION.RIGHT
+    }
+
+
     public static firstIsBottomPt(btmPt1: OutPt, btmPt2: OutPt): boolean {
-        let p: OutPt = btmPt1.prev;
+        const dx1p: number = btmPt1.getDistance(false);
+        const dx1n: number = btmPt1.getDistance(true);
+        const dx2p: number = btmPt2.getDistance(false);
+        const dx2n: number = btmPt2.getDistance(true);
 
-        while (p.point.almostEqual(btmPt1.point) && p !== btmPt1) {
-            p = p.prev;
-        }
-
-        const dx1p: number = OutPt.getDx(btmPt1, p);
-
-        p = btmPt1.next;
-
-        while (p.point.almostEqual(btmPt1.point) && p !== btmPt1) {
-            p = p.next;
-        }
-
-        const dx1n: number = OutPt.getDx(btmPt1, p);
-
-        p = btmPt2.prev;
-
-        while (p.point.almostEqual(btmPt2.point) && p !== btmPt2) {
-            p = p.prev;
-        }
-
-        const dx2p: number = OutPt.getDx(btmPt2, p);
-
-        p = btmPt2.next;
-
-        while (p.point.almostEqual(btmPt2.point) && p !== btmPt2) {
-            p = p.next;
-        }
-
-        const dx2n: number = OutPt.getDx(btmPt2, p);
         const maxDx: number = Math.max(dx2p, dx2n);
 
         return dx1p >= maxDx || dx1n >= maxDx;
     }
 
+    public getDiscarded(isRight: boolean, pt: PointI32): boolean {
+        const next =  this.next;
+
+        if (next == null) {
+            return false;
+        }
+
+        if (isRight) {
+            return next.point.x <= pt.x && next.point.x >= this.point.x && next.point.y === pt.y;
+        } else {
+            return next.point.x >= pt.x && next.point.x <= this.point.x && next.point.y === pt.y;
+        }
+    } 
+
+    public joinHorz(outPt: OutPt, point: PointI32, isDiscardLeft: boolean): { op: OutPt, opB: OutPt, isRightOrder: boolean } {
+        let op: OutPt = this;
+        let opB: OutPt = outPt;
+
+        const direction: DIRECTION = op.getDirection(opB);
+        const isRight = direction === DIRECTION.RIGHT;
+        const isRightOrder = isDiscardLeft !== isRight;
+
+        while (op.getDiscarded(isRight, point)) {
+            op = op.next;
+        }
+
+        if (!isRightOrder && op.point.x !== point.x) {
+            op = op.next;
+        }
+
+        opB = op.duplicate(isRightOrder);
+
+        if (!opB.point.almostEqual(point)) {
+            op = opB;
+            //op1.Pt = Pt;
+            op.point.update(point);
+            opB = op.duplicate(isRightOrder);
+        }
+
+        return { op, opB, isRightOrder };
+    }
+
     public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: PointI32, isDiscardLeft: boolean) {
-        const direction1: DIRECTION = op1.point.x > op1b.point.x ? DIRECTION.LEFT : DIRECTION.RIGHT;
-        const direction2: DIRECTION = op2.point.x > op2b.point.x ? DIRECTION.LEFT : DIRECTION.RIGHT;
+        const direction1: DIRECTION = op1.getDirection(op1b);
+        const direction2: DIRECTION = op2.getDirection(op2b);
 
         if (direction1 === direction2) {
             return false;
@@ -227,96 +276,26 @@ export default class OutPt {
         //So, to facilitate this while inserting Op1b and Op2b ...
         //when DiscardLeft, make sure we're AT or RIGHT of Pt before adding Op1b,
         //otherwise make sure we're AT or LEFT of Pt. (Likewise with Op2b.)
-        if (direction1 === DIRECTION.RIGHT) {
-            while (op1.next.point.x <= Pt.x && op1.next.point.x >= op1.point.x && op1.next.point.y === Pt.y) {
-                op1 = op1.next;
-            }
+        const join1 = op1.joinHorz(op1b, Pt, isDiscardLeft);
+        const join2 = op2.joinHorz(op2b, Pt, isDiscardLeft);
 
-            if (isDiscardLeft && op1.point.x !== Pt.x) {
-                op1 = op1.next;
-            }
+        const op1_inner = join1.op;
+        const op1b_inner = join1.opB;
+        const op2_inner = join2.op;
+        const op2b_inner = join2.opB;
 
-            op1b = op1.duplicate(!isDiscardLeft);
-
-            if (!op1b.point.almostEqual(Pt)) {
-                op1 = op1b;
-                //op1.Pt = Pt;
-                op1.point.update(Pt);
-                op1b = op1.duplicate(!isDiscardLeft);
-            }
+        if (join1.isRightOrder) {
+            op1_inner.next = op2_inner;
+            op2_inner.prev = op1_inner;
+            op1b_inner.prev = op2b_inner;
+            op2b_inner.next = op1b_inner;
         } else {
-            while (op1.next.point.x >= Pt.x && op1.next.point.x <= op1.point.x && op1.next.point.y === Pt.y) {
-                op1 = op1.next;
-            }
-
-            if (!isDiscardLeft && op1.point.x !== Pt.x) {
-                op1 = op1.next;
-            }
-
-            op1b = op1.duplicate(isDiscardLeft);
-
-            if (!op1b.point.almostEqual(Pt)) {
-                op1 = op1b;
-                //op1.Pt = Pt;
-                op1.point.update(Pt);
-                op1b = op1.duplicate(isDiscardLeft);
-            }
-        }
-        if (direction2 === DIRECTION.RIGHT) {
-            while (op2.next.point.x <= Pt.x && op2.next.point.x >= op2.point.x && op2.next.point.y === Pt.y) {
-                op2 = op2.next;
-            }
-
-            if (isDiscardLeft && op2.point.x !== Pt.x) {
-                op2 = op2.next;
-            }
-
-            op2b = op2.duplicate(!isDiscardLeft);
-
-            if (!op2b.point.almostEqual(Pt)) {
-                op2 = op2b;
-                //op2.Pt = Pt;
-                op2.point.update(Pt);
-                op2b = op2.duplicate(!isDiscardLeft);
-            }
-        } else {
-            while (op2.next.point.x >= Pt.x && op2.next.point.x <= op2.point.x && op2.next.point.y === Pt.y) {
-                op2 = op2.next;
-            }
-
-            if (!isDiscardLeft && op2.point.x !== Pt.x) {
-                op2 = op2.next;
-            }
-
-            op2b = op2.duplicate(isDiscardLeft);
-            if (!op2b.point.almostEqual(Pt)) {
-                op2 = op2b;
-                //op2.Pt = Pt;
-                op2.point.update(Pt);
-                op2b = op2.duplicate(isDiscardLeft);
-            }
-        }
-
-        if ((direction1 === DIRECTION.RIGHT) === isDiscardLeft) {
-            op1.prev = op2;
-            op2.next = op1;
-            op1b.next = op2b;
-            op2b.prev = op1b;
-        } else {
-            op1.next = op2;
-            op2.prev = op1;
-            op1b.prev = op2b;
-            op2b.next = op1b;
+            op1_inner.prev = op2_inner;
+            op2_inner.next = op1_inner;
+            op1b_inner.next = op2b_inner;
+            op2b_inner.prev = op1b_inner;
         }
 
         return true;
-    }
-
-    public static getDx(outPt1: OutPt, outPt2: OutPt): number {
-        const offsetY: number = outPt2.point.y - outPt1.point.y;
-        const offsetX: number = outPt2.point.x - outPt1.point.x;
-        const result = offsetY === 0 ? HORIZONTAL : offsetX / offsetY;
-
-        return Math.abs(result);
     }
 }
