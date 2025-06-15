@@ -1,12 +1,17 @@
+use crate::constants::{TOL_F32, TOL_F64};
 use crate::utils::{
     almost_equal::AlmostEqual,
     interpolate::Interpolate,
     mid_value::MidValue,
     round::{ClipperRound, Round},
 };
-use crate::constants::{TOL_F32, TOL_F64};
-use num_traits::{FromPrimitive, Num, ToPrimitive, Signed};
+use num_traits::{FromPrimitive, Num, Signed, ToPrimitive};
+use std::arch::wasm32::*;
 use std::ops::{Add, Div, Mul, Neg, Sub};
+
+fn wrap(index: usize, offset: usize, len: usize) -> usize {
+    return (index + offset) % len;
+}
 
 pub trait Number:
     Num
@@ -29,6 +34,18 @@ pub trait Number:
     fn min_num(self, other: Self) -> Self;
     fn max_num(self, other: Self) -> Self;
     fn tol() -> Self;
+    fn polygon_area(points: &[Self]) -> f64;
+    fn reverse_polygon(data: &mut [Self], offset: usize, point_count: usize) {
+        let half = point_count >> 1;
+        let last = point_count - 1;
+        for i in 0..half {
+            let j = last - i;
+            let i2 = offset + (i << 1);
+            let j2 = offset + (j << 1);
+            data.swap(i2, j2);
+            data.swap(i2 + 1, j2 + 1);
+        }
+    }
 }
 
 impl Number for f64 {
@@ -41,7 +58,42 @@ impl Number for f64 {
         self.max(other)
     }
     #[inline(always)]
-    fn tol() -> Self { TOL_F64 }
+    fn tol() -> Self {
+        TOL_F64
+    }
+
+    #[inline(always)]
+    fn polygon_area(points: &[Self]) -> f64 {
+        let len = points.len();
+
+        if len < 6 || len & 1 != 0 {
+            return 0.0;
+        }
+
+        let n_points = len >> 1;
+        let mut acc = f64x2_splat(0.0);
+        let mut x0: Self;
+        let mut y0: Self;
+        let mut x1: Self;
+        let mut y1: Self;
+        let mut base: usize;
+        let mut stack1: v128;
+        let mut stack2: v128;
+
+        for i in 0..n_points {
+            base = i << 1;
+            x0 = points[wrap(base, 0, len)];
+            y0 = points[wrap(base, 1, len)];
+            x1 = points[wrap(base, 2, len)];
+            y1 = points[wrap(base, 3, len)];
+
+            stack1 = f64x2(y0, -x0);
+            stack2 = f64x2(x1, y1);
+            acc = f64x2_add(acc, f64x2_mul(stack1, stack2));
+        }
+
+        return 0.5 * (f64x2_extract_lane::<0>(acc) + f64x2_extract_lane::<1>(acc));
+    }
 }
 
 impl Number for f32 {
@@ -54,7 +106,55 @@ impl Number for f32 {
         self.max(other)
     }
     #[inline(always)]
-    fn tol() -> Self { TOL_F32 }
+    fn tol() -> Self {
+        TOL_F32
+    }
+
+    #[inline(always)]
+    fn polygon_area(points: &[Self]) -> f64 {
+        let len = points.len();
+
+        if len < 6 || len & 1 != 0 {
+            return 0.0;
+        }
+
+        let n_points = len >> 1;
+        let simd_pairs = n_points >> 1;
+        let mut acc = f32x4_splat(0.0);
+        let mut x0: Self;
+        let mut y0: Self;
+        let mut x1: Self;
+        let mut y1: Self;
+        let mut x2: Self;
+        let mut y2: Self;
+        let mut base: usize;
+        let mut stack1: v128;
+        let mut stack2: v128;
+
+        for i in 0..simd_pairs {
+            base = i << 2;
+            x0 = points[wrap(base, 0, len)];
+            y0 = points[wrap(base, 1, len)];
+            x1 = points[wrap(base, 2, len)];
+            y1 = points[wrap(base, 3, len)];
+            x2 = points[wrap(base, 4, len)];
+            y2 = points[wrap(base, 5, len)];
+
+            stack1 = f32x4(y0, -x0, y1, -x1);
+            stack2 = f32x4(x1, y1, x2, y2);
+            acc = f32x4_add(acc, f32x4_mul(stack1, stack2));
+        }
+
+        return 0.5
+            * (f32x4_extract_lane::<0>(acc)
+                + f32x4_extract_lane::<1>(acc)
+                + f32x4_extract_lane::<2>(acc)
+                + f32x4_extract_lane::<3>(acc)
+                + ((n_points & 1) as Self)
+                    * (points[len - 1] * points[0] - points[len - 2] * points[1]))
+                .to_f64()
+                .unwrap();
+    }
 }
 
 impl Number for i32 {
@@ -67,5 +167,53 @@ impl Number for i32 {
         self.max(other)
     }
     #[inline(always)]
-    fn tol() -> Self { 0 }
+    fn tol() -> Self {
+        0
+    }
+
+    #[inline(always)]
+    fn polygon_area(points: &[Self]) -> f64 {
+        let len = points.len();
+
+        if len < 6 || len & 1 != 0 {
+            return 0.0;
+        }
+
+        let n_points = len >> 1;
+        let simd_pairs = n_points >> 1;
+        let mut acc = i32x4_splat(0);
+        let mut x0: Self;
+        let mut y0: Self;
+        let mut x1: Self;
+        let mut y1: Self;
+        let mut x2: Self;
+        let mut y2: Self;
+        let mut base: usize;
+        let mut stack1: v128;
+        let mut stack2: v128;
+
+        for i in 0..simd_pairs {
+            base = i << 2;
+            x0 = points[wrap(base, 0, len)];
+            y0 = points[wrap(base, 1, len)];
+            x1 = points[wrap(base, 2, len)];
+            y1 = points[wrap(base, 3, len)];
+            x2 = points[wrap(base, 4, len)];
+            y2 = points[wrap(base, 5, len)];
+
+            stack1 = i32x4(y0, -x0, y1, -x1);
+            stack2 = i32x4(x1, y1, x2, y2);
+            acc = i32x4_add(acc, f32x4_mul(stack1, stack2));
+        }
+
+        return 0.5
+            * (i32x4_extract_lane::<0>(acc)
+                + i32x4_extract_lane::<1>(acc)
+                + i32x4_extract_lane::<2>(acc)
+                + i32x4_extract_lane::<3>(acc)
+                + ((n_points & 1) as i32)
+                    * (points[len - 1] * points[0] - points[len - 2] * points[1]))
+                .to_f64()
+                .unwrap();
+    }
 }

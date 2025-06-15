@@ -405,28 +405,28 @@ fn polygon_slide_distance<T: Number>(
     }
 }
 
-pub unsafe fn no_fit_polygon_rectangle<T: Number>(
+unsafe fn no_fit_polygon_rectangle<T: Number>(
     pool: &mut PointPool<T>,
-    a: *mut Polygon<T>,
-    b: *mut Polygon<T>,
-) -> Vec<[f32; 8]> {
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+) -> Vec<Vec<f32>> {
     let indices = pool.alloc(2);
 
     let min_diff = pool.get(indices, 0);
     let max_diff = pool.get(indices, 1);
 
-    (*min_diff).update((*a).position());
-    (*min_diff).sub((*b).position());
+    (*min_diff).update((*polygon_a).position());
+    (*min_diff).sub((*polygon_b).position());
 
-    (*max_diff).update((*a).size());
-    (*max_diff).sub((*b).size());
+    (*max_diff).update((*polygon_a).size());
+    (*max_diff).sub((*polygon_b).size());
 
     if (*max_diff).x <= T::zero() || (*max_diff).y <= T::zero() {
         pool.malloc(indices);
         return Vec::new();
     }
 
-    (*min_diff).add((*b).first());
+    (*min_diff).add((*polygon_b).first());
     (*max_diff).add(min_diff);
 
     let x0 = (*min_diff).x.to_f32().unwrap();
@@ -438,7 +438,11 @@ pub unsafe fn no_fit_polygon_rectangle<T: Number>(
 
     pool.malloc(indices);
 
-    vec![rect]
+    let mut nfp_loops = Vec::with_capacity(1);
+
+    nfp_loops.push(rect.to_vec());
+
+    nfp_loops
 }
 
 unsafe fn update_intersect_point<T: Number>(
@@ -736,36 +740,6 @@ unsafe fn in_nfp<T: Number>(
     }
 
     false
-}
-
-fn deserialize_loops<T: Number>(data: &[T]) -> Vec<Vec<T>> {
-    if data.is_empty() {
-        return Vec::new();
-    }
-    // 1) Зчитуємо count
-    let count = data[0]
-        .to_usize()
-        .expect("deserialize_loops: count must fit in usize");
-    let mut idx = 1;
-    // 2) Зчитуємо довжини
-    let mut lengths = Vec::with_capacity(count);
-    for _ in 0..count {
-        let len = data[idx]
-            .to_usize()
-            .expect("deserialize_loops: length must fit in usize");
-        lengths.push(len);
-        idx += 1;
-    }
-    // 3) Формуємо зрізи
-    let mut out = Vec::with_capacity(count);
-
-    for len in lengths {
-        let slice = &data[idx..idx + len];
-        out.push(slice.to_vec());
-        idx += len;
-    }
-
-    out
 }
 
 unsafe fn search_start_point<T: Number>(
@@ -1075,7 +1049,7 @@ unsafe fn fill_vectors<T: Number>(
     pool.malloc(indices);
 }
 
-pub unsafe fn no_fit_polygon<T: Number>(
+unsafe fn no_fit_polygon<T: Number>(
     pool: &mut PointPool<T>,
     scan_polygon: *mut Polygon<f32>,
     polygon_a: *mut Polygon<T>,
@@ -1228,6 +1202,113 @@ pub unsafe fn no_fit_polygon<T: Number>(
     }
 
     pool.malloc(pts);
+
+    result
+}
+
+pub unsafe fn pair_inside<T: Number>(
+    pool: &mut PointPool<T>,
+    scan_polygon: *mut Polygon<f32>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    mem_seg: &mut [T],
+) -> Vec<Vec<f32>> {
+    let mut result = if (*polygon_a).is_rectangle() {
+        no_fit_polygon_rectangle(pool, polygon_a, polygon_b)
+    } else {
+        no_fit_polygon(pool, scan_polygon, polygon_a, polygon_b, mem_seg, true)
+    };
+
+    if result.is_empty() {
+        //Log warn
+    }
+
+    for pts in result.iter_mut() {
+        let point_count = pts.len() >> 1;
+
+        if f32::polygon_area(pts) > 0.0 {
+            f32::reverse_polygon(pts, 0, point_count);
+        }
+    }
+
+    result
+}
+
+pub unsafe fn pair_outside<T: Number>(
+    pool: &mut PointPool<T>,
+    scan_polygon: *mut Polygon<f32>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    mem_seg: &mut [T],
+) -> Vec<Vec<f32>> {
+    let mut result = no_fit_polygon(pool, scan_polygon, polygon_a, polygon_b, mem_seg, false);
+    // sanity check
+    if result.is_empty() {
+        //pairContent.logError('NFP Error');
+
+        return result;
+    }
+
+    // if searchedges is active, only the first NFP is guaranteed to pass sanity check
+    if f32::polygon_area(&mut result[0]).abs() < (*polygon_a).abs_area() {
+        //pairContent.logError('NFP Area Error');
+        //console.log('Area: ', tmpPolygon.absArea);
+        result.clear();
+
+        return result;
+    }
+
+    let cloned = result[0].clone();
+    let boxed: Box<[f32]> = cloned.into_boxed_slice();
+
+    (*scan_polygon).bind(boxed, 0, result[0].len() >> 1);
+
+    let mut i: usize = 0;
+
+    let mut point = Point::<f32>::new(None, None);
+
+    for pts in result.iter_mut() {
+        let point_count = pts.len() >> 1;
+
+        if f32::polygon_area(pts) > 0.0 {
+            f32::reverse_polygon(pts, 0, point_count);
+        }
+
+        point.set(pts[0], pts[1]);
+
+        if i > 0
+            && (*scan_polygon).point_in(&point as *const Point<f32>, None) == Some(true)
+            && f32::polygon_area(pts) < 0.0
+        {
+            f32::reverse_polygon(pts, 0, point_count);
+        }
+
+        i += 1;
+    }
+
+    return result;
+}
+
+pub unsafe fn pair_child<T: Number>(
+    pool: &mut PointPool<T>,
+    scan_polygon: *mut Polygon<f32>,
+    polygon_a: *mut Polygon<T>,
+    polygon_b: *mut Polygon<T>,
+    mem_seg: &mut [T],
+) -> Vec<Vec<f32>> {
+    let mut result = no_fit_polygon(pool, scan_polygon, polygon_a, polygon_b, mem_seg, true);
+
+    if result.is_empty() {
+        //Log warn
+    }
+
+    for pts in result.iter_mut() {
+        let point_count = pts.len() >> 1;
+
+        if f32::polygon_area(pts) < 0.0 {
+            f32::reverse_polygon(pts, 0, point_count);
+        }
+    }
 
     result
 }
