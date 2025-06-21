@@ -89,8 +89,8 @@ impl Join {
     }
 
     pub unsafe fn join_points(&mut self, is_records_same: bool, use_full_range: bool) -> bool {
-        let mut op1 = self.out_pt1;
-        let mut op2 = self.out_pt2;
+        let op1 = self.out_pt1;
+        let op2 = self.out_pt2;
 
         let is_horizontal = (*op1).point.y == self.off_pt.y;
 
@@ -120,27 +120,27 @@ impl Join {
                 return false;
             }
 
-            let value = Join::get_overlap(
+            let (val1, val2) = Join::get_overlap(
                 (*op1).point.x,
                 (*op1b).point.x,
                 (*op2).point.x,
                 (*op2b).point.x,
             );
 
-            if value.x >= value.y {
+            if val1 >= val2 {
                 return false;
             }
 
             let mut pt = Point::new(None, None);
             let discard_left_side: bool;
 
-            if (*op1).point.x >= value.x && (*op1).point.x <= value.y {
+            if (*op1).point.x >= val1 && (*op1).point.x <= val2 {
                 pt.update(&(*op1).point);
                 discard_left_side = (*op1).point.x > (*op1b).point.x;
-            } else if (*op2).point.x >= value.x && (*op2).point.x <= value.y {
+            } else if (*op2).point.x >= val1 && (*op2).point.x <= val2 {
                 pt.update(&(*op2).point);
                 discard_left_side = (*op2).point.x > (*op2b).point.x;
-            } else if (*op1b).point.x >= value.x && (*op1b).point.x <= value.y {
+            } else if (*op1b).point.x >= val1 && (*op1b).point.x <= val2 {
                 pt.update(&(*op1b).point);
                 discard_left_side = (*op1b).point.x > (*op1).point.x;
             } else {
@@ -214,18 +214,18 @@ impl Join {
         (*out_rec2).first_left = out_rec1;
     }
 
-    pub fn get_overlap(a1: i32, a2: i32, b1: i32, b2: i32) -> Point<i32> {
+    pub fn get_overlap(a1: i32, a2: i32, b1: i32, b2: i32) -> (i32, i32) {
         if a1 < a2 {
             if b1 < b2 {
-                Point::new(Some(a1.max(b1)), Some(a2.min(b2)))
+                (a1.max(b1), a2.min(b2))
             } else {
-                Point::new(Some(a1.max(b2)), Some(a2.min(b1)))
+                (a1.max(b2), a2.min(b1))
             }
         } else {
             if b1 < b2 {
-                Point::new(Some(a2.max(b1)), Some(a1.min(b2)))
+                (a2.max(b1), a1.min(b2))
             } else {
-                Point::new(Some(a2.max(b2)), Some(a1.min(b1)))
+                (a2.max(b2), a1.min(b1))
             }
         }
     }

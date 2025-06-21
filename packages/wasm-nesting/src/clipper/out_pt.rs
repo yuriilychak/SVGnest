@@ -105,17 +105,22 @@ impl OutPt {
         let mut result = self as *mut OutPt;
 
         while (*result).get_neighboar(is_next) != op1
-                && (*(*result).get_neighboar(is_next)).point.y == (*result).point.y
-                && (*result).get_neighboar(is_next) != op2
-            {
-                result = (*result).get_neighboar(is_next);
-            }
+            && (*(*result).get_neighboar(is_next)).point.y == (*result).point.y
+            && (*result).get_neighboar(is_next) != op2
+        {
+            result = (*result).get_neighboar(is_next);
+        }
 
         result
     }
 
-    pub unsafe check_join_b(&mut self, op1: *mut OutPt, op1b: *mut OutPt) -> (*mut OutPt, *mut OutPt, bool) {
-        let op2 = self.get_join_b(self as *mut OutPt, op1b, false);
+    pub unsafe fn check_join_b(
+        &mut self,
+        op1: *mut OutPt,
+        op1b: *mut OutPt,
+    ) -> (*mut OutPt, *mut OutPt, bool) {
+        let op = self as *mut OutPt;
+        let op2 = self.get_join_b(op, op1b, false);
         let op2b = self.get_join_b(op2, op1, false);
         let is_joined = (*op2b).next == op2 || (*op2b).next == op1;
 
