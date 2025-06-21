@@ -1,4 +1,5 @@
 use crate::utils::number::Number;
+use crate::utils::math::slopes_equal;
 #[derive(Debug)]
 pub struct Point<T: Number> {
     pub x: T,
@@ -154,6 +155,15 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
+    pub unsafe fn get_between(&self, point1: *mut Point<T>, point2: *mut Point<T>) -> bool {
+        if (*point1).almost_equal(point2, None) || (*point1).almost_equal(self, None) || self.almost_equal(point2, None) {
+            return false;
+        }
+
+        if (*point1).x != (*point2).x { (self.x > (*point1).x) == (self.x < (*point2).x) } else { (self.y > (*point1).y) == (self.y < (*point2).y) }
+    }
+
+    #[inline(always)]
     pub unsafe fn normalize(&mut self) -> *mut Self {
         let len = self.length();
         if !self.is_empty() && !T::from_f64(len).unwrap().almost_equal(T::one(), None) {
@@ -230,4 +240,10 @@ impl<T: Number> Point<T> {
 
         dot < len2 && !dot.almost_equal(len2, None)
     }
+
+    #[inline(always)]
+    pub unsafe fn slopes_equal(pt1: &Self, pt2: &Self, pt3: &Self, use_full_range: bool) -> bool {
+        slopes_equal((pt1.y - pt2.y).to_f64().unwrap(), (pt2.x - pt3.x).to_f64().unwrap(), (pt1.x - pt2.x).to_f64().unwrap(), (pt2.y - pt3.y).to_f64().unwrap(), use_full_range)
+    }
+
 }
