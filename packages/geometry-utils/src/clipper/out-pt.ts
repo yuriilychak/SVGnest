@@ -80,6 +80,16 @@ export default class OutPt {
         } while (pp1 !== outPt);
     }
 
+    public getUniquePt(isNext: boolean): OutPt {
+        let result = this.getNeighboar(isNext);
+
+        while (result.point.almostEqual(this.point) && result !== this) {
+            result = result.getNeighboar(isNext);
+        }
+
+        return result;
+    }
+
     public pointIn(pt: PointI32): number {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf

@@ -1,6 +1,6 @@
 use crate::utils::number::Number;
 use crate::utils::math::slopes_equal;
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Point<T: Number> {
     pub x: T,
     pub y: T,

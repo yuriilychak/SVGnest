@@ -101,6 +101,37 @@ impl OutPt {
         cnt
     }
 
+    unsafe fn get_join_b(&mut self, op1: *mut OutPt, op2: *mut OutPt, is_next: bool) -> *mut OutPt {
+        let mut result = self as *mut OutPt;
+
+        while (*result).get_neighboar(is_next) != op1
+                && (*(*result).get_neighboar(is_next)).point.y == (*result).point.y
+                && (*result).get_neighboar(is_next) != op2
+            {
+                result = (*result).get_neighboar(is_next);
+            }
+
+        result
+    }
+
+    pub unsafe check_join_b(&mut self, op1: *mut OutPt, op1b: *mut OutPt) -> (*mut OutPt, *mut OutPt, bool) {
+        let op2 = self.get_join_b(self as *mut OutPt, op1b, false);
+        let op2b = self.get_join_b(op2, op1, false);
+        let is_joined = (*op2b).next == op2 || (*op2b).next == op1;
+
+        (op2, op2b, is_joined)
+    }
+
+    pub unsafe fn get_unique_pt(&mut self, is_next: bool) -> *mut OutPt {
+        let mut result = self.get_neighboar(is_next);
+
+        while result != self && (*result).point.almost_equal(&self.point, None) {
+            result = (*result).get_neighboar(is_next);
+        }
+
+        result
+    }
+
     pub unsafe fn reverse(&mut self) {
         let start = self as *mut OutPt;
         let mut cur = start;
