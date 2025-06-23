@@ -1,5 +1,4 @@
-use crate::clipper::enums::{Direction, PolyType};
-use crate::clipper::clipper_pool_manager::get_pool;
+use crate::clipper::enums::PolyType;
 use crate::clipper::local_minima::LocalMinima;
 use crate::clipper::t_edge::TEdge;
 use crate::geometry::point::Point;
@@ -20,13 +19,14 @@ impl ClipperBase {
         }
     }
 
-    pub unsafe fn add_path(&mut self, polygon: Vec<Poin<i32>>, poly_type: PolyType) -> bool {
-        let mut last_index = polygon.len() - 1;
+    pub unsafe fn add_path(&mut self, polygon: &Vec<Point<i32>>, poly_type: PolyType) -> bool {
+        let mut last_index: usize = polygon.len() - 1;
 
-        while last_index > 0 &&
-            (polygon[last_index].almost_equal(polygon[0], None) || polygon[last_index].almost_equal(polygon[last_index - 1], None))
-         {
-            --last_index;
+        while last_index > 0
+            && (polygon[last_index].almost_equal(&polygon[0], None)
+                || polygon[last_index].almost_equal(&polygon[last_index - 1], None))
+        {
+            last_index -= 1;
         }
 
         if last_index < 2 {
@@ -36,34 +36,34 @@ impl ClipperBase {
         //create a new edge array ...
         let mut edges: Vec<*mut TEdge> = Vec::new();
 
-        for i in 0..last_index {
+        for _i in 0..last_index {
             edges.push(TEdge::create());
         }
 
         //1. Basic (first) edge initialization ...
 
         //edges[1].curr = pg[1];
-        (*edges[1]).curr.update(polygon[1]);
+        (*edges[1]).curr.update(&polygon[1]);
 
         self.is_use_full_range = polygon[0].range_test(self.is_use_full_range);
         self.is_use_full_range = polygon[last_index].range_test(self.is_use_full_range);
 
-        (*edges[0]).init(edges[1], edges[last_index], polygon[0]);
-        (*edges[last_index]).init(edges[0], edges[last_index - 1], polygon[last_index]);
+        (*edges[0]).init(edges[1], edges[last_index], &polygon[0]);
+        (*edges[last_index]).init(edges[0], edges[last_index - 1], &polygon[last_index]);
 
-        for i in (1, last_index).rev() {
+        for i in (1..last_index).rev() {
             self.is_use_full_range = polygon[i].range_test(self.is_use_full_range);
 
-            (*edges[i]).init(edges[i + 1], edges[i - 1], polygon[i]);
+            (*edges[i]).init(edges[i + 1], edges[i - 1], &polygon[i]);
         }
 
-        let start_edge = edges[0];
+        let mut start_edge = edges[0];
         //2. Remove duplicate vertices, and (when closed) collinear edges ...
-        let edge = start_edge;
-        let loop_stop_edge = start_edge;
+        let mut edge = start_edge;
+        let mut loop_stop_edge = start_edge;
 
         loop {
-            if (*edge).curr.almost_equal((*(*edge).next).curr) {
+            if (*edge).curr.almost_equal(&(*(*edge).next).curr, None) {
                 if ptr::eq(edge, (*edge).next) {
                     break;
                 }
@@ -82,7 +82,12 @@ impl ClipperBase {
                 break;
             }
 
-            if Point::<i32>::slopesEqual(edge.prev.curr, edge.curr, edge.next.curr, self.is_use_full_range) {
+            if Point::<i32>::slopes_equal(
+                &(*(*edge).prev).curr,
+                &(*edge).curr,
+                &(*(*edge).next).curr,
+                self.is_use_full_range,
+            ) {
                 //Collinear edges are allowed for open paths but in closed paths
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
@@ -112,7 +117,7 @@ impl ClipperBase {
         //3. Do second stage of edge initialization ...
         edge = start_edge;
 
-        let is_flat = true;
+        let mut is_flat = true;
 
         loop {
             (*edge).init_from_poly_type(poly_type);
@@ -125,7 +130,6 @@ impl ClipperBase {
             if ptr::eq(edge, start_edge) {
                 break;
             }
-
         }
         //4. Finally, add edge bounds to LocalMinima list ...
         //Totally flat paths must be handled differently when adding them
@@ -134,11 +138,10 @@ impl ClipperBase {
             return false;
         }
 
-        let is_clockwise = false;
-        let min_edge = ptr::null_mut();
+        let mut min_edge = ptr::null_mut();
 
         loop {
-            edge = edge.findnextLocMin();
+            edge = (*edge).find_next_loc_min();
 
             if ptr::eq(edge, min_edge) {
                 break;
@@ -149,15 +152,15 @@ impl ClipperBase {
             }
             //E and E.prev now share a local minima (left aligned if horizontal).
             //Compare their slopes to find which starts which bound ...
-            is_clockwise = (*edge).dx >= (*(*edge).prev).dx;
+            let is_clockwise = (*edge).dx >= (*(*edge).prev).dx;
 
             let loc_min = LocalMinima::from_edge(edge, is_clockwise);
 
-            edge = self.process_bound(loc_min.left_bound, is_clockwise);
+            edge = self.process_bound((*loc_min).left_bound, is_clockwise);
 
-            let edge2 = self.process_bound(loc_min.right_bound, !is_clockwise);
+            let edge2 = self.process_bound((*loc_min).right_bound, !is_clockwise);
 
-            self.minima_list = loc_min.insert(self.minima_list);
+            self.minima_list = (*loc_min).insert(self.minima_list);
 
             if !is_clockwise {
                 edge = edge2;
@@ -167,12 +170,16 @@ impl ClipperBase {
         return true;
     }
 
-    pub unsafe fn add_paths(polygons: Vec<Vec<Point<i32>>>, poly_type: PolyType) -> bool {
-        const polygon_count = polygons.len();
+    pub unsafe fn add_paths(
+        &mut self,
+        polygons: &Vec<Vec<Point<i32>>>,
+        poly_type: PolyType,
+    ) -> bool {
+        let polygon_count = polygons.len();
         let mut result = false;
 
         for i in 0..polygon_count {
-            if self.add_path(polygons[i], poly_type) {
+            if self.add_path(&polygons[i], poly_type) {
                 result = true;
             }
         }
@@ -184,7 +191,7 @@ impl ClipperBase {
         unsafe {
             let start_edge = edge;
             let mut result = edge;
-            let mut horz_edge: *mut TEdge = std::ptr::null_mut();
+            let mut horz_edge: *mut TEdge;
 
             if (*edge).is_dx_horizontal() {
                 let start_x = if is_clockwise {

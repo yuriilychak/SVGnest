@@ -1,5 +1,10 @@
-use crate::utils::number::Number;
 use crate::utils::math::slopes_equal;
+use crate::utils::number::Number;
+
+const LOW_RANGE: f64 = 47453132.0;
+
+const HIGH_RANGE: f64 = 4503599627370495.0;
+
 #[derive(Debug, PartialEq)]
 pub struct Point<T: Number> {
     pub x: T,
@@ -156,11 +161,18 @@ impl<T: Number> Point<T> {
 
     #[inline(always)]
     pub unsafe fn get_between(&self, point1: *mut Point<T>, point2: *mut Point<T>) -> bool {
-        if (*point1).almost_equal(point2, None) || (*point1).almost_equal(self, None) || self.almost_equal(point2, None) {
+        if (*point1).almost_equal(point2, None)
+            || (*point1).almost_equal(self, None)
+            || self.almost_equal(point2, None)
+        {
             return false;
         }
 
-        if (*point1).x != (*point2).x { (self.x > (*point1).x) == (self.x < (*point2).x) } else { (self.y > (*point1).y) == (self.y < (*point2).y) }
+        if (*point1).x != (*point2).x {
+            (self.x > (*point1).x) == (self.x < (*point2).x)
+        } else {
+            (self.y > (*point1).y) == (self.y < (*point2).y)
+        }
     }
 
     #[inline(always)]
@@ -190,6 +202,23 @@ impl<T: Number> Point<T> {
     #[inline(always)]
     pub unsafe fn clipper_round(&mut self) -> *mut Self {
         self.set(self.x.clipper_rounded(), self.y.clipper_rounded())
+    }
+
+    #[inline(always)]
+    pub fn range_test(&self, use_full_range: bool) -> bool {
+        if use_full_range {
+            if self.x.to_f64().unwrap().abs() > HIGH_RANGE
+                || self.y.to_f64().unwrap().abs() > HIGH_RANGE
+            {
+                //console.warn('Coordinate outside allowed range in rangeTest().');
+            }
+        } else if self.x.to_f64().unwrap().abs() > LOW_RANGE
+            || self.y.to_f64().unwrap().abs() > LOW_RANGE
+        {
+            return self.range_test(true);
+        }
+
+        return use_full_range;
     }
 
     #[inline(always)]
@@ -243,7 +272,12 @@ impl<T: Number> Point<T> {
 
     #[inline(always)]
     pub unsafe fn slopes_equal(pt1: &Self, pt2: &Self, pt3: &Self, use_full_range: bool) -> bool {
-        slopes_equal((pt1.y - pt2.y).to_f64().unwrap(), (pt2.x - pt3.x).to_f64().unwrap(), (pt1.x - pt2.x).to_f64().unwrap(), (pt2.y - pt3.y).to_f64().unwrap(), use_full_range)
+        slopes_equal(
+            (pt1.y - pt2.y).to_f64().unwrap(),
+            (pt2.x - pt3.x).to_f64().unwrap(),
+            (pt1.x - pt2.x).to_f64().unwrap(),
+            (pt2.y - pt3.y).to_f64().unwrap(),
+            use_full_range,
+        )
     }
-
 }
