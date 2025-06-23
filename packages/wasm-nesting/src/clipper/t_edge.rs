@@ -1,5 +1,6 @@
-use crate::clipper::enums::{ClipType, Direction, PolyFillType, PolyType};
 use crate::clipper::clipper_instance::ClipperInstance;
+use crate::clipper::clipper_pool_manager::get_pool;
+use crate::clipper::enums::{ClipType, Direction, PolyFillType, PolyType};
 use crate::geometry::point::Point;
 use crate::utils::math::slopes_equal;
 use crate::utils::round::ClipperRound;
@@ -77,6 +78,12 @@ impl ClipperInstance for TEdge {
 }
 
 impl TEdge {
+    pub fn create() -> *mut Self {
+        let result = get_pool().t_edge_pool.get();
+
+        result
+    }
+
     pub unsafe fn init(&mut self, next: *mut TEdge, prev: *mut TEdge, point: *const Point<i32>) {
         self.next = next;
         self.prev = prev;
@@ -266,6 +273,10 @@ impl TEdge {
 
     pub unsafe fn is_filled(&self) -> bool {
         self.is_assigned() && !self.is_wind_delta_empty()
+    }
+
+    pub unsafe fn is_cycled(&self) -> bool {
+        ptr::eq(self.prev, self.next)
     }
 
     pub unsafe fn is_horizontal(&self) -> bool {

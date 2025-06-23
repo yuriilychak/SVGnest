@@ -47,6 +47,29 @@ impl LocalMinima {
         result
     }
 
+    pub unsafe fn from_edge(edge: *mut TEdge, is_clockwise: bool) -> *mut Self {
+        let result = if is_clockwise
+        //Q.nextInLML = Q.next
+        {
+            LocalMinima::create((*edge).bot.y, Some(edge), Some((*edge).prev), None)
+        } else
+        //Q.nextInLML = Q.prev
+        {
+            LocalMinima::create((*edge).bot.y, Some((*edge).prev), Some(edge), None)
+        };
+        (*(*result).left_bound).side = Direction::Left;
+        (*(*result).right_bound).side = Direction::Right;
+        (*(*result).left_bound).wind_delta =
+            if ptr::eq((*(*result).left_bound).next, (*result).right_bound) {
+                -1
+            } else {
+                1
+            };
+        (*(*result).right_bound).wind_delta = -(*(*result).left_bound).wind_delta;
+
+        result
+    }
+
     pub unsafe fn insert(&mut self, current: *mut LocalMinima) -> *mut LocalMinima {
         if current.is_null() {
             return self as *mut LocalMinima;

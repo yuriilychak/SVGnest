@@ -3,6 +3,7 @@ use crate::clipper::clipper_pool_manager::get_pool;
 use crate::clipper::local_minima::LocalMinima;
 use crate::clipper::t_edge::TEdge;
 use crate::geometry::point::Point;
+use std::ptr;
 
 pub struct ClipperBase {
     pub minima_list: *mut LocalMinima,
@@ -19,166 +20,163 @@ impl ClipperBase {
         }
     }
 
-    pub fn add_path(&mut self, polygon: &[Point<i32>], poly_type: PolyType) -> bool {
-        let mut last_index = polygon.len().wrapping_sub(1);
-        while last_index > 0
-            && (polygon[last_index] == polygon[0] || polygon[last_index] == polygon[last_index - 1])
-        {
-            last_index -= 1;
+    pub unsafe fn add_path(&mut self, polygon: Vec<Poin<i32>>, poly_type: PolyType) -> bool {
+        let mut last_index = polygon.len() - 1;
+
+        while last_index > 0 &&
+            (polygon[last_index].almost_equal(polygon[0], None) || polygon[last_index].almost_equal(polygon[last_index - 1], None))
+         {
+            --last_index;
         }
 
         if last_index < 2 {
             return false;
         }
 
-        let mut edges: Vec<*mut TEdge> = (0..=last_index).map(|_| get_pool().t_edge_pool.get()).collect();
+        //create a new edge array ...
+        let mut edges: Vec<*mut TEdge> = Vec::new();
 
-        edges[1].curr.update(&polygon[1]);
+        for i in 0..last_index {
+            edges.push(TEdge::create());
+        }
+
+        //1. Basic (first) edge initialization ...
+
+        //edges[1].curr = pg[1];
+        (*edges[1]).curr.update(polygon[1]);
 
         self.is_use_full_range = polygon[0].range_test(self.is_use_full_range);
         self.is_use_full_range = polygon[last_index].range_test(self.is_use_full_range);
 
-        edges[0].init(&mut edges[1], &mut edges[last_index], &polygon[0]);
-        edges[last_index].init(
-            &mut edges[0],
-            &mut edges[last_index - 1],
-            &polygon[last_index],
-        );
+        (*edges[0]).init(edges[1], edges[last_index], polygon[0]);
+        (*edges[last_index]).init(edges[0], edges[last_index - 1], polygon[last_index]);
 
-        for i in (1..last_index).rev() {
+        for i in (1, last_index).rev() {
             self.is_use_full_range = polygon[i].range_test(self.is_use_full_range);
-            edges[i].init(&mut edges[i + 1], &mut edges[i - 1], &polygon[i]);
+
+            (*edges[i]).init(edges[i + 1], edges[i - 1], polygon[i]);
         }
 
-        let mut start_edge = &mut edges[0] as *mut TEdge;
-        let mut edge = start_edge;
-        let mut loop_stop_edge = start_edge;
+        let start_edge = edges[0];
+        //2. Remove duplicate vertices, and (when closed) collinear edges ...
+        let edge = start_edge;
+        let loop_stop_edge = start_edge;
 
-        unsafe {
-            loop {
-                if (*edge).curr == (*(*edge).next).curr {
-                    if std::ptr::eq(edge, (*edge).next) {
-                        break;
-                    }
-                    if std::ptr::eq(edge, start_edge) {
-                        start_edge = (*edge).next;
-                    }
-                    edge = (*edge).remove();
-                    loop_stop_edge = edge;
-                    continue;
-                }
-
-                if std::ptr::eq((*edge).prev, (*edge).next) {
+        loop {
+            if (*edge).curr.almost_equal((*(*edge).next).curr) {
+                if ptr::eq(edge, (*edge).next) {
                     break;
                 }
 
-                if Point::slopes_equal(
-                    &(*(*edge).prev).curr,
-                    &(*edge).curr,
-                    &(*(*edge).next).curr,
-                    self.is_use_full_range,
-                ) {
-                    if std::ptr::eq(edge, start_edge) {
-                        start_edge = (*edge).next;
-                    }
-                    edge = (*edge).remove();
-                    edge = (*edge).prev;
-                    loop_stop_edge = edge;
-                    continue;
+                if ptr::eq(edge, start_edge) {
+                    start_edge = (*edge).next;
                 }
 
-                edge = (*edge).next;
-                if std::ptr::eq(edge, loop_stop_edge) {
-                    break;
-                }
+                edge = (*edge).remove();
+                loop_stop_edge = edge;
+
+                continue;
             }
 
-            if std::ptr::eq((*edge).prev, (*edge).next) {
-                return false;
+            if (*edge).is_cycled() {
+                break;
             }
 
-            edge = start_edge;
-            let mut is_flat = true;
-            loop {
-                (*edge).init_from_poly_type(poly_type);
-                edge = (*edge).next;
-                if is_flat && (*edge).curr.y != (*start_edge).curr.y {
-                    is_flat = false;
+            if Point::<i32>::slopesEqual(edge.prev.curr, edge.curr, edge.next.curr, self.is_use_full_range) {
+                //Collinear edges are allowed for open paths but in closed paths
+                //the default is to merge adjacent collinear edges into a single edge.
+                //However, if the PreserveCollinear property is enabled, only overlapping
+                //collinear edges (ie spikes) will be removed from closed paths.
+                if ptr::eq(edge, start_edge) {
+                    start_edge = (*edge).next;
                 }
-                if std::ptr::eq(edge, start_edge) {
-                    break;
-                }
+
+                edge = (*edge).remove();
+                edge = (*edge).prev;
+                loop_stop_edge = edge;
+
+                continue;
             }
 
-            if is_flat {
-                return false;
-            }
+            edge = (*edge).next;
 
-            let mut is_clockwise = false;
-            let mut min_edge: *mut TEdge = std::ptr::null_mut();
-
-            loop {
-                edge = (*edge).find_next_loc_min();
-
-                if edge == min_edge {
-                    break;
-                }
-
-                if min_edge.is_null() {
-                    min_edge = edge;
-                }
-
-                is_clockwise = (*edge).dx >= (*(*edge).prev).dx;
-
-                let loc_min = if is_clockwise {
-                    Box::<LocalMinima>::into_raw(LocalMinima::new(
-                        (*edge).bot.y,
-                        edge,
-                        (*edge).prev,
-                    ))
-                } else {
-                    Box::<LocalMinima>::into_raw(LocalMinima::new(
-                        (*edge).bot.y,
-                        (*edge).prev,
-                        edge,
-                    ))
-                };
-
-                (*loc_min).left_bound.as_mut().unwrap().side = Direction::Left;
-                (*loc_min).right_bound.as_mut().unwrap().side = Direction::Right;
-                (*loc_min).left_bound.as_mut().unwrap().wind_delta = if std::ptr::eq(
-                    (*loc_min).left_bound.unwrap().next,
-                    (*loc_min).right_bound.unwrap(),
-                ) {
-                    -1
-                } else {
-                    1
-                };
-                (*loc_min).right_bound.as_mut().unwrap().wind_delta =
-                    -(*loc_min).left_bound.unwrap().wind_delta;
-
-                edge = self.process_bound((*loc_min).left_bound.unwrap(), is_clockwise);
-                let edge2 = self.process_bound((*loc_min).right_bound.unwrap(), !is_clockwise);
-
-                (*loc_min).next = self.minima_list;
-                self.minima_list = loc_min;
-
-                if !is_clockwise {
-                    edge = edge2;
-                }
+            if ptr::eq(edge, loop_stop_edge) {
+                break;
             }
         }
 
-        true
+        if (*edge).is_cycled() {
+            return false;
+        }
+
+        //3. Do second stage of edge initialization ...
+        edge = start_edge;
+
+        let is_flat = true;
+
+        loop {
+            (*edge).init_from_poly_type(poly_type);
+            edge = (*edge).next;
+
+            if is_flat && (*edge).curr.y != (*start_edge).curr.y {
+                is_flat = false;
+            }
+
+            if ptr::eq(edge, start_edge) {
+                break;
+            }
+
+        }
+        //4. Finally, add edge bounds to LocalMinima list ...
+        //Totally flat paths must be handled differently when adding them
+        //to LocalMinima list to avoid endless loops etc ...
+        if is_flat {
+            return false;
+        }
+
+        let is_clockwise = false;
+        let min_edge = ptr::null_mut();
+
+        loop {
+            edge = edge.findnextLocMin();
+
+            if ptr::eq(edge, min_edge) {
+                break;
+            }
+
+            if min_edge.is_null() {
+                min_edge = edge;
+            }
+            //E and E.prev now share a local minima (left aligned if horizontal).
+            //Compare their slopes to find which starts which bound ...
+            is_clockwise = (*edge).dx >= (*(*edge).prev).dx;
+
+            let loc_min = LocalMinima::from_edge(edge, is_clockwise);
+
+            edge = self.process_bound(loc_min.left_bound, is_clockwise);
+
+            let edge2 = self.process_bound(loc_min.right_bound, !is_clockwise);
+
+            self.minima_list = loc_min.insert(self.minima_list);
+
+            if !is_clockwise {
+                edge = edge2;
+            }
+        }
+
+        return true;
     }
 
-    pub fn add_paths(&mut self, polygons: &[Vec<Point<i32>>], poly_type: PolyType) -> bool {
+    pub unsafe fn add_paths(polygons: Vec<Vec<Point<i32>>>, poly_type: PolyType) -> bool {
+        const polygon_count = polygons.len();
         let mut result = false;
-        for poly in polygons.iter() {
-            if self.add_path(poly, poly_type) {
+
+        for i in 0..polygon_count {
+            if self.add_path(polygons[i], poly_type) {
                 result = true;
             }
         }
+
         result
     }
 
@@ -286,6 +284,7 @@ impl ClipperBase {
 
     pub fn reset(&mut self) {
         self.current_lm = self.minima_list;
+
         if !self.minima_list.is_null() {
             unsafe { (*self.minima_list).reset() };
         }
