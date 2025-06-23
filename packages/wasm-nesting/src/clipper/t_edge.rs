@@ -230,7 +230,7 @@ impl TEdge {
         let has_next = !next.is_null();
         let has_prev = !prev.is_null();
 
-        if !has_prev && !has_next && self_pointer != input_edge {
+        if !has_prev && !has_next && !ptr::eq(self_pointer, input_edge) {
             return input_edge;
         }
 
@@ -296,7 +296,7 @@ impl TEdge {
         }
 
         if !result.is_null()
-            && (*result).next_in_ael == (*result).prev_in_ael
+            && ptr::eq((*result).next_in_ael, (*result).prev_in_ael)
             && !(*result).is_horizontal()
         {
             ptr::null_mut()
@@ -591,8 +591,8 @@ impl TEdge {
     pub unsafe fn swap_position_in_el(edge1: *mut TEdge, edge2: *mut TEdge, is_ael: bool) -> bool {
         //check that one or other edge hasn't already been removed from EL ...
         let is_removed = if is_ael {
-            (*edge1).get_next(is_ael) == (*edge1).get_prev(is_ael)
-                || (*edge2).get_next(is_ael) == (*edge2).get_prev(is_ael)
+            ptr::eq((*edge1).get_next(is_ael), (*edge1).get_prev(is_ael))
+                || ptr::eq((*edge2).get_next(is_ael), (*edge2).get_prev(is_ael))
         } else {
             ((*edge1).get_next(is_ael).is_null() && (*edge1).get_prev(is_ael).is_null())
                 || ((*edge2).get_next(is_ael).is_null() && (*edge2).get_prev(is_ael).is_null())
@@ -602,7 +602,7 @@ impl TEdge {
             return false;
         }
 
-        if (*edge1).get_next(is_ael) == edge2 {
+        if ptr::eq((*edge1).get_next(is_ael), edge2) {
             let next = (*edge2).get_next(is_ael);
 
             if !next.is_null() {
@@ -623,7 +623,7 @@ impl TEdge {
             return true;
         }
 
-        if (*edge2).get_next(is_ael) == edge1 {
+        if ptr::eq((*edge2).get_next(is_ael), edge1) {
             let next = (*edge1).get_next(is_ael);
 
             if !next.is_null() {

@@ -55,7 +55,7 @@ impl OutRec {
         let mut out_pt = self.pts;
 
         loop {
-            if !out_pt.is_null() && ((*out_pt).prev == out_pt || (*out_pt).prev == (*out_pt).next) {
+            if !out_pt.is_null() && (ptr::eq((*out_pt).prev, out_pt) || ptr::eq((*out_pt).prev, (*out_pt).next)) {
                 (*out_pt).dispose();
                 self.pts = ptr::null_mut();
 
@@ -85,7 +85,7 @@ impl OutRec {
                 continue;
             }
 
-            if out_pt == last_out_pt {
+            if ptr::eq(out_pt, last_out_pt) {
                 break;
             }
 
@@ -155,7 +155,7 @@ impl OutRec {
             (*out_pt).index = self.idx as i32;
             out_pt = (*out_pt).prev;
 
-            if out_pt == self.pts {
+            if ptr::eq(out_pt, self.pts) {
                 break;
             }
         }
@@ -173,7 +173,7 @@ impl OutRec {
 
             out_pt = (*out_pt).next;
 
-            if out_pt == (*out_rec).pts {
+            if ptr::eq(out_pt, (*out_rec).pts) {
                 break;
             }
         }
@@ -208,7 +208,7 @@ impl OutRec {
                 * (((*prev_pt).point.y - (*out_pt).point.y) as f64);
             out_pt = (*out_pt).next;
 
-            if out_pt == self.pts {
+            if ptr::eq(out_pt, self.pts) {
                 break;
             }
         }
@@ -245,10 +245,10 @@ impl OutRec {
         {
             let mut op2 = (*inner_pt).next;
 
-            while op2 != self.pts {
+            while !ptr::eq(op2, self.pts) {
                 if (*inner_pt).point.almost_equal(&(*op2).point, None)
-                    && (*op2).next != inner_pt
-                    && (*op2).prev != inner_pt
+                    && !ptr::eq((*op2).next, inner_pt)
+                    && !ptr::eq((*op2).prev, inner_pt)
                 {
                     //split the polygon into two ...
                     let op3 = (*inner_pt).prev;
@@ -287,7 +287,7 @@ impl OutRec {
 
             inner_pt = (*inner_pt).next;
 
-            if inner_pt == self.pts {
+            if ptr::eq(inner_pt, self.pts) {
                 break;
             }
         }
@@ -299,7 +299,7 @@ impl OutRec {
         loop {
             out_rec = (*out_rec).first_left;
 
-            if out_rec == out_rec2 {
+            if ptr::eq(out_rec, out_rec2) {
                 return true;
             }
 
@@ -341,9 +341,9 @@ impl OutRec {
             out_rec1
         } else if (*b_pt1).point.x > (*b_pt2).point.x {
             out_rec2
-        } else if (*b_pt1).next == b_pt1 {
+        } else if ptr::eq((*b_pt1).next, b_pt1) {
             out_rec2
-        } else if (*b_pt2).next == b_pt2 {
+        } else if ptr::eq((*b_pt2).next, b_pt2) {
             out_rec1
         } else if OutPt::first_is_bottom_pt(b_pt1, b_pt2) {
             out_rec1
@@ -411,7 +411,7 @@ impl OutRec {
     pub unsafe fn get_out_rec(records: &mut Vec<*mut OutRec>, mut idx: usize) -> *mut OutRec {
         let mut result: *mut OutRec = records[idx];
 
-        while result != records[(*result).idx] {
+        while !ptr::eq(result, records[(*result).idx]) {
             idx = (*result).idx;
             result = records[idx];
         }
@@ -498,8 +498,8 @@ impl OutRec {
 
         (*out_rec1).bottom_pt = std::ptr::null_mut();
 
-        if hole_state_rec == out_rec2 {
-            if (*out_rec2).first_left != out_rec1 {
+        if ptr::eq(hole_state_rec, out_rec2) {
+            if !ptr::eq((*out_rec2).first_left, out_rec1) {
                 (*out_rec1).first_left = (*out_rec2).first_left;
             }
             (*out_rec1).is_hole = (*out_rec2).is_hole;

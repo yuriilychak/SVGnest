@@ -49,7 +49,7 @@ impl IntersectNode {
     }
 
     pub unsafe fn edges_adjacent(&self) -> bool {
-        (*self.edge1).next_in_sel == self.edge2 || (*self.edge1).prev_in_sel == self.edge2
+        ptr::eq((*self.edge1).next_in_sel, self.edge2) || ptr::eq((*self.edge1).prev_in_sel, self.edge2)
     }
 
     pub fn sort(node1: &IntersectNode, node2: &IntersectNode) -> i32 {

@@ -114,7 +114,7 @@ impl OutPt {
             cnt += 1;
             cur = (*cur).next;
 
-            if cur == start {
+            if ptr::eq(cur, start) {
                 break;
             }
         }
@@ -125,9 +125,9 @@ impl OutPt {
     unsafe fn get_join_b(&mut self, op1: *mut OutPt, op2: *mut OutPt, is_next: bool) -> *mut OutPt {
         let mut result = self as *mut OutPt;
 
-        while (*result).get_neighboar(is_next) != op1
+        while !(*result).check_neighboar(is_next, op1)
             && (*(*result).get_neighboar(is_next)).point.y == (*result).point.y
-            && (*result).get_neighboar(is_next) != op2
+            && !(*result).check_neighboar(is_next, op2)
         {
             result = (*result).get_neighboar(is_next);
         }
@@ -143,7 +143,7 @@ impl OutPt {
         let op = self as *mut OutPt;
         let op2 = self.get_join_b(op, op1b, false);
         let op2b = self.get_join_b(op2, op1, false);
-        let is_joined = (*op2b).next == op2 || (*op2b).next == op1;
+        let is_joined = (*op2b).check_neighboar(true, op2) || (*op2b).check_neighboar(true, op1);
 
         (op2, op2b, is_joined)
     }
@@ -151,7 +151,7 @@ impl OutPt {
     pub unsafe fn get_unique_pt(&mut self, is_next: bool) -> *mut OutPt {
         let mut result = self.get_neighboar(is_next);
 
-        while result != self && (*result).point.almost_equal(&self.point, None) {
+        while !ptr::eq(result, self) && (*result).point.almost_equal(&self.point, None) {
             result = (*result).get_neighboar(is_next);
         }
 
@@ -171,7 +171,7 @@ impl OutPt {
 
             cur = next;
 
-            if cur == start {
+            if ptr::eq(cur, start) {
                 break;
             }
         }
@@ -241,7 +241,7 @@ impl OutPt {
 
             cur = (*node).next;
 
-            if cur == start {
+            if ptr::eq(cur, start) {
                 break;
             }
         }
@@ -254,7 +254,7 @@ impl OutPt {
         let mut cur = (*best).next;
         let mut dups: *mut OutPt = ptr::null_mut();
 
-        while cur != best {
+        while !ptr::eq(cur, best) {
             let by = (*best).point.y;
             let cy = (*cur).point.y;
 
@@ -268,7 +268,7 @@ impl OutPt {
                 if cx < bx {
                     best = cur;
                     dups = ptr::null_mut();
-                } else if cx == bx && (*cur).next != best && (*cur).prev != best {
+                } else if cx == bx && !(*cur).check_neighboar(true, best) && !(*cur).check_neighboar(false, best) {
                     dups = cur;
                 }
             }
@@ -278,7 +278,7 @@ impl OutPt {
         if !dups.is_null() {
             let mut scan = dups;
 
-            while scan != best {
+            while !ptr::eq(scan, best) {
                 if !OutPt::first_is_bottom_pt(scan, best) {
                     best = scan;
                 }
@@ -302,6 +302,10 @@ impl OutPt {
         }
     }
 
+    unsafe fn check_neighboar(&self, is_next: bool, out_pt: *mut OutPt) -> bool {
+        ptr::eq(self.get_neighboar(is_next), out_pt)
+    }
+
     unsafe fn get_distance(&mut self, is_next: bool) -> f64 {
         let start = self as *mut OutPt;
         let mut p = self.get_neighboar(is_next);
@@ -310,7 +314,7 @@ impl OutPt {
             return f64::NAN;
         }
 
-        while (*p).point.almost_equal(&self.point, None) && p != start {
+        while (*p).point.almost_equal(&self.point, None) && !ptr::eq(p, start) {
             p = (*p).get_neighboar(is_next);
 
             if p.is_null() {
