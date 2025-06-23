@@ -1,4 +1,5 @@
 use crate::clipper::clipper_instance::ClipperInstance;
+use crate::clipper::clipper_pool_manager::get_pool;
 use crate::clipper::out_pt::OutPt;
 use crate::clipper::out_rec::OutRec;
 use crate::geometry::point::Point;
@@ -31,20 +32,22 @@ impl ClipperInstance for Join {
 }
 
 impl Join {
-    pub unsafe fn init(
-        &mut self,
+    pub unsafe fn create(
         out_pt1: *mut OutPt,
         out_pt2: *mut OutPt,
         off_pt: Option<&Point<i32>>,
-    ) {
-        self.out_pt1 = out_pt1;
-        self.out_pt2 = out_pt2;
+    ) -> *mut Self {
+        let result = get_pool().join_pool.get();
+        (*result).out_pt1 = out_pt1;
+        (*result).out_pt2 = out_pt2;
 
         if let Some(orig) = off_pt {
-            self.off_pt.update(orig);
+            (*result).off_pt.update(orig);
         } else {
-            self.off_pt.set(0, 0);
+            (*result).off_pt.set(0, 0);
         };
+
+        result
     }
 
     unsafe fn apply_join(&mut self, op1: *mut OutPt, op2: *mut OutPt, reverse: bool) {

@@ -52,7 +52,7 @@ impl IntersectNode {
         ptr::eq((*self.edge1).next_in_sel, self.edge2) || ptr::eq((*self.edge1).prev_in_sel, self.edge2)
     }
 
-    pub fn sort(node1: &IntersectNode, node2: &IntersectNode) -> i32 {
-        node2.pt.y - node1.pt.y
+    pub fn sort(a: *mut IntersectNode, b: *mut IntersectNode) -> std::cmp::Ordering {
+        unsafe { (*b).pt.y.cmp(&(*a).pt.y) }
     }
 }
