@@ -1,3 +1,7 @@
+//pub mod clipper_base;
+pub mod clipper_instance;
+pub mod clipper_pool;
+pub mod clipper_pool_manager;
 pub mod enums;
 pub mod intersect_node;
 pub mod join;

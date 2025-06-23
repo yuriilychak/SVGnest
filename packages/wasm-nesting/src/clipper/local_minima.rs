@@ -1,90 +1,98 @@
+use crate::clipper::clipper_instance::ClipperInstance;
+use crate::clipper::clipper_pool_manager::get_pool;
 use crate::clipper::enums::Direction;
 use crate::clipper::scanbeam::Scanbeam;
 use crate::clipper::t_edge::TEdge;
 use std::ptr;
 
-#[derive(Debug)]
 pub struct LocalMinima {
     pub y: i32,
     pub left_bound: *mut TEdge,
     pub right_bound: *mut TEdge,
-    pub next: Option<Box<LocalMinima>>,
+    pub next: *mut LocalMinima,
+}
+
+impl ClipperInstance for LocalMinima {
+    fn new() -> Self {
+        Self {
+            y: 0,
+            left_bound: ptr::null_mut(),
+            right_bound: ptr::null_mut(),
+            next: ptr::null_mut(),
+        }
+    }
+
+    fn clean(&mut self) {
+        self.y = 0;
+        self.left_bound = ptr::null_mut();
+        self.right_bound = ptr::null_mut();
+        self.next = ptr::null_mut();
+    }
 }
 
 impl LocalMinima {
-    pub fn new(
+    pub unsafe fn create(
         y: i32,
         left_bound: Option<*mut TEdge>,
         right_bound: Option<*mut TEdge>,
-        next: Option<Box<LocalMinima>>,
-    ) -> Box<Self> {
-        Box::new(Self {
-            y,
-            left_bound: left_bound.unwrap_or(ptr::null_mut()),
-            right_bound: right_bound.unwrap_or(ptr::null_mut()),
-            next,
-        })
+        next: Option<*mut LocalMinima>,
+    ) -> *mut Self {
+        let result = get_pool().local_minima_pool.get();
+
+        (*result).y = y;
+        (*result).left_bound = left_bound.unwrap_or(ptr::null_mut());
+        (*result).right_bound = right_bound.unwrap_or(ptr::null_mut());
+        (*result).next = next.unwrap_or(ptr::null_mut());
+
+        result
     }
 
-    pub fn insert(
-        self: Box<Self>,
-        mut current: Option<Box<LocalMinima>>,
-    ) -> Option<Box<LocalMinima>> {
-        if current.is_none() || self.y >= current.as_ref().unwrap().y {
-            let mut new_self = self;
-            new_self.next = current;
-            return Some(new_self);
+    pub unsafe fn insert(&mut self, current: *mut LocalMinima) -> *mut LocalMinima {
+        if current.is_null() {
+            return self as *mut LocalMinima;
         }
 
-        let mut node = current.as_mut().unwrap();
+        if self.y >= (*current).y {
+            self.next = current;
 
-        loop {
-            let should_insert = match node.next {
-                Some(ref next_node) if self.y < next_node.y => false,
-                _ => true,
-            };
-
-            if should_insert {
-                break;
-            }
-
-            // safe unwrap, бо ми щойно перевірили, що next існує
-            node = node.next.as_mut().unwrap();
+            return self as *mut LocalMinima;
         }
 
-        let mut new_self = self;
-        new_self.next = node.next.take();
-        node.next = Some(new_self);
+        let mut local_minima = current;
 
-        current
+        while !(*local_minima).next.is_null() && self.y < (*(*local_minima).next).y {
+            local_minima = (*local_minima).next;
+        }
+
+        self.next = (*local_minima).next;
+        (*local_minima).next = self as *mut LocalMinima;
+
+        return current;
     }
 
     pub unsafe fn reset(&mut self) {
-        let mut lm: *mut LocalMinima = self;
+        let mut local_minima = self as *mut LocalMinima;
 
-        while !lm.is_null() {
-            if !(*lm).left_bound.is_null() {
-                (*(*lm).left_bound).reset(Direction::Left);
+        while !local_minima.is_null() {
+            if !(*local_minima).left_bound.is_null() {
+                (*(*local_minima).left_bound).reset(Direction::Left);
             }
 
-            if !(*lm).right_bound.is_null() {
-                (*(*lm).right_bound).reset(Direction::Right);
+            if !(*local_minima).right_bound.is_null() {
+                (*(*local_minima).right_bound).reset(Direction::Right);
             }
 
-            lm = match &mut (*lm).next {
-                Some(next_box) => &mut **next_box,
-                None => std::ptr::null_mut(),
-            };
+            local_minima = (*local_minima).next;
         }
     }
 
-    pub fn get_scanbeam(&self) -> Option<Box<Scanbeam>> {
-        let mut lm: Option<&LocalMinima> = Some(self);
-        let mut result: Option<Box<Scanbeam>> = None;
+    pub unsafe fn get_scanbeam(&mut self) -> *mut Scanbeam {
+        let mut local_minima = self as *mut LocalMinima;
+        let mut result: *mut Scanbeam = ptr::null_mut();
 
-        while let Some(curr) = lm {
-            result = Some(Scanbeam::insert(curr.y, result));
-            lm = curr.next.as_deref();
+        while !local_minima.is_null() {
+            result = Scanbeam::insert((*local_minima).y, result);
+            local_minima = (*local_minima).next;
         }
 
         result

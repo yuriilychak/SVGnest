@@ -1,4 +1,5 @@
 use crate::clipper::enums::{ClipType, Direction, PolyFillType, PolyType};
+use crate::clipper::clipper_instance::ClipperInstance;
 use crate::geometry::point::Point;
 use crate::utils::math::slopes_equal;
 use crate::utils::round::ClipperRound;
@@ -6,7 +7,6 @@ use std::ptr;
 
 pub const HORIZONTAL: f64 = -9007199254740992.00;
 
-#[derive(Debug)]
 pub struct TEdge {
     pub bot: Point<i32>,
     pub curr: Point<i32>,
@@ -28,9 +28,9 @@ pub struct TEdge {
     pub prev_in_sel: *mut TEdge,
 }
 
-impl TEdge {
-    pub fn new() -> Box<Self> {
-        Box::new(Self {
+impl ClipperInstance for TEdge {
+    fn new() -> Self {
+        Self {
             bot: Point::<i32>::new(None, None),
             curr: Point::<i32>::new(None, None),
             top: Point::<i32>::new(None, None),
@@ -49,9 +49,34 @@ impl TEdge {
             prev_in_ael: ptr::null_mut(),
             next_in_sel: ptr::null_mut(),
             prev_in_sel: ptr::null_mut(),
-        })
+        }
     }
 
+    fn clean(&mut self) {
+        unsafe {
+            self.bot.set(0, 0);
+            self.curr.set(0, 0);
+            self.top.set(0, 0);
+            self.delta.set(0, 0);
+        }
+        self.dx = 0.0;
+        self.poly_typ = PolyType::Subject;
+        self.side = Direction::Left;
+        self.wind_delta = 0;
+        self.wind_cnt = 0;
+        self.wind_cnt2 = 0;
+        self.index = 0;
+        self.next = ptr::null_mut();
+        self.prev = ptr::null_mut();
+        self.next_in_lml = ptr::null_mut();
+        self.next_in_ael = ptr::null_mut();
+        self.prev_in_ael = ptr::null_mut();
+        self.next_in_sel = ptr::null_mut();
+        self.prev_in_sel = ptr::null_mut();
+    }
+}
+
+impl TEdge {
     pub unsafe fn init(&mut self, next: *mut TEdge, prev: *mut TEdge, point: *const Point<i32>) {
         self.next = next;
         self.prev = prev;

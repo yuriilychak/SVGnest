@@ -1,6 +1,8 @@
+use crate::clipper::clipper_instance::ClipperInstance;
 use crate::clipper::out_pt::OutPt;
 use crate::clipper::out_rec::OutRec;
 use crate::geometry::point::Point;
+use std::ptr;
 
 #[derive(Debug, PartialEq)]
 pub struct Join {
@@ -9,19 +11,40 @@ pub struct Join {
     pub off_pt: Point<i32>,
 }
 
-impl Join {
-    pub fn new(out_pt1: *mut OutPt, out_pt2: *mut OutPt, off_pt: Option<&Point<i32>>) -> Self {
-        let pt = if let Some(p) = off_pt {
-            Point::<i32>::from(p)
-        } else {
-            Point::<i32>::new(None, None)
-        };
-
+impl ClipperInstance for Join {
+    fn new() -> Self {
         Self {
-            out_pt1,
-            out_pt2,
-            off_pt: pt,
+            out_pt1: ptr::null_mut(),
+            out_pt2: ptr::null_mut(),
+            off_pt: Point::<i32>::new(None, None),
         }
+    }
+
+    fn clean(&mut self) {
+        self.out_pt1 = ptr::null_mut();
+        self.out_pt2 = ptr::null_mut();
+
+        unsafe {
+            self.off_pt.set(0, 0);
+        }
+    }
+}
+
+impl Join {
+    pub unsafe fn init(
+        &mut self,
+        out_pt1: *mut OutPt,
+        out_pt2: *mut OutPt,
+        off_pt: Option<&Point<i32>>,
+    ) {
+        self.out_pt1 = out_pt1;
+        self.out_pt2 = out_pt2;
+
+        if let Some(orig) = off_pt {
+            self.off_pt.update(orig);
+        } else {
+            self.off_pt.set(0, 0);
+        };
     }
 
     unsafe fn apply_join(&mut self, op1: *mut OutPt, op2: *mut OutPt, reverse: bool) {
@@ -170,7 +193,7 @@ impl Join {
 
     pub unsafe fn join_common_edges(
         &mut self,
-        records: &mut Vec<Box<OutRec>>,
+        records: &mut Vec<*mut OutRec>,
         use_full_range: bool,
         reverse_solution: bool,
     ) {

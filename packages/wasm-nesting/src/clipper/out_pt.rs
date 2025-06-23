@@ -1,3 +1,5 @@
+use crate::clipper::clipper_instance::ClipperInstance;
+use crate::clipper::clipper_pool_manager::get_pool;
 use crate::clipper::enums::Direction;
 use crate::geometry::point::Point;
 use std::ptr;
@@ -11,20 +13,40 @@ pub struct OutPt {
     pub prev: *mut OutPt,
 }
 
-impl OutPt {
-    pub fn new(index: i32, pt_opt: Option<&Point<i32>>) -> Box<Self> {
-        let point = if let Some(orig) = pt_opt {
-            Point::<i32>::new(Some(orig.x), Some(orig.y))
-        } else {
-            Point::<i32>::new(None, None)
-        };
-
-        Box::new(OutPt {
-            index,
-            point,
+impl ClipperInstance for OutPt {
+    fn new() -> Self {
+        OutPt {
+            index: 0,
+            point: Point::<i32>::new(None, None),
             next: ptr::null_mut(),
             prev: ptr::null_mut(),
-        })
+        }
+    }
+
+    fn clean(&mut self) {
+        self.index = 0;
+        self.next = ptr::null_mut();
+        self.prev = ptr::null_mut();
+        unsafe {
+            self.point.set(0, 0);
+        }
+    }
+}
+
+impl OutPt {
+    pub unsafe fn create(index: i32, pt_opt: Option<&Point<i32>>) -> *mut Self {
+        let result = get_pool().out_pt_pool.get();
+        (*result).index = index;
+        (*result).next = ptr::null_mut();
+        (*result).prev = ptr::null_mut();
+
+        if let Some(orig) = pt_opt {
+            (*result).point.update(orig)
+        } else {
+            (*result).point.set(0, 0)
+        };
+
+        result
     }
 
     pub unsafe fn exclude(&mut self) -> *mut OutPt {
@@ -58,8 +80,7 @@ impl OutPt {
     }
 
     pub unsafe fn duplicate(&mut self, is_insert_after: bool) -> *mut OutPt {
-        let new_node = OutPt::new(self.index, Some(&self.point));
-        let raw_ptr: *mut OutPt = Box::into_raw(new_node);
+        let raw_ptr = OutPt::create(self.index, Some(&self.point));
 
         if is_insert_after {
             (*raw_ptr).next = self.next;

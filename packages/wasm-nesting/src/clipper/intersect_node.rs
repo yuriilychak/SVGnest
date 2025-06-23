@@ -1,22 +1,51 @@
+use crate::clipper::clipper_instance::ClipperInstance;
+use crate::clipper::clipper_pool_manager::get_pool;
 use crate::clipper::t_edge::TEdge;
 use crate::geometry::point::Point;
-
-#[derive(Debug, PartialEq)]
+use std::ptr;
 pub struct IntersectNode {
     pub edge1: *mut TEdge,
     pub edge2: *mut TEdge,
     pub pt: Point<i32>,
 }
 
+impl ClipperInstance for IntersectNode {
+    fn new() -> Self {
+        Self {
+            edge1: ptr::null_mut(),
+            edge2: ptr::null_mut(),
+            pt: Point::<i32>::new(None, None),
+        }
+    }
+
+    fn clean(&mut self) {
+        self.edge1 = ptr::null_mut();
+        self.edge2 = ptr::null_mut();
+
+        unsafe {
+            self.pt.set(0, 0);
+        }
+    }
+}
+
 impl IntersectNode {
-    pub fn new(edge1: *mut TEdge, edge2: *mut TEdge, point: Option<*const Point<i32>>) -> Self {
-        let pt = if let Some(p) = point {
-            Point::<i32>::from(p)
+    pub unsafe fn create(
+        edge1: *mut TEdge,
+        edge2: *mut TEdge,
+        point: Option<*const Point<i32>>,
+    ) -> *mut Self {
+        let result = get_pool().intersect_node_pool.get();
+
+        (*result).edge1 = edge1;
+        (*result).edge2 = edge2;
+
+        if let Some(p) = point {
+            (*result).pt.update(p);
         } else {
-            Point::<i32>::new(None, None)
+            (*result).pt.set(0, 0);
         };
 
-        Self { edge1, edge2, pt }
+        result
     }
 
     pub unsafe fn edges_adjacent(&self) -> bool {

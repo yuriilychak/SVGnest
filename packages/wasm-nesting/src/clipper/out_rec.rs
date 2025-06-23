@@ -1,10 +1,10 @@
+use crate::clipper::clipper_instance::ClipperInstance;
+use crate::clipper::clipper_pool_manager::get_pool;
 use crate::clipper::enums::Direction;
 use crate::clipper::out_pt::OutPt;
 use crate::clipper::t_edge::TEdge;
 use crate::geometry::point::Point;
 use std::ptr;
-
-#[derive(Debug, PartialEq)]
 pub struct OutRec {
     pub idx: usize,
     pub is_hole: bool,
@@ -14,16 +14,36 @@ pub struct OutRec {
     pub bottom_pt: *mut OutPt,
 }
 
-impl OutRec {
-    pub fn new(idx: usize, is_open: bool, pts: *mut OutPt) -> Box<Self> {
-        Box::new(Self {
-            idx,
+impl ClipperInstance for OutRec {
+    fn new() -> Self {
+        Self {
+            idx: 0,
             is_hole: false,
-            is_open,
+            is_open: false,
             first_left: ptr::null_mut(),
-            pts,
+            pts: ptr::null_mut(),
             bottom_pt: ptr::null_mut(),
-        })
+        }
+    }
+
+    fn clean(&mut self) {
+        self.idx = 0;
+        self.is_hole = false;
+        self.is_open = false;
+        self.first_left = ptr::null_mut();
+        self.pts = ptr::null_mut();
+        self.bottom_pt = ptr::null_mut();
+    }
+}
+
+impl OutRec {
+    pub fn init(&mut self, idx: usize, is_open: bool, pts: *mut OutPt) {
+        self.idx = idx;
+        self.is_hole = false;
+        self.is_open = is_open;
+        self.first_left = ptr::null_mut();
+        self.pts = pts;
+        self.bottom_pt = ptr::null_mut();
     }
 
     pub unsafe fn fixup_out_polygon(&mut self, preserve_collinear: bool, use_full_range: bool) {
@@ -196,7 +216,7 @@ impl OutRec {
         return result * 0.5;
     }
 
-    pub unsafe fn set_hole_state(&mut self, input_edge: *mut TEdge, outs: &mut Vec<Box<OutRec>>) {
+    pub unsafe fn set_hole_state(&mut self, input_edge: *mut TEdge, outs: &mut Vec<*mut OutRec>) {
         let mut is_hole = false;
         let mut edge = (*input_edge).prev_in_ael;
 
@@ -205,7 +225,7 @@ impl OutRec {
                 is_hole = !is_hole;
 
                 if self.first_left.is_null() {
-                    self.first_left = &mut *outs[(*edge).index as usize];
+                    self.first_left = outs[(*edge).index as usize];
                 }
             }
 
@@ -217,7 +237,7 @@ impl OutRec {
         }
     }
 
-    pub unsafe fn simplify(&mut self, out_pt: *mut OutPt, output: &mut Vec<Box<OutRec>>) {
+    pub unsafe fn simplify(&mut self, out_pt: *mut OutPt, output: &mut Vec<*mut OutRec>) {
         let mut inner_pt = out_pt;
 
         loop
@@ -333,16 +353,15 @@ impl OutRec {
     }
 
     pub unsafe fn add_out_pt(
-        records: &mut Vec<Box<OutRec>>,
+        records: &mut Vec<*mut OutRec>,
         edge: *mut TEdge,
         point: *const Point<i32>,
-    ) -> Box<OutPt> {
+    ) -> *mut OutPt {
         let is_to_front = (*edge).side == Direction::Left;
 
         if !(*edge).is_assigned() {
             // create new outpt
-            let mut result = OutPt::new(0, Some(&(*point)));
-            let new_op = &mut *result as *mut OutPt;
+            let new_op = OutPt::create(0, Some(&(*point)));
             let out_rec =
                 OutRec::create(records, Some((*edge).is_wind_delta_empty()), Some(new_op));
             (*new_op).index = (*out_rec).idx as i32;
@@ -357,26 +376,25 @@ impl OutRec {
 
             (*edge).index = (*out_rec).idx as i32;
 
-            return result;
+            return new_op;
         }
 
-        let out_rec = records[(*edge).index as usize].as_mut();
+        let out_rec = records[(*edge).index as usize];
         let op = (*out_rec).pts;
 
         if is_to_front && (*point).almost_equal(&(*op).point, None) {
-            return Box::<OutPt>::from_raw(op);
+            return op;
         }
 
         if !is_to_front && (*point).almost_equal(&(*(*op).prev).point, None) {
-            return Box::<OutPt>::from_raw((*op).prev);
+            return (*op).prev;
         }
 
         // insert new outpt
-        let mut result = OutPt::new(
+        let new_op = OutPt::create(
             ((*out_rec).idx as usize).try_into().unwrap(),
             Some(&(*point)),
         );
-        let new_op = &mut *result as *mut OutPt;
         (*new_op).next = op;
         (*new_op).prev = (*op).prev;
 
@@ -387,15 +405,15 @@ impl OutRec {
             (*out_rec).pts = new_op;
         }
 
-        result
+        new_op
     }
 
-    pub unsafe fn get_out_rec(records: &mut Vec<Box<OutRec>>, mut idx: usize) -> *mut OutRec {
-        let mut result: *mut OutRec = records[idx].as_mut();
+    pub unsafe fn get_out_rec(records: &mut Vec<*mut OutRec>, mut idx: usize) -> *mut OutRec {
+        let mut result: *mut OutRec = records[idx];
 
-        while result != records[(*result).idx].as_mut() {
+        while result != records[(*result).idx] {
             idx = (*result).idx;
-            result = records[idx].as_mut();
+            result = records[idx];
         }
 
         result
@@ -412,7 +430,7 @@ impl OutRec {
     }
 
     pub unsafe fn add_local_max_poly(
-        records: &mut Vec<Box<OutRec>>,
+        records: &mut Vec<*mut OutRec>,
         edge1: *mut TEdge,
         edge2: *mut TEdge,
         point: *const Point<i32>,
@@ -436,8 +454,8 @@ impl OutRec {
             (edge2, edge1)
         };
 
-        let out_rec1 = &mut *records[(*first_edge).index as usize] as *mut OutRec;
-        let out_rec2 = &mut *records[(*second_edge).index as usize] as *mut OutRec;
+        let out_rec1 = records[(*first_edge).index as usize];
+        let out_rec2 = records[(*second_edge).index as usize];
 
         let hole_state_rec = OutRec::get_hole_state_rec(out_rec1, out_rec2);
 
@@ -509,17 +527,19 @@ impl OutRec {
     }
 
     pub unsafe fn create(
-        output: &mut Vec<Box<OutRec>>,
+        output: &mut Vec<*mut OutRec>,
         is_open: Option<bool>,
         pointer: Option<*mut OutPt>,
     ) -> *mut OutRec {
-        let mut boxed = OutRec::new(
+        let ptr = get_pool().out_rec_pool.get();
+
+        (*ptr).init(
             output.len(),
             is_open.unwrap_or(false),
             pointer.unwrap_or(ptr::null_mut()),
         );
-        let ptr = &mut *boxed as *mut OutRec;
-        output.push(boxed);
+
+        output.push(ptr);
 
         return ptr;
     }
