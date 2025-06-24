@@ -280,4 +280,20 @@ impl<T: Number> Point<T> {
             use_full_range,
         )
     }
+
+    #[inline(always)]
+    pub unsafe fn horz_segments_overlap(
+        pt1_a: &Self,
+        pt1_b: &Self,
+        pt2_a: &Self,
+        pt2_b: &Self,
+    ) -> bool {
+        //precondition: both segments are horizontal
+        (pt1_a.x > pt2_a.x) == (pt1_a.x < pt2_b.x)
+            || (pt1_b.x > pt2_a.x) == (pt1_b.x < pt2_b.x)
+            || (pt2_a.x > pt1_a.x) == (pt2_a.x < pt1_b.x)
+            || (pt2_b.x > pt1_a.x) == (pt2_b.x < pt1_b.x)
+            || ((pt1_a.x == pt2_a.x) && (pt1_b.x == pt2_b.x))
+            || ((pt1_a.x == pt2_b.x) && (pt1_b.x == pt2_a.x))
+    }
 }

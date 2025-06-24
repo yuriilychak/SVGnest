@@ -111,7 +111,7 @@ impl OutRec {
         }
     }
 
-    pub unsafe fn export(&self) -> Option<Vec<*mut Point<i32>>> {
+    pub unsafe fn export(&self) -> Option<Vec<Point<i32>>> {
         let point_count = self.point_count();
 
         if point_count < 2 {
@@ -122,7 +122,7 @@ impl OutRec {
         let mut out_pt = (*self.pts).prev;
 
         for _ in 0..point_count {
-            result.push(&mut (*out_pt).point as *mut Point<i32>);
+            result.push(Point::<i32>::from(&(*out_pt).point));
             out_pt = (*out_pt).prev;
         }
 
