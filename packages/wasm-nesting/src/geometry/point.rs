@@ -185,6 +185,22 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
+    pub fn clone_i32(&self) -> Point<i32> {
+        return Point::<i32>::new(
+            Some(self.x.to_i32().unwrap()),
+            Some(self.y.to_i32().unwrap()),
+        );
+    }
+
+    #[inline(always)]
+    pub fn clone_f32(&self) -> Point<f32> {
+        return Point::<f32>::new(
+            Some(self.x.to_f32().unwrap()),
+            Some(self.y.to_f32().unwrap()),
+        );
+    }
+
+    #[inline(always)]
     pub unsafe fn interpolate_x(&self, begin: *const Self, end: *const Self) -> T {
         T::interpolate(self.y, (*begin).y, (*end).y, (*begin).x, (*end).x)
     }
