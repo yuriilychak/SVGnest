@@ -166,7 +166,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
 
             for (j = 0; j < finalNfp.length; ++j) {
                 nfpSize = finalNfp[j].length;
-                ClipperWrapper.toMemSegF32(finalNfp[j], memSeg);
+                ClipperWrapper.toMemSeg(finalNfp[j], memSeg);
                 polygon1.bind(memSeg, 0, nfpSize);
                 nfpOffset = nfpSize << 1;
 

@@ -1,5 +1,11 @@
+use crate::utils::math::slopes_equal;
 use crate::utils::number::Number;
-#[derive(Debug)]
+
+const LOW_RANGE: f64 = 47453132.0;
+
+const HIGH_RANGE: f64 = 4503599627370495.0;
+
+#[derive(Debug, PartialEq)]
 pub struct Point<T: Number> {
     pub x: T,
     pub y: T,
@@ -154,12 +160,49 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
+    pub unsafe fn get_between(&self, point1: *mut Point<T>, point2: *mut Point<T>) -> bool {
+        if (*point1).almost_equal(point2, None)
+            || (*point1).almost_equal(self, None)
+            || self.almost_equal(point2, None)
+        {
+            return false;
+        }
+
+        if (*point1).x != (*point2).x {
+            (self.x > (*point1).x) == (self.x < (*point2).x)
+        } else {
+            (self.y > (*point1).y) == (self.y < (*point2).y)
+        }
+    }
+
+    #[inline(always)]
     pub unsafe fn normalize(&mut self) -> *mut Self {
         let len = self.length();
         if !self.is_empty() && !T::from_f64(len).unwrap().almost_equal(T::one(), None) {
             self.scale_down(T::from_f64(len).unwrap());
         }
         self as *const Self as *mut Self
+    }
+
+    #[inline(always)]
+    pub fn clone_i32(&self) -> Point<i32> {
+        return Point::<i32>::new(
+            Some(self.x.to_i32().unwrap()),
+            Some(self.y.to_i32().unwrap()),
+        );
+    }
+
+    #[inline(always)]
+    pub unsafe fn close_to(&self, point: *const Point<T>, dist_sqrd: f64) -> bool {
+        return self.len2(point).to_f64().unwrap() <= dist_sqrd;
+    }
+
+    #[inline(always)]
+    pub fn clone_f32(&self) -> Point<f32> {
+        return Point::<f32>::new(
+            Some(self.x.to_f32().unwrap()),
+            Some(self.y.to_f32().unwrap()),
+        );
     }
 
     #[inline(always)]
@@ -180,6 +223,23 @@ impl<T: Number> Point<T> {
     #[inline(always)]
     pub unsafe fn clipper_round(&mut self) -> *mut Self {
         self.set(self.x.clipper_rounded(), self.y.clipper_rounded())
+    }
+
+    #[inline(always)]
+    pub fn range_test(&self, use_full_range: bool) -> bool {
+        if use_full_range {
+            if self.x.to_f64().unwrap().abs() > HIGH_RANGE
+                || self.y.to_f64().unwrap().abs() > HIGH_RANGE
+            {
+                //console.warn('Coordinate outside allowed range in rangeTest().');
+            }
+        } else if self.x.to_f64().unwrap().abs() > LOW_RANGE
+            || self.y.to_f64().unwrap().abs() > LOW_RANGE
+        {
+            return self.range_test(true);
+        }
+
+        return use_full_range;
     }
 
     #[inline(always)]
@@ -229,5 +289,88 @@ impl<T: Number> Point<T> {
         let len2 = (*a).len2(b);
 
         dot < len2 && !dot.almost_equal(len2, None)
+    }
+
+    #[inline(always)]
+    pub unsafe fn slopes_equal(pt1: &Self, pt2: &Self, pt3: &Self, use_full_range: bool) -> bool {
+        slopes_equal(
+            (pt1.y - pt2.y).to_f64().unwrap(),
+            (pt2.x - pt3.x).to_f64().unwrap(),
+            (pt1.x - pt2.x).to_f64().unwrap(),
+            (pt2.y - pt3.y).to_f64().unwrap(),
+            use_full_range,
+        )
+    }
+
+    #[inline(always)]
+    pub unsafe fn horz_segments_overlap(
+        pt1_a: &Self,
+        pt1_b: &Self,
+        pt2_a: &Self,
+        pt2_b: &Self,
+    ) -> bool {
+        //precondition: both segments are horizontal
+        (pt1_a.x > pt2_a.x) == (pt1_a.x < pt2_b.x)
+            || (pt1_b.x > pt2_a.x) == (pt1_b.x < pt2_b.x)
+            || (pt2_a.x > pt1_a.x) == (pt2_a.x < pt1_b.x)
+            || (pt2_b.x > pt1_a.x) == (pt2_b.x < pt1_b.x)
+            || ((pt1_a.x == pt2_a.x) && (pt1_b.x == pt2_b.x))
+            || ((pt1_a.x == pt2_b.x) && (pt1_b.x == pt2_a.x))
+    }
+
+    pub unsafe fn line_equation(p1: *mut Point<T>, p2: *mut Point<T>) -> (T, T, T) {
+        let x1 = (*p1).x;
+        let y1 = (*p1).y;
+        let x2 = (*p2).x;
+        let y2 = (*p2).y;
+
+        let a = y2 - y1;
+        let b = x1 - x2;
+        let c = x2 * y1 - x1 * y2;
+
+        (a, b, c)
+    }
+
+    pub fn get_area(poly: &Vec<Point<T>>) -> f64 {
+        let point_count = poly.len();
+        if point_count < 3 {
+            return 0.0;
+        }
+
+        let mut result: f64 = 0.0;
+        let mut j = point_count - 1;
+
+        for i in 0..point_count {
+            result += ((poly[j].x + poly[i].x).to_f64().unwrap())
+                * ((poly[j].y - poly[i].y).to_f64().unwrap());
+            j = i;
+        }
+
+        -result * 0.5
+    }
+
+    pub fn get_area_abs(poly: &Vec<Point<T>>) -> f64 {
+        return Self::get_area(poly).abs();
+    }
+
+    pub unsafe fn distance_from_line_sqrd(
+        point: *mut Point<T>,
+        line1: *mut Point<T>,
+        line2: *mut Point<T>,
+    ) -> f64 {
+        let (a, b, c) = Self::line_equation(line2, line1);
+        let c_val = (a * (*point).x + b * (*point).y - c).to_f64().unwrap();
+        let denom = (a * a + b * b).to_f64().unwrap();
+
+        (c_val * c_val) / denom
+    }
+
+    pub unsafe fn slopes_near_collinear(
+        pt1: *mut Point<T>,
+        pt2: *mut Point<T>,
+        pt3: *mut Point<T>,
+        dist_sqrd: f64,
+    ) -> bool {
+        Self::distance_from_line_sqrd(pt2, pt1, pt3) < dist_sqrd
     }
 }

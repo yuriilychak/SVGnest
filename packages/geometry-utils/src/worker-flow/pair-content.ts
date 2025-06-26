@@ -15,9 +15,9 @@ export default class PairContent extends WorkerContent {
         this.initNodes(buffer, Uint32Array.BYTES_PER_ELEMENT * 3);
         const view: DataView = new DataView(buffer);
 
-        const nestConfig: number = view.getUint32(Uint32Array.BYTES_PER_ELEMENT * 2);
+        const nestConfig: number = view.getUint32(Uint32Array.BYTES_PER_ELEMENT);
 
-        this._key = view.getUint32(Uint32Array.BYTES_PER_ELEMENT);
+        this._key = view.getUint32(Uint32Array.BYTES_PER_ELEMENT * 2);
         this._isInside = PairContent.getInside(this._key);
         this._useHoles = Boolean(get_bits_u32(nestConfig, 28, 1));
 

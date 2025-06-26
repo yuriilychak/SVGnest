@@ -75,7 +75,7 @@ export default class OutRec {
         }
     }
 
-    public export(): NullPtr<PointI32[]> {
+    public export(): PointI32[] | null {
         const pointCount = this.pointCount;
 
         if (pointCount < 2) {

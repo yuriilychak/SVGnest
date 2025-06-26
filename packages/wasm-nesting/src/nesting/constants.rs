@@ -1,0 +1,1 @@
+pub const NFP_INFO_START_INDEX: usize = 2;

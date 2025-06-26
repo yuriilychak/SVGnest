@@ -14,6 +14,27 @@ export default class Join {
         this.OffPt = PointI32.from(offPoint);
     }
 
+    private applyJoin(op1: OutPt, op2: OutPt, reverse: boolean) {
+        const op1b = op1.duplicate(!reverse);
+        const op2b = op2.duplicate(reverse);
+
+        if (reverse) {
+            op1.prev = op2;
+            op2.next = op1;
+            op1b.next = op2b;
+            op2b.prev = op1b;
+        } else {
+            op1.next = op2;
+            op2.prev = op1;
+            op1b.prev = op2b;
+            op2b.next = op1b;
+            
+        }
+
+        this.OutPt1 = op1;
+        this.OutPt2 = op1b;
+    }
+
     public joinPoints(isRecordsSame: boolean, isUseFullRange: boolean): boolean {
         let op1: OutPt = this.OutPt1;
         let op2: OutPt = this.OutPt2;
@@ -49,25 +70,7 @@ export default class Join {
                 return false;
             }
 
-            if (reverse1) {
-                op1b = op1.duplicate(false);
-                op2b = op2.duplicate(true);
-                op1.prev = op2;
-                op2.next = op1;
-                op1b.next = op2b;
-                op2b.prev = op1b;
-                this.OutPt1 = op1;
-                this.OutPt2 = op1b;
-            } else {
-                op1b = op1.duplicate(true);
-                op2b = op2.duplicate(false);
-                op1.next = op2;
-                op2.prev = op1;
-                op1b.prev = op2b;
-                op2b.next = op1b;
-                this.OutPt1 = op1;
-                this.OutPt2 = op1b;
-            }
+            this.applyJoin(op1, op2, reverse1);
 
             return true;
         } else if (isHorizontal) {
@@ -123,42 +126,26 @@ export default class Join {
             //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
             //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
             //make sure the polygons are correctly oriented ...
-            op1b = op1.next;
-
-            while (op1b.point.almostEqual(op1.point) && op1b !== op1) {
-                op1b = op1b.next;
-            }
+            op1b = op1.getUniquePt(true);
 
             const reverse1: boolean =
                 op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, this.OffPt, isUseFullRange);
 
             if (reverse1) {
-                op1b = op1.prev;
-
-                while (op1b.point.almostEqual(op1.point) && op1b !== op1) {
-                    op1b = op1b.prev;
-                }
+                op1b = op1.getUniquePt(false);
 
                 if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, this.OffPt, isUseFullRange)) {
                     return false;
                 }
             }
 
-            op2b = op2.next;
-
-            while (op2b.point.almostEqual(op2.point) && op2b !== op2) {
-                op2b = op2b.next;
-            }
+            op2b = op2.getUniquePt(true);
 
             const reverse2: boolean =
                 op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, this.OffPt, isUseFullRange);
 
             if (reverse2) {
-                op2b = op2.prev;
-
-                while (op2b.point.almostEqual(op2.point) && op2b !== op2) {
-                    op2b = op2b.prev;
-                }
+                op2b = op2.getUniquePt(false);
 
                 if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, this.OffPt, isUseFullRange)) {
                     return false;
@@ -169,25 +156,7 @@ export default class Join {
                 return false;
             }
 
-            if (reverse1) {
-                op1b = op1.duplicate(false);
-                op2b = op2.duplicate(true);
-                op1.prev = op2;
-                op2.next = op1;
-                op1b.next = op2b;
-                op2b.prev = op1b;
-                this.OutPt1 = op1;
-                this.OutPt2 = op1b;
-            } else {
-                op1b = op1.duplicate(true);
-                op2b = op2.duplicate(false);
-                op1.next = op2;
-                op2.prev = op1;
-                op1b.prev = op2b;
-                op2b.next = op1b;
-                this.OutPt1 = op1;
-                this.OutPt2 = op1b;
-            }
+            this.applyJoin(op1, op2, reverse1);
 
             return true;
         }

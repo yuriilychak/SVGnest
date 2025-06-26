@@ -2,6 +2,8 @@ use crate::constants::VECTOR_MEM_OFFSET;
 use crate::geometry::point::Point;
 use crate::geometry::point_pool::PointPool;
 use crate::geometry::polygon::Polygon;
+use crate::nesting::pair_content::PairContent;
+use crate::nesting::polygon_node::PolygonNode;
 use crate::utils::almost_equal::AlmostEqual;
 use crate::utils::bit_ops::{get_bits, set_bits};
 use crate::utils::math::cycle_index;
@@ -1206,7 +1208,7 @@ unsafe fn no_fit_polygon<T: Number>(
     result
 }
 
-pub unsafe fn pair_inside<T: Number>(
+unsafe fn pair_inside<T: Number>(
     pool: &mut PointPool<T>,
     scan_polygon: *mut Polygon<f32>,
     polygon_a: *mut Polygon<T>,
@@ -1234,7 +1236,7 @@ pub unsafe fn pair_inside<T: Number>(
     result
 }
 
-pub unsafe fn pair_outside<T: Number>(
+unsafe fn pair_outside<T: Number>(
     pool: &mut PointPool<T>,
     scan_polygon: *mut Polygon<f32>,
     polygon_a: *mut Polygon<T>,
@@ -1289,7 +1291,7 @@ pub unsafe fn pair_outside<T: Number>(
     return result;
 }
 
-pub unsafe fn pair_child<T: Number>(
+unsafe fn pair_child<T: Number>(
     pool: &mut PointPool<T>,
     scan_polygon: *mut Polygon<f32>,
     polygon_a: *mut Polygon<T>,
@@ -1311,4 +1313,104 @@ pub unsafe fn pair_child<T: Number>(
     }
 
     result
+}
+
+unsafe fn bind_polygon(polygon: &mut Polygon<f64>, node: &PolygonNode) {
+    let count = node.seg_size / 2;
+    let buf = node
+        .mem_seg
+        .iter()
+        .copied()
+        .map(|x| x as f64)
+        .collect::<Vec<f64>>()
+        .into_boxed_slice();
+
+    polygon.bind(buf, 0, count);
+}
+
+pub unsafe fn pair_data(buffer: &[f32]) -> Vec<f32> {
+    if buffer.is_empty() {
+        return Vec::new();
+    }
+
+    let mut pair_content = PairContent::new();
+
+    pair_content.init(buffer);
+
+    let node_a = &mut pair_content.first_node();
+    let mut polygon_a = Polygon::<f64>::new();
+
+    bind_polygon(&mut polygon_a, node_a);
+
+    let node_b = &mut pair_content.second_node();
+    let mut polygon_b = Polygon::<f64>::new();
+
+    bind_polygon(&mut polygon_b, node_b);
+
+    let mut pool = PointPool::<f64>::new();
+
+    let mut scan_polygon = Polygon::<f32>::new();
+
+    let mut mem_seg = vec![0.0_f64; 1024];
+    let mut nfp: Vec<Vec<f32>>;
+
+    if pair_content.is_inside() {
+        nfp = pair_inside(
+            &mut pool,
+            &mut scan_polygon,
+            &mut polygon_a,
+            &mut polygon_b,
+            &mut mem_seg,
+        );
+
+        if nfp.is_empty() {
+            // warning on null inner NFP
+            // this is not an error, as the part may simply be larger than the bin or otherwise unplaceable due to geometry
+            //pairContent.logError('NFP Warning');
+        }
+
+        return pair_content.serialize_result(nfp);
+    }
+
+    nfp = pair_outside(
+        &mut pool,
+        &mut scan_polygon,
+        &mut polygon_a,
+        &mut polygon_b,
+        &mut mem_seg,
+    );
+
+    // sanity check
+    if nfp.is_empty() {
+        //pairContent.logError('NFP Error');
+
+        return Vec::new();
+    }
+
+    // generate nfps for children (holes of parts) if any exist
+    if pair_content.use_holes() {
+        let children = &pair_content.first_node().children;
+        let mut child = Polygon::<f64>::new();
+
+        for node in children.iter() {
+            bind_polygon(&mut child, node);
+
+            let size_child = child.size();
+            let size_b = child.size();
+
+            if (*size_child).x > (*size_b).x && (*size_child).y > (*size_b).y {
+                let mut no_fit_polygons = pair_child(
+                    &mut pool,
+                    &mut scan_polygon,
+                    &mut child,
+                    &mut polygon_b,
+                    &mut mem_seg,
+                );
+
+                nfp.append(&mut no_fit_polygons);
+            }
+        }
+    }
+
+    return pair_content.serialize_result(nfp);
 }
