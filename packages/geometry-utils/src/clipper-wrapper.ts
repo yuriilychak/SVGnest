@@ -176,7 +176,7 @@ export default class ClipperWrapper {
                 throw new Error(`Error while offset ${JSON.stringify(node)}`);
             }
 
-            node.memSeg = ClipperWrapper.toMemSegF32(resultPath[0]);
+            node.memSeg = ClipperWrapper.toMemSeg(resultPath[0]);
 
             this.cleanNode(node);
         }
@@ -223,7 +223,7 @@ export default class ClipperWrapper {
             return;
         }
 
-        node.memSeg = ClipperWrapper.toMemSegF32(clearedPolygon);
+        node.memSeg = ClipperWrapper.toMemSeg(clearedPolygon);
     }
 
     public static fromMemSeg(
@@ -256,14 +256,14 @@ export default class ClipperWrapper {
         return cleanTrashold !== -1 ? cleanPolygon(result, cleanTrashold) : result;
     }
 
-    public static toMemSegF32(polygon: Point<Int32Array>[], memSeg: Float32Array = null): Float32Array {
+    public static toMemSeg(polygon: Point<Int32Array>[], memSeg: Float32Array = null): Float32Array {
         const pointCount: number = polygon.length;
         const result: Float32Array = memSeg ? memSeg : new Float32Array(pointCount << 1);
         const tempPoint: PointF32 = PointF32.create();
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            tempPoint.fromClipper(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE);
+            tempPoint.update(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE);
             tempPoint.fill(result, i);
         }
 

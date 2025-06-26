@@ -11,3 +11,7 @@ pub const POOL_SIZE: usize = 32;
 pub const VECTOR_MEM_OFFSET: usize = 3;
 
 pub const NFP_KEY_INDICES: [u8; 6] = [0, 10, 19, 23, 27, 32];
+
+pub const CLIPPER_SCALE: i32 = 100;
+
+pub const CLEAN_TRASHOLD: f32 = 0.0001 * (CLIPPER_SCALE as f32);

@@ -2,6 +2,7 @@ use crate::clipper::clipper_instance::ClipperInstance;
 use crate::clipper::clipper_pool_manager::get_pool;
 use crate::clipper::enums::Direction;
 use crate::geometry::point::Point;
+use crate::utils::math::cycle_index;
 use std::ptr;
 
 pub const HORIZONTAL: f64 = -9007199254740992.00;
@@ -268,7 +269,10 @@ impl OutPt {
                 if cx < bx {
                     best = cur;
                     dups = ptr::null_mut();
-                } else if cx == bx && !(*cur).check_neighboar(true, best) && !(*cur).check_neighboar(false, best) {
+                } else if cx == bx
+                    && !(*cur).check_neighboar(true, best)
+                    && !(*cur).check_neighboar(false, best)
+                {
                     dups = cur;
                 }
             }
@@ -436,5 +440,64 @@ impl OutPt {
         }
 
         true
+    }
+
+    pub unsafe fn clean_polygon(path: &Vec<Point<i32>>, distance: f64) -> Vec<Point<i32>> {
+        let mut point_count = path.len();
+        if point_count < 3 {
+            return vec![];
+        }
+
+        let mut out_pts: Vec<*mut OutPt> = Vec::new();
+
+        for i in 0..point_count {
+            out_pts.push(OutPt::create(0, Some(&path[i])));
+        }
+
+        for i in 0..point_count {
+            (*out_pts[i]).next = out_pts[cycle_index(i, point_count, 1)];
+            (*(*out_pts[i]).next).prev = out_pts[i];
+        }
+
+        let dist_sqrd = distance * distance;
+        let mut op = out_pts[0];
+
+        while (*op).index == 0 && (*op).next != (*op).prev {
+            if (*op).point.close_to(&(*(*op).prev).point, dist_sqrd) {
+                op = (*op).exclude();
+                point_count -= 1;
+            } else if (*(*op).prev)
+                .point
+                .close_to(&(*(*op).next).point, dist_sqrd)
+            {
+                (*(*op).next).exclude();
+                op = (*op).exclude();
+                point_count -= 2;
+            } else if Point::slopes_near_collinear(
+                &mut (*(*op).prev).point,
+                &mut (*op).point,
+                &mut (*(*op).next).point,
+                dist_sqrd as f64,
+            ) {
+                op = (*op).exclude();
+                point_count -= 1;
+            } else {
+                (*op).index = 1;
+                op = (*op).next;
+            }
+        }
+
+        if point_count < 3 {
+            return vec![];
+        }
+
+        let mut result = Vec::with_capacity(point_count);
+
+        for _ in 0..point_count {
+            result.push((*op).point.clone_i32());
+            op = (*op).next;
+        }
+
+        result
     }
 }

@@ -193,6 +193,11 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
+    pub unsafe fn close_to(&self, point: *const Point<T>, dist_sqrd: f64) -> bool {
+        return self.len2(point).to_f64().unwrap() <= dist_sqrd;
+    }
+
+    #[inline(always)]
     pub fn clone_f32(&self) -> Point<f32> {
         return Point::<f32>::new(
             Some(self.x.to_f32().unwrap()),
@@ -311,5 +316,61 @@ impl<T: Number> Point<T> {
             || (pt2_b.x > pt1_a.x) == (pt2_b.x < pt1_b.x)
             || ((pt1_a.x == pt2_a.x) && (pt1_b.x == pt2_b.x))
             || ((pt1_a.x == pt2_b.x) && (pt1_b.x == pt2_a.x))
+    }
+
+    pub unsafe fn line_equation(p1: *mut Point<T>, p2: *mut Point<T>) -> (T, T, T) {
+        let x1 = (*p1).x;
+        let y1 = (*p1).y;
+        let x2 = (*p2).x;
+        let y2 = (*p2).y;
+
+        let a = y2 - y1;
+        let b = x1 - x2;
+        let c = x2 * y1 - x1 * y2;
+
+        (a, b, c)
+    }
+
+    pub fn get_area(poly: &Vec<Point<T>>) -> f64 {
+        let point_count = poly.len();
+        if point_count < 3 {
+            return 0.0;
+        }
+
+        let mut result: f64 = 0.0;
+        let mut j = point_count - 1;
+
+        for i in 0..point_count {
+            result += ((poly[j].x + poly[i].x).to_f64().unwrap())
+                * ((poly[j].y - poly[i].y).to_f64().unwrap());
+            j = i;
+        }
+
+        -result * 0.5
+    }
+
+    pub fn get_area_abs(poly: &Vec<Point<T>>) -> f64 {
+        return Self::get_area(poly).abs();
+    }
+
+    pub unsafe fn distance_from_line_sqrd(
+        point: *mut Point<T>,
+        line1: *mut Point<T>,
+        line2: *mut Point<T>,
+    ) -> f64 {
+        let (a, b, c) = Self::line_equation(line2, line1);
+        let c_val = (a * (*point).x + b * (*point).y - c).to_f64().unwrap();
+        let denom = (a * a + b * b).to_f64().unwrap();
+
+        (c_val * c_val) / denom
+    }
+
+    pub unsafe fn slopes_near_collinear(
+        pt1: *mut Point<T>,
+        pt2: *mut Point<T>,
+        pt3: *mut Point<T>,
+        dist_sqrd: f64,
+    ) -> bool {
+        Self::distance_from_line_sqrd(pt2, pt1, pt3) < dist_sqrd
     }
 }

@@ -47,10 +47,6 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return this.set(point.x, point.y);
     }
 
-    public fromClipper(point: Point): this {
-        return this.set(point.x, point.y);
-    }
-
     public add(point: Point): this {
         this.x += point.x;
         this.y += point.y;

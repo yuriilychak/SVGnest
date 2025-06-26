@@ -1,6 +1,5 @@
 use crate::clipper::clipper::Clipper;
 use crate::clipper::enums::{ClipType, PolyFillType, PolyType};
-use crate::clipper::utils::get_area;
 use crate::geometry::point::Point;
 use crate::utils::math::cycle_index;
 
@@ -61,7 +60,7 @@ impl ClipperOffset {
             }
         }
 
-        if j >= 2 && get_area(&result) < 0.0 {
+        if j >= 2 && Point::get_area(&result) < 0.0 {
             result.reverse();
         }
 

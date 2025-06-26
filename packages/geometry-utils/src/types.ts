@@ -36,8 +36,6 @@ export interface Point<T extends TypedArray = TypedArray> {
 
     update(point: Point): this;
 
-    fromClipper(point: Point): this;
-
     add(point: Point): this;
 
     sub(point: Point): this
