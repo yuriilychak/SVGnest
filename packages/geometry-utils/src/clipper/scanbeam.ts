@@ -1,33 +1,40 @@
-import { NullPtr } from './types';
-
 export default class Scanbeam {
-    public Y: number;
-    public Next: Scanbeam;
+    private scanbeams: number[];
 
-    constructor(y: number = 0, next: NullPtr<Scanbeam> = null) {
-        this.Y = y;
-        this.Next = next;
+    constructor() {
+        this.scanbeams = [];
     }
 
-    public static insert(y: number, inputScanbeam: NullPtr<Scanbeam>): Scanbeam {
-        if (inputScanbeam === null) {
-            return new Scanbeam(y);
-        }
-        if (y > inputScanbeam.Y) {
-            return new Scanbeam(y, inputScanbeam);
+    public insert(y: number): void {
+        if (this.isEmpty) {
+            this.scanbeams.push(y);
+            return;
         }
 
-        let scanbeam: Scanbeam = inputScanbeam;
-
-        while (scanbeam.Next !== null && y <= scanbeam.Next.Y) {
-            scanbeam = scanbeam.Next;
+        let index = 0;
+        
+        while (index < this.scanbeams.length && y <= this.scanbeams[index]) {
+            if (y === this.scanbeams[index]) {
+                return; // Ігноруємо дублікати
+            }
+            index++;
         }
 
-        if (y !== scanbeam.Y) {
-            //ie ignores duplicates
-            scanbeam.Next = new Scanbeam(y, scanbeam.Next);
-        }
+        this.scanbeams.splice(index, 0, y);
+    }
 
-        return inputScanbeam;
+    public pop(): number {
+        if (this.isEmpty) {
+            throw new Error('ScanbeamManager is empty');
+        }
+        return this.scanbeams.shift();
+    }
+
+    public clean(): void {
+        this.scanbeams.length = 0;
+    }
+
+    public get isEmpty(): boolean {
+        return this.scanbeams.length === 0;
     }
 }

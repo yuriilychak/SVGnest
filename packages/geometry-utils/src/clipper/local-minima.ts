@@ -54,15 +54,12 @@ export default class LocalMinima {
         }
     }
 
-    public getScanbeam(): Scanbeam {
+    public getScanbeam(scanbeam: Scanbeam) {
         let localMinima: LocalMinima = this;
-        let result: NullPtr<Scanbeam> = null;
 
         while (localMinima !== null) {
-            result = Scanbeam.insert(localMinima.y, result);
+            scanbeam.insert(localMinima.y);
             localMinima = localMinima.next;
         }
-
-        return result;
     }
 }

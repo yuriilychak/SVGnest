@@ -41,37 +41,54 @@ export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
     let currIndex: number = 0;
     let prevIndex: number = 0; 
     let nextIndex: number = 0;
+    let currPoint: PointI32 = null;
+    let prevPoint: PointI32 = null;
+    let nextPoint: PointI32 = null;
 
     while(!marked[currIndex] && pointCount > 2) {
         prevIndex = cycle_index_wasm(currIndex, pointCount, -1);
         nextIndex = cycle_index_wasm(currIndex, pointCount, 1);
+        currPoint = result[currIndex];
+        prevPoint = result[prevIndex];
+        nextPoint = result[nextIndex];
 
-        if (result[currIndex].closeTo(result[prevIndex], distSqrd)) {
+        if (currPoint.closeTo(prevPoint, distSqrd)) {
             marked[prevIndex] = false;
             result.splice(currIndex, 1);
             marked.splice(currIndex, 1);
+            currIndex = prevIndex - Number(prevIndex === pointCount - 1);
+            marked[currIndex] = false;
             --pointCount;
-            continue;
-        } 
-        
-        if (result[prevIndex].closeTo(result[nextIndex], distSqrd)) {
-            marked[prevIndex] = false;
-            result.splice(currIndex, 2);
-            marked.splice(currIndex, 2);
+        } else if (prevPoint.closeTo(nextPoint, distSqrd)) {
+            if (nextIndex > currIndex) {
+                result.splice(nextIndex, 1);
+                result.splice(currIndex, 1);
+                marked.splice(nextIndex, 1);
+                marked.splice(currIndex, 1);
+
+                currIndex = prevIndex - 2 * Number(prevIndex === pointCount - 1);
+            } else {
+                result.splice(currIndex, 1);
+                result.splice(nextIndex, 1);
+                marked.splice(currIndex, 1);
+                marked.splice(nextIndex, 1);
+
+                currIndex = prevIndex - 1;
+            }
+
+            marked[currIndex] = false;
+            
             pointCount -= 2;
-            continue;
-        }
-        
-        if (PointI32.slopesNearCollinear(result[prevIndex], result[currIndex], result[nextIndex], distSqrd)) {
-            marked[prevIndex] = false;
+        } else if (PointI32.slopesNearCollinear(prevPoint, currPoint, nextPoint, distSqrd)) {
             result.splice(currIndex, 1);
             marked.splice(currIndex, 1);
+            currIndex = prevIndex - Number(prevIndex === pointCount - 1);
+            marked[currIndex] = false;
             --pointCount;
-            continue;
+        } else {
+            marked[currIndex] = true;
+            currIndex = cycle_index_wasm(currIndex, pointCount, 1);
         }
-
-        marked[currIndex] = true;
-        currIndex = cycle_index_wasm(currIndex, pointCount, 1);
     }
 
     return pointCount < 3 ? [] : result;
