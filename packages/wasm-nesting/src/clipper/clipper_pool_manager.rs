@@ -30,6 +30,16 @@ impl ClipperPoolManager {
             t_edge_pool: ClipperPool::new(),
         }
     }
+
+    pub fn drain(&mut self) {
+        self.intersect_node_pool.drain();
+        self.join_pool.drain();
+        self.local_minima_pool.drain();
+        self.out_pt_pool.drain();
+        self.out_rec_pool.drain();
+        self.scanbeam_pool.drain();
+        self.t_edge_pool.drain();
+    }
 }
 
 thread_local! {

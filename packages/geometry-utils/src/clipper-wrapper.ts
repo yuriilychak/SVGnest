@@ -1,6 +1,6 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 import type { BoundRect, NestConfig, Point, PointPool, Polygon, PolygonNode } from './types';
-import { generateNFPCacheKey, getPolygonNode } from './helpers';
+import { generateNFPCacheKey, getPolygonNode, serializeConfig } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
@@ -223,7 +223,9 @@ export default class ClipperWrapper {
             return;
         }
 
-        node.memSeg = ClipperWrapper.toMemSeg(clearedPolygon);
+        const res = ClipperWrapper.toMemSeg(clearedPolygon);
+
+        node.memSeg = res;
     }
 
     public static fromMemSeg(

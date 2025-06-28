@@ -1,5 +1,4 @@
 import { cycle_index_wasm } from 'wasm-nesting';
-import OutPt from './out-pt';
 import { PointI32 } from '../geometry';
 
 export function getArea(poly: PointI32[]): number {
@@ -25,66 +24,57 @@ export function absArea(poly: PointI32[]): number {
     return Math.abs(getArea(poly));
 }
 
-export function distanceFromLineSqrd(point: PointI32, line1: PointI32, line2: PointI32): number {
-    const equation: number[] = PointI32.lineEquation(line2, line1);
-    const c: number = equation[0] * point.x + equation[1] * point.y - equation[2];
-
-    return (c * c) / (equation[0] * equation[0] + equation[1] * equation[1]);
-}
-
-export function slopesNearCollinear(pt1: PointI32, pt2: PointI32, pt3: PointI32, distSqrd: number) {
-    return distanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
-}
-
 export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
     //distance = proximity in units/pixels below which vertices will be stripped.
     //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have
     //both x & y coords within 1 unit, then the second vertex will be stripped.
     let pointCount: number = path.length;
-    const outPts: OutPt[] = new Array<OutPt>(pointCount);
+    const result: PointI32[] = new Array<PointI32>(pointCount);
+    const marked: boolean[] = new Array<boolean>(false);
     let i: number = 0;
 
     for (i = 0; i < pointCount; ++i) {
-        outPts[i] = new OutPt(0, path[i]);
-    }
-
-    for (i = 0; i < pointCount; ++i) {
-        outPts[i].next = outPts[cycle_index_wasm(i, pointCount, 1)];
-        outPts[i].next.prev = outPts[i];
+        result[i] = path[i].clone();
     }
 
     const distSqrd = distance * distance;
-    let op: OutPt = outPts[0];
+    let currIndex: number = 0;
+    let prevIndex: number = 0; 
+    let nextIndex: number = 0;
 
-    while (op.index === 0 && op.next != op.prev) {
-        if (op.point.closeTo(op.prev.point, distSqrd)) {
-            op = op.exclude();
+    while(!marked[currIndex] && pointCount > 2) {
+        prevIndex = cycle_index_wasm(currIndex, pointCount, -1);
+        nextIndex = cycle_index_wasm(currIndex, pointCount, 1);
+
+        if (result[currIndex].closeTo(result[prevIndex], distSqrd)) {
+            marked[prevIndex] = false;
+            result.splice(currIndex, 1);
+            marked.splice(currIndex, 1);
             --pointCount;
-        } else if (op.prev.point.closeTo(op.next.point, distSqrd)) {
-            op.next.exclude();
-            op = op.exclude();
+            continue;
+        } 
+        
+        if (result[prevIndex].closeTo(result[nextIndex], distSqrd)) {
+            marked[prevIndex] = false;
+            result.splice(currIndex, 2);
+            marked.splice(currIndex, 2);
             pointCount -= 2;
-        } else if (slopesNearCollinear(op.prev.point, op.point, op.next.point, distSqrd)) {
-            op = op.exclude();
-            --pointCount;
-        } else {
-            op.index = 1;
-            op = op.next;
+            continue;
         }
+        
+        if (PointI32.slopesNearCollinear(result[prevIndex], result[currIndex], result[nextIndex], distSqrd)) {
+            marked[prevIndex] = false;
+            result.splice(currIndex, 1);
+            marked.splice(currIndex, 1);
+            --pointCount;
+            continue;
+        }
+
+        marked[currIndex] = true;
+        currIndex = cycle_index_wasm(currIndex, pointCount, 1);
     }
 
-    if (pointCount < 3) {
-        return [];
-    }
-
-    const result = new Array(pointCount);
-
-    for (i = 0; i < pointCount; ++i) {
-        result[i] = PointI32.from(op.point);
-        op = op.next;
-    }
-
-    return result;
+    return pointCount < 3 ? [] : result;
 }
 
 export function cleanPolygons(polys: PointI32[][], distance: number): PointI32[][] {
