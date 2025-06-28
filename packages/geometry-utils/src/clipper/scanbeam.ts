@@ -1,40 +1,38 @@
 export default class Scanbeam {
-    private scanbeams: number[];
+    private values: number[];
 
     constructor() {
-        this.scanbeams = [];
+        this.values = [];
     }
 
     public insert(y: number): void {
-        if (this.isEmpty) {
-            this.scanbeams.push(y);
-            return;
-        }
-
-        let index = 0;
-        
-        while (index < this.scanbeams.length && y <= this.scanbeams[index]) {
-            if (y === this.scanbeams[index]) {
-                return; // Ігноруємо дублікати
+        for (let i = 0; i < this.values.length; ++i) {
+            if (y === this.values[i]) {
+                return;
             }
-            index++;
+        
+            if (y > this.values[i]) {
+                this.values.splice(i, 0, y);
+                return;
+            } 
         }
-
-        this.scanbeams.splice(index, 0, y);
+        
+        this.values.push(y);
     }
 
     public pop(): number {
         if (this.isEmpty) {
             throw new Error('ScanbeamManager is empty');
         }
-        return this.scanbeams.shift();
+
+        return this.values.shift();
     }
 
     public clean(): void {
-        this.scanbeams.length = 0;
+        this.values.length = 0;
     }
 
     public get isEmpty(): boolean {
-        return this.scanbeams.length === 0;
+        return this.values.length === 0;
     }
 }

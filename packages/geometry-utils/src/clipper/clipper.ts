@@ -12,7 +12,7 @@ import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from './type
 export default class Clipper extends ClipperBase {
     private clipType: CLIP_TYPE = CLIP_TYPE.UNION;
     private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
-    private scanbeamManage: Scanbeam = new Scanbeam();
+    private scanbeam: Scanbeam = new Scanbeam();
     private activeEdges: TEdge = null;
     private sortedEdges: TEdge = null;
     private intersections: IntersectNode[] = [];
@@ -61,7 +61,7 @@ export default class Clipper extends ClipperBase {
             let i: number = 0;
             let outRec: OutRec = null;
             let outRecCount: number = 0;
-            let botY: number = this.scanbeamManage.pop();
+            let botY: number = this.scanbeam.pop();
             let topY: number = 0;
 
             do {
@@ -69,11 +69,11 @@ export default class Clipper extends ClipperBase {
                 this.ghostJoins = [];
                 this.processHorizontals(false);
 
-                if (this.scanbeamManage.isEmpty) {
+                if (this.scanbeam.isEmpty) {
                     break;
                 }
 
-                topY = this.scanbeamManage.pop();
+                topY = this.scanbeam.pop();
                 //console.log("botY:" + botY + ", topY:" + topY);
                 if (!this.processIntersections(botY, topY)) {
                     return false;
@@ -82,7 +82,7 @@ export default class Clipper extends ClipperBase {
                 this.processEdgesAtTopOfScanbeam(topY);
 
                 botY = topY;
-            } while (!this.scanbeamManage.isEmpty || this.currentLM !== null);
+            } while (!this.scanbeam.isEmpty || this.currentLM !== null);
             //fix orientations ...
             outRecCount = this.polyOuts.length;
 
@@ -291,7 +291,7 @@ export default class Clipper extends ClipperBase {
                     outPt = OutRec.addOutPt(this.polyOuts, leftBound, leftBound.Bot);
                 }
 
-                this.scanbeamManage.insert(leftBound.Top.y);
+                this.scanbeam.insert(leftBound.Top.y);
             } else {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges, leftBound);
@@ -303,14 +303,14 @@ export default class Clipper extends ClipperBase {
                     outPt = this.AddLocalMinPoly(leftBound, rightBound, leftBound.Bot);
                 }
 
-                this.scanbeamManage.insert(leftBound.Top.y);
+                this.scanbeam.insert(leftBound.Top.y);
             }
 
             if (rightBound !== null) {
                 if (rightBound.isHorizontal) {
                     this.sortedEdges = rightBound.addEdgeToSEL(this.sortedEdges);
                 } else {
-                    this.scanbeamManage.insert(rightBound.Top.y);
+                    this.scanbeam.insert(rightBound.Top.y);
                 }
             }
 
@@ -660,8 +660,8 @@ export default class Clipper extends ClipperBase {
     protected reset(): void {
         super.reset();
 
-        this.scanbeamManage.clean();
-        this.minimaList.getScanbeam(this.scanbeamManage);
+        this.scanbeam.clean();
+        this.minimaList.getScanbeam(this.scanbeam);
             
         this.activeEdges = null;
         this.sortedEdges = null;
@@ -888,7 +888,7 @@ export default class Clipper extends ClipperBase {
         edge.NextInAEL = AelNext;
 
         if (!edge.isHorizontal) {
-            this.scanbeamManage.insert(edge.Top.y);
+            this.scanbeam.insert(edge.Top.y);
         }
 
         return edge;
