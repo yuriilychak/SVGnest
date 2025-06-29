@@ -1073,26 +1073,18 @@ export default class Clipper {
     }
 
     private SwapPositionsInAEL(edge1: TEdge, edge2: TEdge): void {
-        if (!TEdge.swapPositionsInAEL(edge1, edge2)) {
-            return;
-        }
+        const edge = TEdge.swapPositionsInEL(edge1, edge2, true);
 
-        if (edge1.PrevInAEL === null) {
-            this.activeEdges = edge1;
-        } else if (edge2.PrevInAEL === null) {
-            this.activeEdges = edge2;
+        if (edge !== null) {
+            this.activeEdges = edge;
         }
     }
 
     private SwapPositionsInSEL(edge1: TEdge, edge2: TEdge) {
-        if (!TEdge.swapPositionsInSEL(edge1, edge2)) {
-            return;
-        }
+        const edge = TEdge.swapPositionsInEL(edge1, edge2, false);
 
-        if (edge1.PrevInSEL === null) {
-            this.sortedEdges = edge1;
-        } else if (edge2.PrevInSEL === null) {
-            this.sortedEdges = edge2;
+        if (edge !== null) {
+            this.sortedEdges = edge;
         }
     }
 

@@ -529,7 +529,7 @@ export default class TEdge {
         return slopesEqual(e1.Delta.y, e2.Delta.x, e1.Delta.x, e2.Delta.y, useFullRange);
     }
 
-    public static swapPositionInEL(edge1: TEdge, edge2: TEdge, isAel: boolean): boolean {
+    public static getSwapPositionInEL(edge1: TEdge, edge2: TEdge, isAel: boolean): boolean {
         //check that one or other edge hasn't already been removed from EL ...
         const isRemoved: boolean = isAel 
             ? edge1.getNext(isAel) === edge1.getPrev(isAel) || edge2.getNext(isAel) === edge2.getPrev(isAel)
@@ -614,12 +614,16 @@ export default class TEdge {
         return true;
     }
 
-    public static swapPositionsInAEL(edge1: TEdge, edge2: TEdge): boolean {
-        return TEdge.swapPositionInEL(edge1, edge2, true);
-    }
+    public static swapPositionsInEL(edge1: TEdge, edge2: TEdge, isAel: boolean): NullPtr<TEdge> {
+        if (TEdge.getSwapPositionInEL(edge1, edge2, isAel)) {
+            if (edge1.getPrev(isAel) === null) {
+                return edge1;
+            } else if (edge2.getPrev(isAel) === null) {
+                return edge2;
+            }
+        }
 
-    public static swapPositionsInSEL(edge1: TEdge, edge2: TEdge): boolean {
-        return TEdge.swapPositionInEL(edge1, edge2, false);
+        return null;
     }
 
     public static swapSides(edge1: TEdge, edge2: TEdge): void {
