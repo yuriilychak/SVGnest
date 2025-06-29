@@ -387,7 +387,7 @@ export default class Clipper {
                 rightBound.WindCnt2 = leftBound.WindCnt2;
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.AddLocalMinPoly(leftBound, rightBound, leftBound.Bot);
+                    outPt = this.joinManager.addLocalMinPoly(leftBound, rightBound, leftBound.Bot, this.polyOuts, this.isUseFullRange);
                 }
 
                 this.scanbeam.insert(leftBound.Top.y);
@@ -627,13 +627,14 @@ export default class Clipper {
                     break;
             }
 
+            
             if (edge1.PolyTyp !== edge2.PolyTyp) {
-                this.AddLocalMinPoly(edge1, edge2, point);
+                this.joinManager.addLocalMinPoly(edge1, edge2, point, this.polyOuts, this.isUseFullRange);
             } else if (e1Wc === 1 && e2Wc === 1) {
                 switch (this.clipType) {
                     case CLIP_TYPE.UNION:
                         if (e1Wc2 <= 0 && e2Wc2 <= 0) {
-                            this.AddLocalMinPoly(edge1, edge2, point);
+                            this.joinManager.addLocalMinPoly(edge1, edge2, point, this.polyOuts, this.isUseFullRange);
                         }
                         break;
                     case CLIP_TYPE.DIFFERENCE:
@@ -641,7 +642,7 @@ export default class Clipper {
                             (edge1.PolyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
                             (edge1.PolyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
                         ) {
-                            this.AddLocalMinPoly(edge1, edge2, point);
+                            this.joinManager.addLocalMinPoly(edge1, edge2, point, this.polyOuts, this.isUseFullRange);
                         }
                         break;
                 }
@@ -661,32 +662,6 @@ export default class Clipper {
         if (edge2Stops) {
             this.tEdgeManager.activeEdges = edge2.deleteFromAEL(this.tEdgeManager.activeEdges);
         }
-    }
-
-    private AddLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32) {
-        let result: OutPt = null;
-        let edge: TEdge = null;
-        let edgePrev: TEdge;
-
-        if (edge2.isHorizontal || edge1.Dx > edge2.Dx) {
-            result = OutRec.addOutPt(this.polyOuts, edge1, point);
-            edge2.index = edge1.index;
-            edge2.Side = DIRECTION.RIGHT;
-            edge1.Side = DIRECTION.LEFT;
-            edge = edge1;
-            edgePrev = edge.PrevInAEL === edge2 ? edge2.PrevInAEL : edge.PrevInAEL;
-        } else {
-            result = OutRec.addOutPt(this.polyOuts, edge2, point);
-            edge1.index = edge2.index;
-            edge1.Side = DIRECTION.RIGHT;
-            edge2.Side = DIRECTION.LEFT;
-            edge = edge2;
-            edgePrev = edge.PrevInAEL === edge1 ? edge1.PrevInAEL : edge.PrevInAEL;
-        }
-
-        this.joinManager.addMinJoin(result, edge, edgePrev, point, this.polyOuts, this.isUseFullRange);
-
-        return result;
     }
 
     private buildResult(polygons: PointI32[][]): void {
