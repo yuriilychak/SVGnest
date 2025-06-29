@@ -54,7 +54,7 @@ export default class Clipper extends ClipperBase {
         try {
             this.reset();
 
-            if (this.currentLM === null) {
+            if (this.localMinimaManager.isEmpty) {
                 return false;
             }
 
@@ -82,7 +82,7 @@ export default class Clipper extends ClipperBase {
                 this.processEdgesAtTopOfScanbeam(topY);
 
                 botY = topY;
-            } while (!this.scanbeam.isEmpty || this.currentLM !== null);
+            } while (!this.scanbeam.isEmpty || !this.localMinimaManager.isEmpty);
             //fix orientations ...
             outRecCount = this.polyOuts.length;
 
@@ -263,18 +263,11 @@ export default class Clipper extends ClipperBase {
     }
 
     private insertLocalMinimaIntoAEL(botY: number): void {
-        let leftBound: TEdge = null;
-        let rightBound: TEdge = null;
         let outPt: OutPt = null;
 
-        while (this.currentLM !== null && this.currentLM.y === botY) {
-            leftBound = this.currentLM.leftBound;
-            rightBound = this.currentLM.rightBound;
+        while (!Number.isNaN(this.localMinimaManager.y) && this.localMinimaManager.y === botY) {
+            let [leftBound, rightBound] = this.localMinimaManager.pop();
             outPt = null;
-
-            if (this.currentLM !== null) {
-                this.currentLM = this.currentLM.next;
-            }
 
             if (leftBound === null) {
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges);
@@ -658,11 +651,12 @@ export default class Clipper extends ClipperBase {
     }
 
     protected reset(): void {
-        super.reset();
+        this.localMinimaManager.reset();
 
         this.scanbeam.clean();
-        this.minimaList.getScanbeam(this.scanbeam);
-            
+
+        this.localMinimaManager.getScanbeam(this.scanbeam);
+       
         this.activeEdges = null;
         this.sortedEdges = null;
     }

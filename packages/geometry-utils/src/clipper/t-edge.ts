@@ -329,6 +329,104 @@ export default class TEdge {
         return this.index !== TEdge.UNASSIGNED;
     }
 
+    public processBound(isClockwise: boolean): TEdge {
+        let edge: TEdge = this;
+        let startEdge: TEdge = edge;
+        let result: TEdge = edge;
+        let horzEdge: TEdge = null;
+
+        if (edge.isDxHorizontal) {
+            //it's possible for adjacent overlapping horz edges to start heading left
+            //before finishing right, so ...
+            const startX: number = isClockwise ? edge.Prev.Bot.x : edge.Next.Bot.x;
+
+            if (edge.Bot.x !== startX) {
+                edge.reverseHorizontal();
+            }
+        }
+
+        if (isClockwise) {
+            while (result.Top.y === result.Next.Bot.y) {
+                result = result.Next;
+            }
+
+            if (result.isDxHorizontal) {
+                //nb: at the top of a bound, horizontals are added to the bound
+                //only when the preceding edge attaches to the horizontal's left vertex
+                //unless a Skip edge is encountered when that becomes the top divide
+                horzEdge = result;
+
+                while (horzEdge.Prev.isDxHorizontal) {
+                    horzEdge = horzEdge.Prev;
+                }
+
+                if (horzEdge.Prev.Top.x === result.Next.Top.x) {
+                    if (!isClockwise) {
+                        result = horzEdge.Prev;
+                    }
+                } else if (horzEdge.Prev.Top.x > result.Next.Top.x) {
+                    result = horzEdge.Prev;
+                }
+            }
+
+            while (edge !== result) {
+                edge.NextInLML = edge.Next;
+
+                if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
+                    edge.reverseHorizontal();
+                }
+
+                edge = edge.Next;
+            }
+
+            if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
+                edge.reverseHorizontal();
+            }
+
+            result = result.Next;
+            //move to the edge just beyond current bound
+        } else {
+            while (result.Top.y === result.Prev.Bot.y) {
+                result = result.Prev;
+            }
+
+            if (result.isDxHorizontal) {
+                horzEdge = result;
+
+                while (horzEdge.Next.isDxHorizontal) {
+                    horzEdge = horzEdge.Next;
+                }
+
+                if (horzEdge.Next.Top.x === result.Prev.Top.x) {
+                    if (!isClockwise) {
+                        result = horzEdge.Next;
+                    }
+                } else if (horzEdge.Next.Top.x > result.Prev.Top.x) {
+                    result = horzEdge.Next;
+                }
+            }
+
+            while (edge !== result) {
+                edge.NextInLML = edge.Prev;
+
+                if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
+                    edge.reverseHorizontal();
+                }
+
+                edge = edge.Prev;
+            }
+
+            if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
+                edge.reverseHorizontal();
+            }
+
+            result = result.Prev;
+            //move to the edge just beyond current bound
+        }
+
+        return result;
+    }
+
     public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE): void {
         let edge: NullPtr<TEdge> = this.PrevInAEL;
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
