@@ -18,7 +18,7 @@ export default class OutRecManager {
     public getOutRec(idx: number): OutRec {
         let result: OutRec = this.polyOuts[idx];
 
-        while (result !== this.polyOuts[result.currentIndex]) {
+        while (result.index !== this.polyOuts[result.currentIndex].index) {
             result = this.polyOuts[result.currentIndex];
         }
 
