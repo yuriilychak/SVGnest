@@ -133,7 +133,7 @@ export default class JoinManager {
         const joinCount: number = this.joins.length;
 
         for (i = 0; i < joinCount; ++i) {
-            this.joins[i].joinCommonEdges(this.outRecManager.polyOuts, this.isUseFullRange, reverseSolution);
+            this.joinCommonEdge(this.joins[i], reverseSolution);
         }
     }
 
@@ -227,5 +227,21 @@ export default class JoinManager {
         } else {
             TEdge.swapSides(edge1, edge2);
         }
+    }
+
+    private joinCommonEdge(join: Join, isReverseSolution: boolean): void {
+        const index1 = join.OutPt1.index;
+        const index2 = join.OutPt2.index;
+        const outRec1 = this.outRecManager.getOutRec(index1);
+        const outRec2 = this.outRecManager.getOutRec(index2);
+        const isSame = outRec1 === outRec2;
+
+        if (outRec1.Pts === null || outRec2.Pts === null || !join.joinPoints(isSame, this.isUseFullRange)) {
+            return;
+        }
+
+        //get the polygon fragment with the correct hole state (FirstLeft)
+        //before calling JoinPoints() ...
+        this.outRecManager.joinCommonEdge(index1, index2, join.OutPt1, join.OutPt2, isReverseSolution);
     }
 }

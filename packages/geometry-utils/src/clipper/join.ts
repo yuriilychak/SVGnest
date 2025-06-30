@@ -1,8 +1,6 @@
 import { PointI32 } from '../geometry';
 import OutPt from './out-pt';
-import OutRec from './out-rec';
 import { NullPtr } from './types';
-
 export default class Join {
     public OutPt1: OutPt;
     public OutPt2: OutPt;
@@ -160,49 +158,6 @@ export default class Join {
 
             return true;
         }
-    }
-
-    public joinCommonEdges(records: OutRec[], isUseFullRange: boolean, isReverseSolution: boolean): void {
-        let outRec1: NullPtr<OutRec> = OutRec.getOutRec(records, this.OutPt1.index);
-        let outRec2: NullPtr<OutRec> = OutRec.getOutRec(records, this.OutPt2.index);
-
-        if (outRec1.Pts === null || outRec2.Pts === null || !this.joinPoints(outRec1 === outRec2, isUseFullRange)) {
-            return;
-        }
-        //get the polygon fragment with the correct hole state (FirstLeft)
-        //before calling JoinPoints() ...
-
-        if (outRec1 === outRec2) {
-            //instead of joining two polygons, we've just created a new one by
-            //splitting one polygon into two.
-            outRec1.Pts = this.OutPt1;
-            outRec1.BottomPt = null;
-            outRec2 = OutRec.create(records);
-            outRec2.Pts = this.OutPt2;
-            //update all OutRec2.Pts Idx's ...
-            outRec2.updateOutPtIdxs();
-
-            if (!outRec2.joinCommonEdges(outRec2, isReverseSolution)) {
-                outRec2.IsHole = outRec1.IsHole;
-                outRec2.FirstLeft = outRec1.FirstLeft;
-                outRec1.joinCommonEdges(outRec2, isReverseSolution);
-            }
-
-            return;
-        }
-
-        const holeStateRec: OutRec = OutRec.getHoleStateRec(outRec1, outRec2);
-        //joined 2 polygons together ...
-        outRec2.Pts = null;
-        outRec2.BottomPt = null;
-        outRec2.Idx = outRec1.Idx;
-        outRec1.IsHole = holeStateRec.IsHole;
-
-        if (holeStateRec === outRec2) {
-            outRec1.FirstLeft = outRec2.FirstLeft;
-        }
-
-        outRec2.FirstLeft = outRec1;
     }
 
     public static getOverlap(a1: number, a2: number, b1: number, b2: number): PointI32 {
