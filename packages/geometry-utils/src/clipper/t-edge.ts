@@ -171,7 +171,7 @@ export default class TEdge {
          }
     }
 
-    private deleteFromEl(isAel: boolean, inputEdge: TEdge): NullPtr<TEdge> {
+    public deleteFromEL(inputEdge: TEdge, isAel: boolean): NullPtr<TEdge> {
         const next = this.getNext(isAel);
         const prev = this.getPrev(isAel);
         const hasNext = next !== null;
@@ -199,12 +199,30 @@ export default class TEdge {
         return result;
     }
 
-    public deleteFromSEL(inputEdge: TEdge): NullPtr<TEdge> {
-        return this.deleteFromEl(false, inputEdge);
+    public alignWndCount(edge: TEdge): void {
+        if (this.PolyTyp === edge.PolyTyp) {
+            this.WindCnt = this.WindCnt === -edge.WindDelta ? -this.WindCnt : this.WindCnt + edge.WindDelta;
+            edge.WindCnt = edge.WindCnt === this.WindDelta ? -edge.WindCnt : edge.WindCnt - this.WindDelta;
+        } else {
+            this.WindCnt2 += edge.WindDelta;
+            edge.WindCnt2 -= this.WindDelta;
+        }
+
     }
 
-    public deleteFromAEL(inputEdge: TEdge): NullPtr<TEdge> {
-        return this.deleteFromEl(true, inputEdge);
+    public getWndTypeFilled(fillType: POLY_FILL_TYPE): number {
+        switch (fillType) {
+            case POLY_FILL_TYPE.POSITIVE:
+                return this.WindCnt;
+            case POLY_FILL_TYPE.NEGATIVE:
+                return -this.WindCnt;
+            default:
+                return Math.abs(this.WindCnt);
+        }
+    }
+
+    public getStop(point: PointI32, isProtect: boolean): boolean {
+        return !isProtect && this.NextInLML === null && this.Top.almostEqual(point);
     }
 
     public getIntermediate(y: number): boolean {
