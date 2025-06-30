@@ -18,8 +18,8 @@ export default class OutRecManager {
     public getOutRec(idx: number): OutRec {
         let result: OutRec = this.polyOuts[idx];
 
-        while (result !== this.polyOuts[result.Idx]) {
-            result = this.polyOuts[result.Idx];
+        while (result !== this.polyOuts[result.index]) {
+            result = this.polyOuts[result.index];
         }
 
         return result;
@@ -28,7 +28,7 @@ export default class OutRecManager {
     public getJoinData(horzEdge: TEdge) {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        let outPt: NullPtr<OutPt> = this.polyOuts[horzEdge.index].Pts;
+        let outPt: NullPtr<OutPt> = this.polyOuts[horzEdge.index].points;
 
         if (horzEdge.Side === DIRECTION.RIGHT) {
             outPt = outPt.prev;
@@ -47,22 +47,22 @@ export default class OutRecManager {
         if (!edge.isAssigned) {
             newOp = new OutPt(0, point);
             outRec = this.createRec(edge.isWindDeletaEmpty, newOp);
-            newOp.index = outRec.Idx;
+            newOp.index = outRec.index;
             newOp.next = newOp;
             newOp.prev = newOp;
 
-            if (!outRec.IsOpen) {
+            if (!outRec.isOpen) {
                 this.setHoleState(outRec, edge);
             }
 
-            edge.index = outRec.Idx;
+            edge.index = outRec.index;
             //nb: do this after SetZ !
             return newOp;
         }
 
         outRec = this.polyOuts[edge.index];
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-        const op: OutPt = outRec.Pts;
+        const op: OutPt = outRec.points;
 
         if (isToFront && point.almostEqual(op.point)) {
             return op;
@@ -72,12 +72,12 @@ export default class OutRecManager {
             return op.prev;
         }
 
-        newOp = new OutPt(outRec.Idx, point, op, op.prev);
+        newOp = new OutPt(outRec.index, point, op, op.prev);
         newOp.prev.next = newOp;
         op.prev = newOp;
 
         if (isToFront) {
-            outRec.Pts = newOp;
+            outRec.points = newOp;
         }
 
         return newOp;
@@ -103,9 +103,9 @@ export default class OutRecManager {
         const outRec1: OutRec = this.polyOuts[firstEdge.index];
         const outRec2: OutRec = this.polyOuts[secondEdge.index];
         const holeStateRec: OutRec = OutRecManager.getHoleStateRec(outRec1, outRec2);
-        const p1_lft: OutPt = outRec1.Pts;
+        const p1_lft: OutPt = outRec1.points;
         const p1_rt: OutPt = p1_lft.prev;
-        const p2_lft: OutPt = outRec2.Pts;
+        const p2_lft: OutPt = outRec2.points;
         const p2_rt: OutPt = p2_lft.prev;
         let side: DIRECTION;
         //join e2 poly onto e1 poly and delete pointers to e2 ...
@@ -117,14 +117,14 @@ export default class OutRecManager {
                 p1_lft.prev = p2_lft;
                 p1_rt.next = p2_rt;
                 p2_rt.prev = p1_rt;
-                outRec1.Pts = p2_rt;
+                outRec1.points = p2_rt;
             } else {
                 //x y z a b c
                 p2_rt.next = p1_lft;
                 p1_lft.prev = p2_rt;
                 p2_lft.prev = p1_rt;
                 p1_rt.next = p2_lft;
-                outRec1.Pts = p2_lft;
+                outRec1.points = p2_lft;
             }
             side = DIRECTION.LEFT;
         } else {
@@ -146,15 +146,15 @@ export default class OutRecManager {
         }
 
         if (holeStateRec === outRec2) {
-            if (outRec2.FirstLeft !== outRec1) {
-                outRec1.FirstLeft = outRec2.FirstLeft;
+            if (outRec2.firstLeft !== outRec1) {
+                outRec1.firstLeft = outRec2.firstLeft;
             }
 
-            outRec1.IsHole = outRec2.IsHole;
+            outRec1.isHole = outRec2.isHole;
         }
 
-        outRec2.Pts = null;
-        outRec2.FirstLeft = outRec1;
+        outRec2.points = null;
+        outRec2.firstLeft = outRec1;
         const OKIdx: number = firstEdge.index;
         const ObsoleteIdx: number = secondEdge.index;
         firstEdge.unassign();
@@ -172,7 +172,7 @@ export default class OutRecManager {
             e = e.NextInAEL;
         }
 
-        outRec2.Idx = outRec1.Idx;
+        outRec2.index = outRec1.index;
     }
 
     public fixupOutPolygon(isUseFullRange: boolean): void {
@@ -201,7 +201,7 @@ export default class OutRecManager {
                 continue;
             }
 
-            if ((outRec.IsHole !== reverseSolution) === outRec.area > 0) {
+            if ((outRec.isHole !== reverseSolution) === outRec.area > 0) {
                 outRec.reversePts();
             }
         }
@@ -243,7 +243,7 @@ export default class OutRecManager {
 
         while (i < this.polyOuts.length) {
             outRec = this.polyOuts[i++];
-            outPt = outRec.Pts;
+            outPt = outRec.points;
 
             if (outPt !== null) {
                 this.simplify(outRec, outPt);
@@ -261,7 +261,7 @@ export default class OutRecManager {
         {
             op2 = outPt.next;
 
-            while (op2 !== inputOutRec.Pts) {
+            while (op2 !== inputOutRec.points) {
                 if (outPt.point.almostEqual(op2.point) && op2.next != outPt && op2.prev != outPt) {
                     //split the polygon into two ...
                     op3 = outPt.prev;
@@ -270,25 +270,25 @@ export default class OutRecManager {
                     op4.next = outPt;
                     op2.prev = op3;
                     op3.next = op2;
-                    inputOutRec.Pts = outPt;
+                    inputOutRec.points = outPt;
                     outRec = this.createRec();
-                    outRec.Pts = op2;
+                    outRec.points = op2;
                     outRec.updateOutPtIdxs();
 
                     if (inputOutRec.containsPoly(outRec)) {
                         //OutRec2 is contained by OutRec1 ...
-                        outRec.IsHole = !inputOutRec.IsHole;
-                        outRec.FirstLeft = inputOutRec;
+                        outRec.isHole = !inputOutRec.isHole;
+                        outRec.firstLeft = inputOutRec;
                     } else if (outRec.containsPoly(inputOutRec)) {
                         //OutRec1 is contained by OutRec2 ...
-                        outRec.IsHole = inputOutRec.IsHole;
-                        inputOutRec.IsHole = !outRec.IsHole;
-                        outRec.FirstLeft = inputOutRec.FirstLeft;
-                        inputOutRec.FirstLeft = outRec;
+                        outRec.isHole = inputOutRec.isHole;
+                        inputOutRec.isHole = !outRec.isHole;
+                        outRec.firstLeft = inputOutRec.firstLeft;
+                        inputOutRec.firstLeft = outRec;
                     } else {
                         //the 2 polygons are separate ...
-                        outRec.IsHole = inputOutRec.IsHole;
-                        outRec.FirstLeft = inputOutRec.FirstLeft;
+                        outRec.isHole = inputOutRec.isHole;
+                        outRec.firstLeft = inputOutRec.firstLeft;
                     }
                     op2 = outPt;
                     //ie get ready for the next iteration
@@ -296,7 +296,7 @@ export default class OutRecManager {
                 op2 = op2.next;
             }
             outPt = outPt.next;
-        } while (outPt != inputOutRec.Pts);
+        } while (outPt != inputOutRec.points);
     }
 
     private setHoleState(outRec: OutRec, tEdge: TEdge): void {
@@ -307,8 +307,8 @@ export default class OutRecManager {
             if (edge.isAssigned && !edge.isWindDeletaEmpty) {
                 isHole = !isHole;
 
-                if (outRec.FirstLeft === null) {
-                    outRec.FirstLeft = this.polyOuts[edge.index];
+                if (outRec.firstLeft === null) {
+                    outRec.firstLeft = this.polyOuts[edge.index];
                 }
             }
 
@@ -316,7 +316,7 @@ export default class OutRecManager {
         }
 
         if (isHole) {
-            outRec.IsHole = true;
+            outRec.isHole = true;
         }
     }
 
@@ -327,49 +327,38 @@ export default class OutRecManager {
         if (outRec1 === outRec2) {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
-            outRec1.Pts = outPt1;
+            outRec1.points = outPt1;
             outRec2 = this.createRec();
-            outRec2.Pts = outPt2;
+            outRec2.points = outPt2;
             //update all OutRec2.Pts Idx's ...
             outRec2.updateOutPtIdxs();
 
-            OutRecManager.joinCommon(outRec2, outRec2, isReverseSolution);
-            outRec2.IsHole = outRec1.IsHole;
-            outRec2.FirstLeft = outRec1.FirstLeft;
-            OutRecManager.joinCommon(outRec1, outRec2, isReverseSolution);
-            
+            outRec2.isHole = !outRec2.isHole;
+            outRec2.firstLeft = outRec2;
+
+            if ((outRec2.isHole !== isReverseSolution) === outRec2.area > 0) {
+                outRec2.points.reverse();
+            }
+
             return;
         }
 
         const holeStateRec: OutRec = OutRecManager.getHoleStateRec(outRec1, outRec2);
         //joined 2 polygons together ...
-        outRec2.Pts = null;
-        outRec2.Idx = outRec1.Idx;
-        outRec1.IsHole = holeStateRec.IsHole;
+        outRec2.points = null;
+        outRec2.index = outRec1.index;
+        outRec1.isHole = holeStateRec.isHole;
 
         if (holeStateRec === outRec2) {
-            outRec1.FirstLeft = outRec2.FirstLeft;
+            outRec1.firstLeft = outRec2.firstLeft;
         }
 
-        outRec2.FirstLeft = outRec1;
-    }
-
-    private static joinCommon(outRec1: OutRec, outRec2: OutRec, isReverseSolution: boolean) {
-        if (!outRec2.containsPoly(outRec1)) {
-            return;
-        }
-        //outRec1 is contained by outRec2 ...
-        outRec1.IsHole = !outRec2.IsHole;
-        outRec1.FirstLeft = outRec2;
-
-        if ((outRec1.IsHole !== isReverseSolution) === outRec1.area > 0) {
-            outRec1.Pts.reverse();
-        }
+        outRec2.firstLeft = outRec1;
     }
 
     private static param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {
         do {
-            outRec1 = outRec1.FirstLeft;
+            outRec1 = outRec1.firstLeft;
 
             if (outRec1 == outRec2) {
                 return true;
@@ -380,8 +369,8 @@ export default class OutRecManager {
     }
 
     private static getLowermostRec(outRec1: OutRec, outRec2: OutRec): OutRec {
-        const bPt1: NullPtr<OutPt> = outRec1.Pts.getBottomPt();
-        const bPt2: NullPtr<OutPt> = outRec2.Pts.getBottomPt();
+        const bPt1: NullPtr<OutPt> = outRec1.points.getBottomPt();
+        const bPt2: NullPtr<OutPt> = outRec2.points.getBottomPt();
 
         switch (true) {
             case bPt1.point.y > bPt2.point.y:

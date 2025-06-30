@@ -3,30 +3,32 @@ import OutPt from './out-pt';
 import { NullPtr } from './types';
 
 export default class OutRec {
-    public Idx: number;
-    public IsHole: boolean;
-    public IsOpen: boolean;
-    public FirstLeft: OutRec;
-    public Pts: NullPtr<OutPt>;
+    public index: number;
+    public isHole: boolean;
+    public isOpen: boolean;
+    public firstLeft: OutRec;
+    public firstLeftIndex: number;
+    public points: NullPtr<OutPt>;
 
     constructor(index: number = 0, isOpen: boolean = false, pointer: NullPtr<OutPt> = null) {
-        this.Idx = index;
-        this.IsHole = false;
-        this.IsOpen = isOpen;
-        this.FirstLeft = null;
-        this.Pts = pointer;
+        this.index = index;
+        this.isHole = false;
+        this.isOpen = isOpen;
+        this.firstLeft = null;
+        this.firstLeftIndex = -1;
+        this.points = pointer;
     }
 
     public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): void {
         //FixupOutPolygon() - removes duplicate points and simplifies consecutive
         //parallel edges by removing the middle vertex.
         let lastOutPt: NullPtr<OutPt> = null;
-        let outPt: NullPtr<OutPt> = this.Pts;
+        let outPt: NullPtr<OutPt> = this.points;
 
         while (true) {
             if (outPt !== null && (outPt.prev === outPt || outPt.prev === outPt.next)) {
                 outPt.dispose();
-                this.Pts = null;
+                this.points = null;
 
                 return;
             }
@@ -56,18 +58,18 @@ export default class OutRec {
             outPt = outPt.next;
         }
 
-        this.Pts = outPt;
+        this.points = outPt;
     }
 
     public reversePts(): void {
-        if (this.Pts !== null) {
-            this.Pts.reverse();
+        if (this.points !== null) {
+            this.points.reverse();
         }
     }
 
     public dispose(): void {
-        if (this.Pts !== null) {
-            this.Pts.dispose();
+        if (this.points !== null) {
+            this.points.dispose();
         }
     }
 
@@ -79,7 +81,7 @@ export default class OutRec {
         }
 
         const result: PointI32[] = new Array(pointCount);
-        let outPt: OutPt = this.Pts.prev as OutPt;
+        let outPt: OutPt = this.points.prev as OutPt;
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
@@ -91,51 +93,51 @@ export default class OutRec {
     }
 
     public updateOutPtIdxs(): void {
-        let outPt: OutPt = this.Pts;
+        let outPt: OutPt = this.points;
 
         do {
-            outPt.index = this.Idx;
+            outPt.index = this.index;
             outPt = outPt.prev;
-        } while (outPt !== this.Pts);
+        } while (outPt !== this.points);
     }
 
     public containsPoly(outRec: OutRec): boolean {
-        let outPt: OutPt = outRec.Pts;
+        let outPt: OutPt = outRec.points;
         let res: number = 0;
 
         do {
-            res = this.Pts.pointIn(outPt.point);
+            res = this.points.pointIn(outPt.point);
 
             if (res >= 0) {
                 return res !== 0;
             }
 
             outPt = outPt.next;
-        } while (outPt !== outRec.Pts);
+        } while (outPt !== outRec.points);
 
         return true;
     }
 
     public get pointCount(): number {
-        return this.Pts !== null && this.Pts.prev !== null ? this.Pts.prev.pointCount : 0;
+        return this.points !== null && this.points.prev !== null ? this.points.prev.pointCount : 0;
     }
 
     public get isEmpty(): boolean {
-        return this.Pts === null || this.IsOpen;
+        return this.points === null || this.isOpen;
     }
 
     public get area(): number {
-        if (this.Pts == null) {
+        if (this.points == null) {
             return 0;
         }
 
-        let outPt: OutPt = this.Pts;
+        let outPt: OutPt = this.points;
         let result: number = 0;
 
         do {
             result = result + (outPt.prev.point.x + outPt.point.x) * (outPt.prev.point.y - outPt.point.y);
             outPt = outPt.next;
-        } while (outPt != this.Pts);
+        } while (outPt != this.points);
 
         return result * 0.5;
     }
