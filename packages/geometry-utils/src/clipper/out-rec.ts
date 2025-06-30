@@ -4,17 +4,17 @@ import { NullPtr } from './types';
 
 export default class OutRec {
     public index: number;
+    public currentIndex: number;
     public isHole: boolean;
     public isOpen: boolean;
-    public firstLeft: OutRec;
     public firstLeftIndex: number;
     public points: NullPtr<OutPt>;
 
     constructor(index: number = 0, isOpen: boolean = false, pointer: NullPtr<OutPt> = null) {
         this.index = index;
+        this.currentIndex = index;
         this.isHole = false;
         this.isOpen = isOpen;
-        this.firstLeft = null;
         this.firstLeftIndex = -1;
         this.points = pointer;
     }
@@ -96,7 +96,7 @@ export default class OutRec {
         let outPt: OutPt = this.points;
 
         do {
-            outPt.index = this.index;
+            outPt.index = this.currentIndex;
             outPt = outPt.prev;
         } while (outPt !== this.points);
     }
