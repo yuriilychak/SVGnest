@@ -62,13 +62,13 @@ export default class OutRec {
     }
 
     public reversePts(): void {
-        if (this.points !== null) {
+        if (!this.isPointsEmpty) {
             this.points.reverse();
         }
     }
 
     public dispose(): void {
-        if (this.points !== null) {
+        if (!this.isPointsEmpty) {
             this.points.dispose();
         }
     }
@@ -119,15 +119,19 @@ export default class OutRec {
     }
 
     public get pointCount(): number {
-        return this.points !== null && this.points.prev !== null ? this.points.prev.pointCount : 0;
+        return !this.isPointsEmpty && this.points.prev !== null ? this.points.prev.pointCount : 0;
+    }
+
+    public get isPointsEmpty(): boolean {
+        return this.points === null;
     }
 
     public get isEmpty(): boolean {
-        return this.points === null || this.isOpen;
+        return this.isPointsEmpty || this.isOpen;
     }
 
     public get area(): number {
-        if (this.points == null) {
+        if (this.isPointsEmpty) {
             return 0;
         }
 

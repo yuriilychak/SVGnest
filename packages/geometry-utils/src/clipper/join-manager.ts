@@ -234,9 +234,9 @@ export default class JoinManager {
         const index2 = join.OutPt2.index;
         const outRec1 = this.outRecManager.getOutRec(index1);
         const outRec2 = this.outRecManager.getOutRec(index2);
-        const isSame = outRec1 === outRec2;
+        const isSame = outRec1.index === outRec2.index;
 
-        if (outRec1.points === null || outRec2.points === null || !join.joinPoints(isSame, this.isUseFullRange)) {
+        if (outRec1.isPointsEmpty || outRec2.isPointsEmpty || !join.joinPoints(isSame, this.isUseFullRange)) {
             return;
         }
 
