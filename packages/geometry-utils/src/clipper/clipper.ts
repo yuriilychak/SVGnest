@@ -1,6 +1,5 @@
 import { PointI32 } from '../geometry';
 import JoinManager from './join-manager';
-import LocalMinimaManager from './local-minima-manager';
 import OutRecManager from './out-rec-manager';
 import Scanbeam from './scanbeam';
 import TEdgeManager from './t-edge-manager';
@@ -11,14 +10,12 @@ export default class Clipper {
     private tEdgeManager: TEdgeManager;
     private isExecuteLocked: boolean = false;
     private joinManager: JoinManager;
-    private localMinimaManager: LocalMinimaManager;
     private outRecManager: OutRecManager;
     public ReverseSolution: boolean = false;
     public StrictlySimple: boolean = false;
 
     constructor() {
         this.outRecManager = new OutRecManager();
-        this.localMinimaManager = new LocalMinimaManager();
         this.scanbeam = new Scanbeam();
         this.outRecManager = new OutRecManager();
         this.joinManager = new JoinManager(this.outRecManager);
@@ -26,7 +23,7 @@ export default class Clipper {
     }
 
     public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
-        return this.localMinimaManager.addPath(polygon, polyType);
+        return this.tEdgeManager.addPath(polygon, polyType);
     }
 
     public addPaths(polygons: PointI32[][], polyType: POLY_TYPE): boolean {
@@ -51,8 +48,8 @@ export default class Clipper {
         }
 
         this.isExecuteLocked = true;
-        this.joinManager.init(clipType, fillType, this.localMinimaManager.isUseFullRange);
-        this.tEdgeManager.init(clipType, fillType, this.localMinimaManager.isUseFullRange);
+        this.joinManager.init(clipType, fillType, this.tEdgeManager.isUseFullRange);
+        this.tEdgeManager.init(clipType, fillType);
 
         solution.length = 0;
 
@@ -76,7 +73,7 @@ export default class Clipper {
         try {
             this.reset();
 
-            if (this.localMinimaManager.isEmpty) {
+            if (this.tEdgeManager.isMinimaEmpty) {
                 return false;
             }
 
@@ -84,7 +81,7 @@ export default class Clipper {
             let topY: number = 0;
 
             do {
-                this.tEdgeManager.insertLocalMinimaIntoAEL(botY, this.localMinimaManager);
+                this.tEdgeManager.insertLocalMinimaIntoAEL(botY);
                 this.joinManager.clearGhostJoins();
                 this.tEdgeManager.processHorizontals(false);
 
@@ -101,12 +98,12 @@ export default class Clipper {
                 this.tEdgeManager.processEdgesAtTopOfScanbeam(topY, this.StrictlySimple);
 
                 botY = topY;
-            } while (!this.scanbeam.isEmpty || !this.localMinimaManager.isEmpty);
+            } while (!this.scanbeam.isEmpty || !this.tEdgeManager.isMinimaEmpty);
             //fix orientations ...
             this.outRecManager.fixOrientation(this.ReverseSolution);
             this.joinManager.joinCommonEdges(this.ReverseSolution);
 
-            this.outRecManager.fixupOutPolygon(this.localMinimaManager.isUseFullRange);
+            this.outRecManager.fixupOutPolygon(this.tEdgeManager.isUseFullRange);
 
             if (this.StrictlySimple) {
                 this.outRecManager.doSimplePolygons();
@@ -119,9 +116,6 @@ export default class Clipper {
     }
 
     protected reset(): void {
-        this.localMinimaManager.reset();
-        this.scanbeam.clean();
-        this.localMinimaManager.getScanbeam(this.scanbeam);
         this.tEdgeManager.reset();
     }
 }

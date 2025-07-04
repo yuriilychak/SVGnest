@@ -2,14 +2,15 @@ import { PointI32 } from "../geometry";
 import { showError } from "./helpers";
 import IntersectNode from "./intersect-node";
 import JoinManager from "./join-manager";
-import LocalMinimaManager from "./local-minima-manager";
+import LocalMinima from "./local-minima";
 import OutPt from "./out-pt";
 import OutRecManager from "./out-rec-manager";
 import Scanbeam from "./scanbeam";
 import TEdge from "./t-edge";
-import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE } from "./types";
+import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./types";
 
 export default class TEdgeManager {
+    private minimaList: LocalMinima[] = [];
     private activeEdges: TEdge = null;
     private sortedEdges: TEdge = null;
     private intersections: IntersectNode[] = [];
@@ -18,7 +19,7 @@ export default class TEdgeManager {
     private scanbeam: Scanbeam;
     private joinManager: JoinManager;
     private outRecManager: OutRecManager;
-    private isUseFullRange: boolean = false;
+    public isUseFullRange: boolean = false;
 
     constructor(scanbeam: Scanbeam, joinManager: JoinManager, outRecManager: OutRecManager) {
         this.scanbeam = scanbeam;
@@ -26,10 +27,190 @@ export default class TEdgeManager {
         this.outRecManager = outRecManager;
     }
 
-    public init(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE, isUseFullRange: boolean): void {
+    public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
+        const edge = this.createPath(polygon, polyType);
+        const result = edge !== null;
+
+        if (result) {
+            this.addEdgeBounds(edge);
+        }
+
+        return result;
+    }
+
+    private addEdgeBounds(edge: TEdge): void {
+        let isClockwise: boolean = false;
+        let minEdge: TEdge = null;
+
+        while (true) {
+            edge = edge.findNextLocMin();
+
+            if (edge === minEdge) {
+                break;
+            }
+
+            if (minEdge === null) {
+                minEdge = edge;
+            }
+
+            isClockwise = edge.Dx >= edge.Prev.Dx;
+            const localMinima: LocalMinima = this.createLocalMinima(edge);
+
+            edge = localMinima.leftBound.processBound(isClockwise);
+            const edge2: TEdge = localMinima.rightBound.processBound(!isClockwise);
+
+            this.insertLocalMinima(localMinima);
+
+            if (!isClockwise) {
+                edge = edge2;
+            }
+        }
+    }
+
+    private insertLocalMinima(localMinima: LocalMinima): void {
+        for (let i = 0; i < this.minimaList.length; ++i) {
+            if (localMinima.y >= this.minimaList[i].y) {
+                this.minimaList.splice(i, 0, localMinima);
+                return;
+            }
+        }
+        
+        this.minimaList.push(localMinima);
+    }
+
+    public popMinima(): TEdge[] {
+        if (this.isMinimaEmpty) {
+            throw new Error("No minima to pop");
+        }
+
+        const minima = this.minimaList.shift()!;
+        return [minima.leftBound, minima.rightBound];
+    }
+
+    public get isMinimaEmpty(): boolean {
+        return this.minimaList.length === 0;
+    }
+
+    public get minY(): number {
+        return this.isMinimaEmpty ? NaN : this.minimaList[0].y;
+    }
+
+    public init(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
         this.clipType = clipType;
         this.fillType = fillType;
-        this.isUseFullRange = isUseFullRange;
+    }
+
+    public createPath(polygon: PointI32[], polyType: POLY_TYPE): NullPtr<TEdge> {
+        let lastIndex = polygon.length - 1;
+
+        while (
+            lastIndex > 0 &&
+            (polygon[lastIndex].almostEqual(polygon[0]) || polygon[lastIndex].almostEqual(polygon[lastIndex - 1]))
+        ) {
+            --lastIndex;
+        }
+
+        if (lastIndex < 2) {
+            return null;
+        }
+        //create a new edge array ...
+        const edges: TEdge[] = [];
+        let i: number = 0;
+
+        for (i = 0; i <= lastIndex; ++i) {
+            edges.push(new TEdge());
+        }
+
+        //1. Basic (first) edge initialization ...
+
+        //edges[1].Curr = pg[1];
+        edges[1].Curr.update(polygon[1]);
+
+        this.isUseFullRange = polygon[0].rangeTest(this.isUseFullRange);
+        this.isUseFullRange = polygon[lastIndex].rangeTest(this.isUseFullRange);
+
+        edges[0].init(edges[1], edges[lastIndex], polygon[0]);
+        edges[lastIndex].init(edges[0], edges[lastIndex - 1], polygon[lastIndex]);
+
+        for (i = lastIndex - 1; i >= 1; --i) {
+            this.isUseFullRange = polygon[i].rangeTest(this.isUseFullRange);
+
+            edges[i].init(edges[i + 1], edges[i - 1], polygon[i]);
+        }
+
+        let startEdge: TEdge = edges[0];
+        //2. Remove duplicate vertices, and (when closed) collinear edges ...
+        let edge: TEdge = startEdge;
+        let loopStopEdge: TEdge = startEdge;
+
+        while (true) {
+            if (edge.Curr.almostEqual(edge.Next.Curr)) {
+                if (edge === edge.Next) {
+                    break;
+                }
+
+                if (edge === startEdge) {
+                    startEdge = edge.Next;
+                }
+
+                edge = edge.remove();
+                loopStopEdge = edge;
+
+                continue;
+            }
+
+            if (edge.Prev === edge.Next) {
+                break;
+            }
+
+            if (PointI32.slopesEqual(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
+                //Collinear edges are allowed for open paths but in closed paths
+                //the default is to merge adjacent collinear edges into a single edge.
+                //However, if the PreserveCollinear property is enabled, only overlapping
+                //collinear edges (ie spikes) will be removed from closed paths.
+                if (edge === startEdge) {
+                    startEdge = edge.Next;
+                }
+
+                edge = edge.remove();
+                edge = edge.Prev;
+                loopStopEdge = edge;
+
+                continue;
+            }
+
+            edge = edge.Next;
+
+            if (edge === loopStopEdge) {
+                break;
+            }
+        }
+
+        if (edge.Prev === edge.Next) {
+            return null;
+        }
+
+        //3. Do second stage of edge initialization ...
+        edge = startEdge;
+
+        let isFlat: boolean = true;
+
+        do {
+            edge.initFromPolyType(polyType);
+            edge = edge.Next;
+
+            if (isFlat && edge.Curr.y !== startEdge.Curr.y) {
+                isFlat = false;
+            }
+        } while (edge !== startEdge);
+        //4. Finally, add edge bounds to LocalMinima list ...
+        //Totally flat paths must be handled differently when adding them
+        //to LocalMinima list to avoid endless loops etc ...
+        if (isFlat) {
+            return null;
+        }
+
+        return edge;
     }
 
     public updateEdgeIntoAEL(edge: TEdge): NullPtr<TEdge> {
@@ -93,8 +274,23 @@ export default class TEdgeManager {
     }
 
     public reset(): void {
+        for (const minima of this.minimaList) {
+            if (minima.leftBound !== null) {
+                minima.leftBound.reset(DIRECTION.LEFT);
+            }
+            if (minima.rightBound !== null) {
+                minima.rightBound.reset(DIRECTION.RIGHT);
+            }
+        }
+
+        this.scanbeam.clean();
+
+        for (const minima of this.minimaList) {
+            this.scanbeam.insert(minima.y);
+        }
+        
         this.activeEdges = null;
-        this.sortedEdges = null;
+        this.sortedEdges = null;  
     }
 
     public buildIntersectList(botY: number, topY: number): void {
@@ -225,11 +421,21 @@ export default class TEdgeManager {
         }
     }
 
+    public static sort(node1: IntersectNode, node2: IntersectNode): number {
+        //the following typecast is safe because the differences in Pt.Y will
+        //be limited to the height of the scanbeam.
+        return node2.point.y - node1.point.y;
+    }
+
+    public edgesAdjacent(node: IntersectNode): boolean {
+        return node.edge1.NextInSEL === node.edge2 || node.edge1.PrevInSEL === node.edge2;
+    }
+
     public fixupIntersectionOrder(): boolean {
         //pre-condition: intersections are sorted bottom-most first.
         //Now it's crucial that intersections are made only between adjacent edges,
         //so to ensure this the order of intersections may need adjusting ...
-        this.intersections.sort(IntersectNode.sort);
+        this.intersections.sort(TEdgeManager.sort);
 
         this.copyAELToSEL();
 
@@ -239,10 +445,10 @@ export default class TEdgeManager {
         let node: IntersectNode = null;
 
         for (i = 0; i < intersectCount; ++i) {
-            if (!this.intersections[i].edgesAdjacent) {
+            if (!this.edgesAdjacent(this.intersections[i])) {
                 j = i + 1;
 
-                while (j < intersectCount && !this.intersections[j].edgesAdjacent) {
+                while (j < intersectCount && !this.edgesAdjacent(this.intersections[j])) {
                     ++j;
                 }
 
@@ -255,7 +461,7 @@ export default class TEdgeManager {
                 this.intersections[j] = node;
             }
 
-            this.swapPositionsInSEL(this.intersections[i].Edge1, this.intersections[i].Edge2);
+            this.swapPositionsInSEL(this.intersections[i].edge1, this.intersections[i].edge2);
         }
 
         return true;
@@ -588,8 +794,8 @@ export default class TEdgeManager {
 
         for (i = 0; i < intersectCount; ++i) {
             node = this.intersections[i];
-            this.intersectEdges(node.Edge1, node.Edge2, node.Pt, true);
-            this.swapPositionsInAEL(node.Edge1, node.Edge2);
+            this.intersectEdges(node.edge1, node.edge2, node.point, true);
+            this.swapPositionsInAEL(node.edge1, node.edge2);
         }
 
         this.intersections = [];
@@ -624,11 +830,11 @@ export default class TEdgeManager {
         return true;
     }
 
-    public insertLocalMinimaIntoAEL(botY: number, localMinimaManager: LocalMinimaManager): void {
+    public insertLocalMinimaIntoAEL(botY: number): void {
         let outPt: OutPt = null;
 
-        while (!Number.isNaN(localMinimaManager.y) && localMinimaManager.y === botY) {
-            let [leftBound, rightBound] = localMinimaManager.pop();
+        while (!Number.isNaN(this.minY) && this.minY === botY) {
+            let [leftBound, rightBound] = this.popMinima();
             outPt = null;
 
             if (leftBound === null) {
@@ -692,6 +898,19 @@ export default class TEdgeManager {
                     }
             }
         }
+    }
+
+    public createLocalMinima(edge: TEdge): LocalMinima {
+        const isClockwise = edge.Dx >= edge.Prev.Dx;
+        const y = edge.Bot.y;
+        const leftBound = isClockwise ? edge : edge.Prev;
+        const rightBound = isClockwise ? edge.Prev : edge;
+        leftBound.Side = DIRECTION.LEFT;
+        rightBound.Side = DIRECTION.RIGHT;
+        leftBound.WindDelta = leftBound.Next === rightBound ? -1 : 1;
+        rightBound.WindDelta = -leftBound.WindDelta;
+
+        return new LocalMinima(y, leftBound, rightBound);
     }
 
 }
