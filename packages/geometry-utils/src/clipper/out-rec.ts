@@ -20,45 +20,7 @@ export default class OutRec {
     }
 
     public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): void {
-        //FixupOutPolygon() - removes duplicate points and simplifies consecutive
-        //parallel edges by removing the middle vertex.
-        let lastOutPt: NullPtr<OutPt> = null;
-        let outPt: NullPtr<OutPt> = this.points;
-
-        while (true) {
-            if (outPt !== null && (outPt.prev === outPt || outPt.prev === outPt.next)) {
-                outPt.dispose();
-                this.points = null;
-
-                return;
-            }
-            //test for duplicate points and collinear edges ...
-            if (
-                outPt.point.almostEqual(outPt.next.point) ||
-                outPt.point.almostEqual(outPt.prev.point) ||
-                (PointI32.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point, useFullRange) &&
-                    (!preserveCollinear || !outPt.point.getBetween(outPt.prev.point, outPt.next.point)))
-            ) {
-                lastOutPt = null;
-                outPt.prev.next = outPt.next;
-                outPt.next.prev = outPt.prev;
-                outPt = outPt.prev;
-
-                continue;
-            }
-
-            if (outPt == lastOutPt) {
-                break;
-            }
-
-            if (lastOutPt === null) {
-                lastOutPt = outPt;
-            }
-
-            outPt = outPt.next;
-        }
-
-        this.points = outPt;
+        this.points = this.points.fixupOutPolygon(preserveCollinear, useFullRange);
     }
 
     public reversePts(): void {
@@ -74,52 +36,21 @@ export default class OutRec {
     }
 
     public export(): PointI32[] | null {
-        const pointCount = this.pointCount;
-
-        if (pointCount < 2) {
-            return null;
-        }
-
-        const result: PointI32[] = new Array(pointCount);
-        let outPt: OutPt = this.points.prev as OutPt;
-        let i: number = 0;
-
-        for (i = 0; i < pointCount; ++i) {
-            result[i] = outPt.point;
-            outPt = outPt.prev as OutPt;
-        }
-
-        return result;
+        return this.isPointsEmpty ? null : this.points.export();
     }
 
     public updateOutPtIdxs(): void {
-        let outPt: OutPt = this.points;
-
-        do {
-            outPt.index = this.currentIndex;
-            outPt = outPt.prev;
-        } while (outPt !== this.points);
+        if(this.points !== null) {
+            this.points.updateIndex(this.currentIndex);
+        }
     }
 
     public containsPoly(outRec: OutRec): boolean {
-        let outPt: OutPt = outRec.points;
-        let res: number = 0;
-
-        do {
-            res = this.points.pointIn(outPt.point);
-
-            if (res >= 0) {
-                return res !== 0;
-            }
-
-            outPt = outPt.next;
-        } while (outPt !== outRec.points);
-
-        return true;
+        return this.points.containsPoly(outRec.points);
     }
 
     public get pointCount(): number {
-        return !this.isPointsEmpty && this.points.prev !== null ? this.points.prev.pointCount : 0;
+        return !this.isPointsEmpty && this.points.size;
     }
 
     public get isPointsEmpty(): boolean {
@@ -131,18 +62,6 @@ export default class OutRec {
     }
 
     public get area(): number {
-        if (this.isPointsEmpty) {
-            return 0;
-        }
-
-        let outPt: OutPt = this.points;
-        let result: number = 0;
-
-        do {
-            result = result + (outPt.prev.point.x + outPt.point.x) * (outPt.prev.point.y - outPt.point.y);
-            outPt = outPt.next;
-        } while (outPt != this.points);
-
-        return result * 0.5;
+        return this.isPointsEmpty ? 0 : this.points.area;
     }
 }

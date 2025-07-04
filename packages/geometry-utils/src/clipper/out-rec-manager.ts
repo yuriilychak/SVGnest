@@ -7,7 +7,7 @@ import { DIRECTION, NullPtr } from "./types";
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
 
-    public createRec(isOpen: boolean = false, pointer: NullPtr<OutPt> = null) {
+    public createRec(pointer: OutPt, isOpen: boolean = false) {
         const result: OutRec = new OutRec(this.polyOuts.length, isOpen, pointer);
 
         this.polyOuts.push(result);
@@ -46,7 +46,7 @@ export default class OutRecManager {
 
         if (!edge.isAssigned) {
             newOp = new OutPt(0, point);
-            outRec = this.createRec(edge.isWindDeletaEmpty, newOp);
+            outRec = this.createRec(newOp, edge.isWindDeletaEmpty);
             newOp.index = outRec.currentIndex;
             newOp.next = newOp;
             newOp.prev = newOp;
@@ -72,9 +72,7 @@ export default class OutRecManager {
             return op.prev;
         }
 
-        newOp = new OutPt(outRec.currentIndex, point, op, op.prev);
-        newOp.prev.next = newOp;
-        op.prev = newOp;
+        newOp = op.insertBefore(outRec.currentIndex, point);
 
         if (isToFront) {
             outRec.points = newOp;
@@ -271,8 +269,7 @@ export default class OutRecManager {
                     op2.prev = op3;
                     op3.next = op2;
                     inputOutRec.points = outPt;
-                    outRec = this.createRec();
-                    outRec.points = op2;
+                    outRec = this.createRec(op2);
                     outRec.updateOutPtIdxs();
 
                     if (inputOutRec.containsPoly(outRec)) {
@@ -328,8 +325,7 @@ export default class OutRecManager {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
             outRec1.points = outPt1;
-            outRec2 = this.createRec();
-            outRec2.points = outPt2;
+            outRec2 = this.createRec(outPt2);
             //update all OutRec2.Pts Idx's ...
             outRec2.updateOutPtIdxs();
 

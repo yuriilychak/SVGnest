@@ -18,12 +18,111 @@ export default class OutPt {
         this.prev = prev;
     }
 
+    public containsPoly(inputOutPt: OutPt): boolean {
+        let outPt: OutPt = inputOutPt;
+        let res: number = 0;
+
+        do {
+            res = this.pointIn(outPt.point);
+
+            if (res >= 0) {
+                return res !== 0;
+            }
+
+            outPt = outPt.next;
+        } while (outPt !== inputOutPt);
+
+        return true;
+    }
+
+    public export(): NullPtr<PointI32[]> {
+        const pointCount = this.size;
+
+        if (pointCount < 2) {
+            return null;
+        }
+
+        const result: PointI32[] = new Array(pointCount);
+        let outPt: OutPt = this.prev as OutPt;
+        let i: number = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            result[i] = outPt.point.clone();
+            outPt = outPt.prev as OutPt;
+        }
+
+        return result;
+    }
+
+    public get size(): number {
+        return this.prev !== null ? this.prev.pointCount : 0;
+    }
+
+    public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): NullPtr<OutPt> {
+        //FixupOutPolygon() - removes duplicate points and simplifies consecutive
+        //parallel edges by removing the middle vertex.
+        let lastOutPt: NullPtr<OutPt> = null;
+        let outPt: NullPtr<OutPt> = this;
+
+        while (true) {
+            if (outPt.prev === outPt || outPt.prev === outPt.next) {
+                outPt.dispose();
+
+                return null;
+            }
+            //test for duplicate points and collinear edges ...
+            if (
+                outPt.point.almostEqual(outPt.next.point) ||
+                outPt.point.almostEqual(outPt.prev.point) ||
+                (PointI32.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point, useFullRange) &&
+                    (!preserveCollinear || !outPt.point.getBetween(outPt.prev.point, outPt.next.point)))
+            ) {
+                lastOutPt = null;
+                outPt = outPt.remove();
+
+                continue;
+            }
+
+            if (outPt == lastOutPt) {
+                break;
+            }
+
+            if (lastOutPt === null) {
+                lastOutPt = outPt;
+            }
+
+            outPt = outPt.next;
+        }
+
+        return outPt;
+    }
+
+    public updateIndex(index: number): void {
+        let initialPt = this;
+        let outPt: OutPt = this;
+
+        do {
+            outPt.index = index;
+            outPt = outPt.prev;
+        } while (outPt !== initialPt);
+    }
+
     public exclude(): OutPt {
         const result: OutPt = this.prev;
         result.next = this.next;
         this.next.prev = result;
         result.index = 0;
 
+        return result;
+    }
+
+    public remove(): OutPt {
+        const result = this.prev;
+        this.prev.next = this.next;
+        this.next.prev = this.prev;
+        this.prev = null;
+        this.next = null;
+        
         return result;
     }
 
@@ -53,6 +152,14 @@ export default class OutPt {
         }
 
         return result;
+    }
+
+    public insertBefore(index: number, point: PointI32): OutPt {
+        const outPt = new OutPt(index, point, this, this.prev);
+        this.prev.next = outPt;
+        this.prev = outPt;
+
+        return outPt;
     }
 
     public get pointCount(): number {
@@ -245,6 +352,18 @@ export default class OutPt {
             return next.point.x >= pt.x && next.point.x <= this.point.x && next.point.y === pt.y;
         }
     } 
+
+    public get area() {
+        let outPt: OutPt = this;
+        let result: number = 0;
+
+        do {
+            result = result + (outPt.prev.point.x + outPt.point.x) * (outPt.prev.point.y - outPt.point.y);
+            outPt = outPt.next;
+        } while (outPt != this);
+
+        return result * 0.5;
+    }
 
     public joinHorz(outPt: OutPt, point: PointI32, isDiscardLeft: boolean): { op: OutPt, opB: OutPt, isRightOrder: boolean } {
         let op: OutPt = this;

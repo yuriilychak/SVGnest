@@ -6,7 +6,7 @@ export default class Join {
     public OutPt2: OutPt;
     public OffPt: PointI32;
 
-    constructor(outPt1: NullPtr<OutPt> = null, outPt2: NullPtr<OutPt> = null, offPoint: NullPtr<PointI32> = null) {
+    constructor(outPt1: NullPtr<OutPt>, outPt2: NullPtr<OutPt>, offPoint: NullPtr<PointI32>) {
         this.OutPt1 = outPt1;
         this.OutPt2 = outPt2;
         this.OffPt = PointI32.from(offPoint);
