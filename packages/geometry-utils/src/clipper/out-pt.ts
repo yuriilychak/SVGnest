@@ -5,13 +5,13 @@ import { DIRECTION, NullPtr } from './types';
 export default class OutPt {
     public index: number;
 
-    public point: PointI32;
+    public readonly point: PointI32;
 
     public next: NullPtr<OutPt>;
 
     public prev: NullPtr<OutPt>;
 
-    constructor(index: number = 0, point: NullPtr<PointI32> = null, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
+    constructor(index: number = 0, point: PointI32, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
         this.index = index;
         this.point = PointI32.from(point);
         this.next = next;
@@ -33,6 +33,21 @@ export default class OutPt {
         } while (outPt !== inputOutPt);
 
         return true;
+    }
+
+    public canSplit(outPt: OutPt): boolean {
+        return this.point.almostEqual(outPt.point) && outPt.next != this && outPt.prev != this;
+    }
+
+    public split(op2: OutPt): OutPt {
+        let op3 = this.prev;
+        let op4 = op2.prev;
+        this.prev = op4;
+        op4.next = this;
+        op2.prev = op3;
+        op3.next = op2;
+
+        return op2;
     }
 
     public export(): NullPtr<PointI32[]> {
@@ -197,6 +212,63 @@ export default class OutPt {
         return result;
     }
 
+    public searchPrevBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
+        let result: OutPt = this;
+
+        while (result.prev.point.y === result.point.y && result.prev !== outPt1 && result.prev !== outPt2) {
+            result = result.prev;
+        }
+
+        return result;
+    }
+
+    public searchNextBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
+        let result: OutPt = this;
+
+        while (result.next.point.y === result.point.y && result.next !== outPt1 && result.next !== outPt2) {
+            result = result.next;
+        }
+
+        return result;
+    }
+
+    public flatHorizontal(outPt1: OutPt, outPt2: OutPt): OutPt[] {
+        const outPt = this.searchPrevBottom(this, outPt2);
+        const outPtB = this.searchNextBottom(outPt, outPt1);
+
+        return outPtB.next === outPt || outPtB.next === outPt1 ? [] : [outPt, outPtB];
+    }
+
+    public strictlySimpleJoin(point: PointI32): OutPt {
+        let result = this.next;
+
+        while (result !== this && result.point.almostEqual(point)) {
+            result = result.next;
+        }
+
+        return result;
+    }
+
+    public applyJoin(op2: OutPt, reverse: boolean): OutPt {
+        const op1b = this.duplicate(!reverse);
+        const op2b = op2.duplicate(reverse);
+
+        if (reverse) {
+            this.prev = op2;
+            op2.next = this;
+            op1b.next = op2b;
+            op2b.prev = op1b;
+        } else {
+            this.next = op2;
+            op2.prev = this;
+            op1b.prev = op2b;
+            op2b.next = op1b;
+            
+        }
+
+        return op1b;
+    }
+
     public pointIn(pt: PointI32): number {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
@@ -259,6 +331,55 @@ export default class OutPt {
         }
 
         return result;
+    }
+    
+    public joinLeft(outPt: OutPt, direction: DIRECTION): OutPt {
+        const p1_lft: OutPt = this;
+        const p1_rt: OutPt = p1_lft.prev;
+        const p2_lft: OutPt = outPt;
+        const p2_rt: OutPt = p2_lft.prev;
+
+        if (direction === DIRECTION.LEFT) {
+            //z y x a b c
+            p2_lft.reverse();
+            p2_lft.next = p1_lft;
+            p1_lft.prev = p2_lft;
+            p1_rt.next = p2_rt;
+            p2_rt.prev = p1_rt;
+
+            return p2_rt;
+        }
+        //x y z a b c
+        p2_rt.next = p1_lft;
+        p1_lft.prev = p2_rt;
+        p2_lft.prev = p1_rt;
+        p1_rt.next = p2_lft;
+
+        return p2_lft;
+    }
+
+    public joinRight(outPt: OutPt, direction: DIRECTION): OutPt {
+        const p1_lft: OutPt = this;
+        const p1_rt: OutPt = p1_lft.prev;
+        const p2_lft: OutPt = outPt;
+        const p2_rt: OutPt = p2_lft.prev;
+
+        if (direction === DIRECTION.RIGHT) {
+            //a b c z y x
+            p2_lft.reverse();
+            p1_rt.next = p2_rt;
+            p2_rt.prev = p1_rt;
+            p2_lft.next = p1_lft;
+            p1_lft.prev = p2_lft;
+        } else {
+            //a b c x y z
+            p1_rt.next = p2_lft;
+            p2_lft.prev = p1_rt;
+            p1_lft.prev = p2_rt;
+            p2_rt.next = p1_lft;
+        }
+
+        return this;
     }
 
     private getNeighboar(isNext: boolean): NullPtr<OutPt> {
@@ -340,7 +461,7 @@ export default class OutPt {
     }
 
     public getDiscarded(isRight: boolean, pt: PointI32): boolean {
-        const next =  this.next;
+        const next = this.next;
 
         if (next == null) {
             return false;
@@ -426,5 +547,13 @@ export default class OutPt {
         }
 
         return true;
+    }
+
+    public static fromPoint(point: PointI32): OutPt {
+        const result = new OutPt(0, point);
+        result.next = result;
+        result.prev = result;
+
+        return result;
     }
 }

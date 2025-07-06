@@ -1,3 +1,5 @@
+import { Point } from "../types";
+
 export enum POLY_FILL_TYPE {
     NON_ZERO = 1,
     POSITIVE = 2,

@@ -7,8 +7,8 @@ import { DIRECTION, NullPtr } from "./types";
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
 
-    public createRec(pointer: OutPt, isOpen: boolean = false) {
-        const result: OutRec = new OutRec(this.polyOuts.length, isOpen, pointer);
+    public createRec(pointer: OutPt) {
+        const result: OutRec = new OutRec(this.polyOuts.length, pointer);
 
         this.polyOuts.push(result);
 
@@ -45,15 +45,11 @@ export default class OutRecManager {
         let newOp: OutPt = null;
 
         if (!edge.isAssigned) {
-            newOp = new OutPt(0, point);
-            outRec = this.createRec(newOp, edge.isWindDeletaEmpty);
-            newOp.index = outRec.currentIndex;
-            newOp.next = newOp;
-            newOp.prev = newOp;
+            newOp = OutPt.fromPoint(point);
 
-            if (!outRec.isOpen) {
-                this.setHoleState(outRec, edge);
-            }
+            outRec = this.createRec(newOp);
+ 
+            this.setHoleState(outRec, edge);
 
             edge.index = outRec.currentIndex;
             //nb: do this after SetZ !
@@ -101,47 +97,12 @@ export default class OutRecManager {
         const outRec1: OutRec = this.polyOuts[firstEdge.index];
         const outRec2: OutRec = this.polyOuts[secondEdge.index];
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
-        const p1_lft: OutPt = outRec1.points;
-        const p1_rt: OutPt = p1_lft.prev;
-        const p2_lft: OutPt = outRec2.points;
-        const p2_rt: OutPt = p2_lft.prev;
-        let side: DIRECTION;
         //join e2 poly onto e1 poly and delete pointers to e2 ...
-        if (firstEdge.Side === DIRECTION.LEFT) {
-            if (secondEdge.Side === DIRECTION.LEFT) {
-                //z y x a b c
-                p2_lft.reverse();
-                p2_lft.next = p1_lft;
-                p1_lft.prev = p2_lft;
-                p1_rt.next = p2_rt;
-                p2_rt.prev = p1_rt;
-                outRec1.points = p2_rt;
-            } else {
-                //x y z a b c
-                p2_rt.next = p1_lft;
-                p1_lft.prev = p2_rt;
-                p2_lft.prev = p1_rt;
-                p1_rt.next = p2_lft;
-                outRec1.points = p2_lft;
-            }
-            side = DIRECTION.LEFT;
-        } else {
-            if (secondEdge.Side === DIRECTION.RIGHT) {
-                //a b c z y x
-                p2_lft.reverse();
-                p1_rt.next = p2_rt;
-                p2_rt.prev = p1_rt;
-                p2_lft.next = p1_lft;
-                p1_lft.prev = p2_lft;
-            } else {
-                //a b c x y z
-                p1_rt.next = p2_lft;
-                p2_lft.prev = p1_rt;
-                p1_lft.prev = p2_rt;
-                p2_rt.next = p1_lft;
-            }
-            side = DIRECTION.RIGHT;
-        }
+        outRec1.points = firstEdge.Side === DIRECTION.LEFT 
+            ? outRec1.points.joinLeft(outRec2.points, secondEdge.Side) 
+            : outRec1.points.joinRight(outRec2.points, secondEdge.Side);
+
+        const side = firstEdge.Side;
 
         if (holeStateRec === outRec2) {
             if (outRec2.firstLeftIndex !== outRec1.index) {
@@ -236,57 +197,33 @@ export default class OutRecManager {
 
     public doSimplePolygons(): void {
         let i: number = 0;
-        let outPt: OutPt = null;
         let outRec: OutRec = null;
 
-        while (i < this.polyOuts.length) {
-            outRec = this.polyOuts[i++];
-            outPt = outRec.points;
+        for (i = 0; i < this.polyOuts.length; ++i) {
+            outRec = this.polyOuts[i];
 
-            if (outPt !== null) {
-                this.simplify(outRec, outPt);
+            if (outRec.points !== null) {
+                this.simplify(outRec);
             }
         }
     }
 
-    public simplify(inputOutRec: OutRec, outPt: OutPt): void {
-        let outRec: OutRec = null;
-        let op2: OutPt = null;
-        let op3: OutPt = null;
-        let op4: OutPt = null;
+    public simplify(inputOutRec: OutRec): void {
+        const inputOutPt = inputOutRec.points;
+        let outPt = inputOutPt;
 
         do //for each Pt in Polygon until duplicate found do ...
         {
-            op2 = outPt.next;
+            let op2 = outPt.next;
 
             while (op2 !== inputOutRec.points) {
-                if (outPt.point.almostEqual(op2.point) && op2.next != outPt && op2.prev != outPt) {
+                if (outPt.canSplit(op2)) {
                     //split the polygon into two ...
-                    op3 = outPt.prev;
-                    op4 = op2.prev;
-                    outPt.prev = op4;
-                    op4.next = outPt;
-                    op2.prev = op3;
-                    op3.next = op2;
+                    outPt.split(op2);
                     inputOutRec.points = outPt;
-                    outRec = this.createRec(op2);
-                    outRec.updateOutPtIdxs();
+                    let outRec = this.createRec(op2);
 
-                    if (inputOutRec.containsPoly(outRec)) {
-                        //OutRec2 is contained by OutRec1 ...
-                        outRec.isHole = !inputOutRec.isHole;
-                        outRec.firstLeftIndex = inputOutRec.index;
-                    } else if (outRec.containsPoly(inputOutRec)) {
-                        //OutRec1 is contained by OutRec2 ...
-                        outRec.isHole = inputOutRec.isHole;
-                        inputOutRec.isHole = !outRec.isHole;
-                        outRec.firstLeftIndex = inputOutRec.firstLeftIndex;
-                        inputOutRec.firstLeftIndex = outRec.index;
-                    } else {
-                        //the 2 polygons are separate ...
-                        outRec.isHole = inputOutRec.isHole;
-                        outRec.firstLeftIndex = inputOutRec.firstLeftIndex;
-                    }
+                    inputOutRec.updateSplit(outRec);
                     op2 = outPt;
                     //ie get ready for the next iteration
                 }
@@ -321,13 +258,11 @@ export default class OutRecManager {
         const outRec1: NullPtr<OutRec> = this.getOutRec(index1);
         let outRec2: NullPtr<OutRec> = this.getOutRec(index2);
 
-        if (outRec1 === outRec2) {
+        if (index1 === index2) {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
             outRec1.points = outPt1;
             outRec2 = this.createRec(outPt2);
-            //update all OutRec2.Pts Idx's ...
-            outRec2.updateOutPtIdxs();
 
             outRec2.isHole = !outRec2.isHole;
             outRec2.firstLeftIndex = outRec2.index;

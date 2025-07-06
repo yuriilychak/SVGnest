@@ -22,4 +22,14 @@ export default class PointI32 extends PointBase<Int32Array> {
     public static from(point: Point = null): PointI32 {
         return point !== null ? PointI32.create(point.x, point.y) : PointI32.create();
     }
+
+    public static getOverlap(a1: number, a2: number, b1: number, b2: number): PointI32 {
+        if (a1 < a2) {
+            return b1 < b2
+                ? PointI32.create(Math.max(a1, b1), Math.min(a2, b2))
+                : PointI32.create(Math.max(a1, b2), Math.min(a2, b1));
+        }
+
+        return b1 < b2 ? PointI32.create(Math.max(a2, b1), Math.min(a1, b2)) : PointI32.create(Math.max(a2, b2), Math.min(a1, b1));
+    } 
 }

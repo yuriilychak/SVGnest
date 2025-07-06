@@ -1,3 +1,4 @@
+import { join } from "path";
 import { PointI32 } from "../geometry";
 import Join from "./join";
 import OutPt from "./out-pt";
@@ -236,7 +237,7 @@ export default class JoinManager {
         const outRec2 = this.outRecManager.getOutRec(index2);
         const isSame = outRec1.index === outRec2.index;
 
-        if (outRec1.isPointsEmpty || outRec2.isPointsEmpty || !join.joinPoints(isSame, this.isUseFullRange)) {
+        if (outRec1.isEmpty || outRec2.isEmpty || !join.joinPoints(isSame, this.isUseFullRange)) {
             return;
         }
 
