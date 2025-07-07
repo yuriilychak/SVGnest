@@ -1,4 +1,4 @@
-import { PointI32 } from "../geometry";
+import { Point } from "../types";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
 import TEdge from "./t-edge";
@@ -28,18 +28,10 @@ export default class OutRecManager {
     public getJoinData(horzEdge: TEdge) {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        let outPt: NullPtr<OutPt> = this.polyOuts[horzEdge.index].points;
-
-        if (horzEdge.Side === DIRECTION.RIGHT) {
-            outPt = outPt.prev;
-        }
-
-        const offPoint: PointI32 = outPt.point.almostEqual(horzEdge.Top) ? horzEdge.Bot : horzEdge.Top;
-
-        return { outPt, offPoint };
+        return this.polyOuts[horzEdge.index].getJoinData(horzEdge.Side, horzEdge.Top, horzEdge.Bot);
     }
 
-    public addOutPt(edge: TEdge, point: PointI32): OutPt {
+    public addOutPt(edge: TEdge, point: Point<Int32Array>): OutPt {
         const isToFront: boolean = edge.Side === DIRECTION.LEFT;
         let outRec: OutRec = null;
         let newOp: OutPt = null;
@@ -56,28 +48,10 @@ export default class OutRecManager {
             return newOp;
         }
 
-        outRec = this.polyOuts[edge.index];
-        //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-        const op: OutPt = outRec.points;
-
-        if (isToFront && point.almostEqual(op.point)) {
-            return op;
-        }
-
-        if (!isToFront && point.almostEqual(op.prev.point)) {
-            return op.prev;
-        }
-
-        newOp = op.insertBefore(outRec.currentIndex, point);
-
-        if (isToFront) {
-            outRec.points = newOp;
-        }
-
-        return newOp;
+        return this.polyOuts[edge.index].addOutPt(isToFront, point);
     }
 
-    public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: PointI32, activeEdge: TEdge): void {
+    public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdge: TEdge): void {
         this.addOutPt(edge1, point);
 
         if (edge2.isWindDeletaEmpty) {
@@ -98,9 +72,7 @@ export default class OutRecManager {
         const outRec2: OutRec = this.polyOuts[secondEdge.index];
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
-        outRec1.points = firstEdge.Side === DIRECTION.LEFT 
-            ? outRec1.points.joinLeft(outRec2.points, secondEdge.Side) 
-            : outRec1.points.joinRight(outRec2.points, secondEdge.Side);
+        outRec1.join(outRec2, firstEdge.Side, secondEdge.Side);
 
         const side = firstEdge.Side;
 
@@ -112,7 +84,7 @@ export default class OutRecManager {
             outRec1.isHole = outRec2.isHole;
         }
 
-        outRec2.points = null;
+        outRec2.clean();
         outRec2.firstLeftIndex = outRec1.index;
         const OKIdx: number = firstEdge.index;
         const ObsoleteIdx: number = secondEdge.index;
@@ -166,10 +138,10 @@ export default class OutRecManager {
         }
     }
 
-    public buildResult(polygons: PointI32[][]): void {
+    public buildResult(polygons: Point<Int32Array>[][]): void {
         const polygonCount = this.polyOuts.length;
         let outRec: OutRec = null;
-        let polygon: NullPtr<PointI32[]> = null;
+        let polygon: NullPtr<Point<Int32Array>[]> = null;
         let i: number = 0;
 
         for (i = 0; i < polygonCount; ++i) {
@@ -196,41 +168,9 @@ export default class OutRecManager {
     }
 
     public doSimplePolygons(): void {
-        let i: number = 0;
-        let outRec: OutRec = null;
-
-        for (i = 0; i < this.polyOuts.length; ++i) {
-            outRec = this.polyOuts[i];
-
-            if (outRec.points !== null) {
-                this.simplify(outRec);
-            }
+        for (let i = 0; i < this.polyOuts.length; ++i) {
+            this.polyOuts.concat(this.polyOuts[i].simplify(this.polyOuts.length));
         }
-    }
-
-    public simplify(inputOutRec: OutRec): void {
-        const inputOutPt = inputOutRec.points;
-        let outPt = inputOutPt;
-
-        do //for each Pt in Polygon until duplicate found do ...
-        {
-            let op2 = outPt.next;
-
-            while (op2 !== inputOutRec.points) {
-                if (outPt.canSplit(op2)) {
-                    //split the polygon into two ...
-                    outPt.split(op2);
-                    inputOutRec.points = outPt;
-                    let outRec = this.createRec(op2);
-
-                    inputOutRec.updateSplit(outRec);
-                    op2 = outPt;
-                    //ie get ready for the next iteration
-                }
-                op2 = op2.next;
-            }
-            outPt = outPt.next;
-        } while (outPt != inputOutRec.points);
     }
 
     private setHoleState(outRec: OutRec, tEdge: TEdge): void {
@@ -263,20 +203,14 @@ export default class OutRecManager {
             //splitting one polygon into two.
             outRec1.points = outPt1;
             outRec2 = this.createRec(outPt2);
-
-            outRec2.isHole = !outRec2.isHole;
-            outRec2.firstLeftIndex = outRec2.index;
-
-            if ((outRec2.isHole !== isReverseSolution) === outRec2.area > 0) {
-                outRec2.points.reverse();
-            }
+            outRec2.postInit(isReverseSolution);
 
             return;
         }
 
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
         //joined 2 polygons together ...
-        outRec2.points = null;
+        outRec2.clean();
         outRec2.currentIndex = outRec1.currentIndex;
         outRec1.isHole = holeStateRec.isHole;
 
@@ -306,30 +240,6 @@ export default class OutRecManager {
         return index !== -1 ? this.polyOuts[index].firstLeftIndex : -1;
     }
 
-    private static getLowermostRec(outRec1: OutRec, outRec2: OutRec): OutRec {
-        const bPt1: NullPtr<OutPt> = outRec1.points.getBottomPt();
-        const bPt2: NullPtr<OutPt> = outRec2.points.getBottomPt();
-
-        switch (true) {
-            case bPt1.point.y > bPt2.point.y:
-                return outRec1;
-            case bPt1.point.y < bPt2.point.y:
-                return outRec2;
-            case bPt1.point.x < bPt2.point.x:
-                return outRec1;
-            case bPt1.point.x > bPt2.point.x:
-                return outRec2;
-            case bPt1.next === bPt1:
-                return outRec2;
-            case bPt2.next === bPt2:
-                return outRec1;
-            case OutPt.firstIsBottomPt(bPt1, bPt2):
-                return outRec1;
-            default:
-                return outRec2;
-        }
-    }
-
     private getHoleStateRec(outRec1: OutRec, outRec2: OutRec): OutRec {
         switch (true) {
             case this.param1RightOfParam2(outRec1, outRec2):
@@ -337,7 +247,7 @@ export default class OutRecManager {
             case this.param1RightOfParam2(outRec2, outRec1):
                 return outRec1;
             default:
-                return OutRecManager.getLowermostRec(outRec1, outRec2);
+                return OutRec.getLowermostRec(outRec1, outRec2);
         }
     }
 }

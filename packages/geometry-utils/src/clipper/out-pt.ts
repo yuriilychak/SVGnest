@@ -1,3 +1,4 @@
+import { Point } from 'src/types';
 import { PointI32 } from '../geometry/point';
 import { HORIZONTAL } from './constants';
 import { DIRECTION, NullPtr } from './types';
@@ -5,19 +6,19 @@ import { DIRECTION, NullPtr } from './types';
 export default class OutPt {
     public index: number;
 
-    public readonly point: PointI32;
+    public readonly point: Point<Int32Array>;
 
     public next: NullPtr<OutPt>;
 
     public prev: NullPtr<OutPt>;
 
-    constructor(index: number = 0, point: PointI32, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
+    constructor(index: number = 0, point: Point<Int32Array>, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
         this.index = index;
         this.point = PointI32.from(point);
         this.next = next;
         this.prev = prev;
     }
-
+    
     public containsPoly(inputOutPt: OutPt): boolean {
         let outPt: OutPt = inputOutPt;
         let res: number = 0;
@@ -50,14 +51,14 @@ export default class OutPt {
         return op2;
     }
 
-    public export(): NullPtr<PointI32[]> {
+    public export(): NullPtr<Point<Int32Array>[]> {
         const pointCount = this.size;
 
         if (pointCount < 2) {
             return null;
         }
 
-        const result: PointI32[] = new Array(pointCount);
+        const result: Point<Int32Array>[] = new Array(pointCount);
         let outPt: OutPt = this.prev as OutPt;
         let i: number = 0;
 
@@ -169,7 +170,7 @@ export default class OutPt {
         return result;
     }
 
-    public insertBefore(index: number, point: PointI32): OutPt {
+    public insertBefore(index: number, point: Point<Int32Array>): OutPt {
         const outPt = new OutPt(index, point, this, this.prev);
         this.prev.next = outPt;
         this.prev = outPt;
@@ -239,7 +240,7 @@ export default class OutPt {
         return outPtB.next === outPt || outPtB.next === outPt1 ? [] : [outPt, outPtB];
     }
 
-    public strictlySimpleJoin(point: PointI32): OutPt {
+    public strictlySimpleJoin(point: Point<Int32Array>): OutPt {
         let result = this.next;
 
         while (result !== this && result.point.almostEqual(point)) {
@@ -269,7 +270,7 @@ export default class OutPt {
         return op1b;
     }
 
-    public pointIn(pt: PointI32): number {
+    public pointIn(pt: Point<Int32Array>): number {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
         let outPt: OutPt = this;
@@ -460,7 +461,7 @@ export default class OutPt {
         return dx1p >= maxDx || dx1n >= maxDx;
     }
 
-    public getDiscarded(isRight: boolean, pt: PointI32): boolean {
+    public getDiscarded(isRight: boolean, pt: Point<Int32Array>): boolean {
         const next = this.next;
 
         if (next == null) {
@@ -486,7 +487,7 @@ export default class OutPt {
         return result * 0.5;
     }
 
-    public joinHorz(outPt: OutPt, point: PointI32, isDiscardLeft: boolean): { op: OutPt, opB: OutPt, isRightOrder: boolean } {
+    public joinHorz(outPt: OutPt, point: Point<Int32Array>, isDiscardLeft: boolean): { op: OutPt, opB: OutPt, isRightOrder: boolean } {
         let op: OutPt = this;
         let opB: OutPt = outPt;
 
@@ -514,7 +515,7 @@ export default class OutPt {
         return { op, opB, isRightOrder };
     }
 
-    public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: PointI32, isDiscardLeft: boolean) {
+    public static joinHorz(op1: OutPt, op1b: OutPt, op2: OutPt, op2b: OutPt, Pt: Point<Int32Array>, isDiscardLeft: boolean) {
         const direction1: DIRECTION = op1.getDirection(op1b);
         const direction2: DIRECTION = op2.getDirection(op2b);
 
@@ -549,7 +550,7 @@ export default class OutPt {
         return true;
     }
 
-    public static fromPoint(point: PointI32): OutPt {
+    public static fromPoint(point: Point<Int32Array>): OutPt {
         const result = new OutPt(0, point);
         result.next = result;
         result.prev = result;

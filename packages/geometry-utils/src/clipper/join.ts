@@ -1,13 +1,13 @@
-import { pbkdf2 } from 'crypto';
 import { PointI32 } from '../geometry';
 import OutPt from './out-pt';
 import { NullPtr } from './types';
+import { Point } from 'src/types';
 export default class Join {
     public OutPt1: OutPt;
     public OutPt2: OutPt;
-    public OffPt: PointI32;
+    public OffPt: Point<Int32Array>;
 
-    constructor(outPt1: NullPtr<OutPt>, outPt2: NullPtr<OutPt>, offPoint: NullPtr<PointI32>) {
+    constructor(outPt1: NullPtr<OutPt>, outPt2: NullPtr<OutPt>, offPoint: NullPtr<Point<Int32Array>>) {
         this.OutPt1 = outPt1;
         this.OutPt2 = outPt2;
         this.OffPt = PointI32.from(offPoint);
@@ -60,7 +60,7 @@ export default class Join {
             //a flat 'polygon'
             //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
-            const value: PointI32 = PointI32.getOverlap(op1.point.x, op1b.point.x, op2.point.x, op2b.point.x);
+            const value = PointI32.getOverlap(op1.point.x, op1b.point.x, op2.point.x, op2b.point.x);
             const isOverlapped = value.x < value.y;
 
             if (!isOverlapped) {
@@ -70,7 +70,7 @@ export default class Join {
             //DiscardLeftSide: when overlapping edges are joined, a spike will created
             //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
             //on the discard Side as either may still be needed for other joins ...
-            const point: PointI32 = PointI32.create();
+            const point = PointI32.create();
             let DiscardLeftSide: boolean = false;
             if (op1.point.x >= value.x && op1.point.x <= value.y) {
                 //Pt = op1.Pt;
