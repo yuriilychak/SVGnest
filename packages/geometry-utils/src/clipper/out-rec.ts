@@ -89,9 +89,7 @@ export default class OutRec {
     }
 
     public join(outRec2: OutRec, side1: DIRECTION, side2: DIRECTION): void {
-        this.points = side1 === DIRECTION.LEFT 
-            ? this.points.joinLeft(outRec2.points, side2) 
-            : this.points.joinRight(outRec2.points, side2);
+        this.points = this.points.join(outRec2.points, side1, side2); 
     }
 
     public clean(): void {

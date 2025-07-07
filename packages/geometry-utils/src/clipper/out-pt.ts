@@ -12,11 +12,11 @@ export default class OutPt {
 
     public prev: NullPtr<OutPt>;
 
-    constructor(index: number = 0, point: Point<Int32Array>, next: NullPtr<OutPt> = null, prev: NullPtr<OutPt> = null) {
+    constructor(index: number = 0, point: Point<Int32Array>) {
         this.index = index;
         this.point = PointI32.from(point);
-        this.next = next;
-        this.prev = prev;
+        this.next = null;
+        this.prev = null;
     }
     
     public containsPoly(inputOutPt: OutPt): boolean {
@@ -41,12 +41,10 @@ export default class OutPt {
     }
 
     public split(op2: OutPt): OutPt {
-        let op3 = this.prev;
-        let op4 = op2.prev;
-        this.prev = op4;
-        op4.next = this;
-        op2.prev = op3;
-        op3.next = op2;
+        const op3 = this.prev;
+        op2.prev.push(this, true);
+        op3.push(op2, true);
+        
 
         return op2;
     }
@@ -123,19 +121,9 @@ export default class OutPt {
         } while (outPt !== initialPt);
     }
 
-    public exclude(): OutPt {
-        const result: OutPt = this.prev;
-        result.next = this.next;
-        this.next.prev = result;
-        result.index = 0;
-
-        return result;
-    }
-
     public remove(): OutPt {
         const result = this.prev;
-        this.prev.next = this.next;
-        this.next.prev = this.prev;
+        this.prev.push(this.next, true);
         this.prev = null;
         this.next = null;
         
@@ -156,24 +144,20 @@ export default class OutPt {
         const result: OutPt = new OutPt(this.index, this.point);
 
         if (isInsertAfter) {
-            result.next = this.next;
-            result.prev = this;
-            this.next.prev = result;
-            this.next = result;
+            result.push(this.next, true);
+            this.push(result, true);
         } else {
-            result.prev = this.prev;
-            result.next = this;
-            this.prev.next = result;
-            this.prev = result;
+            this.prev.push(result, true);
+            result.push(this, true);
         }
 
         return result;
     }
 
     public insertBefore(index: number, point: Point<Int32Array>): OutPt {
-        const outPt = new OutPt(index, point, this, this.prev);
-        this.prev.next = outPt;
-        this.prev = outPt;
+        const outPt = new OutPt(index, point);
+        this.prev.push(outPt, true);
+        outPt.push(this, true);
 
         return outPt;
     }
@@ -213,7 +197,7 @@ export default class OutPt {
         return result;
     }
 
-    public searchPrevBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
+    private searchPrevBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
         let result: OutPt = this;
 
         while (result.prev.point.y === result.point.y && result.prev !== outPt1 && result.prev !== outPt2) {
@@ -223,7 +207,7 @@ export default class OutPt {
         return result;
     }
 
-    public searchNextBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
+    private searchNextBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
         let result: OutPt = this;
 
         while (result.next.point.y === result.point.y && result.next !== outPt1 && result.next !== outPt2) {
@@ -255,22 +239,17 @@ export default class OutPt {
         const op2b = op2.duplicate(reverse);
 
         if (reverse) {
-            this.prev = op2;
-            op2.next = this;
-            op1b.next = op2b;
-            op2b.prev = op1b;
+            op2.push(this, true);
+            op1b.push(op2b, true);
         } else {
-            this.next = op2;
-            op2.prev = this;
-            op1b.prev = op2b;
-            op2b.next = op1b;
-            
+            this.push(op2, true);
+            op2b.push(op1b, true);
         }
 
         return op1b;
     }
 
-    public pointIn(pt: Point<Int32Array>): number {
+    private pointIn(pt: Point<Int32Array>): number {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
         let outPt: OutPt = this;
@@ -333,8 +312,14 @@ export default class OutPt {
 
         return result;
     }
+
+    public join(outPt: OutPt, side1: DIRECTION, side2: DIRECTION): OutPt {
+        return  side1 === DIRECTION.LEFT 
+            ? this.joinLeft(outPt, side2)
+            : this.joinRight(outPt, side2);
+    }
     
-    public joinLeft(outPt: OutPt, direction: DIRECTION): OutPt {
+    private joinLeft(outPt: OutPt, direction: DIRECTION): OutPt {
         const p1_lft: OutPt = this;
         const p1_rt: OutPt = p1_lft.prev;
         const p2_lft: OutPt = outPt;
@@ -343,23 +328,19 @@ export default class OutPt {
         if (direction === DIRECTION.LEFT) {
             //z y x a b c
             p2_lft.reverse();
-            p2_lft.next = p1_lft;
-            p1_lft.prev = p2_lft;
-            p1_rt.next = p2_rt;
-            p2_rt.prev = p1_rt;
+            p2_lft.push(p1_lft, true);
+            p1_rt.push(p2_rt, true);
 
             return p2_rt;
         }
         //x y z a b c
-        p2_rt.next = p1_lft;
-        p1_lft.prev = p2_rt;
-        p2_lft.prev = p1_rt;
-        p1_rt.next = p2_lft;
+        p2_rt.push(p1_lft, true);
+        p1_rt.push(p2_lft, true);
 
         return p2_lft;
     }
 
-    public joinRight(outPt: OutPt, direction: DIRECTION): OutPt {
+    private joinRight(outPt: OutPt, direction: DIRECTION): OutPt {
         const p1_lft: OutPt = this;
         const p1_rt: OutPt = p1_lft.prev;
         const p2_lft: OutPt = outPt;
@@ -368,16 +349,12 @@ export default class OutPt {
         if (direction === DIRECTION.RIGHT) {
             //a b c z y x
             p2_lft.reverse();
-            p1_rt.next = p2_rt;
-            p2_rt.prev = p1_rt;
-            p2_lft.next = p1_lft;
-            p1_lft.prev = p2_lft;
+            p1_rt.push(p2_rt, true);
+            p2_lft.push(p1_lft, true);
         } else {
             //a b c x y z
-            p1_rt.next = p2_lft;
-            p2_lft.prev = p1_rt;
-            p1_lft.prev = p2_rt;
-            p2_rt.next = p1_lft;
+            p1_rt.push(p2_lft, true);
+            p2_rt.push(p1_lft, true); 
         }
 
         return this;
@@ -445,7 +422,7 @@ export default class OutPt {
         return outPt1;
     }
 
-    public getDirection(outPt: OutPt): DIRECTION {
+    private getDirection(outPt: OutPt): DIRECTION {
         return this.point.x > outPt.point.x ? DIRECTION.LEFT : DIRECTION.RIGHT
     }
 
@@ -461,7 +438,7 @@ export default class OutPt {
         return dx1p >= maxDx || dx1n >= maxDx;
     }
 
-    public getDiscarded(isRight: boolean, pt: Point<Int32Array>): boolean {
+    private getDiscarded(isRight: boolean, pt: Point<Int32Array>): boolean {
         const next = this.next;
 
         if (next == null) {
@@ -530,30 +507,26 @@ export default class OutPt {
         const join1 = op1.joinHorz(op1b, Pt, isDiscardLeft);
         const join2 = op2.joinHorz(op2b, Pt, isDiscardLeft);
 
-        const op1_inner = join1.op;
-        const op1b_inner = join1.opB;
-        const op2_inner = join2.op;
-        const op2b_inner = join2.opB;
-
-        if (join1.isRightOrder) {
-            op1_inner.next = op2_inner;
-            op2_inner.prev = op1_inner;
-            op1b_inner.prev = op2b_inner;
-            op2b_inner.next = op1b_inner;
-        } else {
-            op1_inner.prev = op2_inner;
-            op2_inner.next = op1_inner;
-            op1b_inner.next = op2b_inner;
-            op2b_inner.prev = op1b_inner;
-        }
+        join1.op.push(join2.op, join1.isRightOrder);
+        join1.opB.push(join2.opB, !join1.isRightOrder);
 
         return true;
     }
 
+    private push(outPt: OutPt, isReverse: boolean): void {
+        if (isReverse) {
+            this.next = outPt;
+            outPt.prev = this; 
+        } else {
+            this.prev = outPt;
+            outPt.next = this;
+        }
+    }
+
     public static fromPoint(point: Point<Int32Array>): OutPt {
         const result = new OutPt(0, point);
-        result.next = result;
-        result.prev = result;
+
+        result.push(result, true);
 
         return result;
     }
