@@ -1,6 +1,6 @@
 import { PointI32 } from "../geometry";
 import Join from "./join";
-import OutPt from "./out-pt";
+import OutPt, { OutPtRec } from "./out-pt";
 import OutRecManager from "./out-rec-manager";
 import TEdge from "./t-edge";
 import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./types";
@@ -23,10 +23,10 @@ export default class JoinManager {
         this.isUseFullRange = isUseFullRange;
     }
 
-    private insertJoin(condition: boolean, outPt1: OutPt, edge: TEdge, point1: PointI32, point2: PointI32 = point1): boolean {
+    private insertJoin(condition: boolean, outPtRec1: OutPtRec, edge: TEdge, point1: PointI32, point2: PointI32 = point1): boolean {
         if (condition) {
-            const outPt2: NullPtr<OutPt> = this.outRecManager.addOutPt(edge, point1);
-            this.joins.push(new Join(outPt1, outPt2, point2));
+            const outPtRec2 = this.outRecManager.addOutPt(edge, point1);
+            this.joins.push(new Join(outPtRec1, outPtRec2, point2));
         }  
 
         return condition;
@@ -40,26 +40,26 @@ export default class JoinManager {
         TEdge.slopesEqual(edge, neighboar, isUseFullRange)
     }
 
-    static checkSharedCondition(outPt: OutPt, edge: TEdge, neighboar: TEdge, isUseFullRange: boolean): boolean {
-        return outPt !== null && JoinManager.checkHorizontalCondition(edge, neighboar, isUseFullRange) && !edge.isWindDeletaEmpty;
+    static checkSharedCondition(outPt: OutPtRec, edge: TEdge, neighboar: TEdge, isUseFullRange: boolean): boolean {
+        return outPt.index !== -1 && JoinManager.checkHorizontalCondition(edge, neighboar, isUseFullRange) && !edge.isWindDeletaEmpty;
     }
 
-    public addHorizontalJoin(outPt: OutPt, edge: TEdge): void {
+    public addHorizontalJoin(outPtRec: OutPtRec, edge: TEdge): void {
         let prevEdge: NullPtr<TEdge> = edge.PrevInAEL;
         let nextEdge: NullPtr<TEdge> = edge.NextInAEL;
 
         const condition1 = JoinManager.checkHorizontalCondition(edge, prevEdge, this.isUseFullRange);
 
-        this.insertJoin(condition1, outPt, prevEdge, edge.Bot);
+        this.insertJoin(condition1, outPtRec, prevEdge, edge.Bot);
 
         if (!condition1) {
             const condition2 = JoinManager.checkHorizontalCondition(edge, nextEdge, this.isUseFullRange);
 
-            this.insertJoin(condition2, outPt, nextEdge, edge.Bot);
+            this.insertJoin(condition2, outPtRec, nextEdge, edge.Bot);
         }
     }
 
-    public addMinJoin(op: OutPt, edge: TEdge, edgePrev: TEdge, point: PointI32): void {
+    public addMinJoin(op: OutPtRec, edge: TEdge, edgePrev: TEdge, point: PointI32): void {
         const condition = edgePrev !== null &&
         edgePrev.isFilled &&
         edgePrev.topX(point.y) === edge.topX(point.y) &&
@@ -69,7 +69,7 @@ export default class JoinManager {
         this.insertJoin(condition, op, edgePrev, point, edge.Top);
     }
 
-    public addLeftJoin(outPt: OutPt, leftBound: TEdge) {
+    public addLeftJoin(outPt: OutPtRec, leftBound: TEdge) {
         const condition = leftBound.isFilled &&
         leftBound.PrevInAEL !== null &&
         leftBound.PrevInAEL.Curr.x === leftBound.Bot.x &&
@@ -80,7 +80,7 @@ export default class JoinManager {
 
     }
 
-    public addRightJoin(outPt: OutPt, rightBound: TEdge) {
+    public addRightJoin(outPt: OutPtRec, rightBound: TEdge) {
         const condition =  rightBound.isFilled &&
         rightBound.PrevInAEL.isFilled &&
         TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange);
@@ -98,7 +98,7 @@ export default class JoinManager {
         }
     }
 
-    public addSharedJoin(outPt1: OutPt, edge1: TEdge) {
+    public addSharedJoin(outPt1: OutPtRec, edge1: TEdge) {
         const ePrev: TEdge = edge1.PrevInAEL;
         const eNext: TEdge = edge1.NextInAEL;
 
@@ -110,7 +110,7 @@ export default class JoinManager {
         }
     }
 
-    public addOutputJoins(outPt: OutPt, rightBound: TEdge) {
+    public addOutputJoins(outPt: OutPtRec, rightBound: TEdge) {
         if (outPt !== null && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
             const joinCount: number = this.ghostJoins.length;
             let i: number = 0;
@@ -122,7 +122,7 @@ export default class JoinManager {
                 join = this.ghostJoins[i];
 
                 if (PointI32.horzSegmentsOverlap(join.OutPt1.point, join.OffPt, rightBound.Bot, rightBound.Top)) {
-                    this.joins.push(new Join(join.OutPt1, outPt, join.OffPt));
+                    this.joins.push(new Join({ index: join.index1, outPt: join.OutPt1 }, outPt, join.OffPt));
                 }
             }
         }
@@ -150,9 +150,9 @@ export default class JoinManager {
         if (isTopOfScanbeam) {
             //get the last Op for this horizontal edge
             //the point may be anywhere along the horizontal ...
-            const { outPt, offPoint } = this.outRecManager.getJoinData(horzEdge);
+            const { outPtRec, offPoint } = this.outRecManager.getJoinData(horzEdge);
 
-            this.ghostJoins.push(new Join(outPt, null, offPoint));
+            this.ghostJoins.push(new Join(outPtRec, { index: -1, outPt: null }, offPoint));
         }
     }
 
@@ -160,8 +160,8 @@ export default class JoinManager {
         this.ghostJoins.length = 0;
     }
 
-    public addLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32): OutPt {
-        let result: OutPt = null;
+    public addLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32): OutPtRec {
+        let result: OutPtRec = null;
         let edge: TEdge = null;
         let edgePrev: TEdge;
 
@@ -230,8 +230,8 @@ export default class JoinManager {
     }
 
     private joinCommonEdge(join: Join, isReverseSolution: boolean): void {
-        const index1 = join.OutPt1.index;
-        const index2 = join.OutPt2.index;
+        const index1 = join.index1;
+        const index2 = join.index2;
         const outRec1 = this.outRecManager.getOutRec(index1);
         const outRec2 = this.outRecManager.getOutRec(index2);
         const isSame = outRec1.index === outRec2.index;

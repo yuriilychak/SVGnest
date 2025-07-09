@@ -1,5 +1,6 @@
+import { threadId } from 'worker_threads';
 import { Point } from '../types';
-import OutPt from './out-pt';
+import OutPt, { OutPtRec } from './out-pt';
 import { DIRECTION, NullPtr } from './types';
 
 export default class OutRec {
@@ -15,8 +16,6 @@ export default class OutRec {
         this.isHole = false;
         this.firstLeftIndex = -1;
         this.points = pointer;
-
-        pointer.updateIndex(this.currentIndex);
     }
 
     public simplify(index: number): OutRec[] {
@@ -70,7 +69,7 @@ export default class OutRec {
             return op.prev;
         }
 
-        const newOp = op.insertBefore(this.currentIndex, point);
+        const newOp = op.insertBefore(point);
 
         if (isToFront) {
             this.points = newOp;
@@ -146,7 +145,7 @@ export default class OutRec {
         }
     }
 
-    public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): { outPt: OutPt, offPoint: Point<Int32Array> } {
+    public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): { outPtRec: OutPtRec, offPoint: Point<Int32Array> } {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
         let outPt: NullPtr<OutPt> = this.points;
@@ -157,7 +156,7 @@ export default class OutRec {
 
         const offPoint = outPt.point.almostEqual(top) ? bottom : top;
 
-        return { outPt, offPoint };
+        return { outPtRec: { outPt, index: this.index }, offPoint };
     }
     
     public get area(): number {

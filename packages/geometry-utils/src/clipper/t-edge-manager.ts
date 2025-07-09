@@ -3,7 +3,7 @@ import { showError } from "./helpers";
 import IntersectNode from "./intersect-node";
 import JoinManager from "./join-manager";
 import LocalMinima from "./local-minima";
-import OutPt from "./out-pt";
+import OutPt, { OutPtRec } from "./out-pt";
 import OutRecManager from "./out-rec-manager";
 import Scanbeam from "./scanbeam";
 import TEdge from "./t-edge";
@@ -635,7 +635,7 @@ export default class TEdgeManager {
         //end for (;;)
         if (horzEdge.NextInLML !== null) {
             if (horzEdge.isAssigned) {
-                const op1: NullPtr<OutPt> = this.outRecManager.addOutPt(horzEdge, horzEdge.Top);
+                const op1 = this.outRecManager.addOutPt(horzEdge, horzEdge.Top);
                 horzEdge = this.updateEdgeIntoAEL(horzEdge);
 
                 if (horzEdge.isWindDeletaEmpty) {
@@ -686,7 +686,7 @@ export default class TEdgeManager {
         let edge1: TEdge = this.activeEdges;
         let edge2: NullPtr<TEdge> = null;
         let isMaximaEdge: boolean = false;
-        let outPt1: OutPt = null;
+        let outPt1: OutPtRec = null;
 
         while (edge1 !== null) {
             //1. process maxima, treating them as if they're 'bent' horizontal edges,
@@ -732,7 +732,7 @@ export default class TEdgeManager {
 
         while (edge1 !== null) {
             if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.Top) : null;
+                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.Top) : { index: -1, outPt: null};
                 edge1 = this.updateEdgeIntoAEL(edge1);
                 //if output polygons share an edge, they'll need joining later...
                 this.joinManager.addSharedJoin(outPt1, edge1);
@@ -831,7 +831,7 @@ export default class TEdgeManager {
     }
 
     public insertLocalMinimaIntoAEL(botY: number): void {
-        let outPt: OutPt = null;
+        let outPt: OutPtRec = null;
 
         while (!Number.isNaN(this.minY) && this.minY === botY) {
             let [leftBound, rightBound] = this.popMinima();

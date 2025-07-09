@@ -3,17 +3,15 @@ import { PointI32 } from '../geometry/point';
 import { HORIZONTAL } from './constants';
 import { DIRECTION, NullPtr } from './types';
 
+export type OutPtRec = { index: number, outPt: OutPt };
 export default class OutPt {
-    public index: number;
-
     public readonly point: Point<Int32Array>;
 
     public next: NullPtr<OutPt>;
 
     public prev: NullPtr<OutPt>;
 
-    constructor(index: number = 0, point: Point<Int32Array>) {
-        this.index = index;
+    constructor(point: Point<Int32Array>) {
         this.point = PointI32.from(point);
         this.next = null;
         this.prev = null;
@@ -111,16 +109,6 @@ export default class OutPt {
         return outPt;
     }
 
-    public updateIndex(index: number): void {
-        let initialPt = this;
-        let outPt: OutPt = this;
-
-        do {
-            outPt.index = index;
-            outPt = outPt.prev;
-        } while (outPt !== initialPt);
-    }
-
     public remove(): OutPt {
         const result = this.prev;
         this.prev.push(this.next, true);
@@ -141,7 +129,7 @@ export default class OutPt {
     }
 
     public duplicate(isInsertAfter: boolean): OutPt {
-        const result: OutPt = new OutPt(this.index, this.point);
+        const result: OutPt = new OutPt(this.point);
 
         if (isInsertAfter) {
             result.push(this.next, true);
@@ -154,8 +142,8 @@ export default class OutPt {
         return result;
     }
 
-    public insertBefore(index: number, point: Point<Int32Array>): OutPt {
-        const outPt = new OutPt(index, point);
+    public insertBefore(point: Point<Int32Array>): OutPt {
+        const outPt = new OutPt(point);
         this.prev.push(outPt, true);
         outPt.push(this, true);
 
@@ -524,7 +512,7 @@ export default class OutPt {
     }
 
     public static fromPoint(point: Point<Int32Array>): OutPt {
-        const result = new OutPt(0, point);
+        const result = new OutPt(point);
 
         result.push(result, true);
 

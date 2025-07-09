@@ -31,7 +31,7 @@ export default class OutRecManager {
         return this.polyOuts[horzEdge.index].getJoinData(horzEdge.Side, horzEdge.Top, horzEdge.Bot);
     }
 
-    public addOutPt(edge: TEdge, point: Point<Int32Array>): OutPt {
+    public addOutPt(edge: TEdge, point: Point<Int32Array>): { index: number, outPt: OutPt } {
         const isToFront: boolean = edge.Side === DIRECTION.LEFT;
         let outRec: OutRec = null;
         let newOp: OutPt = null;
@@ -45,10 +45,12 @@ export default class OutRecManager {
 
             edge.index = outRec.currentIndex;
             //nb: do this after SetZ !
-            return newOp;
+        } else {
+            outRec = this.getOutRec(edge.index);
+            newOp = outRec.addOutPt(isToFront, point);
         }
 
-        return this.polyOuts[edge.index].addOutPt(isToFront, point);
+        return { index: outRec.index, outPt: newOp };
     }
 
     public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdge: TEdge): void {
