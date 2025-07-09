@@ -1,4 +1,3 @@
-import { join } from "path";
 import { PointI32 } from "../geometry";
 import Join from "./join";
 import OutPt from "./out-pt";
