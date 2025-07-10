@@ -175,6 +175,10 @@ export default class OutPt {
         return result;
     }
 
+    public get sameAsNext(): boolean {
+        return this === this.next;
+    }
+
     public reverse(): void {
         let outPt: OutPt = this;
         let pp1: OutPt = outPt;

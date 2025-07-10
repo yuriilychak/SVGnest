@@ -176,9 +176,9 @@ export default class OutRec {
                 return outRec1;
             case bPt1.point.x > bPt2.point.x:
                 return outRec2;
-            case bPt1.next === bPt1:
+            case bPt1.sameAsNext:
                 return outRec2;
-            case bPt2.next === bPt2:
+            case bPt2.sameAsNext:
                 return outRec1;
             case OutPt.firstIsBottomPt(bPt1, bPt2):
                 return outRec1;
