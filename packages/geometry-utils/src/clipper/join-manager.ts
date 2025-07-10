@@ -1,7 +1,5 @@
-import { get_u16_from_u32, join_u16_to_u32 } from "wasm-nesting";
 import { PointI32 } from "../geometry";
 import Join from "./join";
-import OutPt from "./out-pt";
 import OutRecManager from "./out-rec-manager";
 import TEdge from "./t-edge";
 import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./types";
@@ -122,10 +120,8 @@ export default class JoinManager {
                 //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
                 //the 'ghost' join to a real join ready for later ...
                 join = this.ghostJoins[i];
-                const outPtIndex = get_u16_from_u32(join.outHash1, 1);
-                const outPt = OutPt.getByIndex(outPtIndex);
 
-                if (PointI32.horzSegmentsOverlap(outPt.point, join.offPoint, rightBound.Bot, rightBound.Top)) {
+                if (this.outRecManager.horzSegmentsOverlap(join.outHash1, join.offPoint, rightBound)) {
                     this.joins.push(new Join(join.outHash1, outHash, join.offPoint));
                 }
             }
@@ -244,138 +240,11 @@ export default class JoinManager {
     }
 
     private joinPoints(join: Join): boolean {
-        const index1: number = get_u16_from_u32(join.outHash1, 0);
-        const index2: number = get_u16_from_u32(join.outHash2, 0);
-        const outRec1 = this.outRecManager.getOutRec(index1);
-        const outRec2 = this.outRecManager.getOutRec(index2);
+        const { outHash1, outHash2, result } = this.outRecManager.joinPoints(join.outHash1, join.outHash2, join.offPoint, this.isUseFullRange);
         
-        if (outRec1.isEmpty || outRec2.isEmpty) {
-            return false;
-        }
+        join.outHash1 = outHash1;
+        join.outHash2 = outHash2;
 
-        const outPt1Index: number = get_u16_from_u32(join.outHash1, 1);
-        const outPt2Index: number = get_u16_from_u32(join.outHash2, 1);
-        let outPt1: OutPt = OutPt.getByIndex(outPt1Index);
-        let outPt2: OutPt = OutPt.getByIndex(outPt2Index);
-        const isRecordsSame = outRec1.index === outRec2.index;
-        //There are 3 kinds of joins for output polygons ...
-        //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
-        //along (horizontal) collinear edges (& Join.OffPt is on the same horizontal).
-        //2. Non-horizontal joins where Join.OutPt1 & Join.OutPt2 are at the same
-        //location at the Bottom of the overlapping segment (& Join.OffPt is above).
-        //3. StrictlySimple joins where edges touch but are not collinear and where
-        //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
-        const isHorizontal: boolean = outPt1.point.y === join.offPoint.y;
-
-        if (isHorizontal && join.offPoint.almostEqual(outPt1.point) && join.offPoint.almostEqual(outPt2.point)) {
-            //Strictly Simple join ...
-            const op1b = outPt1.strictlySimpleJoin(join.offPoint);
-            const op2b = outPt2.strictlySimpleJoin(join.offPoint);
-
-            const reverse1: boolean = op1b.point.y > join.offPoint.y;
-            const reverse2: boolean = op2b.point.y > join.offPoint.y;
-
-            if (reverse1 === reverse2) {
-                return false;
-            }
-
-            join.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).index);
-
-            return true;
-        } else if (isHorizontal) {
-            //treat horizontal joins differently to non-horizontal joins since with
-            //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
-            //may be anywhere along the horizontal edge.
-            const outPt1Res = outPt1.flatHorizontal(outPt2, outPt2);
-
-            if (outPt1Res.length === 0) {
-                return false;
-            }
-
-            const [op1, op1b] = outPt1Res;
-            //a flat 'polygon'
-            const outPt2Res = outPt2.flatHorizontal(op1, op1b);
-
-            if (outPt2Res.length === 0) {
-                return false;
-            }
-
-            const [op2, op2b] = outPt2Res;
-            //a flat 'polygon'
-            //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
-
-            const value = PointI32.getOverlap(op1.point.x, op1b.point.x, op2.point.x, op2b.point.x);
-            const isOverlapped = value.x < value.y;
-
-            if (!isOverlapped) {
-                return false;
-            }
-
-            //DiscardLeftSide: when overlapping edges are joined, a spike will created
-            //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
-            //on the discard Side as either may still be needed for other joins ...
-            const point = PointI32.create();
-            let discardLeftSide: boolean = false;
-            if (op1.point.x >= value.x && op1.point.x <= value.y) {
-                //Pt = op1.Pt;
-                point.update(op1.point);
-                discardLeftSide = op1.point.x > op1b.point.x;
-            } else if (op2.point.x >= value.x && op2.point.x <= value.y) {
-                //Pt = op2.Pt;
-                point.update(op2.point);
-                discardLeftSide = op2.point.x > op2b.point.x;
-            } else if (op1b.point.x >= value.x && op1b.point.x <= value.y) {
-                //Pt = op1b.Pt;
-                point.update(op1b.point);
-                discardLeftSide = op1b.point.x > op1.point.x;
-            } else {
-                //Pt = op2b.Pt;
-                point.update(op2b.point);
-                discardLeftSide = op2b.point.x > op2.point.x;
-            }
-            join.outHash1 = join_u16_to_u32(index1, op1.index);
-            join.outHash2 = join_u16_to_u32(index2, op2.index);
-
-            return OutPt.joinHorz(op1, op1b, op2, op2b, point, discardLeftSide);
-        } else {
-            let op1 = outPt1;
-            let op2 = outPt2;
-            let op1b: OutPt = op1.getUniquePt(true);
-            let op2b: OutPt = op2.getUniquePt(true);
-            //nb: For non-horizontal joins ...
-            //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
-            //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
-            //make sure the polygons are correctly oriented ...
-
-            const reverse1: boolean =
-                op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, join.offPoint, this.isUseFullRange);
-
-            if (reverse1) {
-                op1b = op1.getUniquePt(false);
-
-                if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, join.offPoint, this.isUseFullRange)) {
-                    return false;
-                }
-            }
-
-            const reverse2: boolean =
-                op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, join.offPoint, this.isUseFullRange);
-
-            if (reverse2) {
-                op2b = op2.getUniquePt(false);
-
-                if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, join.offPoint, this.isUseFullRange)) {
-                    return false;
-                }
-            }
-
-            if (op1b === op1 || op2b === op2 || op1b === op2b || (isRecordsSame && reverse1 === reverse2)) {
-                return false;
-            }
-
-            join.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).index);
-
-            return true;
-        }
+        return result;
     }
 }
