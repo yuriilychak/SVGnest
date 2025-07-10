@@ -3,7 +3,6 @@ import { showError } from "./helpers";
 import IntersectNode from "./intersect-node";
 import JoinManager from "./join-manager";
 import LocalMinima from "./local-minima";
-import OutPt, { OutPtRec } from "./out-pt";
 import OutRecManager from "./out-rec-manager";
 import Scanbeam from "./scanbeam";
 import TEdge from "./t-edge";
@@ -686,7 +685,7 @@ export default class TEdgeManager {
         let edge1: TEdge = this.activeEdges;
         let edge2: NullPtr<TEdge> = null;
         let isMaximaEdge: boolean = false;
-        let outPt1: OutPtRec = null;
+        let outPt1: number = -1;
 
         while (edge1 !== null) {
             //1. process maxima, treating them as if they're 'bent' horizontal edges,
@@ -732,7 +731,7 @@ export default class TEdgeManager {
 
         while (edge1 !== null) {
             if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.Top) : { index: -1, outPt: null};
+                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.Top) : -1;
                 edge1 = this.updateEdgeIntoAEL(edge1);
                 //if output polygons share an edge, they'll need joining later...
                 this.joinManager.addSharedJoin(outPt1, edge1);
@@ -831,11 +830,11 @@ export default class TEdgeManager {
     }
 
     public insertLocalMinimaIntoAEL(botY: number): void {
-        let outPt: OutPtRec = null;
+        let outPt: number = -1;
 
         while (!Number.isNaN(this.minY) && this.minY === botY) {
             let [leftBound, rightBound] = this.popMinima();
-            outPt = null;
+            outPt = -1;
 
             if (leftBound === null) {
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges);

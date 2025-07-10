@@ -1,6 +1,6 @@
-import { threadId } from 'worker_threads';
+import { join_u16_to_u32 } from 'wasm-nesting';
 import { Point } from '../types';
-import OutPt, { OutPtRec } from './out-pt';
+import OutPt from './out-pt';
 import { DIRECTION, NullPtr } from './types';
 
 export default class OutRec {
@@ -145,7 +145,7 @@ export default class OutRec {
         }
     }
 
-    public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): { outPtRec: OutPtRec, offPoint: Point<Int32Array> } {
+    public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): { outPtHash: number, offPoint: Point<Int32Array> } {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
         let outPt: NullPtr<OutPt> = this.points;
@@ -156,7 +156,7 @@ export default class OutRec {
 
         const offPoint = outPt.point.almostEqual(top) ? bottom : top;
 
-        return { outPtRec: { outPt, index: this.index }, offPoint };
+        return { outPtHash: join_u16_to_u32(this.index, outPt.index), offPoint };
     }
     
     public get area(): number {

@@ -1,6 +1,7 @@
+import { get_u16_from_u32, join_u16_to_u32 } from "wasm-nesting";
 import { PointI32 } from "../geometry";
 import Join from "./join";
-import OutPt, { OutPtRec } from "./out-pt";
+import OutPt from "./out-pt";
 import OutRecManager from "./out-rec-manager";
 import TEdge from "./t-edge";
 import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./types";
@@ -23,10 +24,10 @@ export default class JoinManager {
         this.isUseFullRange = isUseFullRange;
     }
 
-    private insertJoin(condition: boolean, outPtRec1: OutPtRec, edge: TEdge, point1: PointI32, point2: PointI32 = point1): boolean {
+    private insertJoin(condition: boolean, outHash1: number, edge: TEdge, point1: PointI32, point2: PointI32 = point1): boolean {
         if (condition) {
-            const outPtRec2 = this.outRecManager.addOutPt(edge, point1);
-            this.joins.push(new Join(outPtRec1, outPtRec2, point2));
+            const outHash2 = this.outRecManager.addOutPt(edge, point1);
+            this.joins.push(new Join(outHash1, outHash2, point2));
         }  
 
         return condition;
@@ -40,52 +41,52 @@ export default class JoinManager {
         TEdge.slopesEqual(edge, neighboar, isUseFullRange)
     }
 
-    static checkSharedCondition(outPt: OutPtRec, edge: TEdge, neighboar: TEdge, isUseFullRange: boolean): boolean {
-        return outPt.index !== -1 && JoinManager.checkHorizontalCondition(edge, neighboar, isUseFullRange) && !edge.isWindDeletaEmpty;
+    static checkSharedCondition(outHash: number, edge: TEdge, neighboar: TEdge, isUseFullRange: boolean): boolean {
+        return outHash !== -1 && JoinManager.checkHorizontalCondition(edge, neighboar, isUseFullRange) && !edge.isWindDeletaEmpty;
     }
 
-    public addHorizontalJoin(outPtRec: OutPtRec, edge: TEdge): void {
+    public addHorizontalJoin(outHash: number, edge: TEdge): void {
         let prevEdge: NullPtr<TEdge> = edge.PrevInAEL;
         let nextEdge: NullPtr<TEdge> = edge.NextInAEL;
 
         const condition1 = JoinManager.checkHorizontalCondition(edge, prevEdge, this.isUseFullRange);
 
-        this.insertJoin(condition1, outPtRec, prevEdge, edge.Bot);
+        this.insertJoin(condition1, outHash, prevEdge, edge.Bot);
 
         if (!condition1) {
             const condition2 = JoinManager.checkHorizontalCondition(edge, nextEdge, this.isUseFullRange);
 
-            this.insertJoin(condition2, outPtRec, nextEdge, edge.Bot);
+            this.insertJoin(condition2, outHash, nextEdge, edge.Bot);
         }
     }
 
-    public addMinJoin(op: OutPtRec, edge: TEdge, edgePrev: TEdge, point: PointI32): void {
+    public addMinJoin(outHash: number, edge: TEdge, edgePrev: TEdge, point: PointI32): void {
         const condition = edgePrev !== null &&
         edgePrev.isFilled &&
         edgePrev.topX(point.y) === edge.topX(point.y) &&
         TEdge.slopesEqual(edge, edgePrev, this.isUseFullRange) &&
         !edge.isWindDeletaEmpty;
 
-        this.insertJoin(condition, op, edgePrev, point, edge.Top);
+        this.insertJoin(condition, outHash, edgePrev, point, edge.Top);
     }
 
-    public addLeftJoin(outPt: OutPtRec, leftBound: TEdge) {
+    public addLeftJoin(outHash: number, leftBound: TEdge) {
         const condition = leftBound.isFilled &&
         leftBound.PrevInAEL !== null &&
         leftBound.PrevInAEL.Curr.x === leftBound.Bot.x &&
         leftBound.PrevInAEL.isFilled &&
         TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, this.isUseFullRange);
 
-        this.insertJoin(condition, outPt, leftBound.PrevInAEL,  leftBound.Bot, leftBound.Top);
+        this.insertJoin(condition, outHash, leftBound.PrevInAEL,  leftBound.Bot, leftBound.Top);
 
     }
 
-    public addRightJoin(outPt: OutPtRec, rightBound: TEdge) {
+    public addRightJoin(outHash: number, rightBound: TEdge) {
         const condition =  rightBound.isFilled &&
         rightBound.PrevInAEL.isFilled &&
         TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange);
 
-        this.insertJoin(condition, outPt, rightBound.PrevInAEL, rightBound.Bot, rightBound.Top);
+        this.insertJoin(condition, outHash, rightBound.PrevInAEL, rightBound.Bot, rightBound.Top);
     }
 
     public addScanbeamJoin(edge1: TEdge, edge2: TEdge): void {
@@ -98,21 +99,22 @@ export default class JoinManager {
         }
     }
 
-    public addSharedJoin(outPt1: OutPtRec, edge1: TEdge) {
+    public addSharedJoin(outHash: number, edge1: TEdge) {
         const ePrev: TEdge = edge1.PrevInAEL;
         const eNext: TEdge = edge1.NextInAEL;
 
-        const condition1 = JoinManager.checkSharedCondition(outPt1, edge1, ePrev, this.isUseFullRange);
+        const condition1 = JoinManager.checkSharedCondition(outHash, edge1, ePrev, this.isUseFullRange);
 
-        if(!this.insertJoin(condition1, outPt1, ePrev,  edge1.Bot, edge1.Top)) {
-            const condition2 = JoinManager.checkSharedCondition(outPt1, edge1, eNext, this.isUseFullRange);;
-            this.insertJoin(condition2, outPt1, eNext,  edge1.Bot, edge1.Top);
+        if(!this.insertJoin(condition1, outHash, ePrev,  edge1.Bot, edge1.Top)) {
+            const condition2 = JoinManager.checkSharedCondition(outHash, edge1, eNext, this.isUseFullRange);;
+            this.insertJoin(condition2, outHash, eNext,  edge1.Bot, edge1.Top);
         }
     }
 
-    public addOutputJoins(outPt: OutPtRec, rightBound: TEdge) {
-        if (outPt !== null && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
+    public addOutputJoins(outHash: number, rightBound: TEdge) {
+        if (outHash !== -1 && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
             const joinCount: number = this.ghostJoins.length;
+           
             let i: number = 0;
             let join: Join = null;
 
@@ -120,9 +122,11 @@ export default class JoinManager {
                 //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
                 //the 'ghost' join to a real join ready for later ...
                 join = this.ghostJoins[i];
+                const outPtIndex = get_u16_from_u32(join.outHash1, 1);
+                const outPt = OutPt.getByIndex(outPtIndex);
 
-                if (PointI32.horzSegmentsOverlap(join.outPt1.point, join.offPoint, rightBound.Bot, rightBound.Top)) {
-                    this.joins.push(new Join({ index: join.index1, outPt: join.outPt1 }, outPt, join.offPoint));
+                if (PointI32.horzSegmentsOverlap(outPt.point, join.offPoint, rightBound.Bot, rightBound.Top)) {
+                    this.joins.push(new Join(join.outHash1, outHash, join.offPoint));
                 }
             }
         }
@@ -150,9 +154,9 @@ export default class JoinManager {
         if (isTopOfScanbeam) {
             //get the last Op for this horizontal edge
             //the point may be anywhere along the horizontal ...
-            const { outPtRec, offPoint } = this.outRecManager.getJoinData(horzEdge);
+            const { outPtHash, offPoint } = this.outRecManager.getJoinData(horzEdge);
 
-            this.ghostJoins.push(new Join(outPtRec, { index: -1, outPt: null }, offPoint));
+            this.ghostJoins.push(new Join(outPtHash, -1, offPoint));
         }
     }
 
@@ -160,8 +164,8 @@ export default class JoinManager {
         this.ghostJoins.length = 0;
     }
 
-    public addLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32): OutPtRec {
-        let result: OutPtRec = null;
+    public addLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32): number {
+        let result: number = -1;
         let edge: TEdge = null;
         let edgePrev: TEdge;
 
@@ -236,17 +240,23 @@ export default class JoinManager {
 
         //get the polygon fragment with the correct hole state (FirstLeft)
         //before calling JoinPoints() ...
-        this.outRecManager.joinCommonEdge(join.index1, join.index2, join.outPt1, join.outPt2, isReverseSolution);
+        this.outRecManager.joinCommonEdge(join.outHash1, join.outHash2, isReverseSolution);
     }
 
     private joinPoints(join: Join): boolean {
-        const outRec1 = this.outRecManager.getOutRec(join.index1);
-        const outRec2 = this.outRecManager.getOutRec(join.index2);
+        const index1: number = get_u16_from_u32(join.outHash1, 0);
+        const index2: number = get_u16_from_u32(join.outHash2, 0);
+        const outRec1 = this.outRecManager.getOutRec(index1);
+        const outRec2 = this.outRecManager.getOutRec(index2);
         
         if (outRec1.isEmpty || outRec2.isEmpty) {
             return false;
         }
 
+        const outPt1Index: number = get_u16_from_u32(join.outHash1, 1);
+        const outPt2Index: number = get_u16_from_u32(join.outHash2, 1);
+        let outPt1: OutPt = OutPt.getByIndex(outPt1Index);
+        let outPt2: OutPt = OutPt.getByIndex(outPt2Index);
         const isRecordsSame = outRec1.index === outRec2.index;
         //There are 3 kinds of joins for output polygons ...
         //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
@@ -255,12 +265,12 @@ export default class JoinManager {
         //location at the Bottom of the overlapping segment (& Join.OffPt is above).
         //3. StrictlySimple joins where edges touch but are not collinear and where
         //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
-        const isHorizontal: boolean = join.outPt1.point.y === join.offPoint.y;
+        const isHorizontal: boolean = outPt1.point.y === join.offPoint.y;
 
-        if (isHorizontal && join.offPoint.almostEqual(join.outPt1.point) && join.offPoint.almostEqual(join.outPt2.point)) {
+        if (isHorizontal && join.offPoint.almostEqual(outPt1.point) && join.offPoint.almostEqual(outPt2.point)) {
             //Strictly Simple join ...
-            const op1b = join.outPt1.strictlySimpleJoin(join.offPoint);
-            const op2b = join.outPt2.strictlySimpleJoin(join.offPoint);
+            const op1b = outPt1.strictlySimpleJoin(join.offPoint);
+            const op2b = outPt2.strictlySimpleJoin(join.offPoint);
 
             const reverse1: boolean = op1b.point.y > join.offPoint.y;
             const reverse2: boolean = op2b.point.y > join.offPoint.y;
@@ -269,14 +279,14 @@ export default class JoinManager {
                 return false;
             }
 
-            join.outPt2 = join.outPt1.applyJoin(join.outPt2, reverse1);
+            join.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).index);
 
             return true;
         } else if (isHorizontal) {
             //treat horizontal joins differently to non-horizontal joins since with
             //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
             //may be anywhere along the horizontal edge.
-            const outPt1Res = join.outPt1.flatHorizontal(join.outPt2, join.outPt2);
+            const outPt1Res = outPt1.flatHorizontal(outPt2, outPt2);
 
             if (outPt1Res.length === 0) {
                 return false;
@@ -284,7 +294,7 @@ export default class JoinManager {
 
             const [op1, op1b] = outPt1Res;
             //a flat 'polygon'
-            const outPt2Res = join.outPt2.flatHorizontal(op1, op1b);
+            const outPt2Res = outPt2.flatHorizontal(op1, op1b);
 
             if (outPt2Res.length === 0) {
                 return false;
@@ -323,13 +333,13 @@ export default class JoinManager {
                 point.update(op2b.point);
                 discardLeftSide = op2b.point.x > op2.point.x;
             }
-            join.outPt1 = op1;
-            join.outPt2 = op2;
+            join.outHash1 = join_u16_to_u32(index1, op1.index);
+            join.outHash2 = join_u16_to_u32(index2, op2.index);
 
             return OutPt.joinHorz(op1, op1b, op2, op2b, point, discardLeftSide);
         } else {
-            let op1 = join.outPt1;
-            let op2 = join.outPt2;
+            let op1 = outPt1;
+            let op2 = outPt2;
             let op1b: OutPt = op1.getUniquePt(true);
             let op2b: OutPt = op2.getUniquePt(true);
             //nb: For non-horizontal joins ...
@@ -363,7 +373,7 @@ export default class JoinManager {
                 return false;
             }
 
-            join.outPt2 = join.outPt1.applyJoin(join.outPt2, reverse1);
+            join.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).index);
 
             return true;
         }

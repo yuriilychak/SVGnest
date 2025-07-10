@@ -1,9 +1,7 @@
-import { Point } from 'src/types';
-import { PointI32 } from '../geometry/point';
+import { Point } from '../types';
+import { PointI32 } from '../geometry';
 import { HORIZONTAL } from './constants';
 import { DIRECTION, NullPtr } from './types';
-
-export type OutPtRec = { index: number, outPt: OutPt };
 export default class OutPt {
     private static points: OutPt[] = [];
 

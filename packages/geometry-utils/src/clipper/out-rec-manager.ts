@@ -1,3 +1,4 @@
+import { join_u16_to_u32, get_u16_from_u32 } from "wasm-nesting";
 import { Point } from "../types";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
@@ -31,7 +32,7 @@ export default class OutRecManager {
         return this.polyOuts[horzEdge.index].getJoinData(horzEdge.Side, horzEdge.Top, horzEdge.Bot);
     }
 
-    public addOutPt(edge: TEdge, point: Point<Int32Array>): { index: number, outPt: OutPt } {
+    public addOutPt(edge: TEdge, point: Point<Int32Array>): number {
         const isToFront: boolean = edge.Side === DIRECTION.LEFT;
         let outRec: OutRec = null;
         let newOp: OutPt = null;
@@ -50,7 +51,7 @@ export default class OutRecManager {
             newOp = outRec.addOutPt(isToFront, point);
         }
 
-        return { index: outRec.index, outPt: newOp };
+        return join_u16_to_u32(outRec.index, newOp.index);
     }
 
     public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdge: TEdge): void {
@@ -196,7 +197,13 @@ export default class OutRecManager {
         }
     }
 
-    public joinCommonEdge(index1: number, index2: number, outPt1: OutPt, outPt2: OutPt, isReverseSolution: boolean): void {
+    public joinCommonEdge(outHash1: number, outHash2: number, isReverseSolution: boolean): void {
+        const index1: number = get_u16_from_u32(outHash1, 0);
+        const index2: number = get_u16_from_u32(outHash2, 0);
+        const outPt1Index: number = get_u16_from_u32(outHash1, 1);
+        const outPt2Index: number = get_u16_from_u32(outHash2, 1);
+        const outPt1: NullPtr<OutPt> = OutPt.getByIndex(outPt1Index);
+        const outPt2: NullPtr<OutPt> = OutPt.getByIndex(outPt2Index);
         const outRec1: NullPtr<OutRec> = this.getOutRec(index1);
         let outRec2: NullPtr<OutRec> = this.getOutRec(index2);
 
