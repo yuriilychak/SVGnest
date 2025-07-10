@@ -121,8 +121,8 @@ export default class JoinManager {
                 //the 'ghost' join to a real join ready for later ...
                 join = this.ghostJoins[i];
 
-                if (PointI32.horzSegmentsOverlap(join.OutPt1.point, join.OffPt, rightBound.Bot, rightBound.Top)) {
-                    this.joins.push(new Join({ index: join.index1, outPt: join.OutPt1 }, outPt, join.OffPt));
+                if (PointI32.horzSegmentsOverlap(join.outPt1.point, join.offPoint, rightBound.Bot, rightBound.Top)) {
+                    this.joins.push(new Join({ index: join.index1, outPt: join.outPt1 }, outPt, join.offPoint));
                 }
             }
         }
@@ -230,22 +230,24 @@ export default class JoinManager {
     }
 
     private joinCommonEdge(join: Join, isReverseSolution: boolean): void {
-        const index1 = join.index1;
-        const index2 = join.index2;
-        const outRec1 = this.outRecManager.getOutRec(index1);
-        const outRec2 = this.outRecManager.getOutRec(index2);
-        const isSame = outRec1.index === outRec2.index;
-
-        if (outRec1.isEmpty || outRec2.isEmpty || !this.joinPoints(join, isSame)) {
+        if (!this.joinPoints(join)) {
             return;
         }
 
         //get the polygon fragment with the correct hole state (FirstLeft)
         //before calling JoinPoints() ...
-        this.outRecManager.joinCommonEdge(index1, index2, join.OutPt1, join.OutPt2, isReverseSolution);
+        this.outRecManager.joinCommonEdge(join.index1, join.index2, join.outPt1, join.outPt2, isReverseSolution);
     }
 
-    private joinPoints(join: Join, isRecordsSame: boolean): boolean {
+    private joinPoints(join: Join): boolean {
+        const outRec1 = this.outRecManager.getOutRec(join.index1);
+        const outRec2 = this.outRecManager.getOutRec(join.index2);
+        
+        if (outRec1.isEmpty || outRec2.isEmpty) {
+            return false;
+        }
+
+        const isRecordsSame = outRec1.index === outRec2.index;
         //There are 3 kinds of joins for output polygons ...
         //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
         //along (horizontal) collinear edges (& Join.OffPt is on the same horizontal).
@@ -253,28 +255,28 @@ export default class JoinManager {
         //location at the Bottom of the overlapping segment (& Join.OffPt is above).
         //3. StrictlySimple joins where edges touch but are not collinear and where
         //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
-        const isHorizontal: boolean = join.OutPt1.point.y === join.OffPt.y;
+        const isHorizontal: boolean = join.outPt1.point.y === join.offPoint.y;
 
-        if (isHorizontal && join.OffPt.almostEqual(join.OutPt1.point) && join.OffPt.almostEqual(join.OutPt2.point)) {
+        if (isHorizontal && join.offPoint.almostEqual(join.outPt1.point) && join.offPoint.almostEqual(join.outPt2.point)) {
             //Strictly Simple join ...
-            const op1b = join.OutPt1.strictlySimpleJoin(join.OffPt);
-            const op2b = join.OutPt2.strictlySimpleJoin(join.OffPt);
+            const op1b = join.outPt1.strictlySimpleJoin(join.offPoint);
+            const op2b = join.outPt2.strictlySimpleJoin(join.offPoint);
 
-            const reverse1: boolean = op1b.point.y > join.OffPt.y;
-            const reverse2: boolean = op2b.point.y > join.OffPt.y;
+            const reverse1: boolean = op1b.point.y > join.offPoint.y;
+            const reverse2: boolean = op2b.point.y > join.offPoint.y;
 
             if (reverse1 === reverse2) {
                 return false;
             }
 
-            join.OutPt2 = join.OutPt1.applyJoin(join.OutPt2, reverse1);
+            join.outPt2 = join.outPt1.applyJoin(join.outPt2, reverse1);
 
             return true;
         } else if (isHorizontal) {
             //treat horizontal joins differently to non-horizontal joins since with
             //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
             //may be anywhere along the horizontal edge.
-            const outPt1Res = join.OutPt1.flatHorizontal(join.OutPt2, join.OutPt2);
+            const outPt1Res = join.outPt1.flatHorizontal(join.outPt2, join.outPt2);
 
             if (outPt1Res.length === 0) {
                 return false;
@@ -282,7 +284,7 @@ export default class JoinManager {
 
             const [op1, op1b] = outPt1Res;
             //a flat 'polygon'
-            const outPt2Res = join.OutPt2.flatHorizontal(op1, op1b);
+            const outPt2Res = join.outPt2.flatHorizontal(op1, op1b);
 
             if (outPt2Res.length === 0) {
                 return false;
@@ -303,31 +305,31 @@ export default class JoinManager {
             //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
             //on the discard Side as either may still be needed for other joins ...
             const point = PointI32.create();
-            let DiscardLeftSide: boolean = false;
+            let discardLeftSide: boolean = false;
             if (op1.point.x >= value.x && op1.point.x <= value.y) {
                 //Pt = op1.Pt;
                 point.update(op1.point);
-                DiscardLeftSide = op1.point.x > op1b.point.x;
+                discardLeftSide = op1.point.x > op1b.point.x;
             } else if (op2.point.x >= value.x && op2.point.x <= value.y) {
                 //Pt = op2.Pt;
                 point.update(op2.point);
-                DiscardLeftSide = op2.point.x > op2b.point.x;
+                discardLeftSide = op2.point.x > op2b.point.x;
             } else if (op1b.point.x >= value.x && op1b.point.x <= value.y) {
                 //Pt = op1b.Pt;
                 point.update(op1b.point);
-                DiscardLeftSide = op1b.point.x > op1.point.x;
+                discardLeftSide = op1b.point.x > op1.point.x;
             } else {
                 //Pt = op2b.Pt;
                 point.update(op2b.point);
-                DiscardLeftSide = op2b.point.x > op2.point.x;
+                discardLeftSide = op2b.point.x > op2.point.x;
             }
-            join.OutPt1 = op1;
-            join.OutPt2 = op2;
+            join.outPt1 = op1;
+            join.outPt2 = op2;
 
-            return OutPt.joinHorz(op1, op1b, op2, op2b, point, DiscardLeftSide);
+            return OutPt.joinHorz(op1, op1b, op2, op2b, point, discardLeftSide);
         } else {
-            let op1 = join.OutPt1;
-            let op2 = join.OutPt2;
+            let op1 = join.outPt1;
+            let op2 = join.outPt2;
             let op1b: OutPt = op1.getUniquePt(true);
             let op2b: OutPt = op2.getUniquePt(true);
             //nb: For non-horizontal joins ...
@@ -336,23 +338,23 @@ export default class JoinManager {
             //make sure the polygons are correctly oriented ...
 
             const reverse1: boolean =
-                op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, join.OffPt, this.isUseFullRange);
+                op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, join.offPoint, this.isUseFullRange);
 
             if (reverse1) {
                 op1b = op1.getUniquePt(false);
 
-                if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, join.OffPt, this.isUseFullRange)) {
+                if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, join.offPoint, this.isUseFullRange)) {
                     return false;
                 }
             }
 
             const reverse2: boolean =
-                op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, join.OffPt, this.isUseFullRange);
+                op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, join.offPoint, this.isUseFullRange);
 
             if (reverse2) {
                 op2b = op2.getUniquePt(false);
 
-                if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, join.OffPt, this.isUseFullRange)) {
+                if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, join.offPoint, this.isUseFullRange)) {
                     return false;
                 }
             }
@@ -361,7 +363,7 @@ export default class JoinManager {
                 return false;
             }
 
-            join.OutPt2 = join.OutPt1.applyJoin(join.OutPt2, reverse1);
+            join.outPt2 = join.outPt1.applyJoin(join.outPt2, reverse1);
 
             return true;
         }

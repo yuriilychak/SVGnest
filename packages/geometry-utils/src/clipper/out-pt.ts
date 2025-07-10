@@ -5,16 +5,31 @@ import { DIRECTION, NullPtr } from './types';
 
 export type OutPtRec = { index: number, outPt: OutPt };
 export default class OutPt {
+    private static points: OutPt[] = [];
+
     public readonly point: Point<Int32Array>;
 
     public next: NullPtr<OutPt>;
 
     public prev: NullPtr<OutPt>;
 
+    public index: number;
+
     constructor(point: Point<Int32Array>) {
         this.point = PointI32.from(point);
         this.next = null;
         this.prev = null;
+        this.index = OutPt.points.length;
+
+        OutPt.points.push(this);
+    }
+
+    public static getByIndex(index: number): NullPtr<OutPt> {
+        return index < OutPt.points.length ? OutPt.points[index] : null;
+    }
+
+    public static cleanup(): void {
+        this.points.length = 0;
     }
     
     public containsPoly(inputOutPt: OutPt): boolean {
