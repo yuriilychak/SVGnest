@@ -152,7 +152,7 @@ export default class OutRecManager {
             outRec = this.polyOuts[i];
             polygon = outRec.export();
 
-            if (polygon !== null) {
+            if (polygon.length !== 0) {
                 polygons.push(polygon);
             }
         }
@@ -212,8 +212,8 @@ export default class OutRecManager {
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
         const outPt2Index: number = get_u16_from_u32(outHash2, 1);
-        const outPt1: NullPtr<OutPt> = OutPt.getByIndex(outPt1Index);
-        const outPt2: NullPtr<OutPt> = OutPt.getByIndex(outPt2Index);
+        const outPt1: NullPtr<OutPt> = OutPt.at(outPt1Index);
+        const outPt2: NullPtr<OutPt> = OutPt.at(outPt2Index);
         const outRec1: NullPtr<OutRec> = this.getOutRec(index1);
         let outRec2: NullPtr<OutRec> = this.getOutRec(index2);
 
@@ -285,8 +285,8 @@ export default class OutRecManager {
 
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
         const outPt2Index: number = get_u16_from_u32(outHash2, 1);
-        let outPt1: OutPt = OutPt.getByIndex(outPt1Index);
-        let outPt2: OutPt = OutPt.getByIndex(outPt2Index);
+        let outPt1: OutPt = OutPt.at(outPt1Index);
+        let outPt2: OutPt = OutPt.at(outPt2Index);
         const isRecordsSame = outRec1.index === outRec2.index;
         //There are 3 kinds of joins for output polygons ...
         //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
@@ -412,7 +412,7 @@ export default class OutRecManager {
 
     public horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBound: TEdge): boolean {
         const outPtIndex = get_u16_from_u32(outHash, 1);
-        const outPt = OutPt.getByIndex(outPtIndex);
+        const outPt = OutPt.at(outPtIndex);
         
         return PointI32.horzSegmentsOverlap(outPt.point, offPoint, rightBound.Bot, rightBound.Top);
     }

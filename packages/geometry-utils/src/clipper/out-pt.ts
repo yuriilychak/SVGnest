@@ -7,23 +7,23 @@ export default class OutPt {
 
     public readonly point: Point<Int32Array>;
 
-    public next: NullPtr<OutPt>;
+    public next: number;
 
-    public prev: NullPtr<OutPt>;
+    public prev: number;
 
     public index: number;
 
     constructor(point: Point<Int32Array>) {
         this.point = PointI32.from(point);
-        this.next = null;
-        this.prev = null;
+        this.next = -1;
+        this.prev = -1;
         this.index = OutPt.points.length;
 
         OutPt.points.push(this);
     }
 
-    public static getByIndex(index: number): NullPtr<OutPt> {
-        return index < OutPt.points.length ? OutPt.points[index] : null;
+    public static at(index: number): NullPtr<OutPt> {
+        return index >= 0 && index < OutPt.points.length ? OutPt.points[index] : null;
     }
 
     public static cleanup(): void {
@@ -41,103 +41,106 @@ export default class OutPt {
                 return res !== 0;
             }
 
-            outPt = outPt.next;
+            outPt = OutPt.at(outPt.next);
         } while (outPt !== inputOutPt);
 
         return true;
     }
 
     public canSplit(outPt: OutPt): boolean {
-        return this.point.almostEqual(outPt.point) && outPt.next != this && outPt.prev != this;
+        return this.point.almostEqual(outPt.point) && outPt.next != this.index && outPt.prev != this.index;
     }
 
     public split(op2: OutPt): OutPt {
-        const op3 = this.prev;
-        op2.prev.push(this, true);
+        const op3 = OutPt.at(this.prev);
+        OutPt.at(op2.prev).push(this, true);
         op3.push(op2, true);
         
 
         return op2;
     }
 
-    public export(): NullPtr<Point<Int32Array>[]> {
+    public export(): Point<Int32Array>[] {
         const pointCount = this.size;
 
         if (pointCount < 2) {
-            return null;
+            return [];
         }
 
         const result: Point<Int32Array>[] = new Array(pointCount);
-        let outPt: OutPt = this.prev as OutPt;
+        let outPt: OutPt = OutPt.at(this.prev);
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
             result[i] = outPt.point.clone();
-            outPt = outPt.prev as OutPt;
+            outPt = OutPt.at(outPt.prev);
         }
 
         return result;
     }
 
     public get size(): number {
-        return this.prev !== null ? this.prev.pointCount : 0;
+        return this.prev !== -1 ? OutPt.at(this.prev).pointCount : 0;
     }
 
     public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): NullPtr<OutPt> {
         //FixupOutPolygon() - removes duplicate points and simplifies consecutive
         //parallel edges by removing the middle vertex.
-        let lastOutPt: NullPtr<OutPt> = null;
+        let lastOutIndex: number = -1;
         let outPt: NullPtr<OutPt> = this;
 
         while (true) {
-            if (outPt.prev === outPt || outPt.prev === outPt.next) {
+            if (outPt.prev === outPt.index || outPt.prev === outPt.next) {
                 outPt.dispose();
 
                 return null;
             }
+
+            const nextPt: NullPtr<OutPt> = OutPt.at(outPt.next);
+            const prevPt: NullPtr<OutPt> = OutPt.at(outPt.prev);
             //test for duplicate points and collinear edges ...
             if (
-                outPt.point.almostEqual(outPt.next.point) ||
-                outPt.point.almostEqual(outPt.prev.point) ||
-                (PointI32.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point, useFullRange) &&
-                    (!preserveCollinear || !outPt.point.getBetween(outPt.prev.point, outPt.next.point)))
+                outPt.point.almostEqual(nextPt.point) ||
+                outPt.point.almostEqual(prevPt.point) ||
+                (PointI32.slopesEqual(prevPt.point, outPt.point, nextPt.point, useFullRange) &&
+                    (!preserveCollinear || !outPt.point.getBetween(prevPt.point, nextPt.point)))
             ) {
-                lastOutPt = null;
+                lastOutIndex = -1;
                 outPt = outPt.remove();
 
                 continue;
             }
 
-            if (outPt == lastOutPt) {
+            if (outPt.index === lastOutIndex) {
                 break;
             }
 
-            if (lastOutPt === null) {
-                lastOutPt = outPt;
+            if (lastOutIndex === -1) {
+                lastOutIndex = outPt.index;
             }
 
-            outPt = outPt.next;
+            outPt = OutPt.at(outPt.next);
         }
 
         return outPt;
     }
 
     public remove(): OutPt {
-        const result = this.prev;
-        this.prev.push(this.next, true);
-        this.prev = null;
-        this.next = null;
+        const result = OutPt.at(this.prev);
+        OutPt.at(this.prev).push(OutPt.at(this.next), true);
+        this.prev = -1;
+        this.next = -1;
         
         return result;
     }
 
     public dispose(): void {
-        let outPt: OutPt = this;
+        OutPt.at(this.prev).next = -1;
 
-        outPt.prev.next = null;
+        let outPt: OutPt | null = this;
 
         while (outPt !== null) {
-            outPt = outPt.next;
+            outPt = OutPt.at(outPt.next);
         }
     }
 
@@ -145,10 +148,10 @@ export default class OutPt {
         const result: OutPt = new OutPt(this.point);
 
         if (isInsertAfter) {
-            result.push(this.next, true);
+            result.push(OutPt.at(this.next), true);
             this.push(result, true);
         } else {
-            this.prev.push(result, true);
+            OutPt.at(this.prev).push(result, true);
             result.push(this, true);
         }
 
@@ -157,7 +160,7 @@ export default class OutPt {
 
     public insertBefore(point: Point<Int32Array>): OutPt {
         const outPt = new OutPt(point);
-        this.prev.push(outPt, true);
+        OutPt.at(this.prev).push(outPt, true);
         outPt.push(this, true);
 
         return outPt;
@@ -169,14 +172,14 @@ export default class OutPt {
 
         do {
             ++result;
-            outPt = outPt.next;
+            outPt = OutPt.at(outPt.next);
         } while (outPt !== this);
 
         return result;
     }
 
     public get sameAsNext(): boolean {
-        return this === this.next;
+        return this.index === this.next;
     }
 
     public reverse(): void {
@@ -185,9 +188,9 @@ export default class OutPt {
         let pp2: NullPtr<OutPt> = null;
 
         do {
-            pp2 = pp1.next;
+            pp2 = OutPt.at(pp1.next);
             pp1.next = pp1.prev;
-            pp1.prev = pp2;
+            pp1.prev = pp2.index;
             pp1 = pp2;
         } while (pp1 !== outPt);
     }
@@ -203,10 +206,12 @@ export default class OutPt {
     }
 
     private searchPrevBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
+        let prevPt: OutPt = OutPt.at(this.prev);
         let result: OutPt = this;
 
-        while (result.prev.point.y === result.point.y && result.prev !== outPt1 && result.prev !== outPt2) {
-            result = result.prev;
+        while (prevPt.point.y === result.point.y && result.prev !== outPt1.index && result.prev !== outPt2.index) {
+            prevPt = result;
+            result = OutPt.at(result.prev);
         }
 
         return result;
@@ -214,9 +219,11 @@ export default class OutPt {
 
     private searchNextBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
         let result: OutPt = this;
+        let nextPt  = OutPt.at(result.next);
 
-        while (result.next.point.y === result.point.y && result.next !== outPt1 && result.next !== outPt2) {
-            result = result.next;
+        while (nextPt.point.y === result.point.y && result.next !== outPt1.index && result.next !== outPt2.index) {
+            result = nextPt;
+            nextPt = OutPt.at(result.next);
         }
 
         return result;
@@ -226,14 +233,14 @@ export default class OutPt {
         const outPt = this.searchPrevBottom(this, outPt2);
         const outPtB = this.searchNextBottom(outPt, outPt1);
 
-        return outPtB.next === outPt || outPtB.next === outPt1 ? [] : [outPt, outPtB];
+        return outPtB.next === outPt.index || outPtB.next === outPt1.index ? [] : [outPt, outPtB];
     }
 
     public strictlySimpleJoin(point: Point<Int32Array>): boolean {
-        let result = this.next;
+        let result = OutPt.at(this.next);
 
-        while (result !== this && result.point.almostEqual(point)) {
-            result = result.next;
+        while (result.index !== this.index && result.point.almostEqual(point)) {
+            result = OutPt.at(result.next);
         }
 
         return result.point.y > point.y;
@@ -267,10 +274,11 @@ export default class OutPt {
         let d: number = 0;
 
         while (true) {
+            const nextPt = OutPt.at(outPt.next);
             poly0x = outPt.point.x;
             poly0y = outPt.point.y;
-            poly1x = outPt.next.point.x;
-            poly1y = outPt.next.point.y;
+            poly1x = nextPt.point.x;
+            poly1y = nextPt.point.y;
 
             if (poly1y === pt.y) {
                 if (poly1x === pt.x || (poly0y === pt.y && poly1x > pt.x === poly0x < pt.x)) {
@@ -308,9 +316,9 @@ export default class OutPt {
                 }
             }
 
-            outPt = outPt.next;
+            outPt = OutPt.at(outPt.next);
 
-            if (startOutPt == outPt) {
+            if (startOutPt.index === outPt.index) {
                 break;
             }
         }
@@ -326,9 +334,9 @@ export default class OutPt {
     
     private joinLeft(outPt: OutPt, direction: DIRECTION): OutPt {
         const p1_lft: OutPt = this;
-        const p1_rt: OutPt = p1_lft.prev;
+        const p1_rt: OutPt = OutPt.at(p1_lft.prev);
         const p2_lft: OutPt = outPt;
-        const p2_rt: OutPt = p2_lft.prev;
+        const p2_rt: OutPt = OutPt.at(p2_lft.prev);
 
         if (direction === DIRECTION.LEFT) {
             //z y x a b c
@@ -347,9 +355,9 @@ export default class OutPt {
 
     private joinRight(outPt: OutPt, direction: DIRECTION): OutPt {
         const p1_lft: OutPt = this;
-        const p1_rt: OutPt = p1_lft.prev;
+        const p1_rt: OutPt = OutPt.at(p1_lft.prev);
         const p2_lft: OutPt = outPt;
-        const p2_rt: OutPt = p2_lft.prev;
+        const p2_rt: OutPt = OutPt.at(p2_lft.prev);
 
         if (direction === DIRECTION.RIGHT) {
             //a b c z y x
@@ -366,7 +374,7 @@ export default class OutPt {
     }
 
     private getNeighboar(isNext: boolean): NullPtr<OutPt> {
-        return isNext ? this.next : this.prev;
+        return OutPt.at(isNext ? this.next : this.prev);
     }
 
     private getDistance(isNext: boolean): number {
@@ -393,7 +401,7 @@ export default class OutPt {
 
     public getBottomPt(): OutPt {
         let outPt1: OutPt = this;
-        let outPt2: OutPt = this.next;
+        let outPt2: OutPt = OutPt.at(this.next);
         let dups: NullPtr<OutPt> = null;
 
         while (outPt2 !== outPt1) {
@@ -404,11 +412,11 @@ export default class OutPt {
                 if (outPt2.point.x < outPt1.point.x) {
                     dups = null;
                     outPt1 = outPt2;
-                } else if (outPt2.next !== outPt1 && outPt2.prev !== outPt1) {
+                } else if (outPt2.next !== outPt1.index && outPt2.prev !== outPt1.index) {
                     dups = outPt2;
                 }
             }
-            outPt2 = outPt2.next;
+            outPt2 = OutPt.at(outPt2.next);
         }
         if (dups !== null) {
             //there appears to be at least 2 vertices at bottomPt so ...
@@ -417,10 +425,10 @@ export default class OutPt {
                     outPt1 = dups;
                 }
 
-                dups = dups.next;
+                dups = OutPt.at(dups.next);
                 
                 while (!dups.point.almostEqual(outPt1.point)) {
-                    dups = dups.next;
+                    dups = OutPt.at(dups.next);
                 }
             }
         }
@@ -444,7 +452,7 @@ export default class OutPt {
     }
 
     private getDiscarded(isRight: boolean, pt: Point<Int32Array>): boolean {
-        const next = this.next;
+        const next = OutPt.at(this.next);
 
         if (next == null) {
             return false;
@@ -462,8 +470,9 @@ export default class OutPt {
         let result: number = 0;
 
         do {
-            result = result + (outPt.prev.point.x + outPt.point.x) * (outPt.prev.point.y - outPt.point.y);
-            outPt = outPt.next;
+            let prevPt: OutPt = OutPt.at(outPt.prev);
+            result = result + (prevPt.point.x + outPt.point.x) * (prevPt.point.y - outPt.point.y);
+            outPt = OutPt.at(outPt.next);
         } while (outPt != this);
 
         return result * 0.5;
@@ -478,11 +487,11 @@ export default class OutPt {
         const isRightOrder = isDiscardLeft !== isRight;
 
         while (op.getDiscarded(isRight, point)) {
-            op = op.next;
+            op = OutPt.at(op.next);
         }
 
         if (!isRightOrder && op.point.x !== point.x) {
-            op = op.next;
+            op = OutPt.at(op.next);
         }
 
         opB = op.duplicate(isRightOrder);
@@ -520,11 +529,11 @@ export default class OutPt {
 
     private push(outPt: OutPt, isReverse: boolean): void {
         if (isReverse) {
-            this.next = outPt;
-            outPt.prev = this; 
+            this.next = outPt.index;
+            outPt.prev = this.index; 
         } else {
-            this.prev = outPt;
-            outPt.next = this;
+            this.prev = outPt.index;
+            outPt.next = this.index;
         }
     }
 

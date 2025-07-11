@@ -31,7 +31,7 @@ export default class OutRec {
 
         do //for each Pt in Polygon until duplicate found do ...
         {
-            let op2 = outPt.next;
+            let op2 = OutPt.at(outPt.next);
 
             while (op2 !== this.points) {
                 if (outPt.canSplit(op2)) {
@@ -49,9 +49,9 @@ export default class OutRec {
                     ++innerIndex;
                     //ie get ready for the next iteration
                 }
-                op2 = op2.next;
+                op2 = OutPt.at(op2.next);
             }
-            outPt = outPt.next;
+            outPt = OutPt.at(outPt.next);
         } while (outPt != this.points);
 
         return result;
@@ -65,8 +65,10 @@ export default class OutRec {
             return op;
         }
 
-        if (!isToFront && point.almostEqual(op.prev.point)) {
-            return op.prev;
+        const prev = OutPt.at(op.prev);
+
+        if (!isToFront && point.almostEqual(prev.point)) {
+            return prev;
         }
 
         const newOp = op.insertBefore(point);
@@ -111,8 +113,8 @@ export default class OutRec {
         }
     }
 
-    public export(): Point<Int32Array>[] | null {
-        return this.isEmpty ? null : this.points.export();
+    public export(): Point<Int32Array>[] {
+        return this.isEmpty ? [] : this.points.export();
     }
 
     public containsPoly(outRec: OutRec): boolean {
@@ -151,7 +153,7 @@ export default class OutRec {
         let outPt: NullPtr<OutPt> = this.points;
 
         if (direction === DIRECTION.RIGHT) {
-            outPt = outPt.prev;
+            outPt = OutPt.at(outPt.prev);
         }
 
         const offPoint = outPt.point.almostEqual(top) ? bottom : top;
