@@ -30,34 +30,35 @@ export default class OutPt {
         this.points.length = 0;
     }
     
-    public containsPoly(inputOutPt: OutPt): boolean {
-        let outPt: OutPt = inputOutPt;
+    public static containsPoly(index1: number, index2: number): boolean {
+        let currIndex: number = index2;
         let res: number = 0;
 
         do {
-            res = this.pointIn(outPt.point);
+            res = OutPt.pointIn(index1, currIndex);
 
             if (res >= 0) {
                 return res !== 0;
             }
 
-            outPt = OutPt.at(outPt.next);
-        } while (outPt !== inputOutPt);
+            currIndex = OutPt.getNeighboarIndex(currIndex, true);
+        } while (currIndex !== index2);
 
         return true;
     }
 
-    public canSplit(outPt: OutPt): boolean {
-        return this.point.almostEqual(outPt.point) && outPt.next != this.current && outPt.prev != this.current;
+    public static canSplit(index1: number, index2: number): boolean {
+        return OutPt.almostEqual(index2, index1) && 
+            OutPt.getNeighboarIndex(index2, true) != index1 && 
+            OutPt.getNeighboarIndex(index2, false) != index1;
     }
 
-    public split(op2: OutPt): OutPt {
-        const op3 = OutPt.at(this.prev);
-        OutPt.at(op2.prev).push(this, true);
-        op3.push(op2, true);
-        
+    public static split(op1Index: number, op2Index: number): void {
+        const op1Prev = OutPt.getNeighboarIndex(op1Index, false);
+        const op2Prev = OutPt.getNeighboarIndex(op2Index, false);
 
-        return op2;
+        OutPt.push(op2Prev, op1Index, true);
+        OutPt.push(op1Prev, op2Index, true);
     }
 
     public export(): Point<Int32Array>[] {
@@ -127,7 +128,7 @@ export default class OutPt {
 
     public remove(): OutPt {
         const result = OutPt.at(this.prev);
-        OutPt.at(this.prev).push(OutPt.at(this.next), true);
+        OutPt.push(this.prev, this.next, true);
         this.prev = -1;
         this.next = -1;
         
@@ -144,24 +145,24 @@ export default class OutPt {
         }
     }
 
-    public duplicate(isInsertAfter: boolean): OutPt {
+    public duplicate(isInsertAfter: boolean): number {
         const result: OutPt = new OutPt(this.point);
 
         if (isInsertAfter) {
-            result.push(OutPt.at(this.next), true);
-            this.push(result, true);
+            OutPt.push(result.current, this.next, true);
+            OutPt.push(this.current, result.current, true);
         } else {
-            OutPt.at(this.prev).push(result, true);
-            result.push(this, true);
+            OutPt.push(this.prev, result.current, true);
+            OutPt.push(result.current, this.current, true);
         }
 
-        return result;
+        return result.current;
     }
 
     public insertBefore(point: Point<Int32Array>): number {
         const outPt = new OutPt(point);
-        OutPt.at(this.prev).push(outPt, true);
-        outPt.push(this, true);
+        OutPt.push(this.prev, outPt.current, true);
+        OutPt.push(outPt.current, this.current, true);
 
         return outPt.current;
     }
@@ -255,25 +256,26 @@ export default class OutPt {
         return result.point.y > point.y;
     }
 
-    public applyJoin(op2: OutPt, reverse: boolean): OutPt {
+    public applyJoin(op2: OutPt, reverse: boolean): number {
         const op1b = this.duplicate(!reverse);
         const op2b = op2.duplicate(reverse);
 
         if (reverse) {
-            op2.push(this, true);
-            op1b.push(op2b, true);
+            OutPt.push(op2.current, this.current, true);
+            OutPt.push(op1b, op2b, true);
         } else {
-            this.push(op2, true);
-            op2b.push(op1b, true);
+            OutPt.push(this.current, op2.current, true);
+            OutPt.push(op2b, op1b, true);
         }
 
         return op1b;
     }
 
-    private pointIn(pt: Point<Int32Array>): number {
+    private static pointIn(inputIndex: number, outIndex: number): number {
+        let inputPt = OutPt.at(outIndex);
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
-        let outPt: OutPt = this;
+        let outPt: OutPt = OutPt.at(inputIndex);
         let startOutPt: OutPt = outPt;
         let result: number = 0;
         let poly0x: number = 0;
@@ -289,18 +291,18 @@ export default class OutPt {
             poly1x = nextPt.point.x;
             poly1y = nextPt.point.y;
 
-            if (poly1y === pt.y) {
-                if (poly1x === pt.x || (poly0y === pt.y && poly1x > pt.x === poly0x < pt.x)) {
+            if (poly1y === inputPt.point.y) {
+                if (poly1x === inputPt.point.x || (poly0y === inputPt.point.y && poly1x > inputPt.point.x === poly0x < inputPt.point.x)) {
                     return -1;
                 }
             }
 
-            if (poly0y < pt.y !== poly1y < pt.y) {
-                if (poly0x >= pt.x) {
-                    if (poly1x > pt.x) {
+            if (poly0y < inputPt.point.y !== poly1y < inputPt.point.y) {
+                if (poly0x >= inputPt.point.x) {
+                    if (poly1x > inputPt.point.x) {
                         result = 1 - result;
                     } else {
-                        d = (poly0x - pt.x) * (poly1y - pt.y) - (poly1x - pt.x) * (poly0y - pt.y);
+                        d = (poly0x - inputPt.point.x) * (poly1y - inputPt.point.y) - (poly1x - inputPt.point.x) * (poly0y - inputPt.point.y);
 
                         if (d == 0) {
                             return -1;
@@ -311,8 +313,8 @@ export default class OutPt {
                         }
                     }
                 } else {
-                    if (poly1x > pt.x) {
-                        d = (poly0x - pt.x) * (poly1y - pt.y) - (poly1x - pt.x) * (poly0y - pt.y);
+                    if (poly1x > inputPt.point.x) {
+                        d = (poly0x - inputPt.point.x) * (poly1y - inputPt.point.y) - (poly1x - inputPt.point.x) * (poly0y - inputPt.point.y);
 
                         if (d === 0) {
                             return -1;
@@ -350,14 +352,14 @@ export default class OutPt {
         if (direction === DIRECTION.LEFT) {
             //z y x a b c
             p2_lft.reverse();
-            p2_lft.push(p1_lft, true);
-            p1_rt.push(p2_rt, true);
+            OutPt.push(p2_lft.current, p1_lft.current, true);
+            OutPt.push(p1_rt.current, p2_rt.current, true);
 
             return p2_rt;
         }
         //x y z a b c
-        p2_rt.push(p1_lft, true);
-        p1_rt.push(p2_lft, true);
+        OutPt.push(p2_rt.current, p1_lft.current, true);
+        OutPt.push(p1_rt.current, p2_lft.current, true);
 
         return p2_lft;
     }
@@ -371,12 +373,12 @@ export default class OutPt {
         if (direction === DIRECTION.RIGHT) {
             //a b c z y x
             p2_lft.reverse();
-            p1_rt.push(p2_rt, true);
-            p2_lft.push(p1_lft, true);
+            OutPt.push(p1_rt.current,p2_rt.current, true);
+            OutPt.push(p2_lft.current, p1_lft.current, true);
         } else {
             //a b c x y z
-            p1_rt.push(p2_lft, true);
-            p2_rt.push(p1_lft, true); 
+            OutPt.push(p1_rt.current, p2_lft.current, true);
+            OutPt.push(p2_rt.current, p1_lft.current, true); 
         }
 
         return this;
@@ -540,13 +542,13 @@ export default class OutPt {
             op = OutPt.at(op.next);
         }
 
-        opB = op.duplicate(isRightOrder);
+        opB = OutPt.at(op.duplicate(isRightOrder));
 
         if (!opB.point.almostEqual(point)) {
             op = opB;
             //op1.Pt = Pt;
             op.point.update(point);
-            opB = op.duplicate(isRightOrder);
+            opB = OutPt.at(op.duplicate(isRightOrder));
         }
 
         return { op, opB, isRightOrder };
@@ -567,27 +569,32 @@ export default class OutPt {
         const join1 = op1.joinHorz(op1b, Pt, isDiscardLeft);
         const join2 = op2.joinHorz(op2b, Pt, isDiscardLeft);
 
-        join1.op.push(join2.op, join1.isRightOrder);
-        join1.opB.push(join2.opB, !join1.isRightOrder);
+        OutPt.push(join1.op.current, join2.op.current, join1.isRightOrder);
+        OutPt.push(join1.opB.current, join2.opB.current, !join1.isRightOrder);
 
         return true;
     }
 
-    private push(outPt: OutPt, isReverse: boolean): void {
+    private static push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
+        const outPt1 = OutPt.at(outPt1Index);
+        const outPt2 = OutPt.at(outPt2Index);
+
         if (isReverse) {
-            this.next = outPt.current;
-            outPt.prev = this.current; 
+            outPt1.next = outPt2.current;
+            outPt2.prev = outPt1.current; 
         } else {
-            this.prev = outPt.current;
-            outPt.next = this.current;
+            outPt1.prev = outPt2.current;
+            outPt2.next = outPt1.current;
         }
     }
 
     public static fromPoint(point: Point<Int32Array>): number {
-        const result = new OutPt(point);
+        const outPt = new OutPt(point);
 
-        result.push(result, true);
+        const index = outPt.current;
 
-        return result.current;
+        OutPt.push(index, index, true);
+
+        return index;
     }
 }

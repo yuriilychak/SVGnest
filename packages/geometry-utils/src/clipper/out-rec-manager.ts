@@ -307,7 +307,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).current);
+            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1));
             result.result = true;
 
             return result;
@@ -407,7 +407,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).current);
+            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1));
 
             result.result = true;
 

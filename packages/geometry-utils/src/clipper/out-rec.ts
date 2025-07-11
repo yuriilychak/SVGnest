@@ -43,34 +43,35 @@ export default class OutRec {
         
         const inputIndex = this._pointIndex;
         let innerIndex = index;
-        let currentPt = this.points;
+        let currIndex = this._pointIndex;
+        let splitIndex = -1;
 
         do //for each Pt in Polygon until duplicate found do ...
         {
-            let splitPt = OutPt.at(currentPt.next);
+            splitIndex = OutPt.getNeighboarIndex(currIndex, true);
 
-            while (splitPt.current !== this._pointIndex) {
-                if (currentPt.canSplit(splitPt)) {
+            while (splitIndex !== this._pointIndex) {
+                if (OutPt.canSplit(currIndex, splitIndex)) {
                     //split the polygon into two ...
-                    currentPt.split(splitPt);
-                    this._pointIndex = currentPt.current;
-                    const outRec = new OutRec(innerIndex, splitPt.current);
+                    OutPt.split(currIndex, splitIndex);
+                    this._pointIndex = currIndex;
+                    const outRec = new OutRec(innerIndex, splitIndex);
 
                     this.updateSplit(outRec);
 
                     result.push(outRec);
 
-                    splitPt = currentPt;
+                    splitIndex = currIndex;
 
                     ++innerIndex;
                     //ie get ready for the next iteration
                 }
 
-                splitPt = OutPt.at(splitPt.next);
+                splitIndex = OutPt.getNeighboarIndex(splitIndex, true);
             }
 
-            currentPt = OutPt.at(currentPt.next);
-        } while (currentPt.current != inputIndex);
+            currIndex = OutPt.getNeighboarIndex(currIndex, true);
+        } while (currIndex != inputIndex);
 
         return result;
     }
@@ -136,7 +137,7 @@ export default class OutRec {
     }
 
     public containsPoly(outRec: OutRec): boolean {
-        return this.points.containsPoly(outRec.points);
+        return OutPt.containsPoly(this._pointIndex, outRec.pointIndex);
     }
 
     public get pointCount(): number {
