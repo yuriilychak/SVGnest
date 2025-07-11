@@ -8,14 +8,26 @@ export default class OutRec {
     public currentIndex: number;
     public isHole: boolean;
     public firstLeftIndex: number;
-    public points: NullPtr<OutPt>;
+    private _pointIndex: number;
 
-    constructor(index: number, pointer: OutPt) {
+    constructor(index: number, pointIndex: number) {
         this.index = index;
         this.currentIndex = index;
         this.isHole = false;
         this.firstLeftIndex = -1;
-        this.points = pointer;
+        this._pointIndex = pointIndex;
+    }
+
+    public get points(): NullPtr<OutPt> {
+        return OutPt.at(this._pointIndex);
+    }
+
+    public set points(value: NullPtr<OutPt>) {
+        this._pointIndex = value === null ? -1 : value.current;
+    }  
+    
+    public getHash(pointIndex: number): number {
+        return join_u16_to_u32(this.index, pointIndex);
     }
 
     public simplify(index: number): OutRec[] {
@@ -25,59 +37,61 @@ export default class OutRec {
             return result;
         }
         
-        const inputOutPt = this.points;
+        const inputIndex = this._pointIndex;
         let innerIndex = index;
-        let outPt = inputOutPt;
+        let currentPt = this.points;
 
         do //for each Pt in Polygon until duplicate found do ...
         {
-            let op2 = OutPt.at(outPt.next);
+            let splitPt = OutPt.at(currentPt.next);
 
-            while (op2 !== this.points) {
-                if (outPt.canSplit(op2)) {
+            while (splitPt.current !== this._pointIndex) {
+                if (currentPt.canSplit(splitPt)) {
                     //split the polygon into two ...
-                    outPt.split(op2);
-                    this.points = outPt;
-                    let outRec = new OutRec(innerIndex, op2);
+                    currentPt.split(splitPt);
+                    this._pointIndex = currentPt.current;
+                    const outRec = new OutRec(innerIndex, splitPt.current);
 
                     this.updateSplit(outRec);
 
                     result.push(outRec);
 
-                    op2 = outPt;
+                    splitPt = currentPt;
 
                     ++innerIndex;
                     //ie get ready for the next iteration
                 }
-                op2 = OutPt.at(op2.next);
+
+                splitPt = OutPt.at(splitPt.next);
             }
-            outPt = OutPt.at(outPt.next);
-        } while (outPt != this.points);
+
+            currentPt = OutPt.at(currentPt.next);
+        } while (currentPt.current != inputIndex);
 
         return result;
     }
 
-    public addOutPt(isToFront: boolean, point: Point<Int32Array>): OutPt {
+    public addOutPt(isToFront: boolean, point: Point<Int32Array>): number {
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
         const op: OutPt = this.points;
 
         if (isToFront && point.almostEqual(op.point)) {
-            return op;
+            return op.current;
         }
 
         const prev = OutPt.at(op.prev);
 
         if (!isToFront && point.almostEqual(prev.point)) {
-            return prev;
+            return prev.current;
         }
 
-        const newOp = op.insertBefore(point);
+        const newIndex = op.insertBefore(point);
 
         if (isToFront) {
-            this.points = newOp;
+            this._pointIndex = newIndex;
         }
 
-        return newOp;
+        return newIndex;
     }
 
     public postInit(isReverseSolution: boolean): void {
@@ -85,7 +99,7 @@ export default class OutRec {
         this.firstLeftIndex = this.index;
 
         if ((this.isHole !== isReverseSolution) === this.area > 0) {
-            this.points.reverse();
+            this.reverse();
         }
     }
 
@@ -94,14 +108,14 @@ export default class OutRec {
     }
 
     public clean(): void {
-        this.points = null;
+        this._pointIndex = -1;
     }
 
     public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): void {
         this.points = this.points.fixupOutPolygon(preserveCollinear, useFullRange);
     }
 
-    public reversePts(): void {
+    public reverse(): void {
         if (!this.isEmpty) {
             this.points.reverse();
         }
@@ -126,7 +140,7 @@ export default class OutRec {
     }
 
     public get isEmpty(): boolean {
-        return this.points === null;
+        return this._pointIndex === -1;
     }
 
     public updateSplit(outRec: OutRec): void {
@@ -147,7 +161,7 @@ export default class OutRec {
         }
     }
 
-    public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): { outPtHash: number, offPoint: Point<Int32Array> } {
+    public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
         let outPt: NullPtr<OutPt> = this.points;
@@ -158,7 +172,7 @@ export default class OutRec {
 
         const offPoint = outPt.point.almostEqual(top) ? bottom : top;
 
-        return { outPtHash: join_u16_to_u32(this.index, outPt.index), offPoint };
+        return [join_u16_to_u32(this.index, outPt.current), offPoint.x, offPoint.y];
     }
     
     public get area(): number {

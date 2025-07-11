@@ -6,9 +6,9 @@ export default class Join {
     public outHash2: number;
     public offPoint: Point<Int32Array>;
 
-    constructor(outHash1: number, outHash2: number, offPoint: NullPtr<Point<Int32Array>>) {
+    constructor(outHash1: number, outHash2: number, x: number, y: number) {
         this.outHash1 = outHash1;
         this.outHash2 = outHash2;
-        this.offPoint = PointI32.from(offPoint);
+        this.offPoint = PointI32.create(x, y);
     }
 }

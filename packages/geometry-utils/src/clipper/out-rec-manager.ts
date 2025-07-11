@@ -9,8 +9,8 @@ import { PointI32 } from "../geometry";
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
 
-    public createRec(pointer: OutPt) {
-        const result: OutRec = new OutRec(this.polyOuts.length, pointer);
+    public createRec(pointIndex: number) {
+        const result: OutRec = new OutRec(this.polyOuts.length, pointIndex);
 
         this.polyOuts.push(result);
 
@@ -36,12 +36,12 @@ export default class OutRecManager {
     public addOutPt(edge: TEdge, point: Point<Int32Array>): number {
         const isToFront: boolean = edge.Side === DIRECTION.LEFT;
         let outRec: OutRec = null;
-        let newOp: OutPt = null;
+        let pointIndex: number = -1;
 
         if (!edge.isAssigned) {
-            newOp = OutPt.fromPoint(point);
+            pointIndex = OutPt.fromPoint(point);
 
-            outRec = this.createRec(newOp);
+            outRec = this.createRec(pointIndex);
  
             this.setHoleState(outRec, edge);
 
@@ -49,10 +49,11 @@ export default class OutRecManager {
             //nb: do this after SetZ !
         } else {
             outRec = this.getOutRec(edge.index);
-            newOp = outRec.addOutPt(isToFront, point);
+
+            pointIndex = outRec.addOutPt(isToFront, point);
         }
 
-        return join_u16_to_u32(outRec.index, newOp.index);
+        return outRec.getHash(pointIndex);
     }
 
     public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdge: TEdge): void {
@@ -137,7 +138,7 @@ export default class OutRecManager {
             }
 
             if ((outRec.isHole !== reverseSolution) === outRec.area > 0) {
-                outRec.reversePts();
+                outRec.reverse();
             }
         }
     }
@@ -221,7 +222,7 @@ export default class OutRecManager {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
             outRec1.points = outPt1;
-            outRec2 = this.createRec(outPt2);
+            outRec2 = this.createRec(outPt2.current);
             outRec2.postInit(isReverseSolution);
 
             return [outHash1, outHash2];
@@ -306,7 +307,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).index);
+            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).current);
             result.result = true;
 
             return result;
@@ -361,8 +362,8 @@ export default class OutRecManager {
                 point.update(op2b.point);
                 discardLeftSide = op2b.point.x > op2.point.x;
             }
-            result.outHash1 = join_u16_to_u32(index1, op1.index);
-            result.outHash2 = join_u16_to_u32(index2, op2.index);
+            result.outHash1 = join_u16_to_u32(index1, op1.current);
+            result.outHash2 = join_u16_to_u32(index2, op2.current);
             result.result = OutPt.joinHorz(op1, op1b, op2, op2b, point, discardLeftSide);
 
             return result;
@@ -402,7 +403,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).index);
+            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1).current);
 
             result.result = true;
 

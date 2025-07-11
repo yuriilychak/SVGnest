@@ -25,7 +25,7 @@ export default class JoinManager {
     private insertJoin(condition: boolean, outHash1: number, edge: TEdge, point1: PointI32, point2: PointI32 = point1): boolean {
         if (condition) {
             const outHash2 = this.outRecManager.addOutPt(edge, point1);
-            this.joins.push(new Join(outHash1, outHash2, point2));
+            this.joins.push(new Join(outHash1, outHash2, point2.x, point2.y));
         }  
 
         return condition;
@@ -92,7 +92,7 @@ export default class JoinManager {
             const outPt1 = this.outRecManager.addOutPt(edge2, edge1.Curr);
             const outPt2 = this.outRecManager.addOutPt(edge1, edge1.Curr);
 
-            this.joins.push(new Join(outPt1, outPt2, edge1.Curr));
+            this.joins.push(new Join(outPt1, outPt2, edge1.Curr.x, edge1.Curr.y));
             //StrictlySimple (type-3) join
         }
     }
@@ -122,7 +122,7 @@ export default class JoinManager {
                 join = this.ghostJoins[i];
 
                 if (this.outRecManager.horzSegmentsOverlap(join.outHash1, join.offPoint, rightBound)) {
-                    this.joins.push(new Join(join.outHash1, outHash, join.offPoint));
+                    this.joins.push(new Join(join.outHash1, outHash, join.offPoint.x, join.offPoint.y));
                 }
             }
         }
@@ -150,9 +150,9 @@ export default class JoinManager {
         if (isTopOfScanbeam) {
             //get the last Op for this horizontal edge
             //the point may be anywhere along the horizontal ...
-            const { outPtHash, offPoint } = this.outRecManager.getJoinData(horzEdge);
+            const [outPtHash, x, y] = this.outRecManager.getJoinData(horzEdge);
 
-            this.ghostJoins.push(new Join(outPtHash, -1, offPoint));
+            this.ghostJoins.push(new Join(outPtHash, -1, x, y));
         }
     }
 
