@@ -43,6 +43,7 @@ export default class OutRec {
         
         const inputIndex = this._pointIndex;
         let innerIndex = index;
+        let currentPt = this.points;
         let currIndex = this._pointIndex;
         let splitIndex = -1;
 

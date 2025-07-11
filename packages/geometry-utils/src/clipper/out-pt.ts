@@ -206,15 +206,15 @@ export default class OutPt {
         return result;
     }
 
-    private searchPrevBottom(outIndex1: number, outIndex2: number): number {
+    private searchBottom(outIndex1: number, outIndex2: number, isNext: boolean): number {
         let currIndex  = this.current;
-        let nghbIndex = OutPt.getNeighboarIndex(currIndex, false);
+        let nghbIndex = OutPt.getNeighboarIndex(currIndex, isNext);
         let currPt: OutPt = OutPt.at(currIndex);
         let nghbPt: OutPt = OutPt.at(nghbIndex);
 
         while (nghbPt.point.y === currPt.point.y && nghbIndex !== outIndex1 && nghbIndex !== outIndex2) {
             currIndex = nghbIndex;
-            nghbIndex = OutPt.getNeighboarIndex(currIndex, false);
+            nghbIndex = OutPt.getNeighboarIndex(currIndex, isNext);
             currPt = OutPt.at(currIndex);
             nghbPt = OutPt.at(nghbIndex);
         }
@@ -222,28 +222,12 @@ export default class OutPt {
         return currIndex;
     }
 
-    private searchNextBottom(outIndex1: number, outIndex2: number): number {
-        let currIndex  = this.current;
-        let nghbIndex = OutPt.getNeighboarIndex(currIndex, true);
-        let currPt = OutPt.at(currIndex);
-        let nghbPt = OutPt.at(nghbIndex);
-
-        while (nghbPt.point.y === currPt.point.y && nghbIndex !== outIndex1 && nghbIndex !== outIndex2) {
-            currIndex = nghbIndex;
-            nghbIndex = OutPt.getNeighboarIndex(currIndex, true);
-            currPt = OutPt.at(currIndex);
-            nghbPt = OutPt.at(nghbIndex);
-        }
-
-        return currIndex;
-    }
-
-    public flatHorizontal(outPt1: OutPt, outPt2: OutPt): number[] {
-        const outIndex = this.searchPrevBottom(this.current, outPt2.current);
-        const outBIndex = this.searchNextBottom(outIndex, outPt1.current);
+    public flatHorizontal(outIndex1: number, outIndex2: number): number[] {
+        const outIndex = this.searchBottom(this.current, outIndex2, false);
+        const outBIndex = this.searchBottom(outIndex, outIndex1, true);
         const outBIndexNext = OutPt.getNeighboarIndex(outBIndex, true);
 
-        return outBIndexNext === outIndex || outBIndexNext === outPt1.current ? [] : [outIndex, outBIndex];
+        return outBIndexNext === outIndex || outBIndexNext === outIndex1 ? [] : [outIndex, outBIndex];
     }
 
     public strictlySimpleJoin(point: Point<Int32Array>): boolean {
@@ -382,10 +366,6 @@ export default class OutPt {
         }
 
         return this;
-    }
-
-    private getNeighboar(isNext: boolean): NullPtr<OutPt> {
-        return OutPt.at(isNext ? this.next : this.prev);
     }
 
     private getDistance(isNext: boolean): number {
@@ -580,11 +560,11 @@ export default class OutPt {
         const outPt2 = OutPt.at(outPt2Index);
 
         if (isReverse) {
-            outPt1.next = outPt2.current;
-            outPt2.prev = outPt1.current; 
+            outPt1.next = outPt2Index;
+            outPt2.prev = outPt1Index; 
         } else {
-            outPt1.prev = outPt2.current;
-            outPt2.next = outPt1.current;
+            outPt1.prev = outPt2Index;
+            outPt2.next = outPt1Index;
         }
     }
 

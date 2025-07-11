@@ -286,8 +286,8 @@ export default class OutRecManager {
 
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
         const outPt2Index: number = get_u16_from_u32(outHash2, 1);
-        let outPt1: OutPt = OutPt.at(outPt1Index);
-        let outPt2: OutPt = OutPt.at(outPt2Index);
+        const outPt1: OutPt = OutPt.at(outPt1Index);
+        const outPt2: OutPt = OutPt.at(outPt2Index);
         const isRecordsSame = outRec1.index === outRec2.index;
         //There are 3 kinds of joins for output polygons ...
         //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
@@ -315,7 +315,7 @@ export default class OutRecManager {
             //treat horizontal joins differently to non-horizontal joins since with
             //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
             //may be anywhere along the horizontal edge.
-            const outPt1Res = outPt1.flatHorizontal(outPt2, outPt2);
+            const outPt1Res = outPt1.flatHorizontal(outPt2Index, outPt2Index);
 
             if (outPt1Res.length === 0) {
                 return result;
@@ -325,7 +325,7 @@ export default class OutRecManager {
             const op1: OutPt = OutPt.at(op1Index);
             const op1b: OutPt = OutPt.at(op1bIndex);
             //a flat 'polygon'
-            const outPt2Res = outPt2.flatHorizontal(op1, op1b);
+            const outPt2Res = outPt2.flatHorizontal(op1Index, op1bIndex);
 
             if (outPt2Res.length === 0) {
                 return result;
