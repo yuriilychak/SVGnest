@@ -18,6 +18,10 @@ export default class OutRec {
         this._pointIndex = pointIndex;
     }
 
+    public get pointIndex(): number{
+        return this._pointIndex;
+    }
+
     public get points(): NullPtr<OutPt> {
         return OutPt.at(this._pointIndex);
     }
@@ -180,8 +184,10 @@ export default class OutRec {
     }
 
     public static getLowermostRec(outRec1: OutRec, outRec2: OutRec): OutRec {
-        const bPt1: NullPtr<OutPt> = outRec1.points.getBottomPt();
-        const bPt2: NullPtr<OutPt> = outRec2.points.getBottomPt();
+        const bIndex1: number = OutPt.getBottomPt(outRec1.pointIndex);
+        const bIndex2: number = OutPt.getBottomPt(outRec2.pointIndex);
+        const bPt1: OutPt = OutPt.at(bIndex1);
+        const bPt2: OutPt = OutPt.at(bIndex2);
 
         switch (true) {
             case bPt1.point.y > bPt2.point.y:

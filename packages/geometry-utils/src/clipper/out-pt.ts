@@ -195,45 +195,54 @@ export default class OutPt {
         } while (pp1 !== outPt);
     }
 
-    public getUniquePt(isNext: boolean): OutPt {
-        let result = this.getNeighboar(isNext);
+    public getUniquePt(isNext: boolean): number {
+        let result = OutPt.getNeighboarIndex(this.current, isNext);
 
-        while (result.point.almostEqual(this.point) && result !== this) {
-            result = result.getNeighboar(isNext);
+        while (OutPt.almostEqual(result, this.current) && result !== this.current) {
+            result = OutPt.getNeighboarIndex(result, isNext);
         }
 
         return result;
     }
 
-    private searchPrevBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
-        let prevPt: OutPt = OutPt.at(this.prev);
-        let result: OutPt = this;
+    private searchPrevBottom(outIndex1: number, outIndex2: number): number {
+        let currIndex  = this.current;
+        let nghbIndex = OutPt.getNeighboarIndex(currIndex, false);
+        let currPt: OutPt = OutPt.at(currIndex);
+        let nghbPt: OutPt = OutPt.at(nghbIndex);
 
-        while (prevPt.point.y === result.point.y && result.prev !== outPt1.current && result.prev !== outPt2.current) {
-            prevPt = result;
-            result = OutPt.at(result.prev);
+        while (nghbPt.point.y === currPt.point.y && nghbIndex !== outIndex1 && nghbIndex !== outIndex2) {
+            currIndex = nghbIndex;
+            nghbIndex = OutPt.getNeighboarIndex(currIndex, false);
+            currPt = OutPt.at(currIndex);
+            nghbPt = OutPt.at(nghbIndex);
         }
 
-        return result;
+        return currIndex;
     }
 
-    private searchNextBottom(outPt1: OutPt, outPt2: OutPt): OutPt {
-        let result: OutPt = this;
-        let nextPt  = OutPt.at(result.next);
+    private searchNextBottom(outIndex1: number, outIndex2: number): number {
+        let currIndex  = this.current;
+        let nghbIndex = OutPt.getNeighboarIndex(currIndex, true);
+        let currPt = OutPt.at(currIndex);
+        let nghbPt = OutPt.at(nghbIndex);
 
-        while (nextPt.point.y === result.point.y && result.next !== outPt1.current && result.next !== outPt2.current) {
-            result = nextPt;
-            nextPt = OutPt.at(result.next);
+        while (nghbPt.point.y === currPt.point.y && nghbIndex !== outIndex1 && nghbIndex !== outIndex2) {
+            currIndex = nghbIndex;
+            nghbIndex = OutPt.getNeighboarIndex(currIndex, true);
+            currPt = OutPt.at(currIndex);
+            nghbPt = OutPt.at(nghbIndex);
         }
 
-        return result;
+        return currIndex;
     }
 
-    public flatHorizontal(outPt1: OutPt, outPt2: OutPt): OutPt[] {
-        const outPt = this.searchPrevBottom(this, outPt2);
-        const outPtB = this.searchNextBottom(outPt, outPt1);
+    public flatHorizontal(outPt1: OutPt, outPt2: OutPt): number[] {
+        const outIndex = this.searchPrevBottom(this.current, outPt2.current);
+        const outBIndex = this.searchNextBottom(outIndex, outPt1.current);
+        const outBIndexNext = OutPt.getNeighboarIndex(outBIndex, true);
 
-        return outPtB.next === outPt.current || outPtB.next === outPt1.current ? [] : [outPt, outPtB];
+        return outBIndexNext === outIndex || outBIndexNext === outPt1.current ? [] : [outIndex, outBIndex];
     }
 
     public strictlySimpleJoin(point: Point<Int32Array>): boolean {
@@ -378,30 +387,52 @@ export default class OutPt {
     }
 
     private getDistance(isNext: boolean): number {
-        let p: OutPt = this.getNeighboar(isNext);
-
-        if(p === null) {
+        let index = OutPt.getNeighboarIndex(this.current, isNext);
+        
+        if(index === -1) {
             return Number.NaN;
         }
 
-        while (p.point.almostEqual(this.point) && p !== this) {
-            p = p.getNeighboar(isNext);
+        while (OutPt.almostEqual(this.current, index) && index !== this.current) {
+            index = OutPt.getNeighboarIndex(index, isNext);
 
-            if(p === null) {
+            if(index === -1) {
                 return Number.NaN;
             }
         }
 
-        const offsetY: number = p.point.y - this.point.y;
-        const offsetX: number = p.point.x - this.point.x;
+        const point: OutPt = OutPt.at(index);
+        const offsetY: number = point.point.y - this.point.y;
+        const offsetX: number = point.point.x - this.point.x;
         const result = offsetY === 0 ? HORIZONTAL : offsetX / offsetY;
 
         return Math.abs(result);
     }
 
-    public getBottomPt(): OutPt {
-        let outIndex1 = this.current;
-        let outIndex2 = this.next;
+    public static almostEqual(index1: number, index2: number): boolean {
+        if (index1 == -1 || index2 == -1) {
+            return false;
+        }
+
+        const outPt1 = OutPt.at(index1);
+        const outPt2 = OutPt.at(index2);
+
+        return outPt1.point.almostEqual(outPt2.point);
+    }
+
+    public static getNeighboarIndex(index: number, isNext: boolean): number {
+        const outPt = OutPt.at(index);
+        
+        if (outPt == null) {
+            return -1;
+        }
+
+        return isNext ? outPt.next : outPt.prev;
+    }
+
+    public static getBottomPt(inputIndex: number): number {
+        let outIndex1 = inputIndex;
+        let outIndex2 = OutPt.getNeighboarIndex(inputIndex, true);
         let dupsIndex: number = -1;
 
         while (outIndex2 !== outIndex1) {
@@ -447,7 +478,7 @@ export default class OutPt {
             }
         }
 
-        return OutPt.at(outIndex1);
+        return outIndex1;
     }
 
     private getDirection(outPt: OutPt): DIRECTION {

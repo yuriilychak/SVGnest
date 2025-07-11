@@ -321,7 +321,9 @@ export default class OutRecManager {
                 return result;
             }
 
-            const [op1, op1b] = outPt1Res;
+            const [op1Index, op1bIndex] = outPt1Res;
+            const op1: OutPt = OutPt.at(op1Index);
+            const op1b: OutPt = OutPt.at(op1bIndex);
             //a flat 'polygon'
             const outPt2Res = outPt2.flatHorizontal(op1, op1b);
 
@@ -329,7 +331,9 @@ export default class OutRecManager {
                 return result;
             }
 
-            const [op2, op2b] = outPt2Res;
+            const [op2Index, op2bIndex] = outPt2Res;
+            const op2: OutPt = OutPt.at(op2Index);
+            const op2b: OutPt = OutPt.at(op2bIndex);
             //a flat 'polygon'
             //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
@@ -370,8 +374,8 @@ export default class OutRecManager {
         } else {
             let op1 = outPt1;
             let op2 = outPt2;
-            let op1b: OutPt = op1.getUniquePt(true);
-            let op2b: OutPt = op2.getUniquePt(true);
+            let op1b: OutPt = OutPt.at(op1.getUniquePt(true));
+            let op2b: OutPt = OutPt.at(op2.getUniquePt(true));
             //nb: For non-horizontal joins ...
             //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
             //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
@@ -381,7 +385,7 @@ export default class OutRecManager {
                 op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange);
 
             if (reverse1) {
-                op1b = op1.getUniquePt(false);
+                op1b = OutPt.at(op1.getUniquePt(false));
 
                 if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange)) {
                     return result;
@@ -392,7 +396,7 @@ export default class OutRecManager {
                 op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange);
 
             if (reverse2) {
-                op2b = op2.getUniquePt(false);
+                op2b = OutPt.at(op2.getUniquePt(false));
 
                 if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange)) {
                     return result;
