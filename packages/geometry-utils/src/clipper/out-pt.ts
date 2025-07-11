@@ -400,39 +400,54 @@ export default class OutPt {
     }
 
     public getBottomPt(): OutPt {
-        let outPt1: OutPt = this;
-        let outPt2: OutPt = OutPt.at(this.next);
-        let dups: NullPtr<OutPt> = null;
+        let outIndex1 = this.current;
+        let outIndex2 = this.next;
+        let dupsIndex: number = -1;
 
-        while (outPt2 !== outPt1) {
+        while (outIndex2 !== outIndex1) {
+            let outPt1: OutPt = OutPt.at(outIndex1);
+            let outPt2: OutPt = OutPt.at(outIndex2);
+
             if (outPt2.point.y > outPt1.point.y) {
-                outPt1 = outPt2;
-                dups = null;
+                outIndex1 = outIndex2;
+                dupsIndex = -1;
             } else if (outPt2.point.y == outPt1.point.y && outPt2.point.x <= outPt1.point.x) {
                 if (outPt2.point.x < outPt1.point.x) {
-                    dups = null;
-                    outPt1 = outPt2;
+                    dupsIndex = -1;
+                    outIndex1 = outIndex2;
                 } else if (outPt2.next !== outPt1.current && outPt2.prev !== outPt1.current) {
-                    dups = outPt2;
+                    dupsIndex = outIndex2;
                 }
             }
-            outPt2 = OutPt.at(outPt2.next);
+
+            outIndex2 = outPt2.next;
         }
-        if (dups !== null) {
+
+        if (dupsIndex !== -1) {
+            const outPt2 = OutPt.at(outIndex2);
             //there appears to be at least 2 vertices at bottomPt so ...
-            while (dups !== outPt2) {
+            while (dupsIndex !== outIndex2) {
+                let dups: NullPtr<OutPt> = OutPt.at(dupsIndex);
+
                 if (!OutPt.firstIsBottomPt(outPt2, dups)) {
-                    outPt1 = dups;
+                    outIndex1 = dupsIndex;
                 }
 
-                dups = OutPt.at(dups.next);
+                dupsIndex = dups.next;
+
+                dups = OutPt.at(dupsIndex);
+
+                const outPt1 = OutPt.at(outIndex1);
                 
                 while (!dups.point.almostEqual(outPt1.point)) {
                     dups = OutPt.at(dups.next);
                 }
+
+                dupsIndex = dups.current;
             }
         }
-        return outPt1;
+
+        return OutPt.at(outIndex1);
     }
 
     private getDirection(outPt: OutPt): DIRECTION {
