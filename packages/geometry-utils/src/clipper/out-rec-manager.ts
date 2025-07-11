@@ -198,7 +198,16 @@ export default class OutRecManager {
         }
     }
 
-    public joinCommonEdge(outHash1: number, outHash2: number, isReverseSolution: boolean): void {
+    public joinCommonEdge(inputHash1: number, inputHash2: number, offPoint: Point<Int32Array>, isUseFullRange: boolean, isReverseSolution: boolean): number[] {
+        const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint, isUseFullRange);
+
+        if(!result) {
+            return [outHash1, outHash2];
+        }
+
+        //get the polygon fragment with the correct hole state (FirstLeft)
+        //before calling JoinPoints() ...
+
         const index1: number = get_u16_from_u32(outHash1, 0);
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
@@ -215,7 +224,7 @@ export default class OutRecManager {
             outRec2 = this.createRec(outPt2);
             outRec2.postInit(isReverseSolution);
 
-            return;
+            return [outHash1, outHash2];
         }
 
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
@@ -229,6 +238,8 @@ export default class OutRecManager {
         }
 
         outRec2.firstLeftIndex = outRec1.index;
+
+        return [outHash1, outHash2];
     }
 
     private param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {
@@ -288,11 +299,8 @@ export default class OutRecManager {
 
         if (isHorizontal && offPoint.almostEqual(outPt1.point) && offPoint.almostEqual(outPt2.point)) {
             //Strictly Simple join ...
-            const op1b = outPt1.strictlySimpleJoin(offPoint);
-            const op2b = outPt2.strictlySimpleJoin(offPoint);
-
-            const reverse1: boolean = op1b.point.y > offPoint.y;
-            const reverse2: boolean = op2b.point.y > offPoint.y;
+            const reverse1 = outPt1.strictlySimpleJoin(offPoint);
+            const reverse2 = outPt2.strictlySimpleJoin(offPoint);
 
             if (reverse1 === reverse2) {
                 return result;

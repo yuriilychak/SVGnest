@@ -230,21 +230,9 @@ export default class JoinManager {
     }
 
     private joinCommonEdge(join: Join, isReverseSolution: boolean): void {
-        if (!this.joinPoints(join)) {
-            return;
-        }
-
-        //get the polygon fragment with the correct hole state (FirstLeft)
-        //before calling JoinPoints() ...
-        this.outRecManager.joinCommonEdge(join.outHash1, join.outHash2, isReverseSolution);
-    }
-
-    private joinPoints(join: Join): boolean {
-        const { outHash1, outHash2, result } = this.outRecManager.joinPoints(join.outHash1, join.outHash2, join.offPoint, this.isUseFullRange);
+        const [outHash1, outHash2] = this.outRecManager.joinCommonEdge(join.outHash1, join.outHash2, join.offPoint, this.isUseFullRange, isReverseSolution);
         
         join.outHash1 = outHash1;
         join.outHash2 = outHash2;
-
-        return result;
     }
 }

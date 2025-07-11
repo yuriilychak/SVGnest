@@ -229,14 +229,14 @@ export default class OutPt {
         return outPtB.next === outPt || outPtB.next === outPt1 ? [] : [outPt, outPtB];
     }
 
-    public strictlySimpleJoin(point: Point<Int32Array>): OutPt {
+    public strictlySimpleJoin(point: Point<Int32Array>): boolean {
         let result = this.next;
 
         while (result !== this && result.point.almostEqual(point)) {
             result = result.next;
         }
 
-        return result;
+        return result.point.y > point.y;
     }
 
     public applyJoin(op2: OutPt, reverse: boolean): OutPt {
