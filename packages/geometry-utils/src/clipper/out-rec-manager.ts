@@ -368,7 +368,7 @@ export default class OutRecManager {
             }
             result.outHash1 = join_u16_to_u32(index1, op1.current);
             result.outHash2 = join_u16_to_u32(index2, op2.current);
-            result.result = OutPt.joinHorz(op1, op1b, op2, op2b, point, discardLeftSide);
+            result.result = OutPt.joinHorz(op1.current, op1b.current, op2.current, op2b.current, point, discardLeftSide);
 
             return result;
         } else {

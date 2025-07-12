@@ -43,7 +43,6 @@ export default class OutRec {
         
         const inputIndex = this._pointIndex;
         let innerIndex = index;
-        let currentPt = this.points;
         let currIndex = this._pointIndex;
         let splitIndex = -1;
 
@@ -110,7 +109,7 @@ export default class OutRec {
     }
 
     public join(outRec2: OutRec, side1: DIRECTION, side2: DIRECTION): void {
-        this.points = this.points.join(outRec2.points, side1, side2); 
+        this._pointIndex = this.points.join(outRec2.points, side1, side2); 
     }
 
     public clean(): void {
@@ -118,7 +117,7 @@ export default class OutRec {
     }
 
     public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): void {
-        this.points = this.points.fixupOutPolygon(preserveCollinear, useFullRange);
+        this._pointIndex = OutPt.fixupOutPolygon(this._pointIndex, preserveCollinear, useFullRange);
     }
 
     public reverse(): void {
@@ -134,15 +133,15 @@ export default class OutRec {
     }
 
     public export(): Point<Int32Array>[] {
-        return this.isEmpty ? [] : this.points.export();
+        return this.isEmpty ? [] : OutPt.export(this._pointIndex);
     }
 
     public containsPoly(outRec: OutRec): boolean {
         return OutPt.containsPoly(this._pointIndex, outRec.pointIndex);
     }
 
-    public get pointCount(): number {
-        return !this.isEmpty && this.points.size;
+    public get length(): number {
+        return !this.isEmpty && OutPt.getLength(this._pointIndex);
     }
 
     public get isEmpty(): boolean {
@@ -204,7 +203,7 @@ export default class OutRec {
                 return outRec2;
             case bPt2.sameAsNext:
                 return outRec1;
-            case OutPt.firstIsBottomPt(bPt1, bPt2):
+            case OutPt.firstIsBottomPt(bIndex1, bIndex2):
                 return outRec1;
             default:
                 return outRec2;
