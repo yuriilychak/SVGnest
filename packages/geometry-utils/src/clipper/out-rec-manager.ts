@@ -159,17 +159,9 @@ export default class OutRecManager {
         }
     }
 
-    public disposeAllPolyPts(): void {
-        const polyCount: number = this.polyOuts.length;
-        let outRec: OutRec = null;
-        let i: number = 0;
-
-        for (i = 0; i < polyCount; ++i) {
-            outRec = this.polyOuts[i];
-            outRec.dispose();
-        }
-
+    public dispose(): void {
         this.polyOuts = [];
+        OutPt.cleanup();
     }
 
     public doSimplePolygons(): void {
@@ -221,7 +213,7 @@ export default class OutRecManager {
         if (index1 === index2) {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
-            outRec1.points = outPt1;
+            outRec1.pointIndex = outPt1.current;
             outRec2 = this.createRec(outPt2.current);
             outRec2.postInit(isReverseSolution);
 
@@ -307,7 +299,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1));
+            result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1.current, outPt2.current, reverse1));
             result.result = true;
 
             return result;
@@ -407,7 +399,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, outPt1.applyJoin(outPt2, reverse1));
+            result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1.current, outPt2.current, reverse1));
 
             result.result = true;
 

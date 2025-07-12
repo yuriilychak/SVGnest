@@ -1,6 +1,5 @@
 import { PointI32 } from '../geometry';
 import JoinManager from './join-manager';
-import OutPt from './out-pt';
 import OutRecManager from './out-rec-manager';
 import Scanbeam from './scanbeam';
 import TEdgeManager from './t-edge-manager';
@@ -63,8 +62,7 @@ export default class Clipper {
                 this.outRecManager.buildResult(solution);
             }
         } finally {
-            this.outRecManager.disposeAllPolyPts();
-            OutPt.cleanup();
+            this.outRecManager.dispose();
             this.isExecuteLocked = false;
         }
 

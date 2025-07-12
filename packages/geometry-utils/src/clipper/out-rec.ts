@@ -22,13 +22,9 @@ export default class OutRec {
         return this._pointIndex;
     }
 
-    public get points(): NullPtr<OutPt> {
-        return OutPt.at(this._pointIndex);
+    public set pointIndex(value: number) {
+        this._pointIndex = value;
     }
-
-    public set points(value: NullPtr<OutPt>) {
-        this._pointIndex = value === null ? -1 : value.current;
-    }  
     
     public getHash(pointIndex: number): number {
         return join_u16_to_u32(this.index, pointIndex);
@@ -78,7 +74,7 @@ export default class OutRec {
 
     public addOutPt(isToFront: boolean, point: Point<Int32Array>): number {
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-        const op: OutPt = this.points;
+        const op: OutPt = OutPt.at(this._pointIndex);
 
         if (isToFront && point.almostEqual(op.point)) {
             return op.current;
@@ -109,7 +105,7 @@ export default class OutRec {
     }
 
     public join(outRec2: OutRec, side1: DIRECTION, side2: DIRECTION): void {
-        this._pointIndex = this.points.join(outRec2.points, side1, side2); 
+        this._pointIndex = OutPt.join(this._pointIndex, outRec2.pointIndex, side1, side2); 
     }
 
     public clean(): void {
@@ -122,13 +118,7 @@ export default class OutRec {
 
     public reverse(): void {
         if (!this.isEmpty) {
-            this.points.reverse();
-        }
-    }
-
-    public dispose(): void {
-        if (!this.isEmpty) {
-            this.points.dispose();
+            OutPt.reverse(this._pointIndex);
         }
     }
 
@@ -169,7 +159,7 @@ export default class OutRec {
     public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        let outPt: NullPtr<OutPt> = this.points;
+        let outPt: NullPtr<OutPt> = OutPt.at(this._pointIndex);
 
         if (direction === DIRECTION.RIGHT) {
             outPt = OutPt.at(outPt.prev);
@@ -177,11 +167,11 @@ export default class OutRec {
 
         const offPoint = outPt.point.almostEqual(top) ? bottom : top;
 
-        return [join_u16_to_u32(this.index, outPt.current), offPoint.x, offPoint.y];
+        return [this.getHash(outPt.current), offPoint.x, offPoint.y];
     }
     
     public get area(): number {
-        return this.isEmpty ? 0 : this.points.area;
+        return this.isEmpty ? 0 : OutPt.getArea(this._pointIndex);
     }
 
     public static getLowermostRec(outRec1: OutRec, outRec2: OutRec): OutRec {
