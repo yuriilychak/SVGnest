@@ -35,8 +35,8 @@ export default class OutRecManager {
 
     public addOutPt(edge: TEdge, point: Point<Int32Array>): number {
         const isToFront: boolean = edge.Side === DIRECTION.LEFT;
-        let outRec: OutRec = null;
-        let pointIndex: number = -1;
+        let outRec: OutRec;
+        let pointIndex: number;
 
         if (!edge.isAssigned) {
             pointIndex = OutPt.fromPoint(point);
@@ -112,12 +112,8 @@ export default class OutRecManager {
     }
 
     public fixupOutPolygon(isUseFullRange: boolean): void {
-        const outRecCount = this.polyOuts.length;
-        let i: number = 0;
-        let outRec: OutRec = null;
-
-        for (i = 0; i < outRecCount; ++i) {
-            outRec = this.polyOuts[i];
+        for (let i = 0; i < this.polyOuts.length; ++i) {
+            const outRec = this.polyOuts[i];
 
             if (!outRec.isEmpty) {
                 outRec.fixupOutPolygon(false, isUseFullRange);
@@ -126,12 +122,8 @@ export default class OutRecManager {
     }
 
     public fixOrientation(reverseSolution: boolean): void {
-        const outRecCount = this.polyOuts.length;
-        let i: number = 0;
-        let outRec = null;
-
-        for (i = 0; i < outRecCount; ++i) {
-            outRec = this.polyOuts[i];
+        for (let i = 0; i < this.polyOuts.length; ++i) {
+            const outRec = this.polyOuts[i];
 
             if (outRec.isEmpty) {
                 continue;
@@ -144,14 +136,9 @@ export default class OutRecManager {
     }
 
     public buildResult(polygons: Point<Int32Array>[][]): void {
-        const polygonCount = this.polyOuts.length;
-        let outRec: OutRec = null;
-        let polygon: NullPtr<Point<Int32Array>[]> = null;
-        let i: number = 0;
-
-        for (i = 0; i < polygonCount; ++i) {
-            outRec = this.polyOuts[i];
-            polygon = outRec.export();
+        for (let i = 0; i < this.polyOuts.length; ++i) {
+            const outRec = this.polyOuts[i];
+            const polygon = outRec.export();
 
             if (polygon.length !== 0) {
                 polygons.push(polygon);
@@ -205,16 +192,14 @@ export default class OutRecManager {
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
         const outPt2Index: number = get_u16_from_u32(outHash2, 1);
-        const outPt1: NullPtr<OutPt> = OutPt.at(outPt1Index);
-        const outPt2: NullPtr<OutPt> = OutPt.at(outPt2Index);
         const outRec1: NullPtr<OutRec> = this.getOutRec(index1);
         let outRec2: NullPtr<OutRec> = this.getOutRec(index2);
 
         if (index1 === index2) {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
-            outRec1.pointIndex = outPt1.current;
-            outRec2 = this.createRec(outPt2.current);
+            outRec1.pointIndex = outPt1Index;
+            outRec2 = this.createRec(outPt2Index);
             outRec2.postInit(isReverseSolution);
 
             return [outHash1, outHash2];
@@ -358,9 +343,9 @@ export default class OutRecManager {
                 point.update(op2b.point);
                 discardLeftSide = op2b.point.x > op2.point.x;
             }
-            result.outHash1 = join_u16_to_u32(index1, op1.current);
-            result.outHash2 = join_u16_to_u32(index2, op2.current);
-            result.result = OutPt.joinHorz(op1.current, op1b.current, op2.current, op2b.current, point, discardLeftSide);
+            result.outHash1 = join_u16_to_u32(index1, op1Index);
+            result.outHash2 = join_u16_to_u32(index2, op2Index);
+            result.result = OutPt.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, point, discardLeftSide);
 
             return result;
         } else {
@@ -399,7 +384,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1.current, outPt2.current, reverse1));
+            result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1Index, outPt2Index, reverse1));
 
             result.result = true;
 
