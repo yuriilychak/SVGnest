@@ -271,11 +271,14 @@ export default class TEdgeManager {
     }
 
     public copyAELToSEL(): void {
-        let edge: TEdge = this.activeEdges;
-        this.sortedEdges = edge;
+        this.sortedEdges = this.activeEdges;
 
-        while (edge !== null) {
-            edge = edge.copyAELToSEL();
+        let currentIndex = this.activeEdges.currentIndex;
+        let edge: TEdge = TEdge.at(currentIndex);
+
+        while (currentIndex !== UNASSIGNED) {
+            currentIndex = edge.copyAELToSEL();
+            edge = TEdge.at(currentIndex);
         }
     }
 

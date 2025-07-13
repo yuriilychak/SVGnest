@@ -204,11 +204,11 @@ export default class TEdge {
         this.unassign();
     }
 
-    public copyAELToSEL(): TEdge {
-        this.prevSorted = this.prevActive;
-        this.nextSorted = this.nextActive;
+    public copyAELToSEL(): number {
+        this.prevSortedIndex = this.prevActiveIndex;
+        this.nextSortedIndex = this.nextActiveIndex;
 
-        return this.nextActive;
+        return this.nextActiveIndex;
     }
 
     public topX(y: number): number {
