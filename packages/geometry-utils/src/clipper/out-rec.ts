@@ -1,7 +1,7 @@
 import { join_u16_to_u32 } from 'wasm-nesting';
 import { Point } from '../types';
 import OutPt from './out-pt';
-import { DIRECTION, NullPtr } from './types';
+import { DIRECTION } from './types';
 
 export default class OutRec {
     public readonly index: number;
@@ -159,15 +159,13 @@ export default class OutRec {
     public getJoinData(direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        let outPt: NullPtr<OutPt> = OutPt.at(this._pointIndex);
-
-        if (direction === DIRECTION.RIGHT) {
-            outPt = OutPt.at(outPt.prev);
-        }
-
+        const index: number = direction === DIRECTION.RIGHT 
+            ? OutPt.getNeighboarIndex(this._pointIndex, false) 
+            : this._pointIndex;
+        const outPt = OutPt.at(index);
         const offPoint = outPt.point.almostEqual(top) ? bottom : top;
 
-        return [this.getHash(outPt.current), offPoint.x, offPoint.y];
+        return [this.getHash(index), offPoint.x, offPoint.y];
     }
     
     public get area(): number {

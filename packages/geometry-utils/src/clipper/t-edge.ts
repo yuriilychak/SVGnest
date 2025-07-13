@@ -5,75 +5,74 @@ import { clipperRound } from '../helpers';
 import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION, NullPtr } from './types';
 
 export default class TEdge {
-    public Bot: PointI32;
-    public Curr: PointI32;
-    public Top: PointI32;
-    public Delta: PointI32;
-    public Dx: number;
-    public PolyTyp: POLY_TYPE;
-    public Side: DIRECTION;
-    public WindDelta: number;
-    public WindCnt: number;
-    public WindCnt2: number;
+    public bot: PointI32;
+    public curr: PointI32;
+    public top: PointI32;
+    public delta: PointI32;
+    public dx: number;
+    public polyTyp: POLY_TYPE;
+    public side: DIRECTION;
+    public windDelta: number;
+    public windCount1: number;
+    public windCount2: number;
     public index: number;
-    public Next: TEdge;
-    public Prev: TEdge;
-    public NextInLML: TEdge;
-    public NextInAEL: TEdge;
-    public PrevInAEL: TEdge;
-    public NextInSEL: TEdge;
-    public PrevInSEL: TEdge;
+    public next: TEdge;
+    public prev: TEdge;
+    public nextInLocalMinima: TEdge;
+    public nextActive: TEdge;
+    public prevActive: TEdge;
+    public nextSorted: TEdge;
+    public prevSorted: TEdge;
 
     constructor() {
-        this.Bot = PointI32.create();
-        this.Curr = PointI32.create();
-        this.Top = PointI32.create();
-        this.Delta = PointI32.create();
-        this.Dx = 0;
-        this.PolyTyp = POLY_TYPE.SUBJECT;
-        this.Side = DIRECTION.LEFT;
-        this.WindDelta = 0;
-        this.WindCnt = 0;
-        this.WindCnt2 = 0;
+        this.bot = PointI32.create();
+        this.curr = PointI32.create();
+        this.top = PointI32.create();
+        this.delta = PointI32.create();
+        this.dx = 0;
+        this.polyTyp = POLY_TYPE.SUBJECT;
+        this.side = DIRECTION.LEFT;
+        this.windDelta = 0;
+        this.windCount1 = 0;
+        this.windCount2 = 0;
         this.index = 0;
-        this.Next = null;
-        this.Prev = null;
-        this.NextInLML = null;
-        this.NextInAEL = null;
-        this.PrevInAEL = null;
-        this.NextInSEL = null;
-        this.PrevInSEL = null;
+        this.next = null;
+        this.prev = null;
+        this.nextInLocalMinima = null;
+        this.nextActive = null;
+        this.prevActive = null;
+        this.nextSorted = null;
+        this.prevSorted = null;
     }
 
     public init(nextEdge: TEdge, prevEdge: TEdge, point: PointI32): void {
-        this.Next = nextEdge;
-        this.Prev = prevEdge;
-        //e.Curr = pt;
-        this.Curr.update(point);
+        this.next = nextEdge;
+        this.prev = prevEdge;
+        this.curr.update(point);
         this.unassign();
     }
 
     public initFromPolyType(polyType: POLY_TYPE): void {
-        if (this.Curr.y >= this.Next.Curr.y) {
-            this.Bot.update(this.Curr);
-            this.Top.update(this.Next.Curr);
+        if (this.curr.y >= this.next.curr.y) {
+            this.bot.update(this.curr);
+            this.top.update(this.next.curr);
         } else {
-            this.Top.update(this.Curr);
-            this.Bot.update(this.Next.Curr);
+            this.top.update(this.curr);
+            this.bot.update(this.next.curr);
         }
 
         this.setDx();
 
-        this.PolyTyp = polyType;
+        this.polyTyp = polyType;
     }
 
     public remove(): TEdge {
-        const result: TEdge = this.Next;
+        const result: TEdge = this.next;
         //removes e from double_linked_list (but without removing from memory)
-        this.Prev.Next = this.Next;
-        this.Next.Prev = this.Prev;
-        this.Prev = null; //flag as removed (see ClipperBase.Clear)
-        this.Next = null;
+        this.prev.next = this.next;
+        this.next.prev = this.prev;
+        this.prev = null; //flag as removed (see ClipperBase.Clear)
+        this.next = null;
 
         return result;
     }
@@ -82,9 +81,9 @@ export default class TEdge {
         //swap horizontal edges' top and bottom x's so they follow the natural
         //progression of the bounds - ie so their xbots will align with the
         //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
-        const tmp: number = this.Top.x;
-        this.Top.x = this.Bot.x;
-        this.Bot.x = tmp;
+        const tmp: number = this.top.x;
+        this.top.x = this.bot.x;
+        this.bot.x = tmp;
     }
 
     public findNextLocMin(): TEdge {
@@ -92,28 +91,28 @@ export default class TEdge {
         let edge: TEdge = null;
 
         while (true) {
-            while (!result.Bot.almostEqual(result.Prev.Bot) || result.Curr.almostEqual(result.Top)) {
-                result = result.Next;
+            while (!result.bot.almostEqual(result.prev.bot) || result.curr.almostEqual(result.top)) {
+                result = result.next;
             }
 
-            if (!result.isDxHorizontal && !result.Prev.isDxHorizontal) {
+            if (!result.isDxHorizontal && !result.prev.isDxHorizontal) {
                 break;
             }
 
-            while (result.Prev.isDxHorizontal) {
-                result = result.Prev;
+            while (result.prev.isDxHorizontal) {
+                result = result.prev;
             }
 
             edge = result;
 
             while (result.isDxHorizontal) {
-                result = result.Next;
+                result = result.next;
             }
-            if (result.Top.y === result.Prev.Bot.y) {
+            if (result.top.y === result.prev.bot.y) {
                 continue;
             }
             //ie just an intermediate horz.
-            if (edge.Prev.Bot.x < result.Bot.x) {
+            if (edge.prev.bot.x < result.bot.x) {
                 result = edge;
             }
 
@@ -124,50 +123,50 @@ export default class TEdge {
     }
 
     public setDx(): void {
-        this.Delta.update(this.Top).sub(this.Bot);
-        this.Dx = this.Delta.y === 0 ? HORIZONTAL : this.Delta.x / this.Delta.y;
+        this.delta.update(this.top).sub(this.bot);
+        this.dx = this.delta.y === 0 ? HORIZONTAL : this.delta.x / this.delta.y;
     }
 
     public reset(side: DIRECTION): void {
-        this.Curr.update(this.Bot);
-        this.Side = side;
+        this.curr.update(this.bot);
+        this.side = side;
         this.unassign();
     }
 
     public copyAELToSEL(): TEdge {
-        this.PrevInSEL = this.PrevInAEL;
-        this.NextInSEL = this.NextInAEL;
+        this.prevSorted = this.prevActive;
+        this.nextSorted = this.nextActive;
 
-        return this.NextInAEL;
+        return this.nextActive;
     }
 
     public topX(y: number): number {
         //if (edge.Bot === edge.Curr) alert ("edge.Bot = edge.Curr");
         //if (edge.Bot === edge.Top) alert ("edge.Bot = edge.Top");
-        return y === this.Top.y ? this.Top.x : this.Bot.x + clipperRound(this.Dx * (y - this.Bot.y));
+        return y === this.top.y ? this.top.x : this.bot.x + clipperRound(this.dx * (y - this.bot.y));
     }
 
     public getNext(isAel: boolean): NullPtr<TEdge> {
-        return isAel ? this.NextInAEL : this.NextInSEL;
+        return isAel ? this.nextActive : this.nextSorted;
     }
 
     public setNext(isAel: boolean, value: NullPtr<TEdge>): void{
         if (isAel) {
-            this.NextInAEL = value;
+            this.nextActive = value;
          }  else {
-            this.NextInSEL = value;
+            this.nextSorted = value;
          }
     }
 
     public getPrev(isAel: boolean): NullPtr<TEdge> {
-        return isAel ? this.PrevInAEL : this.PrevInSEL;
+        return isAel ? this.prevActive : this.prevSorted;
     }
 
     public setPrev(isAel: boolean, value: NullPtr<TEdge>): void{
         if (isAel) {
-            this.PrevInAEL = value;
+            this.prevActive = value;
          }  else {
-            this.PrevInSEL = value;
+            this.prevSorted = value;
          }
     }
 
@@ -200,12 +199,12 @@ export default class TEdge {
     }
 
     public alignWndCount(edge: TEdge): void {
-        if (this.PolyTyp === edge.PolyTyp) {
-            this.WindCnt = this.WindCnt === -edge.WindDelta ? -this.WindCnt : this.WindCnt + edge.WindDelta;
-            edge.WindCnt = edge.WindCnt === this.WindDelta ? -edge.WindCnt : edge.WindCnt - this.WindDelta;
+        if (this.polyTyp === edge.polyTyp) {
+            this.windCount1 = this.windCount1 === -edge.windDelta ? -this.windCount1 : this.windCount1 + edge.windDelta;
+            edge.windCount1 = edge.windCount1 === this.windDelta ? -edge.windCount1 : edge.windCount1 - this.windDelta;
         } else {
-            this.WindCnt2 += edge.WindDelta;
-            edge.WindCnt2 -= this.WindDelta;
+            this.windCount2 += edge.windDelta;
+            edge.windCount2 -= this.windDelta;
         }
 
     }
@@ -213,20 +212,20 @@ export default class TEdge {
     public getWndTypeFilled(fillType: POLY_FILL_TYPE): number {
         switch (fillType) {
             case POLY_FILL_TYPE.POSITIVE:
-                return this.WindCnt;
+                return this.windCount1;
             case POLY_FILL_TYPE.NEGATIVE:
-                return -this.WindCnt;
+                return -this.windCount1;
             default:
-                return Math.abs(this.WindCnt);
+                return Math.abs(this.windCount1);
         }
     }
 
     public getStop(point: PointI32, isProtect: boolean): boolean {
-        return !isProtect && this.NextInLML === null && this.Top.almostEqual(point);
+        return !isProtect && this.nextInLocalMinima === null && this.top.almostEqual(point);
     }
 
     public getIntermediate(y: number): boolean {
-        return this.Top.y === y && this.NextInLML !== null;
+        return this.top.y === y && this.nextInLocalMinima !== null;
     }
 
     public get isFilled(): boolean {
@@ -234,62 +233,62 @@ export default class TEdge {
     }
 
     public get isHorizontal(): boolean {
-        return this.Delta.y === 0;
+        return this.delta.y === 0;
     }
 
     public get isWindDeletaEmpty(): boolean {
-        return this.WindDelta === 0;
+        return this.windDelta === 0;
     }
 
     public get isDxHorizontal(): boolean {
-        return this.Dx === HORIZONTAL;
+        return this.dx === HORIZONTAL;
     }
 
     public get maximaPair(): NullPtr<TEdge> {
         let result: NullPtr<TEdge> = null;
 
-        if (this.Next !== null && this.Next.Top.almostEqual(this.Top) && this.Next.NextInLML === null) {
-            result = this.Next;
-        } else if (this.Prev !== null && this.Prev.Top.almostEqual(this.Top) && this.Prev.NextInLML === null) {
-            result = this.Prev;
+        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextInLocalMinima === null) {
+            result = this.next;
+        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextInLocalMinima === null) {
+            result = this.prev;
         }
 
-        return result !== null && result.NextInAEL === result.PrevInAEL && !result.isHorizontal ? null : result;
+        return result !== null && result.nextActive === result.prevActive && !result.isHorizontal ? null : result;
     }
 
     public getMaxima(y: number): boolean {
-        return this.Top.y === y && this.NextInLML === null;
+        return this.top.y === y && this.nextInLocalMinima === null;
     }
 
     public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
-        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && this.PolyTyp === POLY_TYPE.CLIP;
+        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && this.polyTyp === POLY_TYPE.CLIP;
 
         switch (fillType) {
             case POLY_FILL_TYPE.NON_ZERO:
-                return Math.abs(this.WindCnt) === 1 && isReverse !== (this.WindCnt2 === 0);
+                return Math.abs(this.windCount1) === 1 && isReverse !== (this.windCount2 === 0);
             case POLY_FILL_TYPE.POSITIVE:
-                return this.WindCnt === 1 && isReverse !== this.WindCnt2 <= 0;
+                return this.windCount1 === 1 && isReverse !== this.windCount2 <= 0;
             default:
-                return this.WindCnt === -1 && isReverse !== this.WindCnt2 >= 0;
+                return this.windCount1 === -1 && isReverse !== this.windCount2 >= 0;
         }
     }
 
     public insertsBefore(edge: TEdge): boolean {
-        if (this.Curr.x === edge.Curr.x) {
-            return this.Top.y > edge.Top.y ? this.Top.x < edge.topX(this.Top.y) : edge.Top.x > this.topX(edge.Top.y);
+        if (this.curr.x === edge.curr.x) {
+            return this.top.y > edge.top.y ? this.top.x < edge.topX(this.top.y) : edge.top.x > this.topX(edge.top.y);
         }
 
-        return this.Curr.x < edge.Curr.x;
+        return this.curr.x < edge.curr.x;
     }
 
     public addEdgeToSEL(sortedEdge: NullPtr<TEdge>): TEdge {
         //SEL pointers in PEdge are reused to build a list of horizontal edges.
         //However, we don't need to worry about order with horizontal edge processing.
-        this.PrevInSEL = null;
-        this.NextInSEL = sortedEdge;
+        this.prevSorted = null;
+        this.nextSorted = sortedEdge;
 
         if (sortedEdge !== null) {
-            sortedEdge.PrevInSEL = this;
+            sortedEdge.prevSorted = this;
         }
 
         return this;
@@ -297,40 +296,40 @@ export default class TEdge {
 
     public insertEdgeIntoAEL(activeEdge: NullPtr<TEdge>, startEdge: NullPtr<TEdge> = null): TEdge {
         if (activeEdge === null) {
-            this.PrevInAEL = null;
-            this.NextInAEL = null;
+            this.prevActive = null;
+            this.nextActive = null;
 
             return this;
         }
 
         if (startEdge === null && this.insertsBefore(activeEdge)) {
-            this.PrevInAEL = null;
-            this.NextInAEL = activeEdge;
-            activeEdge.PrevInAEL = this;
+            this.prevActive = null;
+            this.nextActive = activeEdge;
+            activeEdge.prevActive = this;
 
             return this;
         }
 
         let edge: TEdge = startEdge === null ? activeEdge : startEdge;
 
-        while (edge.NextInAEL !== null && !this.insertsBefore(edge.NextInAEL)) {
-            edge = edge.NextInAEL;
+        while (edge.nextActive !== null && !this.insertsBefore(edge.nextActive)) {
+            edge = edge.nextActive;
         }
 
-        this.NextInAEL = edge.NextInAEL;
+        this.nextActive = edge.nextActive;
 
-        if (edge.NextInAEL !== null) {
-            edge.NextInAEL.PrevInAEL = this;
+        if (edge.nextActive !== null) {
+            edge.nextActive.prevActive = this;
         }
 
-        this.PrevInAEL = edge;
-        edge.NextInAEL = this;
+        this.prevActive = edge;
+        edge.nextActive = this;
 
         return activeEdge;
     }
 
     public getNextInAEL(direction: DIRECTION): NullPtr<TEdge> {
-        return direction === DIRECTION.RIGHT ? this.NextInAEL : this.PrevInAEL;
+        return direction === DIRECTION.RIGHT ? this.nextActive : this.prevActive;
     }
 
     public unassign(): void {
@@ -339,7 +338,7 @@ export default class TEdge {
 
     public get horzDirection(): Float64Array {
         return new Float64Array(
-            this.Bot.x < this.Top.x ? [DIRECTION.RIGHT, this.Bot.x, this.Top.x] : [DIRECTION.LEFT, this.Top.x, this.Bot.x]
+            this.bot.x < this.top.x ? [DIRECTION.RIGHT, this.bot.x, this.top.x] : [DIRECTION.LEFT, this.top.x, this.bot.x]
         );
     }
 
@@ -356,16 +355,16 @@ export default class TEdge {
         if (edge.isDxHorizontal) {
             //it's possible for adjacent overlapping horz edges to start heading left
             //before finishing right, so ...
-            const startX: number = isClockwise ? edge.Prev.Bot.x : edge.Next.Bot.x;
+            const startX: number = isClockwise ? edge.prev.bot.x : edge.next.bot.x;
 
-            if (edge.Bot.x !== startX) {
+            if (edge.bot.x !== startX) {
                 edge.reverseHorizontal();
             }
         }
 
         if (isClockwise) {
-            while (result.Top.y === result.Next.Bot.y) {
-                result = result.Next;
+            while (result.top.y === result.next.bot.y) {
+                result = result.next;
             }
 
             if (result.isDxHorizontal) {
@@ -374,71 +373,71 @@ export default class TEdge {
                 //unless a Skip edge is encountered when that becomes the top divide
                 horzEdge = result;
 
-                while (horzEdge.Prev.isDxHorizontal) {
-                    horzEdge = horzEdge.Prev;
+                while (horzEdge.prev.isDxHorizontal) {
+                    horzEdge = horzEdge.prev;
                 }
 
-                if (horzEdge.Prev.Top.x === result.Next.Top.x) {
+                if (horzEdge.prev.top.x === result.next.top.x) {
                     if (!isClockwise) {
-                        result = horzEdge.Prev;
+                        result = horzEdge.prev;
                     }
-                } else if (horzEdge.Prev.Top.x > result.Next.Top.x) {
-                    result = horzEdge.Prev;
+                } else if (horzEdge.prev.top.x > result.next.top.x) {
+                    result = horzEdge.prev;
                 }
             }
 
             while (edge !== result) {
-                edge.NextInLML = edge.Next;
+                edge.nextInLocalMinima = edge.next;
 
-                if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
+                if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
                     edge.reverseHorizontal();
                 }
 
-                edge = edge.Next;
+                edge = edge.next;
             }
 
-            if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Prev.Top.x) {
+            if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
                 edge.reverseHorizontal();
             }
 
-            result = result.Next;
+            result = result.next;
             //move to the edge just beyond current bound
         } else {
-            while (result.Top.y === result.Prev.Bot.y) {
-                result = result.Prev;
+            while (result.top.y === result.prev.bot.y) {
+                result = result.prev;
             }
 
             if (result.isDxHorizontal) {
                 horzEdge = result;
 
-                while (horzEdge.Next.isDxHorizontal) {
-                    horzEdge = horzEdge.Next;
+                while (horzEdge.next.isDxHorizontal) {
+                    horzEdge = horzEdge.next;
                 }
 
-                if (horzEdge.Next.Top.x === result.Prev.Top.x) {
+                if (horzEdge.next.top.x === result.prev.top.x) {
                     if (!isClockwise) {
-                        result = horzEdge.Next;
+                        result = horzEdge.next;
                     }
-                } else if (horzEdge.Next.Top.x > result.Prev.Top.x) {
-                    result = horzEdge.Next;
+                } else if (horzEdge.next.top.x > result.prev.top.x) {
+                    result = horzEdge.next;
                 }
             }
 
             while (edge !== result) {
-                edge.NextInLML = edge.Prev;
+                edge.nextInLocalMinima = edge.prev;
 
-                if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
+                if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
                     edge.reverseHorizontal();
                 }
 
-                edge = edge.Prev;
+                edge = edge.prev;
             }
 
-            if (edge.isDxHorizontal && edge !== startEdge && edge.Bot.x !== edge.Next.Top.x) {
+            if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
                 edge.reverseHorizontal();
             }
 
-            result = result.Prev;
+            result = result.prev;
             //move to the edge just beyond current bound
         }
 
@@ -446,97 +445,97 @@ export default class TEdge {
     }
 
     public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE): void {
-        let edge: NullPtr<TEdge> = this.PrevInAEL;
+        let edge: NullPtr<TEdge> = this.prevActive;
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
-        while (edge !== null && (edge.PolyTyp !== this.PolyTyp || edge.isWindDeletaEmpty)) {
-            edge = edge.PrevInAEL;
+        while (edge !== null && (edge.polyTyp !== this.polyTyp || edge.isWindDeletaEmpty)) {
+            edge = edge.prevActive;
         }
 
         if (edge === null) {
-            this.WindCnt = this.isWindDeletaEmpty ? 1 : this.WindDelta;
-            this.WindCnt2 = 0;
+            this.windCount1 = this.isWindDeletaEmpty ? 1 : this.windDelta;
+            this.windCount2 = 0;
             edge = activeEdge;
             //ie get ready to calc WindCnt2
         } else if (this.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
-            this.WindCnt = 1;
-            this.WindCnt2 = edge.WindCnt2;
-            edge = edge.NextInAEL;
+            this.windCount1 = 1;
+            this.windCount2 = edge.windCount2;
+            edge = edge.nextActive;
             //ie get ready to calc WindCnt2
         } else {
             //nonZero, Positive or Negative filling ...
-            if (edge.WindCnt * edge.WindDelta < 0) {
+            if (edge.windCount1 * edge.windDelta < 0) {
                 //prev edge is 'decreasing' WindCount (WC) toward zero
                 //so we're outside the previous polygon ...
-                if (Math.abs(edge.WindCnt) > 1) {
+                if (Math.abs(edge.windCount1) > 1) {
                     //outside prev poly but still inside another.
                     //when reversing direction of prev poly use the same WC
-                    this.WindCnt = edge.WindDelta * this.WindDelta < 0 ? edge.WindCnt : edge.WindCnt + this.WindDelta;
+                    this.windCount1 = edge.windDelta * this.windDelta < 0 ? edge.windCount1 : edge.windCount1 + this.windDelta;
                 } else {
-                    this.WindCnt = this.isWindDeletaEmpty ? 1 : this.WindDelta;
+                    this.windCount1 = this.isWindDeletaEmpty ? 1 : this.windDelta;
                 }
             } else {
                 //prev edge is 'increasing' WindCount (WC) away from zero
                 //so we're inside the previous polygon ...
                 if (this.isWindDeletaEmpty) {
-                    this.WindCnt = edge.WindCnt < 0 ? edge.WindCnt - 1 : edge.WindCnt + 1;
+                    this.windCount1 = edge.windCount1 < 0 ? edge.windCount1 - 1 : edge.windCount1 + 1;
                 } else {
-                    this.WindCnt = edge.WindDelta * this.WindDelta < 0 ? edge.WindCnt : edge.WindCnt + this.WindDelta;
+                    this.windCount1 = edge.windDelta * this.windDelta < 0 ? edge.windCount1 : edge.windCount1 + this.windDelta;
                 }
             }
 
-            this.WindCnt2 = edge.WindCnt2;
-            edge = edge.NextInAEL;
+            this.windCount2 = edge.windCount2;
+            edge = edge.nextActive;
             //ie get ready to calc WindCnt2
         }
         //nonZero, Positive or Negative filling ...
         while (edge !== this) {
-            this.WindCnt2 += edge.WindDelta;
-            edge = edge.NextInAEL;
+            this.windCount2 += edge.windDelta;
+            edge = edge.nextActive;
         }
     }
 
     public static intersectPoint(edge1: TEdge, edge2: TEdge, intersectPoint: PointI32, useFullRange: boolean): boolean {
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
-        if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.Dx === edge2.Dx) {
-            const point: PointI32 = edge2.Bot.y > edge1.Bot.y ? edge2.Bot : edge1.Bot;
+        if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.dx === edge2.dx) {
+            const point: PointI32 = edge2.bot.y > edge1.bot.y ? edge2.bot : edge1.bot;
 
             intersectPoint.update(point);
 
             return false;
         }
 
-        if (edge1.Delta.x === 0) {
+        if (edge1.delta.x === 0) {
             intersectPoint.set(
-                edge1.Bot.x,
-                edge2.isHorizontal ? edge2.Bot.y : clipperRound((edge1.Bot.x - edge2.Bot.x) / edge2.Dx + edge2.Bot.y)
+                edge1.bot.x,
+                edge2.isHorizontal ? edge2.bot.y : clipperRound((edge1.bot.x - edge2.bot.x) / edge2.dx + edge2.bot.y)
             );
-        } else if (edge2.Delta.x === 0) {
+        } else if (edge2.delta.x === 0) {
             intersectPoint.set(
-                edge2.Bot.x,
-                edge1.isHorizontal ? edge1.Bot.y : clipperRound((edge2.Bot.x - edge1.Bot.x) / edge1.Dx + edge1.Bot.y)
+                edge2.bot.x,
+                edge1.isHorizontal ? edge1.bot.y : clipperRound((edge2.bot.x - edge1.bot.x) / edge1.dx + edge1.bot.y)
             );
         } else {
-            const b1 = edge1.Bot.x - edge1.Bot.y * edge1.Dx;
-            const b2 = edge2.Bot.x - edge2.Bot.y * edge2.Dx;
-            const q: number = (b2 - b1) / (edge1.Dx - edge2.Dx);
+            const b1 = edge1.bot.x - edge1.bot.y * edge1.dx;
+            const b2 = edge2.bot.x - edge2.bot.y * edge2.dx;
+            const q: number = (b2 - b1) / (edge1.dx - edge2.dx);
 
             intersectPoint.set(
-                Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? clipperRound(edge1.Dx * q + b1) : clipperRound(edge2.Dx * q + b2),
+                Math.abs(edge1.dx) < Math.abs(edge2.dx) ? clipperRound(edge1.dx * q + b1) : clipperRound(edge2.dx * q + b2),
                 clipperRound(q)
             );
         }
 
-        if (intersectPoint.y < edge1.Top.y || intersectPoint.y < edge2.Top.y) {
-            if (edge1.Top.y > edge2.Top.y) {
-                intersectPoint.set(edge2.topX(edge1.Top.y), edge1.Top.y);
+        if (intersectPoint.y < edge1.top.y || intersectPoint.y < edge2.top.y) {
+            if (edge1.top.y > edge2.top.y) {
+                intersectPoint.set(edge2.topX(edge1.top.y), edge1.top.y);
 
-                return intersectPoint.x < edge1.Top.x;
+                return intersectPoint.x < edge1.top.x;
             }
 
             intersectPoint.set(
-                Math.abs(edge1.Dx) < Math.abs(edge2.Dx) ? edge1.topX(intersectPoint.y) : edge2.topX(intersectPoint.y),
-                edge2.Top.y
+                Math.abs(edge1.dx) < Math.abs(edge2.dx) ? edge1.topX(intersectPoint.y) : edge2.topX(intersectPoint.y),
+                edge2.top.y
             );
         }
 
@@ -544,7 +543,7 @@ export default class TEdge {
     }
 
     public static slopesEqual(e1: TEdge, e2: TEdge, useFullRange: boolean): boolean {
-        return slopesEqual(e1.Delta.y, e2.Delta.x, e1.Delta.x, e2.Delta.y, useFullRange);
+        return slopesEqual(e1.delta.y, e2.delta.x, e1.delta.x, e2.delta.y, useFullRange);
     }
 
     public static getSwapPositionInEL(edge1: TEdge, edge2: TEdge, isAel: boolean): boolean {
@@ -645,15 +644,50 @@ export default class TEdge {
     }
 
     public static swapSides(edge1: TEdge, edge2: TEdge): void {
-        const side: DIRECTION = edge1.Side;
-        edge1.Side = edge2.Side;
-        edge2.Side = side;
+        const side: DIRECTION = edge1.side;
+        edge1.side = edge2.side;
+        edge2.side = side;
     }
 
     public static swapPolyIndexes(edge1: TEdge, edge2: TEdge): void {
         const outIdx: number = edge1.index;
         edge1.index = edge2.index;
         edge2.index = outIdx;
+    }
+
+
+    public static updateIndexAEL(inputEdge: TEdge, side: DIRECTION, oldIndex: number, newIndex: number): void {
+        let edge = inputEdge;
+
+        while (edge !== null) {
+            if (edge.index === oldIndex) {
+                edge.index = newIndex;
+                edge.side = side;
+                break;
+            }
+
+            edge = edge.nextActive;
+        }
+    }
+
+    public static getHoleState(firstLeftIndex: number, tEdge: TEdge): { isHole: boolean, index: number } {
+        let isHole: boolean = false;
+        let edge: NullPtr<TEdge> = tEdge.prevActive;
+        let index: number = -1;
+
+        while (edge !== null) {
+            if (edge.isAssigned && !edge.isWindDeletaEmpty) {
+                isHole = !isHole;
+
+                if (firstLeftIndex === -1) {
+                    index = edge.index;
+                }
+            }
+
+            edge = edge.prevActive;
+        }
+
+        return { isHole, index };
     }
 
     private static UNASSIGNED = -1;

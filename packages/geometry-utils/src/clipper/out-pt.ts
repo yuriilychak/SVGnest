@@ -22,7 +22,7 @@ export default class OutPt {
         OutPt.points.push(this);
     }
 
-    public static at(index: number): NullPtr<OutPt> {
+    public static at(index: number): OutPt | null {
         return index >= 0 && index < OutPt.points.length ? OutPt.points[index] : null;
     }
 

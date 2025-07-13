@@ -30,11 +30,11 @@ export default class OutRecManager {
     public getJoinData(horzEdge: TEdge) {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        return this.polyOuts[horzEdge.index].getJoinData(horzEdge.Side, horzEdge.Top, horzEdge.Bot);
+        return this.polyOuts[horzEdge.index].getJoinData(horzEdge.side, horzEdge.top, horzEdge.bot);
     }
 
     public addOutPt(edge: TEdge, point: Point<Int32Array>): number {
-        const isToFront: boolean = edge.Side === DIRECTION.LEFT;
+        const isToFront: boolean = edge.side === DIRECTION.LEFT;
         let outRec: OutRec;
         let pointIndex: number;
 
@@ -77,9 +77,9 @@ export default class OutRecManager {
         const outRec2: OutRec = this.polyOuts[secondEdge.index];
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
-        outRec1.join(outRec2, firstEdge.Side, secondEdge.Side);
+        outRec1.join(outRec2, firstEdge.side, secondEdge.side);
 
-        const side = firstEdge.Side;
+        const side = firstEdge.side;
 
         if (holeStateRec === outRec2) {
             if (outRec2.firstLeftIndex !== outRec1.index) {
@@ -97,16 +97,7 @@ export default class OutRecManager {
         //nb: safe because we only get here via AddLocalMaxPoly
         secondEdge.unassign();
 
-        let e: TEdge = activeEdge;
-
-        while (e !== null) {
-            if (e.index === ObsoleteIdx) {
-                e.index = OKIdx;
-                e.Side = side;
-                break;
-            }
-            e = e.NextInAEL;
-        }
+        TEdge.updateIndexAEL(activeEdge, side, ObsoleteIdx, OKIdx);
 
         outRec2.currentIndex = outRec1.currentIndex;
     }
@@ -158,19 +149,10 @@ export default class OutRecManager {
     }
 
     private setHoleState(outRec: OutRec, tEdge: TEdge): void {
-        let isHole: boolean = false;
-        let edge: NullPtr<TEdge> = tEdge.PrevInAEL;
+        const { isHole, index } = TEdge.getHoleState(outRec.firstLeftIndex, tEdge);
 
-        while (edge !== null) {
-            if (edge.isAssigned && !edge.isWindDeletaEmpty) {
-                isHole = !isHole;
-
-                if (outRec.firstLeftIndex === -1) {
-                    outRec.firstLeftIndex = this.polyOuts[edge.index].index;
-                }
-            }
-
-            edge = edge.PrevInAEL;
+        if (outRec.firstLeftIndex === -1 && index !== -1) {
+            outRec.firstLeftIndex = this.polyOuts[index].index;
         }
 
         if (isHole) {
@@ -396,6 +378,6 @@ export default class OutRecManager {
         const outPtIndex = get_u16_from_u32(outHash, 1);
         const outPt = OutPt.at(outPtIndex);
         
-        return PointI32.horzSegmentsOverlap(outPt.point, offPoint, rightBound.Bot, rightBound.Top);
+        return PointI32.horzSegmentsOverlap(outPt.point, offPoint, rightBound.bot, rightBound.top);
     }
 }

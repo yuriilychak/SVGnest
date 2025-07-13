@@ -33,9 +33,9 @@ export default class JoinManager {
 
     static checkHorizontalCondition(edge: TEdge, neighboar: TEdge, isUseFullRange: boolean) {
         return neighboar !== null &&
-        neighboar.Curr.almostEqual(edge.Bot) &&
+        neighboar.curr.almostEqual(edge.bot) &&
         neighboar.isFilled &&
-        neighboar.Curr.y > neighboar.Top.y &&
+        neighboar.curr.y > neighboar.top.y &&
         TEdge.slopesEqual(edge, neighboar, isUseFullRange)
     }
 
@@ -44,17 +44,17 @@ export default class JoinManager {
     }
 
     public addHorizontalJoin(outHash: number, edge: TEdge): void {
-        let prevEdge: NullPtr<TEdge> = edge.PrevInAEL;
-        let nextEdge: NullPtr<TEdge> = edge.NextInAEL;
+        let prevEdge: NullPtr<TEdge> = edge.prevActive;
+        let nextEdge: NullPtr<TEdge> = edge.nextActive;
 
         const condition1 = JoinManager.checkHorizontalCondition(edge, prevEdge, this.isUseFullRange);
 
-        this.insertJoin(condition1, outHash, prevEdge, edge.Bot);
+        this.insertJoin(condition1, outHash, prevEdge, edge.bot);
 
         if (!condition1) {
             const condition2 = JoinManager.checkHorizontalCondition(edge, nextEdge, this.isUseFullRange);
 
-            this.insertJoin(condition2, outHash, nextEdge, edge.Bot);
+            this.insertJoin(condition2, outHash, nextEdge, edge.bot);
         }
     }
 
@@ -65,47 +65,47 @@ export default class JoinManager {
         TEdge.slopesEqual(edge, edgePrev, this.isUseFullRange) &&
         !edge.isWindDeletaEmpty;
 
-        this.insertJoin(condition, outHash, edgePrev, point, edge.Top);
+        this.insertJoin(condition, outHash, edgePrev, point, edge.top);
     }
 
     public addLeftJoin(outHash: number, leftBound: TEdge) {
         const condition = leftBound.isFilled &&
-        leftBound.PrevInAEL !== null &&
-        leftBound.PrevInAEL.Curr.x === leftBound.Bot.x &&
-        leftBound.PrevInAEL.isFilled &&
-        TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, this.isUseFullRange);
+        leftBound.prevActive !== null &&
+        leftBound.prevActive.curr.x === leftBound.bot.x &&
+        leftBound.prevActive.isFilled &&
+        TEdge.slopesEqual(leftBound.prevActive, leftBound, this.isUseFullRange);
 
-        this.insertJoin(condition, outHash, leftBound.PrevInAEL,  leftBound.Bot, leftBound.Top);
+        this.insertJoin(condition, outHash, leftBound.prevActive,  leftBound.bot, leftBound.top);
 
     }
 
     public addRightJoin(outHash: number, rightBound: TEdge) {
         const condition =  rightBound.isFilled &&
-        rightBound.PrevInAEL.isFilled &&
-        TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange);
+        rightBound.prevActive.isFilled &&
+        TEdge.slopesEqual(rightBound.prevActive, rightBound, this.isUseFullRange);
 
-        this.insertJoin(condition, outHash, rightBound.PrevInAEL, rightBound.Bot, rightBound.Top);
+        this.insertJoin(condition, outHash, rightBound.prevActive, rightBound.bot, rightBound.top);
     }
 
     public addScanbeamJoin(edge1: TEdge, edge2: TEdge): void {
-        if (edge1.isFilled && edge2 !== null && edge2.isFilled && edge2.Curr.x === edge1.Curr.x) {
-            const outPt1 = this.outRecManager.addOutPt(edge2, edge1.Curr);
-            const outPt2 = this.outRecManager.addOutPt(edge1, edge1.Curr);
+        if (edge1.isFilled && edge2 !== null && edge2.isFilled && edge2.curr.x === edge1.curr.x) {
+            const outPt1 = this.outRecManager.addOutPt(edge2, edge1.curr);
+            const outPt2 = this.outRecManager.addOutPt(edge1, edge1.curr);
 
-            this.joins.push(new Join(outPt1, outPt2, edge1.Curr.x, edge1.Curr.y));
+            this.joins.push(new Join(outPt1, outPt2, edge1.curr.x, edge1.curr.y));
             //StrictlySimple (type-3) join
         }
     }
 
     public addSharedJoin(outHash: number, edge1: TEdge) {
-        const ePrev: TEdge = edge1.PrevInAEL;
-        const eNext: TEdge = edge1.NextInAEL;
+        const ePrev: TEdge = edge1.prevActive;
+        const eNext: TEdge = edge1.nextActive;
 
         const condition1 = JoinManager.checkSharedCondition(outHash, edge1, ePrev, this.isUseFullRange);
 
-        if(!this.insertJoin(condition1, outHash, ePrev,  edge1.Bot, edge1.Top)) {
+        if(!this.insertJoin(condition1, outHash, ePrev,  edge1.bot, edge1.top)) {
             const condition2 = JoinManager.checkSharedCondition(outHash, edge1, eNext, this.isUseFullRange);;
-            this.insertJoin(condition2, outHash, eNext,  edge1.Bot, edge1.Top);
+            this.insertJoin(condition2, outHash, eNext,  edge1.bot, edge1.top);
         }
     }
 
@@ -165,20 +165,20 @@ export default class JoinManager {
         let edge: TEdge = null;
         let edgePrev: TEdge;
 
-        if (edge2.isHorizontal || edge1.Dx > edge2.Dx) {
+        if (edge2.isHorizontal || edge1.dx > edge2.dx) {
             result = this.outRecManager.addOutPt(edge1, point);
             edge2.index = edge1.index;
-            edge2.Side = DIRECTION.RIGHT;
-            edge1.Side = DIRECTION.LEFT;
+            edge2.side = DIRECTION.RIGHT;
+            edge1.side = DIRECTION.LEFT;
             edge = edge1;
-            edgePrev = edge.PrevInAEL === edge2 ? edge2.PrevInAEL : edge.PrevInAEL;
+            edgePrev = edge.prevActive === edge2 ? edge2.prevActive : edge.prevActive;
         } else {
             result = this.outRecManager.addOutPt(edge2, point);
             edge1.index = edge2.index;
-            edge1.Side = DIRECTION.RIGHT;
-            edge2.Side = DIRECTION.LEFT;
+            edge1.side = DIRECTION.RIGHT;
+            edge2.side = DIRECTION.LEFT;
             edge = edge2;
-            edgePrev = edge.PrevInAEL === edge1 ? edge1.PrevInAEL : edge.PrevInAEL;
+            edgePrev = edge.prevActive === edge1 ? edge1.prevActive : edge.prevActive;
         }
 
         this.addMinJoin(result, edge, edgePrev, point);
@@ -192,21 +192,21 @@ export default class JoinManager {
 
         switch (this.fillType) {
             case POLY_FILL_TYPE.POSITIVE:
-                e1Wc2 = edge1.WindCnt2;
-                e2Wc2 = edge2.WindCnt2;
+                e1Wc2 = edge1.windCount2;
+                e2Wc2 = edge2.windCount2;
                 break;
             case POLY_FILL_TYPE.NEGATIVE:
-                e1Wc2 = -edge1.WindCnt2;
-                e2Wc2 = -edge2.WindCnt2;
+                e1Wc2 = -edge1.windCount2;
+                e2Wc2 = -edge2.windCount2;
                 break;
             default:
-                e1Wc2 = Math.abs(edge1.WindCnt2);
-                e2Wc2 = Math.abs(edge2.WindCnt2);
+                e1Wc2 = Math.abs(edge1.windCount2);
+                e2Wc2 = Math.abs(edge2.windCount2);
                 break;
         }
 
         
-        if (edge1.PolyTyp !== edge2.PolyTyp) {
+        if (edge1.polyTyp !== edge2.polyTyp) {
             this.addLocalMinPoly(edge1, edge2, point);
         } else if (e1Wc === 1 && e2Wc === 1) {
             switch (this.clipType) {
@@ -217,8 +217,8 @@ export default class JoinManager {
                     break;
                 case CLIP_TYPE.DIFFERENCE:
                     if (
-                        (edge1.PolyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
-                        (edge1.PolyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
+                        (edge1.polyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
+                        (edge1.polyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
                     ) {
                         this.addLocalMinPoly(edge1, edge2, point);
                     }

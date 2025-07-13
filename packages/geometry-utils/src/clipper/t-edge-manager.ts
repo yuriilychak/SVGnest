@@ -52,7 +52,7 @@ export default class TEdgeManager {
                 minEdge = edge;
             }
 
-            isClockwise = edge.Dx >= edge.Prev.Dx;
+            isClockwise = edge.dx >= edge.prev.dx;
             const localMinima: LocalMinima = this.createLocalMinima(edge);
 
             edge = localMinima.leftBound.processBound(isClockwise);
@@ -123,7 +123,7 @@ export default class TEdgeManager {
         //1. Basic (first) edge initialization ...
 
         //edges[1].Curr = pg[1];
-        edges[1].Curr.update(polygon[1]);
+        edges[1].curr.update(polygon[1]);
 
         this.isUseFullRange = polygon[0].rangeTest(this.isUseFullRange);
         this.isUseFullRange = polygon[lastIndex].rangeTest(this.isUseFullRange);
@@ -143,13 +143,13 @@ export default class TEdgeManager {
         let loopStopEdge: TEdge = startEdge;
 
         while (true) {
-            if (edge.Curr.almostEqual(edge.Next.Curr)) {
-                if (edge === edge.Next) {
+            if (edge.curr.almostEqual(edge.next.curr)) {
+                if (edge === edge.next) {
                     break;
                 }
 
                 if (edge === startEdge) {
-                    startEdge = edge.Next;
+                    startEdge = edge.next;
                 }
 
                 edge = edge.remove();
@@ -158,34 +158,34 @@ export default class TEdgeManager {
                 continue;
             }
 
-            if (edge.Prev === edge.Next) {
+            if (edge.prev === edge.next) {
                 break;
             }
 
-            if (PointI32.slopesEqual(edge.Prev.Curr, edge.Curr, edge.Next.Curr, this.isUseFullRange)) {
+            if (PointI32.slopesEqual(edge.prev.curr, edge.curr, edge.next.curr, this.isUseFullRange)) {
                 //Collinear edges are allowed for open paths but in closed paths
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
                 //collinear edges (ie spikes) will be removed from closed paths.
                 if (edge === startEdge) {
-                    startEdge = edge.Next;
+                    startEdge = edge.next;
                 }
 
                 edge = edge.remove();
-                edge = edge.Prev;
+                edge = edge.prev;
                 loopStopEdge = edge;
 
                 continue;
             }
 
-            edge = edge.Next;
+            edge = edge.next;
 
             if (edge === loopStopEdge) {
                 break;
             }
         }
 
-        if (edge.Prev === edge.Next) {
+        if (edge.prev === edge.next) {
             return null;
         }
 
@@ -196,9 +196,9 @@ export default class TEdgeManager {
 
         do {
             edge.initFromPolyType(polyType);
-            edge = edge.Next;
+            edge = edge.next;
 
-            if (isFlat && edge.Curr.y !== startEdge.Curr.y) {
+            if (isFlat && edge.curr.y !== startEdge.curr.y) {
                 isFlat = false;
             }
         } while (edge !== startEdge);
@@ -213,35 +213,35 @@ export default class TEdgeManager {
     }
 
     public updateEdgeIntoAEL(edge: TEdge): NullPtr<TEdge> {
-        if (edge.NextInLML === null) {
+        if (edge.nextInLocalMinima === null) {
             showError('UpdateEdgeIntoAEL: invalid call');
         }
 
-        const AelPrev: NullPtr<TEdge> = edge.PrevInAEL;
-        const AelNext: NullPtr<TEdge> = edge.NextInAEL;
-        edge.NextInLML.index = edge.index;
+        const AelPrev: NullPtr<TEdge> = edge.prevActive;
+        const AelNext: NullPtr<TEdge> = edge.nextActive;
+        edge.nextInLocalMinima.index = edge.index;
 
         if (AelPrev !== null) {
-            AelPrev.NextInAEL = edge.NextInLML;
+            AelPrev.nextActive = edge.nextInLocalMinima;
         } else {
-            this.activeEdges = edge.NextInLML;
+            this.activeEdges = edge.nextInLocalMinima;
         }
 
         if (AelNext !== null) {
-            AelNext.PrevInAEL = edge.NextInLML;
+            AelNext.prevActive = edge.nextInLocalMinima;
         }
 
-        edge.NextInLML.Side = edge.Side;
-        edge.NextInLML.WindDelta = edge.WindDelta;
-        edge.NextInLML.WindCnt = edge.WindCnt;
-        edge.NextInLML.WindCnt2 = edge.WindCnt2;
-        edge = edge.NextInLML;
-        edge.Curr.update(edge.Bot);
-        edge.PrevInAEL = AelPrev;
-        edge.NextInAEL = AelNext;
+        edge.nextInLocalMinima.side = edge.side;
+        edge.nextInLocalMinima.windDelta = edge.windDelta;
+        edge.nextInLocalMinima.windCount1 = edge.windCount1;
+        edge.nextInLocalMinima.windCount2 = edge.windCount2;
+        edge = edge.nextInLocalMinima;
+        edge.curr.update(edge.bot);
+        edge.prevActive = AelPrev;
+        edge.nextActive = AelNext;
 
         if (!edge.isHorizontal) {
-            this.scanbeam.insert(edge.Top.y);
+            this.scanbeam.insert(edge.top.y);
         }
 
         return edge;
@@ -302,10 +302,10 @@ export default class TEdgeManager {
         this.sortedEdges = edge;
 
         while (edge !== null) {
-            edge.PrevInSEL = edge.PrevInAEL;
-            edge.NextInSEL = edge.NextInAEL;
-            edge.Curr.x = edge.topX(topY);
-            edge = edge.NextInAEL;
+            edge.prevSorted = edge.prevActive;
+            edge.nextSorted = edge.nextActive;
+            edge.curr.x = edge.topX(topY);
+            edge = edge.nextActive;
         }
         //bubblesort ...
         let isModified: boolean = true;
@@ -316,14 +316,14 @@ export default class TEdgeManager {
             isModified = false;
             edge = this.sortedEdges;
 
-            while (edge.NextInSEL !== null) {
-                nextEdge = edge.NextInSEL;
+            while (edge.nextSorted !== null) {
+                nextEdge = edge.nextSorted;
                 point = PointI32.create();
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-                if (edge.Curr.x > nextEdge.Curr.x) {
+                if (edge.curr.x > nextEdge.curr.x) {
                     if (
                         !TEdge.intersectPoint(edge, nextEdge, point, this.isUseFullRange) &&
-                        edge.Curr.x > nextEdge.Curr.x + 1
+                        edge.curr.x > nextEdge.curr.x + 1
                     ) {
                         //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
                         //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
@@ -331,7 +331,7 @@ export default class TEdgeManager {
                     }
 
                     if (point.y > botY) {
-                        point.set(Math.abs(edge.Dx) > Math.abs(nextEdge.Dx) ? nextEdge.topX(botY) : edge.topX(botY), botY);
+                        point.set(Math.abs(edge.dx) > Math.abs(nextEdge.dx) ? nextEdge.topX(botY) : edge.topX(botY), botY);
                     }
 
                     this.intersections.push(new IntersectNode(edge, nextEdge, point));
@@ -342,8 +342,8 @@ export default class TEdgeManager {
                 }
             }
 
-            if (edge.PrevInSEL !== null) {
-                edge.PrevInSEL.NextInSEL = null;
+            if (edge.prevSorted !== null) {
+                edge.prevSorted.nextSorted = null;
             } else {
                 break;
             }
@@ -381,7 +381,7 @@ export default class TEdgeManager {
                 edge2Stops ||
                 (e1Wc !== 0 && e1Wc !== 1) ||
                 (e2Wc !== 0 && e2Wc !== 1) ||
-                edge1.PolyTyp !== edge2.PolyTyp
+                edge1.polyTyp !== edge2.polyTyp
             ) {
                 this.outRecManager.addLocalMaxPoly(edge1, edge2, point, this.activeEdges);
             } else {
@@ -427,7 +427,7 @@ export default class TEdgeManager {
     }
 
     public edgesAdjacent(node: IntersectNode): boolean {
-        return node.edge1.NextInSEL === node.edge2 || node.edge1.PrevInSEL === node.edge2;
+        return node.edge1.nextSorted === node.edge2 || node.edge1.prevSorted === node.edge2;
     }
 
     public fixupIntersectionOrder(): boolean {
@@ -467,8 +467,8 @@ export default class TEdgeManager {
     }
 
     public intersectOpenEdges(edge1: TEdge, edge2: TEdge, isProtect: boolean, point: PointI32) {
-        const edge1Stops: boolean = !isProtect && edge1.NextInLML === null && edge1.Top.almostEqual(point);
-        const edge2Stops: boolean = !isProtect && edge2.NextInLML === null && edge2.Top.almostEqual(point);
+        const edge1Stops: boolean = !isProtect && edge1.nextInLocalMinima === null && edge1.top.almostEqual(point);
+        const edge2Stops: boolean = !isProtect && edge2.nextInLocalMinima === null && edge2.top.almostEqual(point);
         const edge1Contributing: boolean = edge1.isAssigned;
         const edge2Contributing: boolean = edge2.isAssigned;
          //ignore subject-subject open path intersections UNLESS they
@@ -480,8 +480,8 @@ export default class TEdgeManager {
         }
         //if intersecting a subj line with a subj poly ...
         else if (
-            edge1.PolyTyp === edge2.PolyTyp &&
-            edge1.WindDelta !== edge2.WindDelta &&
+            edge1.polyTyp === edge2.polyTyp &&
+            edge1.windDelta !== edge2.windDelta &&
             this.clipType === CLIP_TYPE.UNION
         ) {
             if (edge1.isWindDeletaEmpty) {
@@ -501,11 +501,11 @@ export default class TEdgeManager {
                     }
                 }
             }
-        } else if (edge1.PolyTyp !== edge2.PolyTyp) {
+        } else if (edge1.polyTyp !== edge2.polyTyp) {
             if (
                 edge1.isWindDeletaEmpty &&
-                Math.abs(edge2.WindCnt) === 1 &&
-                (this.clipType !== CLIP_TYPE.UNION || edge2.WindCnt2 === 0)
+                Math.abs(edge2.windCount1) === 1 &&
+                (this.clipType !== CLIP_TYPE.UNION || edge2.windCount2 === 0)
             ) {
                 this.outRecManager.addOutPt(edge1, point);
 
@@ -514,8 +514,8 @@ export default class TEdgeManager {
                 }
             } else if (
                 edge2.isWindDeletaEmpty &&
-                Math.abs(edge1.WindCnt) === 1 &&
-                (this.clipType !== CLIP_TYPE.UNION || edge1.WindCnt2 === 0)
+                Math.abs(edge1.windCount1) === 1 &&
+                (this.clipType !== CLIP_TYPE.UNION || edge1.windCount2 === 0)
             ) {
                 this.outRecManager.addOutPt(edge2, point);
 
@@ -551,11 +551,11 @@ export default class TEdgeManager {
         let eLastHorz: NullPtr<TEdge> = horzEdge;
         let eMaxPair: NullPtr<TEdge> = null;
 
-        while (eLastHorz.NextInLML !== null && eLastHorz.NextInLML.isHorizontal) {
-            eLastHorz = eLastHorz.NextInLML;
+        while (eLastHorz.nextInLocalMinima !== null && eLastHorz.nextInLocalMinima.isHorizontal) {
+            eLastHorz = eLastHorz.nextInLocalMinima;
         }
 
-        if (eLastHorz.NextInLML === null) {
+        if (eLastHorz.nextInLocalMinima === null) {
             eMaxPair = eLastHorz.maximaPair;
         }
 
@@ -567,13 +567,13 @@ export default class TEdgeManager {
             while (e !== null) {
                 //Break if we've got to the end of an intermediate horizontal edge ...
                 //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
-                if (e.Curr.x === horzEdge.Top.x && horzEdge.NextInLML !== null && e.Dx < horzEdge.NextInLML.Dx) {
+                if (e.curr.x === horzEdge.top.x && horzEdge.nextInLocalMinima !== null && e.dx < horzEdge.nextInLocalMinima.dx) {
                     break;
                 }
 
                 eNext = e.getNextInAEL(dir);
                 //saves eNext for later
-                if ((dir === DIRECTION.RIGHT && e.Curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.Curr.x >= horzLeft)) {
+                if ((dir === DIRECTION.RIGHT && e.curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.curr.x >= horzLeft)) {
                     if (horzEdge.isFilled) {
                         this.joinManager.prepareHorzJoins(horzEdge, isTopOfScanbeam);
                     }
@@ -582,9 +582,9 @@ export default class TEdgeManager {
                     //we're at the last of consec. horizontals when matching with eMaxPair
                     if (e === eMaxPair && isLastHorz) {
                         if (dir === DIRECTION.RIGHT) {
-                            this.intersectEdges(horzEdge, e, e.Top, false);
+                            this.intersectEdges(horzEdge, e, e.top, false);
                         } else {
-                            this.intersectEdges(e, horzEdge, e.Top, false);
+                            this.intersectEdges(e, horzEdge, e.top, false);
                         }
                         if (eMaxPair.isAssigned) {
                             showError('ProcessHorizontal error');
@@ -593,7 +593,7 @@ export default class TEdgeManager {
                         return;
                     }
 
-                    const Pt: PointI32 = PointI32.create(e.Curr.x, horzEdge.Curr.y);
+                    const Pt: PointI32 = PointI32.create(e.curr.x, horzEdge.curr.y);
 
                     if (dir === DIRECTION.RIGHT) {
                         this.intersectEdges(horzEdge, e, Pt, true);
@@ -603,8 +603,8 @@ export default class TEdgeManager {
 
                     this.swapPositionsInAEL(horzEdge, e);
                 } else if (
-                    (dir === DIRECTION.RIGHT && e.Curr.x >= horzRight) ||
-                    (dir === DIRECTION.LEFT && e.Curr.x <= horzLeft)
+                    (dir === DIRECTION.RIGHT && e.curr.x >= horzRight) ||
+                    (dir === DIRECTION.LEFT && e.curr.x <= horzLeft)
                 ) {
                     break;
                 }
@@ -616,11 +616,11 @@ export default class TEdgeManager {
                 this.joinManager.prepareHorzJoins(horzEdge, isTopOfScanbeam);
             }
 
-            if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
+            if (horzEdge.nextInLocalMinima !== null && horzEdge.nextInLocalMinima.isHorizontal) {
                 horzEdge = this.updateEdgeIntoAEL(horzEdge);
 
                 if (horzEdge.isAssigned) {
-                    this.outRecManager.addOutPt(horzEdge, horzEdge.Bot);
+                    this.outRecManager.addOutPt(horzEdge, horzEdge.bot);
                 }
 
                 dirValue = horzEdge.horzDirection;
@@ -632,9 +632,9 @@ export default class TEdgeManager {
             }
         }
         //end for (;;)
-        if (horzEdge.NextInLML !== null) {
+        if (horzEdge.nextInLocalMinima !== null) {
             if (horzEdge.isAssigned) {
-                const op1 = this.outRecManager.addOutPt(horzEdge, horzEdge.Top);
+                const op1 = this.outRecManager.addOutPt(horzEdge, horzEdge.top);
                 horzEdge = this.updateEdgeIntoAEL(horzEdge);
 
                 if (horzEdge.isWindDeletaEmpty) {
@@ -649,9 +649,9 @@ export default class TEdgeManager {
         } else if (eMaxPair !== null) {
             if (eMaxPair.isAssigned) {
                 if (dir === DIRECTION.RIGHT) {
-                    this.intersectEdges(horzEdge, eMaxPair, horzEdge.Top, false);
+                    this.intersectEdges(horzEdge, eMaxPair, horzEdge.top, false);
                 } else {
-                    this.intersectEdges(eMaxPair, horzEdge, horzEdge.Top, false);
+                    this.intersectEdges(eMaxPair, horzEdge, horzEdge.top, false);
                 }
                 if (eMaxPair.isAssigned) {
                     showError('ProcessHorizontal error');
@@ -662,7 +662,7 @@ export default class TEdgeManager {
             }
         } else {
             if (horzEdge.isAssigned) {
-                this.outRecManager.addOutPt(horzEdge, horzEdge.Top);
+                this.outRecManager.addOutPt(horzEdge, horzEdge.top);
             }
 
             this.activeEdges = horzEdge.deleteFromEL(this.activeEdges, true);
@@ -698,30 +698,30 @@ export default class TEdgeManager {
             }
 
             if (isMaximaEdge) {
-                edge2 = edge1.PrevInAEL;
+                edge2 = edge1.prevActive;
                 this.doMaxima(edge1);
 
-                edge1 = edge2 === null ? this.activeEdges : edge2.NextInAEL;
+                edge1 = edge2 === null ? this.activeEdges : edge2.nextActive;
             } else {
                 //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-                if (edge1.getIntermediate(topY) && edge1.NextInLML.isHorizontal) {
+                if (edge1.getIntermediate(topY) && edge1.nextInLocalMinima.isHorizontal) {
                     edge1 = this.updateEdgeIntoAEL(edge1);
 
                     if (edge1.isAssigned) {
-                        this.outRecManager.addOutPt(edge1, edge1.Bot);
+                        this.outRecManager.addOutPt(edge1, edge1.bot);
                     }
 
                     this.sortedEdges = edge1.addEdgeToSEL(this.sortedEdges);
                 } else {
-                    edge1.Curr.set(edge1.topX(topY), topY);
+                    edge1.curr.set(edge1.topX(topY), topY);
                 }
 
                 if (strictlySimple) {
-                    edge2 = edge1.PrevInAEL;
+                    edge2 = edge1.prevActive;
 
                     this.joinManager.addScanbeamJoin(edge1, edge2);
                 }
-                edge1 = edge1.NextInAEL;
+                edge1 = edge1.nextActive;
             }
         }
         //3. Process horizontals at the Top of the scanbeam ...
@@ -731,13 +731,13 @@ export default class TEdgeManager {
 
         while (edge1 !== null) {
             if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.Top) : -1;
+                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.top) : -1;
                 edge1 = this.updateEdgeIntoAEL(edge1);
                 //if output polygons share an edge, they'll need joining later...
                 this.joinManager.addSharedJoin(outPt1, edge1);
             }
 
-            edge1 = edge1.NextInAEL;
+            edge1 = edge1.nextActive;
         }
     }
 
@@ -746,7 +746,7 @@ export default class TEdgeManager {
     
             if (maxPairEdge === null) {
                 if (edge.isAssigned) {
-                    this.outRecManager.addOutPt(edge, edge.Top);
+                    this.outRecManager.addOutPt(edge, edge.top);
                 }
     
                 this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
@@ -754,29 +754,29 @@ export default class TEdgeManager {
                 return;
             }
     
-            let nextEdge: NullPtr<TEdge> = edge.NextInAEL;
+            let nextEdge: NullPtr<TEdge> = edge.nextActive;
     
             while (nextEdge !== null && nextEdge !== maxPairEdge) {
-                this.intersectEdges(edge, nextEdge, edge.Top, true);
+                this.intersectEdges(edge, nextEdge, edge.top, true);
                 this.swapPositionsInAEL(edge, nextEdge);
-                nextEdge = edge.NextInAEL;
+                nextEdge = edge.nextActive;
             }
     
             if (!edge.isAssigned && !maxPairEdge.isAssigned) {
                 this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
                 this.activeEdges = maxPairEdge.deleteFromEL(this.activeEdges, true);
             } else if (edge.isAssigned && maxPairEdge.isAssigned) {
-                this.intersectEdges(edge, maxPairEdge, edge.Top, false);
+                this.intersectEdges(edge, maxPairEdge, edge.top, false);
             } else if (edge.isWindDeletaEmpty) {
                 if (edge.isAssigned) {
-                    this.outRecManager.addOutPt(edge, edge.Top);
+                    this.outRecManager.addOutPt(edge, edge.top);
                     edge.unassign();
                 }
     
                 this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
     
                 if (maxPairEdge.isAssigned) {
-                    this.outRecManager.addOutPt(maxPairEdge, edge.Top);
+                    this.outRecManager.addOutPt(maxPairEdge, edge.top);
                     maxPairEdge.unassign();
                 }
     
@@ -841,36 +841,36 @@ export default class TEdgeManager {
                 rightBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (rightBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.outRecManager.addOutPt(rightBound, rightBound.Bot);
+                    outPt = this.outRecManager.addOutPt(rightBound, rightBound.bot);
                 }
             } else if (rightBound === null) {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
                 leftBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.outRecManager.addOutPt(leftBound, leftBound.Bot);
+                    outPt = this.outRecManager.addOutPt(leftBound, leftBound.bot);
                 }
 
-                this.scanbeam.insert(leftBound.Top.y);
+                this.scanbeam.insert(leftBound.top.y);
             } else {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges, leftBound);
                 leftBound.setWindingCount(this.activeEdges, this.clipType);
-                rightBound.WindCnt = leftBound.WindCnt;
-                rightBound.WindCnt2 = leftBound.WindCnt2;
+                rightBound.windCount1 = leftBound.windCount1;
+                rightBound.windCount2 = leftBound.windCount2;
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.joinManager.addLocalMinPoly(leftBound, rightBound, leftBound.Bot);
+                    outPt = this.joinManager.addLocalMinPoly(leftBound, rightBound, leftBound.bot);
                 }
 
-                this.scanbeam.insert(leftBound.Top.y);
+                this.scanbeam.insert(leftBound.top.y);
             }
 
             if (rightBound !== null) {
                 if (rightBound.isHorizontal) {
                     this.sortedEdges = rightBound.addEdgeToSEL(this.sortedEdges);
                 } else {
-                    this.scanbeam.insert(rightBound.Top.y);
+                    this.scanbeam.insert(rightBound.top.y);
                 }
             }
 
@@ -882,32 +882,32 @@ export default class TEdgeManager {
 
             this.joinManager.addLeftJoin(outPt, leftBound);
 
-            if (leftBound.NextInAEL !== rightBound) {
+            if (leftBound.nextActive !== rightBound) {
                 this.joinManager.addRightJoin(outPt, rightBound);
 
-                let edge: NullPtr<TEdge> = leftBound.NextInAEL;
+                let edge: NullPtr<TEdge> = leftBound.nextActive;
 
                 if (edge !== null)
                     while (edge !== rightBound) {
                         //nb: For calculating winding counts etc, IntersectEdges() assumes
                         //that param1 will be to the right of param2 ABOVE the intersection ...
-                        this.intersectEdges(rightBound, edge, leftBound.Curr, false);
+                        this.intersectEdges(rightBound, edge, leftBound.curr, false);
                         //order important here
-                        edge = edge.NextInAEL;
+                        edge = edge.nextActive;
                     }
             }
         }
     }
 
     public createLocalMinima(edge: TEdge): LocalMinima {
-        const isClockwise = edge.Dx >= edge.Prev.Dx;
-        const y = edge.Bot.y;
-        const leftBound = isClockwise ? edge : edge.Prev;
-        const rightBound = isClockwise ? edge.Prev : edge;
-        leftBound.Side = DIRECTION.LEFT;
-        rightBound.Side = DIRECTION.RIGHT;
-        leftBound.WindDelta = leftBound.Next === rightBound ? -1 : 1;
-        rightBound.WindDelta = -leftBound.WindDelta;
+        const isClockwise = edge.dx >= edge.prev.dx;
+        const y = edge.bot.y;
+        const leftBound = isClockwise ? edge : edge.prev;
+        const rightBound = isClockwise ? edge.prev : edge;
+        leftBound.side = DIRECTION.LEFT;
+        rightBound.side = DIRECTION.RIGHT;
+        leftBound.windDelta = leftBound.next === rightBound ? -1 : 1;
+        rightBound.windDelta = -leftBound.windDelta;
 
         return new LocalMinima(y, leftBound, rightBound);
     }
