@@ -2,6 +2,7 @@ import { join_u16_to_u32 } from 'wasm-nesting';
 import { Point } from '../types';
 import OutPt from './out-pt';
 import { DIRECTION } from './types';
+import { UNASSIGNED } from './constants';
 
 export default class OutRec {
     public readonly index: number;
@@ -14,7 +15,7 @@ export default class OutRec {
         this.index = index;
         this.currentIndex = index;
         this.isHole = false;
-        this.firstLeftIndex = -1;
+        this.firstLeftIndex = UNASSIGNED;
         this._pointIndex = pointIndex;
     }
 
@@ -40,7 +41,7 @@ export default class OutRec {
         const inputIndex = this._pointIndex;
         let innerIndex = index;
         let currIndex = this._pointIndex;
-        let splitIndex = -1;
+        let splitIndex = UNASSIGNED;
 
         do //for each Pt in Polygon until duplicate found do ...
         {
@@ -109,7 +110,7 @@ export default class OutRec {
     }
 
     public clean(): void {
-        this._pointIndex = -1;
+        this._pointIndex = UNASSIGNED;
     }
 
     public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): void {
@@ -135,7 +136,7 @@ export default class OutRec {
     }
 
     public get isEmpty(): boolean {
-        return this._pointIndex === -1;
+        return this._pointIndex === UNASSIGNED;
     }
 
     public updateSplit(outRec: OutRec): void {

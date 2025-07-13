@@ -5,6 +5,7 @@ import OutRec from "./out-rec";
 import TEdge from "./t-edge";
 import { DIRECTION, NullPtr } from "./types";
 import { PointI32 } from "../geometry";
+import { UNASSIGNED } from "./constants";
 
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
@@ -151,7 +152,7 @@ export default class OutRecManager {
     private setHoleState(outRec: OutRec, tEdge: TEdge): void {
         const { isHole, index } = TEdge.getHoleState(outRec.firstLeftIndex, tEdge);
 
-        if (outRec.firstLeftIndex === -1 && index !== -1) {
+        if (outRec.firstLeftIndex === UNASSIGNED && index !== UNASSIGNED) {
             outRec.firstLeftIndex = this.polyOuts[index].index;
         }
 
@@ -212,13 +213,13 @@ export default class OutRecManager {
             if (outRec1Index == outRec2Index) {
                 return true;
             }
-        } while (outRec1Index !== -1);
+        } while (outRec1Index !== UNASSIGNED);
 
         return false;
     }
 
     private getFirstLeftIndex(index: number): number {
-        return index !== -1 ? this.polyOuts[index].firstLeftIndex : -1;
+        return index !== UNASSIGNED ? this.polyOuts[index].firstLeftIndex : UNASSIGNED;
     }
 
     private getHoleStateRec(outRec1: OutRec, outRec2: OutRec): OutRec {

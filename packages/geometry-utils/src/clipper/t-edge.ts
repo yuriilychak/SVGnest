@@ -1,5 +1,5 @@
 import { PointI32 } from '../geometry';
-import { HORIZONTAL } from './constants';
+import { HORIZONTAL, UNASSIGNED } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
 import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION, NullPtr } from './types';
@@ -22,9 +22,9 @@ export default class TEdge {
     public prevIndex: number;
     public nextActiveIndex: number;
     public prevActiveIndex: number;
-    public nextSortedIndex: number = -1;
-    public prevSortedIndex: number = -1;
-    public nextLocalMinimaIndex: number = -1;
+    public nextSortedIndex: number;
+    public prevSortedIndex: number;
+    public nextLocalMinimaIndex: number;
 
     constructor() {
         this.bot = PointI32.create();
@@ -39,13 +39,13 @@ export default class TEdge {
         this.windCount2 = 0;
         this.index = 0;
         this.prev = null;
-        this.nextLocalMinimaIndex = -1;
-        this.nextIndex = -1;
-        this.prevIndex = -1;
-        this.nextActiveIndex = -1;
-        this.prevActiveIndex = -1;
-        this.nextSortedIndex = -1;
-        this.prevSortedIndex = -1;
+        this.nextLocalMinimaIndex = UNASSIGNED;
+        this.nextIndex = UNASSIGNED;
+        this.prevIndex = UNASSIGNED;
+        this.nextActiveIndex = UNASSIGNED;
+        this.prevActiveIndex = UNASSIGNED;
+        this.nextSortedIndex = UNASSIGNED;
+        this.prevSortedIndex = UNASSIGNED;
         this.currentIndex = TEdge.edges.length;
 
         TEdge.edges.push(this);
@@ -64,7 +64,7 @@ export default class TEdge {
     }
 
     public set next(value: TEdge) {
-        this.nextIndex = value ? value.currentIndex : -1;
+        this.nextIndex = value ? value.currentIndex : UNASSIGNED;
     }
     
     public get prev() {
@@ -72,7 +72,7 @@ export default class TEdge {
     }
 
     public set prev(value: TEdge) {
-        this.prevIndex = value ? value.currentIndex : -1;
+        this.prevIndex = value ? value.currentIndex : UNASSIGNED;
     }
 
     public get nextActive() {
@@ -80,7 +80,7 @@ export default class TEdge {
     }
 
     public set nextActive(value: TEdge) {
-        this.nextActiveIndex = value ? value.currentIndex : -1;
+        this.nextActiveIndex = value ? value.currentIndex : UNASSIGNED;
     }
     
     public get prevActive() {
@@ -88,7 +88,7 @@ export default class TEdge {
     }
 
     public set prevActive(value: TEdge) {
-        this.prevActiveIndex = value ? value.currentIndex : -1;
+        this.prevActiveIndex = value ? value.currentIndex : UNASSIGNED;
     }
 
     public get nextSorted() {
@@ -96,7 +96,7 @@ export default class TEdge {
     }
 
     public set nextSorted(value: TEdge) {
-        this.nextSortedIndex = value ? value.currentIndex : -1;
+        this.nextSortedIndex = value ? value.currentIndex : UNASSIGNED;
     }
     
     public get prevSorted() {
@@ -104,7 +104,7 @@ export default class TEdge {
     }
 
     public set prevSorted(value: TEdge) {
-        this.prevSortedIndex = value ? value.currentIndex : -1;
+        this.prevSortedIndex = value ? value.currentIndex : UNASSIGNED;
     }
 
     public get nextLocalMinima() {
@@ -112,7 +112,7 @@ export default class TEdge {
     }
 
     public set nextLocalMinima(value: TEdge) {
-        this.nextLocalMinimaIndex = value ? value.currentIndex : -1;
+        this.nextLocalMinimaIndex = value ? value.currentIndex : UNASSIGNED;
     }
 
     public init(nextEdge: TEdge, prevEdge: TEdge, point: PointI32): void {
@@ -339,7 +339,7 @@ export default class TEdge {
             case POLY_FILL_TYPE.POSITIVE:
                 return this.windCount1 === 1 && isReverse !== this.windCount2 <= 0;
             default:
-                return this.windCount1 === -1 && isReverse !== this.windCount2 >= 0;
+                return this.windCount1 === UNASSIGNED && isReverse !== this.windCount2 >= 0;
         }
     }
 
@@ -403,7 +403,7 @@ export default class TEdge {
     }
 
     public unassign(): void {
-        this.index = TEdge.UNASSIGNED;
+        this.index = UNASSIGNED;
     }
 
     public get horzDirection(): Float64Array {
@@ -413,7 +413,7 @@ export default class TEdge {
     }
 
     public get isAssigned(): boolean {
-        return this.index !== TEdge.UNASSIGNED;
+        return this.index !== UNASSIGNED;
     }
 
     public processBound(isClockwise: boolean): TEdge {
@@ -743,13 +743,13 @@ export default class TEdge {
     public static getHoleState(firstLeftIndex: number, tEdge: TEdge): { isHole: boolean, index: number } {
         let isHole: boolean = false;
         let edge: NullPtr<TEdge> = tEdge.prevActive;
-        let index: number = -1;
+        let index: number = UNASSIGNED;
 
         while (edge !== null) {
             if (edge.isAssigned && !edge.isWindDeletaEmpty) {
                 isHole = !isHole;
 
-                if (firstLeftIndex === -1) {
+                if (firstLeftIndex === UNASSIGNED) {
                     index = edge.index;
                 }
             }
@@ -759,6 +759,4 @@ export default class TEdge {
 
         return { isHole, index };
     }
-
-    private static UNASSIGNED = -1;
 }

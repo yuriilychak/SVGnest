@@ -1,4 +1,5 @@
 import { PointI32 } from "../geometry";
+import { UNASSIGNED } from "./constants";
 import Join from "./join";
 import OutRecManager from "./out-rec-manager";
 import TEdge from "./t-edge";
@@ -40,7 +41,7 @@ export default class JoinManager {
     }
 
     static checkSharedCondition(outHash: number, edge: TEdge, neighboar: TEdge, isUseFullRange: boolean): boolean {
-        return outHash !== -1 && JoinManager.checkHorizontalCondition(edge, neighboar, isUseFullRange) && !edge.isWindDeletaEmpty;
+        return outHash !== UNASSIGNED && JoinManager.checkHorizontalCondition(edge, neighboar, isUseFullRange) && !edge.isWindDeletaEmpty;
     }
 
     public addHorizontalJoin(outHash: number, edge: TEdge): void {
@@ -110,7 +111,7 @@ export default class JoinManager {
     }
 
     public addOutputJoins(outHash: number, rightBound: TEdge) {
-        if (outHash !== -1 && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
+        if (outHash !== UNASSIGNED && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
             const joinCount: number = this.ghostJoins.length;
            
             let i: number = 0;
@@ -152,7 +153,7 @@ export default class JoinManager {
             //the point may be anywhere along the horizontal ...
             const [outPtHash, x, y] = this.outRecManager.getJoinData(horzEdge);
 
-            this.ghostJoins.push(new Join(outPtHash, -1, x, y));
+            this.ghostJoins.push(new Join(outPtHash, UNASSIGNED, x, y));
         }
     }
 
@@ -161,7 +162,7 @@ export default class JoinManager {
     }
 
     public addLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32): number {
-        let result: number = -1;
+        let result: number = UNASSIGNED;
         let edge: TEdge = null;
         let edgePrev: TEdge;
 

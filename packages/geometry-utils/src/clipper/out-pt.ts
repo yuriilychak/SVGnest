@@ -1,6 +1,6 @@
 import { Point } from '../types';
 import { PointI32 } from '../geometry';
-import { HORIZONTAL } from './constants';
+import { HORIZONTAL, UNASSIGNED } from './constants';
 import { DIRECTION, NullPtr } from './types';
 export default class OutPt {
     private static points: OutPt[] = [];
@@ -15,8 +15,8 @@ export default class OutPt {
 
     constructor(point: Point<Int32Array>) {
         this.point = PointI32.from(point);
-        this.next = -1;
-        this.prev = -1;
+        this.next = UNASSIGNED;
+        this.prev = UNASSIGNED;
         this.current = OutPt.points.length;
 
         OutPt.points.push(this);
@@ -84,12 +84,12 @@ export default class OutPt {
     public static fixupOutPolygon(index: number, preserveCollinear: boolean, useFullRange: boolean): number {
         //FixupOutPolygon() - removes duplicate points and simplifies consecutive
         //parallel edges by removing the middle vertex.
-        let lastOutIndex: number = -1;
+        let lastOutIndex: number = UNASSIGNED;
         let outPt: NullPtr<OutPt> = OutPt.at(index);
 
         while (true) {
             if (outPt.prev === outPt.current || outPt.prev === outPt.next) {
-                return -1;
+                return UNASSIGNED;
             }
 
             const nextPt: NullPtr<OutPt> = OutPt.at(outPt.next);
@@ -101,7 +101,7 @@ export default class OutPt {
                 (PointI32.slopesEqual(prevPt.point, outPt.point, nextPt.point, useFullRange) &&
                     (!preserveCollinear || !outPt.point.getBetween(prevPt.point, nextPt.point)))
             ) {
-                lastOutIndex = -1;
+                lastOutIndex = UNASSIGNED;
                 outPt = outPt.remove();
 
                 continue;
@@ -111,7 +111,7 @@ export default class OutPt {
                 break;
             }
 
-            if (lastOutIndex === -1) {
+            if (lastOutIndex === UNASSIGNED) {
                 lastOutIndex = outPt.current;
             }
 
@@ -124,8 +124,8 @@ export default class OutPt {
     public remove(): OutPt {
         const result = OutPt.at(this.prev);
         OutPt.push(this.prev, this.next, true);
-        this.prev = -1;
-        this.next = -1;
+        this.prev = UNASSIGNED;
+        this.next = UNASSIGNED;
         
         return result;
     }
@@ -156,7 +156,7 @@ export default class OutPt {
     public static getLength(index: number): number {
         const prevIndex = OutPt.getNeighboarIndex(index, false);
 
-        if(prevIndex === -1) {
+        if(prevIndex === UNASSIGNED) {
             return 0;
         }
 
@@ -268,7 +268,7 @@ export default class OutPt {
 
             if (poly1y === inputPt.point.y) {
                 if (poly1x === inputPt.point.x || (poly0y === inputPt.point.y && poly1x > inputPt.point.x === poly0x < inputPt.point.x)) {
-                    return -1;
+                    return UNASSIGNED;
                 }
             }
 
@@ -280,7 +280,7 @@ export default class OutPt {
                         d = (poly0x - inputPt.point.x) * (poly1y - inputPt.point.y) - (poly1x - inputPt.point.x) * (poly0y - inputPt.point.y);
 
                         if (d == 0) {
-                            return -1;
+                            return UNASSIGNED;
                         }
 
                         if (d > 0 === poly1y > poly0y) {
@@ -292,7 +292,7 @@ export default class OutPt {
                         d = (poly0x - inputPt.point.x) * (poly1y - inputPt.point.y) - (poly1x - inputPt.point.x) * (poly0y - inputPt.point.y);
 
                         if (d === 0) {
-                            return -1;
+                            return UNASSIGNED;
                         }
 
                         if (d > 0 === poly1y > poly0y) {
@@ -334,14 +334,14 @@ export default class OutPt {
     private static getDistance(inputIndex: number, isNext: boolean): number {
         let index = OutPt.getNeighboarIndex(inputIndex, isNext);
         
-        if(index === -1) {
+        if(index === UNASSIGNED) {
             return Number.NaN;
         }
 
         while (OutPt.almostEqual(inputIndex, index) && index !== inputIndex) {
             index = OutPt.getNeighboarIndex(index, isNext);
 
-            if(index === -1) {
+            if(index === UNASSIGNED) {
                 return Number.NaN;
             }
         }
@@ -356,7 +356,7 @@ export default class OutPt {
     }
 
     public static almostEqual(index1: number, index2: number): boolean {
-        if (index1 == -1 || index2 == -1) {
+        if (index1 == UNASSIGNED || index2 == UNASSIGNED) {
             return false;
         }
 
@@ -369,8 +369,8 @@ export default class OutPt {
     public static getNeighboarIndex(index: number, isNext: boolean): number {
         const outPt = OutPt.at(index);
         
-        if (index == -1) {
-            return -1;
+        if (index == UNASSIGNED) {
+            return UNASSIGNED;
         }
 
         return isNext ? outPt.next : outPt.prev;
@@ -379,7 +379,7 @@ export default class OutPt {
     public static getBottomPt(inputIndex: number): number {
         let outIndex1 = inputIndex;
         let outIndex2 = OutPt.getNeighboarIndex(inputIndex, true);
-        let dupsIndex: number = -1;
+        let dupsIndex: number = UNASSIGNED;
 
         while (outIndex2 !== outIndex1) {
             let outPt1: OutPt = OutPt.at(outIndex1);
@@ -387,10 +387,10 @@ export default class OutPt {
 
             if (outPt2.point.y > outPt1.point.y) {
                 outIndex1 = outIndex2;
-                dupsIndex = -1;
+                dupsIndex = UNASSIGNED;
             } else if (outPt2.point.y == outPt1.point.y && outPt2.point.x <= outPt1.point.x) {
                 if (outPt2.point.x < outPt1.point.x) {
-                    dupsIndex = -1;
+                    dupsIndex = UNASSIGNED;
                     outIndex1 = outIndex2;
                 } else if (outPt2.next !== outIndex1 && outPt2.prev !== outIndex1) {
                     dupsIndex = outIndex2;
@@ -400,7 +400,7 @@ export default class OutPt {
             outIndex2 = outPt2.next;
         }
 
-        if (dupsIndex !== -1) {
+        if (dupsIndex !== UNASSIGNED) {
             //there appears to be at least 2 vertices at bottomPt so ...
             while (dupsIndex !== outIndex2) {
                 if (!OutPt.firstIsBottomPt(outIndex2, dupsIndex)) {
@@ -438,7 +438,7 @@ export default class OutPt {
     }
 
     private getDiscarded(isRight: boolean, pt: Point<Int32Array>): boolean {
-        if (this.next === -1) {
+        if (this.next === UNASSIGNED) {
             return false;
         }
 

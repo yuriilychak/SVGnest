@@ -1,4 +1,5 @@
 import { PointI32 } from "../geometry";
+import { UNASSIGNED } from "./constants";
 import { showError } from "./helpers";
 import IntersectNode from "./intersect-node";
 import JoinManager from "./join-manager";
@@ -689,7 +690,7 @@ export default class TEdgeManager {
         let edge1: TEdge = this.activeEdges;
         let edge2: NullPtr<TEdge> = null;
         let isMaximaEdge: boolean = false;
-        let outPt1: number = -1;
+        let outPt1: number = UNASSIGNED;
 
         while (edge1 !== null) {
             //1. process maxima, treating them as if they're 'bent' horizontal edges,
@@ -735,7 +736,7 @@ export default class TEdgeManager {
 
         while (edge1 !== null) {
             if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.top) : -1;
+                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.top) : UNASSIGNED;
                 edge1 = this.updateEdgeIntoAEL(edge1);
                 //if output polygons share an edge, they'll need joining later...
                 this.joinManager.addSharedJoin(outPt1, edge1);
@@ -834,11 +835,11 @@ export default class TEdgeManager {
     }
 
     public insertLocalMinimaIntoAEL(botY: number): void {
-        let outPt: number = -1;
+        let outPt: number = UNASSIGNED;
 
         while (!Number.isNaN(this.minY) && this.minY === botY) {
             let [leftBound, rightBound] = this.popMinima();
-            outPt = -1;
+            outPt = UNASSIGNED;
 
             if (leftBound === null) {
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges);
@@ -910,7 +911,7 @@ export default class TEdgeManager {
         const rightBound = isClockwise ? edge.prev : edge;
         leftBound.side = DIRECTION.LEFT;
         rightBound.side = DIRECTION.RIGHT;
-        leftBound.windDelta = leftBound.next === rightBound ? -1 : 1;
+        leftBound.windDelta = leftBound.next === rightBound ? UNASSIGNED : 1;
         rightBound.windDelta = -leftBound.windDelta;
 
         return new LocalMinima(y, leftBound, rightBound);
