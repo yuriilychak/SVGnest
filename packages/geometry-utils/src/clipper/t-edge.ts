@@ -5,6 +5,7 @@ import { clipperRound } from '../helpers';
 import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION, NullPtr } from './types';
 
 export default class TEdge {
+    private static edges: TEdge[] = [];
     public bot: PointI32;
     public curr: PointI32;
     public top: PointI32;
@@ -16,13 +17,14 @@ export default class TEdge {
     public windCount1: number;
     public windCount2: number;
     public index: number;
-    public next: TEdge;
-    public prev: TEdge;
-    public nextInLocalMinima: TEdge;
-    public nextActive: TEdge;
-    public prevActive: TEdge;
-    public nextSorted: TEdge;
-    public prevSorted: TEdge;
+    public currentIndex: number;
+    public nextIndex: number;
+    public prevIndex: number;
+    public nextActiveIndex: number;
+    public prevActiveIndex: number;
+    public nextSortedIndex: number = -1;
+    public prevSortedIndex: number = -1;
+    public nextLocalMinimaIndex: number = -1;
 
     constructor() {
         this.bot = PointI32.create();
@@ -36,13 +38,81 @@ export default class TEdge {
         this.windCount1 = 0;
         this.windCount2 = 0;
         this.index = 0;
-        this.next = null;
         this.prev = null;
-        this.nextInLocalMinima = null;
-        this.nextActive = null;
-        this.prevActive = null;
-        this.nextSorted = null;
-        this.prevSorted = null;
+        this.nextLocalMinimaIndex = -1;
+        this.nextIndex = -1;
+        this.prevIndex = -1;
+        this.nextActiveIndex = -1;
+        this.prevActiveIndex = -1;
+        this.nextSortedIndex = -1;
+        this.prevSortedIndex = -1;
+        this.currentIndex = TEdge.edges.length;
+
+        TEdge.edges.push(this);
+    }
+
+    public static at(index: number): NullPtr<TEdge> {
+        return index >= 0 && index < TEdge.edges.length ? TEdge.edges[index] : null;
+    }
+
+    public static cleanup() {
+        TEdge.edges.length = 0;
+    }
+
+    public get next() {
+        return TEdge.at(this.nextIndex);
+    }
+
+    public set next(value: TEdge) {
+        this.nextIndex = value ? value.currentIndex : -1;
+    }
+    
+    public get prev() {
+        return TEdge.at(this.prevIndex);
+    }
+
+    public set prev(value: TEdge) {
+        this.prevIndex = value ? value.currentIndex : -1;
+    }
+
+    public get nextActive() {
+        return TEdge.at(this.nextActiveIndex);
+    }
+
+    public set nextActive(value: TEdge) {
+        this.nextActiveIndex = value ? value.currentIndex : -1;
+    }
+    
+    public get prevActive() {
+        return TEdge.at(this.prevActiveIndex);
+    }
+
+    public set prevActive(value: TEdge) {
+        this.prevActiveIndex = value ? value.currentIndex : -1;
+    }
+
+    public get nextSorted() {
+        return TEdge.at(this.nextSortedIndex);
+    }
+
+    public set nextSorted(value: TEdge) {
+        this.nextSortedIndex = value ? value.currentIndex : -1;
+    }
+    
+    public get prevSorted() {
+        return TEdge.at(this.prevSortedIndex);
+    }
+
+    public set prevSorted(value: TEdge) {
+        this.prevSortedIndex = value ? value.currentIndex : -1;
+    }
+
+    public get nextLocalMinima() {
+        return TEdge.at(this.nextLocalMinimaIndex);
+    }
+
+    public set nextLocalMinima(value: TEdge) {
+        this.nextLocalMinimaIndex = value ? value.currentIndex : -1;
     }
 
     public init(nextEdge: TEdge, prevEdge: TEdge, point: PointI32): void {
@@ -221,11 +291,11 @@ export default class TEdge {
     }
 
     public getStop(point: PointI32, isProtect: boolean): boolean {
-        return !isProtect && this.nextInLocalMinima === null && this.top.almostEqual(point);
+        return !isProtect && this.nextLocalMinima === null && this.top.almostEqual(point);
     }
 
     public getIntermediate(y: number): boolean {
-        return this.top.y === y && this.nextInLocalMinima !== null;
+        return this.top.y === y && this.nextLocalMinima !== null;
     }
 
     public get isFilled(): boolean {
@@ -247,9 +317,9 @@ export default class TEdge {
     public get maximaPair(): NullPtr<TEdge> {
         let result: NullPtr<TEdge> = null;
 
-        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextInLocalMinima === null) {
+        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextLocalMinima === null) {
             result = this.next;
-        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextInLocalMinima === null) {
+        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextLocalMinima === null) {
             result = this.prev;
         }
 
@@ -257,7 +327,7 @@ export default class TEdge {
     }
 
     public getMaxima(y: number): boolean {
-        return this.top.y === y && this.nextInLocalMinima === null;
+        return this.top.y === y && this.nextLocalMinima === null;
     }
 
     public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
@@ -387,7 +457,7 @@ export default class TEdge {
             }
 
             while (edge !== result) {
-                edge.nextInLocalMinima = edge.next;
+                edge.nextLocalMinima = edge.next;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
                     edge.reverseHorizontal();
@@ -424,7 +494,7 @@ export default class TEdge {
             }
 
             while (edge !== result) {
-                edge.nextInLocalMinima = edge.prev;
+                edge.nextLocalMinima = edge.prev;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
                     edge.reverseHorizontal();

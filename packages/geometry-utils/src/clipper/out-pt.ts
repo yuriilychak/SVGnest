@@ -27,7 +27,7 @@ export default class OutPt {
     }
 
     public static cleanup(): void {
-        this.points.length = 0;
+        OutPt.points.length = 0;
     }
     
     public static containsPoly(index1: number, index2: number): boolean {

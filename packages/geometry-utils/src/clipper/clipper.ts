@@ -63,6 +63,7 @@ export default class Clipper {
             }
         } finally {
             this.outRecManager.dispose();
+            this.tEdgeManager.dispose();
             this.isExecuteLocked = false;
         }
 
