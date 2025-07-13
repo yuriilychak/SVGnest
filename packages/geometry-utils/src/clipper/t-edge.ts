@@ -107,14 +107,6 @@ export default class TEdge {
         this.prevSortedIndex = value ? value.currentIndex : UNASSIGNED;
     }
 
-    public get nextLocalMinima() {
-        return TEdge.at(this.nextLocalMinimaIndex);
-    }
-
-    public set nextLocalMinima(value: TEdge) {
-        this.nextLocalMinimaIndex = value ? value.currentIndex : UNASSIGNED;
-    }
-
     public init(nextEdge: TEdge, prevEdge: TEdge, point: PointI32): void {
         this.next = nextEdge;
         this.prev = prevEdge;
@@ -291,11 +283,11 @@ export default class TEdge {
     }
 
     public getStop(point: PointI32, isProtect: boolean): boolean {
-        return !isProtect && this.nextLocalMinima === null && this.top.almostEqual(point);
+        return !isProtect && this.nextLocalMinimaIndex === UNASSIGNED && this.top.almostEqual(point);
     }
 
     public getIntermediate(y: number): boolean {
-        return this.top.y === y && this.nextLocalMinima !== null;
+        return this.top.y === y && this.nextLocalMinimaIndex !== UNASSIGNED;
     }
 
     public get isFilled(): boolean {
@@ -317,9 +309,9 @@ export default class TEdge {
     public get maximaPair(): NullPtr<TEdge> {
         let result: NullPtr<TEdge> = null;
 
-        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextLocalMinima === null) {
+        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextLocalMinimaIndex === UNASSIGNED) {
             result = this.next;
-        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextLocalMinima === null) {
+        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextLocalMinimaIndex === UNASSIGNED) {
             result = this.prev;
         }
 
@@ -327,7 +319,7 @@ export default class TEdge {
     }
 
     public getMaxima(y: number): boolean {
-        return this.top.y === y && this.nextLocalMinima === null;
+        return this.top.y === y && this.nextLocalMinimaIndex === UNASSIGNED;
     }
 
     public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
@@ -457,7 +449,7 @@ export default class TEdge {
             }
 
             while (edge !== result) {
-                edge.nextLocalMinima = edge.next;
+                edge.nextLocalMinimaIndex = edge.next.currentIndex;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
                     edge.reverseHorizontal();
@@ -494,7 +486,7 @@ export default class TEdge {
             }
 
             while (edge !== result) {
-                edge.nextLocalMinima = edge.prev;
+                edge.nextLocalMinimaIndex = edge.prev.currentIndex;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
                     edge.reverseHorizontal();
@@ -731,7 +723,7 @@ export default class TEdge {
 
         while (currentIndex !== UNASSIGNED) {
             const edge = TEdge.at(currentIndex);
-            
+
             if (edge.index === oldIndex) {
                 edge.index = newIndex;
                 edge.side = side;
