@@ -60,8 +60,8 @@ export default class TEdgeManager {
             isClockwise = edge.dx >= edge.prev.dx;
             const localMinima: LocalMinima = this.createLocalMinima(edge);
 
-            edge = localMinima.leftBound.processBound(isClockwise);
-            const edge2: TEdge = localMinima.rightBound.processBound(!isClockwise);
+            edge = TEdge.at(localMinima.leftBound).processBound(isClockwise);
+            const edge2: TEdge = TEdge.at(localMinima.rightBound).processBound(!isClockwise);
 
             this.insertLocalMinima(localMinima);
 
@@ -82,7 +82,7 @@ export default class TEdgeManager {
         this.minimaList.push(localMinima);
     }
 
-    public popMinima(): TEdge[] {
+    public popMinima(): number[] {
         if (this.isMinimaEmpty) {
             throw new Error("No minima to pop");
         }
@@ -279,11 +279,11 @@ export default class TEdgeManager {
 
     public reset(): void {
         for (const minima of this.minimaList) {
-            if (minima.leftBound !== null) {
-                minima.leftBound.reset(DIRECTION.LEFT);
+            if (minima.leftBound !== UNASSIGNED) {
+                TEdge.at(minima.leftBound).reset(DIRECTION.LEFT);
             }
-            if (minima.rightBound !== null) {
-                minima.rightBound.reset(DIRECTION.RIGHT);
+            if (minima.rightBound !== UNASSIGNED) {
+                TEdge.at(minima.rightBound).reset(DIRECTION.RIGHT);
             }
         }
 
@@ -339,7 +339,7 @@ export default class TEdgeManager {
                         point.set(Math.abs(edge.dx) > Math.abs(nextEdge.dx) ? nextEdge.topX(botY) : edge.topX(botY), botY);
                     }
 
-                    this.intersections.push(new IntersectNode(edge, nextEdge, point));
+                    this.intersections.push(new IntersectNode(edge.currentIndex, nextEdge.currentIndex, point));
                     this.swapPositionsInSEL(edge, nextEdge);
                     isModified = true;
                 } else {
@@ -432,7 +432,7 @@ export default class TEdgeManager {
     }
 
     public edgesAdjacent(node: IntersectNode): boolean {
-        return node.edge1.nextSorted === node.edge2 || node.edge1.prevSorted === node.edge2;
+        return TEdge.at(node.edge1).nextSortedIndex === node.edge2 || TEdge.at(node.edge1).prevSortedIndex === node.edge2;
     }
 
     public fixupIntersectionOrder(): boolean {
@@ -465,7 +465,7 @@ export default class TEdgeManager {
                 this.intersections[j] = node;
             }
 
-            this.swapPositionsInSEL(this.intersections[i].edge1, this.intersections[i].edge2);
+            this.swapPositionsInSEL(TEdge.at(this.intersections[i].edge1), TEdge.at(this.intersections[i].edge2));
         }
 
         return true;
@@ -798,8 +798,8 @@ export default class TEdgeManager {
 
         for (i = 0; i < intersectCount; ++i) {
             node = this.intersections[i];
-            this.intersectEdges(node.edge1, node.edge2, node.point, true);
-            this.swapPositionsInAEL(node.edge1, node.edge2);
+            this.intersectEdges(TEdge.at(node.edge1), TEdge.at(node.edge2), node.point, true);
+            this.swapPositionsInAEL(TEdge.at(node.edge1), TEdge.at(node.edge2));
         }
 
         this.intersections = [];
@@ -838,7 +838,9 @@ export default class TEdgeManager {
         let outPt: number = UNASSIGNED;
 
         while (!Number.isNaN(this.minY) && this.minY === botY) {
-            let [leftBound, rightBound] = this.popMinima();
+            let [leftBoundIndex, rightBoundIndex] = this.popMinima();
+            const leftBound: NullPtr<TEdge> = TEdge.at(leftBoundIndex);
+            const rightBound: NullPtr<TEdge> = TEdge.at(rightBoundIndex);
             outPt = UNASSIGNED;
 
             if (leftBound === null) {
@@ -914,7 +916,6 @@ export default class TEdgeManager {
         leftBound.windDelta = leftBound.next === rightBound ? UNASSIGNED : 1;
         rightBound.windDelta = -leftBound.windDelta;
 
-        return new LocalMinima(y, leftBound, rightBound);
+        return new LocalMinima(y, leftBound.currentIndex, rightBound.currentIndex);
     }
-
 }

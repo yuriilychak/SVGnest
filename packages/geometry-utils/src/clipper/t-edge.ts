@@ -731,6 +731,7 @@ export default class TEdge {
 
         while (currentIndex !== UNASSIGNED) {
             const edge = TEdge.at(currentIndex);
+            
             if (edge.index === oldIndex) {
                 edge.index = newIndex;
                 edge.side = side;
