@@ -24,7 +24,7 @@ export default class TEdge {
     public prevActiveIndex: number;
     public nextSortedIndex: number;
     public prevSortedIndex: number;
-    public nextLocalMinimaIndex: number;
+    public nextLocalMinima: number;
 
     constructor() {
         this.bot = PointI32.create();
@@ -39,7 +39,7 @@ export default class TEdge {
         this.windCount2 = 0;
         this.index = 0;
         this.prev = null;
-        this.nextLocalMinimaIndex = UNASSIGNED;
+        this.nextLocalMinima = UNASSIGNED;
         this.nextIndex = UNASSIGNED;
         this.prevIndex = UNASSIGNED;
         this.nextActiveIndex = UNASSIGNED;
@@ -107,9 +107,9 @@ export default class TEdge {
         this.prevSortedIndex = value ? value.currentIndex : UNASSIGNED;
     }
 
-    public init(nextEdge: TEdge, prevEdge: TEdge, point: PointI32): void {
-        this.next = nextEdge;
-        this.prev = prevEdge;
+    public init(nextIndex: number, prevIndex: number, point: PointI32): void {
+        this.nextIndex = nextIndex;
+        this.prevIndex = prevIndex;
         this.curr.update(point);
         this.unassign();
     }
@@ -128,13 +128,15 @@ export default class TEdge {
         this.polyTyp = polyType;
     }
 
-    public remove(): TEdge {
-        const result: TEdge = this.next;
+    public remove(): number {
+        const result: number = this.nextIndex;
+        const next = TEdge.at(this.nextIndex);
+        const prev = TEdge.at(this.prevIndex);
         //removes e from double_linked_list (but without removing from memory)
-        this.prev.next = this.next;
-        this.next.prev = this.prev;
-        this.prev = null; //flag as removed (see ClipperBase.Clear)
-        this.next = null;
+        prev.nextIndex = this.nextIndex;
+        next.prevIndex = this.prevIndex;
+        this.prevIndex = UNASSIGNED; //flag as removed (see ClipperBase.Clear)
+        this.nextIndex = UNASSIGNED;
 
         return result;
     }
@@ -148,34 +150,41 @@ export default class TEdge {
         this.bot.x = tmp;
     }
 
-    public findNextLocMin(): TEdge {
-        let result: TEdge = this;
-        let edge: TEdge = null;
+    public findNextLocMin(): number {
+        let result: number = this.currentIndex;
+        let edge: TEdge = this;
 
         while (true) {
-            while (!result.bot.almostEqual(result.prev.bot) || result.curr.almostEqual(result.top)) {
-                result = result.next;
+            edge = TEdge.at(result);
+            while (!edge.bot.almostEqual(edge.prev.bot) || edge.curr.almostEqual(edge.top)) {
+                result = edge.nextIndex;
+                edge = TEdge.at(result);
             }
 
-            if (!result.isDxHorizontal && !result.prev.isDxHorizontal) {
+            if (!edge.isDxHorizontal && !edge.prev.isDxHorizontal) {
                 break;
             }
 
-            while (result.prev.isDxHorizontal) {
-                result = result.prev;
+            while (edge.prev.isDxHorizontal) {
+                result = edge.prevIndex;
+                edge = TEdge.at(result);
             }
 
-            edge = result;
+            const edgeIndex = result
 
-            while (result.isDxHorizontal) {
-                result = result.next;
+            while (edge.isDxHorizontal) {
+                result = edge.nextIndex;
+                edge = TEdge.at(result);
             }
-            if (result.top.y === result.prev.bot.y) {
+
+            if (edge.top.y === edge.prev.bot.y) {
                 continue;
             }
+
+            const tempEdge = TEdge.at(edgeIndex);
             //ie just an intermediate horz.
-            if (edge.prev.bot.x < result.bot.x) {
-                result = edge;
+            if (tempEdge.prev.bot.x < edge.bot.x) {
+                result = edgeIndex;
             }
 
             break;
@@ -283,11 +292,11 @@ export default class TEdge {
     }
 
     public getStop(point: PointI32, isProtect: boolean): boolean {
-        return !isProtect && this.nextLocalMinimaIndex === UNASSIGNED && this.top.almostEqual(point);
+        return !isProtect && this.nextLocalMinima === UNASSIGNED && this.top.almostEqual(point);
     }
 
     public getIntermediate(y: number): boolean {
-        return this.top.y === y && this.nextLocalMinimaIndex !== UNASSIGNED;
+        return this.top.y === y && this.nextLocalMinima !== UNASSIGNED;
     }
 
     public get isFilled(): boolean {
@@ -309,9 +318,9 @@ export default class TEdge {
     public get maximaPair(): NullPtr<TEdge> {
         let result: NullPtr<TEdge> = null;
 
-        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextLocalMinimaIndex === UNASSIGNED) {
+        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextLocalMinima === UNASSIGNED) {
             result = this.next;
-        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextLocalMinimaIndex === UNASSIGNED) {
+        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextLocalMinima === UNASSIGNED) {
             result = this.prev;
         }
 
@@ -319,7 +328,7 @@ export default class TEdge {
     }
 
     public getMaxima(y: number): boolean {
-        return this.top.y === y && this.nextLocalMinimaIndex === UNASSIGNED;
+        return this.top.y === y && this.nextLocalMinima === UNASSIGNED;
     }
 
     public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
@@ -449,7 +458,7 @@ export default class TEdge {
             }
 
             while (edge !== result) {
-                edge.nextLocalMinimaIndex = edge.next.currentIndex;
+                edge.nextLocalMinima = edge.next.currentIndex;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
                     edge.reverseHorizontal();
@@ -486,7 +495,7 @@ export default class TEdge {
             }
 
             while (edge !== result) {
-                edge.nextLocalMinimaIndex = edge.prev.currentIndex;
+                edge.nextLocalMinima = edge.prev.currentIndex;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
                     edge.reverseHorizontal();

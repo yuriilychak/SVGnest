@@ -47,7 +47,7 @@ export default class TEdgeManager {
         let minEdge: TEdge = null;
 
         while (true) {
-            edge = edge.findNextLocMin();
+            edge = TEdge.at(edge.findNextLocMin());
 
             if (edge === minEdge) {
                 break;
@@ -133,13 +133,13 @@ export default class TEdgeManager {
         this.isUseFullRange = polygon[0].rangeTest(this.isUseFullRange);
         this.isUseFullRange = polygon[lastIndex].rangeTest(this.isUseFullRange);
 
-        edges[0].init(edges[1], edges[lastIndex], polygon[0]);
-        edges[lastIndex].init(edges[0], edges[lastIndex - 1], polygon[lastIndex]);
+        edges[0].init(edges[1].currentIndex, edges[lastIndex].currentIndex, polygon[0]);
+        edges[lastIndex].init(edges[0].currentIndex, edges[lastIndex - 1].currentIndex, polygon[lastIndex]);
 
         for (i = lastIndex - 1; i >= 1; --i) {
             this.isUseFullRange = polygon[i].rangeTest(this.isUseFullRange);
 
-            edges[i].init(edges[i + 1], edges[i - 1], polygon[i]);
+            edges[i].init(edges[i + 1].currentIndex, edges[i - 1].currentIndex, polygon[i]);
         }
 
         let startEdge: TEdge = edges[0];
@@ -157,7 +157,7 @@ export default class TEdgeManager {
                     startEdge = edge.next;
                 }
 
-                edge = edge.remove();
+                edge = TEdge.at(edge.remove());
                 loopStopEdge = edge;
 
                 continue;
@@ -176,7 +176,7 @@ export default class TEdgeManager {
                     startEdge = edge.next;
                 }
 
-                edge = edge.remove();
+                edge = TEdge.at(edge.remove());
                 edge = edge.prev;
                 loopStopEdge = edge;
 
@@ -218,14 +218,14 @@ export default class TEdgeManager {
     }
 
     public updateEdgeIntoAEL(edge: TEdge): number {
-        if (edge.nextLocalMinimaIndex === UNASSIGNED) {
+        if (edge.nextLocalMinima === UNASSIGNED) {
             showError('UpdateEdgeIntoAEL: invalid call');
         }
 
-        const result = edge.nextLocalMinimaIndex;
+        const result = edge.nextLocalMinima;
         const AelPrev: NullPtr<TEdge> = edge.prevActive;
         const AelNext: NullPtr<TEdge> = edge.nextActive;
-        const nextEdge = TEdge.at(edge.nextLocalMinimaIndex);
+        const nextEdge = TEdge.at(edge.nextLocalMinima);
 
         nextEdge.index = edge.index;
 
@@ -474,8 +474,8 @@ export default class TEdgeManager {
     }
 
     public intersectOpenEdges(edge1: TEdge, edge2: TEdge, isProtect: boolean, point: PointI32) {
-        const edge1Stops: boolean = !isProtect && edge1.nextLocalMinimaIndex === UNASSIGNED && edge1.top.almostEqual(point);
-        const edge2Stops: boolean = !isProtect && edge2.nextLocalMinimaIndex === UNASSIGNED && edge2.top.almostEqual(point);
+        const edge1Stops: boolean = !isProtect && edge1.nextLocalMinima === UNASSIGNED && edge1.top.almostEqual(point);
+        const edge2Stops: boolean = !isProtect && edge2.nextLocalMinima === UNASSIGNED && edge2.top.almostEqual(point);
         const edge1Contributing: boolean = edge1.isAssigned;
         const edge2Contributing: boolean = edge2.isAssigned;
          //ignore subject-subject open path intersections UNLESS they
@@ -558,11 +558,11 @@ export default class TEdgeManager {
         let eLastHorz: NullPtr<TEdge> = horzEdge;
         let eMaxPair: NullPtr<TEdge> = null;
 
-        while (eLastHorz.nextLocalMinimaIndex !== UNASSIGNED && TEdge.at(eLastHorz.nextLocalMinimaIndex).isHorizontal) {
-            eLastHorz = TEdge.at(eLastHorz.nextLocalMinimaIndex);
+        while (eLastHorz.nextLocalMinima !== UNASSIGNED && TEdge.at(eLastHorz.nextLocalMinima).isHorizontal) {
+            eLastHorz = TEdge.at(eLastHorz.nextLocalMinima);
         }
 
-        if (eLastHorz.nextLocalMinimaIndex === UNASSIGNED) {
+        if (eLastHorz.nextLocalMinima === UNASSIGNED) {
             eMaxPair = eLastHorz.maximaPair;
         }
 
@@ -574,7 +574,7 @@ export default class TEdgeManager {
             while (e !== null) {
                 //Break if we've got to the end of an intermediate horizontal edge ...
                 //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
-                if (e.curr.x === horzEdge.top.x && horzEdge.nextLocalMinimaIndex !== UNASSIGNED && e.dx < TEdge.at(horzEdge.nextLocalMinimaIndex).dx) {
+                if (e.curr.x === horzEdge.top.x && horzEdge.nextLocalMinima !== UNASSIGNED && e.dx < TEdge.at(horzEdge.nextLocalMinima).dx) {
                     break;
                 }
 
@@ -623,7 +623,7 @@ export default class TEdgeManager {
                 this.joinManager.prepareHorzJoins(horzEdge, isTopOfScanbeam);
             }
 
-            if (horzEdge.nextLocalMinimaIndex !== UNASSIGNED && TEdge.at(horzEdge.nextLocalMinimaIndex).isHorizontal) {
+            if (horzEdge.nextLocalMinima !== UNASSIGNED && TEdge.at(horzEdge.nextLocalMinima).isHorizontal) {
                 horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge));
 
                 if (horzEdge.isAssigned) {
@@ -639,7 +639,7 @@ export default class TEdgeManager {
             }
         }
         //end for (;;)
-        if (horzEdge.nextLocalMinimaIndex !== UNASSIGNED) {
+        if (horzEdge.nextLocalMinima !== UNASSIGNED) {
             if (horzEdge.isAssigned) {
                 const op1 = this.outRecManager.addOutPt(horzEdge, horzEdge.top);
                 horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge));
@@ -711,7 +711,7 @@ export default class TEdgeManager {
                 edge1 = edge2 === null ? this.activeEdges : edge2.nextActive;
             } else {
                 //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-                if (edge1.getIntermediate(topY) && TEdge.at(edge1.nextLocalMinimaIndex).isHorizontal) {
+                if (edge1.getIntermediate(topY) && TEdge.at(edge1.nextLocalMinima).isHorizontal) {
                     edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1));
 
                     if (edge1.isAssigned) {
