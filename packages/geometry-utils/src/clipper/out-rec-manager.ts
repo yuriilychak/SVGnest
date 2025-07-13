@@ -44,7 +44,7 @@ export default class OutRecManager {
 
             outRec = this.createRec(pointIndex);
  
-            this.setHoleState(outRec, edge);
+            this.setHoleState(outRec, edge.currentIndex);
 
             edge.index = outRec.currentIndex;
             //nb: do this after SetZ !
@@ -149,8 +149,8 @@ export default class OutRecManager {
         }
     }
 
-    private setHoleState(outRec: OutRec, tEdge: TEdge): void {
-        const { isHole, index } = TEdge.getHoleState(outRec.firstLeftIndex, tEdge);
+    private setHoleState(outRec: OutRec, edgeIndex: number): void {
+        const { isHole, index } = TEdge.getHoleState(outRec.firstLeftIndex, edgeIndex);
 
         if (outRec.firstLeftIndex === UNASSIGNED && index !== UNASSIGNED) {
             outRec.firstLeftIndex = this.polyOuts[index].index;

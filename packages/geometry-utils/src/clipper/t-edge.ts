@@ -740,12 +740,14 @@ export default class TEdge {
         }
     }
 
-    public static getHoleState(firstLeftIndex: number, tEdge: TEdge): { isHole: boolean, index: number } {
+    public static getHoleState(firstLeftIndex: number, edgeIndex: number): { isHole: boolean, index: number } {
         let isHole: boolean = false;
-        let edge: NullPtr<TEdge> = tEdge.prevActive;
+        let edge: NullPtr<TEdge> = TEdge.at(edgeIndex);
+        let currentIndex: number = edge.prevActiveIndex;
         let index: number = UNASSIGNED;
 
-        while (edge !== null) {
+        while (currentIndex !== UNASSIGNED) {
+            edge = TEdge.at(currentIndex);
             if (edge.isAssigned && !edge.isWindDeletaEmpty) {
                 isHole = !isHole;
 
@@ -754,7 +756,7 @@ export default class TEdge {
                 }
             }
 
-            edge = edge.prevActive;
+            currentIndex = edge.prevActiveIndex;
         }
 
         return { isHole, index };
