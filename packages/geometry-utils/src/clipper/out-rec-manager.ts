@@ -57,7 +57,7 @@ export default class OutRecManager {
         return outRec.getHash(pointIndex);
     }
 
-    public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdge: TEdge): void {
+    public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdgeIndex: number): void {
         this.addOutPt(edge1, point);
 
         if (edge2.isWindDeletaEmpty) {
@@ -98,7 +98,7 @@ export default class OutRecManager {
         //nb: safe because we only get here via AddLocalMaxPoly
         secondEdge.unassign();
 
-        TEdge.updateIndexAEL(activeEdge, side, ObsoleteIdx, OKIdx);
+        TEdge.updateIndexAEL(activeEdgeIndex, side, ObsoleteIdx, OKIdx);
 
         outRec2.currentIndex = outRec1.currentIndex;
     }

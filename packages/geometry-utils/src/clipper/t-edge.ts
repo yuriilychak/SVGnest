@@ -726,17 +726,18 @@ export default class TEdge {
     }
 
 
-    public static updateIndexAEL(inputEdge: TEdge, side: DIRECTION, oldIndex: number, newIndex: number): void {
-        let edge = inputEdge;
+    public static updateIndexAEL(edgeIndex: number, side: DIRECTION, oldIndex: number, newIndex: number): void {
+        let currentIndex: number = edgeIndex;
 
-        while (edge !== null) {
+        while (currentIndex !== UNASSIGNED) {
+            const edge = TEdge.at(currentIndex);
             if (edge.index === oldIndex) {
                 edge.index = newIndex;
                 edge.side = side;
                 break;
             }
 
-            edge = edge.nextActive;
+            currentIndex = edge.nextActiveIndex;
         }
     }
 
