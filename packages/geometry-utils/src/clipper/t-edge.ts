@@ -714,6 +714,48 @@ export default class TEdge {
         return null;
     }
 
+    public static getNeighboarIndex(index: number, isNext: boolean, isAel: boolean): number {
+        const edge: TEdge = TEdge.at(index);
+
+        if (edge === null) {
+            return UNASSIGNED;
+        }
+
+        if (isNext) {
+            return isAel ? edge.nextActiveIndex : edge.nextSortedIndex;
+        } 
+
+        return isAel ? edge.prevActiveIndex : edge.prevSortedIndex;
+    }
+
+    public static setNeighboarIndex(index: number, isNext: boolean, isAel: boolean, value: number): void {
+        const edge: TEdge = TEdge.at(index);    
+
+        if (edge === null) {
+            return;
+        }  
+
+        if (isNext) {
+            if (isAel) {
+                edge.nextActiveIndex = value;
+
+                return
+            }
+            
+            edge.nextSortedIndex = value;
+
+            return;
+        }
+
+        if (isAel) {
+            edge.prevActiveIndex = value;
+
+            return;
+        } 
+
+        edge.prevSortedIndex = value;
+    }
+
     public static swapSides(edge1: TEdge, edge2: TEdge): void {
         const side: DIRECTION = edge1.side;
         edge1.side = edge2.side;
