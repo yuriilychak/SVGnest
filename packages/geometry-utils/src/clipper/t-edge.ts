@@ -1,3 +1,4 @@
+import { Point } from '../types';
 import { PointI32 } from '../geometry';
 import { HORIZONTAL, UNASSIGNED } from './constants';
 import { slopesEqual } from '../helpers';
@@ -269,7 +270,9 @@ export default class TEdge {
         return result;
     }
 
-    public alignWndCount(edge: TEdge): void {
+    public alignWndCount(edgeIndex: number): void {
+        const edge: TEdge = TEdge.at(edgeIndex);
+
         if (this.polyTyp === edge.polyTyp) {
             this.windCount1 = this.windCount1 === -edge.windDelta ? -this.windCount1 : this.windCount1 + edge.windDelta;
             edge.windCount1 = edge.windCount1 === this.windDelta ? -edge.windCount1 : edge.windCount1 - this.windDelta;
@@ -315,16 +318,37 @@ export default class TEdge {
         return this.dx === HORIZONTAL;
     }
 
-    public get maximaPair(): NullPtr<TEdge> {
-        let result: NullPtr<TEdge> = null;
+    public checkMaxPair(isNext: boolean): boolean {
+        const index = isNext ? this.nextIndex : this.prevIndex;
+        const edge: TEdge = TEdge.at(index);
 
-        if (this.next !== null && this.next.top.almostEqual(this.top) && this.next.nextLocalMinima === UNASSIGNED) {
-            result = this.next;
-        } else if (this.prev !== null && this.prev.top.almostEqual(this.top) && this.prev.nextLocalMinima === UNASSIGNED) {
-            result = this.prev;
+        return edge !== null && edge.top.almostEqual(this.top) && edge.nextLocalMinima === UNASSIGNED
+    }
+
+    public get maximaPair(): number {
+        let result: number = UNASSIGNED;
+
+        if (this.checkMaxPair(true)) {
+            result = this.nextIndex;
+        } else if (this.checkMaxPair(false)) {
+            result = this.prevIndex;
         }
 
-        return result !== null && result.nextActive === result.prevActive && !result.isHorizontal ? null : result;
+        const edge: TEdge = TEdge.at(result);
+
+        return result !== UNASSIGNED && edge.nextActiveIndex === edge.prevActiveIndex && !edge.isHorizontal ? UNASSIGNED : result;
+    }
+
+    public updateCurrent(index: number): void {
+        const edge = TEdge.at(index);
+
+        this.side = edge.side;
+        this.windDelta = edge.windDelta;
+        this.windCount1 = edge.windCount1;
+        this.windCount2 = edge.windCount2;
+        this.prevActiveIndex =  edge.prevActiveIndex;
+        this.nextActiveIndex = edge.nextActiveIndex;
+        this.curr.update(this.bot);
     }
 
     public getMaxima(y: number): boolean {
@@ -352,17 +376,17 @@ export default class TEdge {
         return this.curr.x < edge.curr.x;
     }
 
-    public addEdgeToSEL(sortedEdge: NullPtr<TEdge>): TEdge {
+    public addEdgeToSEL(sortedEdgeIndex: number): number {
         //SEL pointers in PEdge are reused to build a list of horizontal edges.
         //However, we don't need to worry about order with horizontal edge processing.
-        this.prevSorted = null;
-        this.nextSorted = sortedEdge;
+        this.prevSortedIndex = UNASSIGNED;
+        this.nextSortedIndex = sortedEdgeIndex;
 
-        if (sortedEdge !== null) {
-            sortedEdge.prevSorted = this;
+        if (sortedEdgeIndex !== UNASSIGNED) {
+            TEdge.setNeighboarIndex(sortedEdgeIndex, false, false, this.currentIndex);
         }
 
-        return this;
+        return this.currentIndex;
     }
 
     public insertEdgeIntoAEL(activeEdge: NullPtr<TEdge>, startEdge: NullPtr<TEdge> = null): TEdge {

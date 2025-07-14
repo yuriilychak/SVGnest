@@ -217,7 +217,9 @@ export default class TEdgeManager {
         return edge;
     }
 
-    public updateEdgeIntoAEL(edge: TEdge): number {
+    public updateEdgeIntoAEL(edgeIndex: number): number {
+        const edge = TEdge.at(edgeIndex);
+
         if (edge.nextLocalMinima === UNASSIGNED) {
             showError('UpdateEdgeIntoAEL: invalid call');
         }
@@ -239,13 +241,7 @@ export default class TEdgeManager {
             AelNext.prevActiveIndex = result;
         }
 
-        nextEdge.side = edge.side;
-        nextEdge.windDelta = edge.windDelta;
-        nextEdge.windCount1 = edge.windCount1;
-        nextEdge.windCount2 = edge.windCount2;
-        nextEdge.prevActiveIndex =  edge.prevActiveIndex;
-        nextEdge.nextActiveIndex = edge.nextActiveIndex;
-        nextEdge.curr.update(nextEdge.bot);
+        nextEdge.updateCurrent(edge.currentIndex)
 
         if (!nextEdge.isHorizontal) {
             this.scanbeam.insert(nextEdge.top.y);
@@ -380,7 +376,7 @@ export default class TEdgeManager {
 
         //update winding counts...
         //assumes that e1 will be to the Right of e2 ABOVE the intersection
-        edge1.alignWndCount(edge2);
+        edge1.alignWndCount(edge2.currentIndex);
 
         const e1Wc: number = edge1.getWndTypeFilled(this.fillType);
         const e2Wc: number = edge2.getWndTypeFilled(this.fillType);
@@ -566,7 +562,7 @@ export default class TEdgeManager {
         }
 
         if (eLastHorz.nextLocalMinima === UNASSIGNED) {
-            eMaxPair = eLastHorz.maximaPair;
+            eMaxPair = TEdge.at(eLastHorz.maximaPair);
         }
 
         while (true) {
@@ -627,7 +623,7 @@ export default class TEdgeManager {
             }
 
             if (horzEdge.nextLocalMinima !== UNASSIGNED && TEdge.at(horzEdge.nextLocalMinima).isHorizontal) {
-                horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge));
+                horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.currentIndex));
 
                 if (horzEdge.isAssigned) {
                     this.outRecManager.addOutPt(horzEdge, horzEdge.bot);
@@ -645,7 +641,7 @@ export default class TEdgeManager {
         if (horzEdge.nextLocalMinima !== UNASSIGNED) {
             if (horzEdge.isAssigned) {
                 const op1 = this.outRecManager.addOutPt(horzEdge, horzEdge.top);
-                horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge));
+                horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.currentIndex));
 
                 if (horzEdge.isWindDeletaEmpty) {
                     return;
@@ -654,7 +650,7 @@ export default class TEdgeManager {
                 //nb: HorzEdge is no longer horizontal here
                 this.joinManager.addHorizontalJoin(op1, horzEdge)
             } else {
-                horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge));
+                horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.currentIndex));
             }
         } else if (eMaxPair !== null) {
             if (eMaxPair.isAssigned) {
@@ -703,7 +699,7 @@ export default class TEdgeManager {
             isMaximaEdge = edge1.getMaxima(topY);
 
             if (isMaximaEdge) {
-                edge2 = edge1.maximaPair;
+                edge2 = TEdge.at(edge1.maximaPair);
                 isMaximaEdge = edge2 === null || !edge2.isHorizontal;
             }
 
@@ -715,13 +711,13 @@ export default class TEdgeManager {
             } else {
                 //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
                 if (edge1.getIntermediate(topY) && TEdge.at(edge1.nextLocalMinima).isHorizontal) {
-                    edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1));
+                    edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.currentIndex));
 
                     if (edge1.isAssigned) {
                         this.outRecManager.addOutPt(edge1, edge1.bot);
                     }
 
-                    this.sortedEdges = edge1.addEdgeToSEL(this.sortedEdges);
+                    this.sortedEdges = TEdge.at(edge1.addEdgeToSEL(this.sortedEdgeIndex));
                 } else {
                     edge1.curr.set(edge1.topX(topY), topY);
                 }
@@ -742,7 +738,7 @@ export default class TEdgeManager {
         while (edge1 !== null) {
             if (edge1.getIntermediate(topY)) {
                 outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.top) : UNASSIGNED;
-                edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1));
+                edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.currentIndex));
                 //if output polygons share an edge, they'll need joining later...
                 this.joinManager.addSharedJoin(outPt1, edge1);
             }
@@ -752,7 +748,7 @@ export default class TEdgeManager {
     }
 
         private doMaxima(edge: TEdge): void {
-            const maxPairEdge: NullPtr<TEdge> = edge.maximaPair;
+            const maxPairEdge: NullPtr<TEdge> = TEdge.at(edge.maximaPair);
     
             if (maxPairEdge === null) {
                 if (edge.isAssigned) {
@@ -888,7 +884,7 @@ export default class TEdgeManager {
 
             if (rightBound !== null) {
                 if (rightBound.isHorizontal) {
-                    this.sortedEdges = rightBound.addEdgeToSEL(this.sortedEdges);
+                    this.sortedEdges = TEdge.at(rightBound.addEdgeToSEL(this.sortedEdgeIndex));
                 } else {
                     this.scanbeam.insert(rightBound.top.y);
                 }
