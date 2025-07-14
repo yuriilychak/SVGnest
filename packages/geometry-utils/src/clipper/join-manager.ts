@@ -45,8 +45,8 @@ export default class JoinManager {
     }
 
     public addHorizontalJoin(outHash: number, edge: TEdge): void {
-        let prevEdge: NullPtr<TEdge> = edge.prevActive;
-        let nextEdge: NullPtr<TEdge> = edge.nextActive;
+        let prevEdge: NullPtr<TEdge> = TEdge.at(edge.prevActiveIndex);
+        let nextEdge: NullPtr<TEdge> = TEdge.at(edge.nextActive);
 
         const condition1 = JoinManager.checkHorizontalCondition(edge, prevEdge, this.isUseFullRange);
 
@@ -71,7 +71,7 @@ export default class JoinManager {
 
     public addLeftJoin(outHash: number, leftBound: TEdge) {
         const condition = leftBound.isFilled &&
-        leftBound.prevActive !== null &&
+        leftBound.prevActiveIndex !== UNASSIGNED &&
         leftBound.prevActive.curr.x === leftBound.bot.x &&
         leftBound.prevActive.isFilled &&
         TEdge.slopesEqual(leftBound.prevActive, leftBound, this.isUseFullRange);
@@ -99,8 +99,8 @@ export default class JoinManager {
     }
 
     public addSharedJoin(outHash: number, edge1: TEdge) {
-        const ePrev: TEdge = edge1.prevActive;
-        const eNext: TEdge = edge1.nextActive;
+        const ePrev: TEdge = TEdge.at(edge1.prevActiveIndex);
+        const eNext: TEdge = TEdge.at(edge1.nextActive);
 
         const condition1 = JoinManager.checkSharedCondition(outHash, edge1, ePrev, this.isUseFullRange);
 

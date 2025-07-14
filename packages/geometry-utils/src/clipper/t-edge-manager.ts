@@ -36,37 +36,38 @@ export default class TEdgeManager {
         const result = edge !== null;
 
         if (result) {
-            this.addEdgeBounds(edge);
+            this.addEdgeBounds(edge.currentIndex);
         }
 
         return result;
     }
 
-    private addEdgeBounds(edge: TEdge): void {
-        let isClockwise: boolean = false;
-        let minEdge: TEdge = null;
+    private addEdgeBounds(edgeIndex: number): void {
+        let currIndex: number = edgeIndex;
+        let nextIndex: number = UNASSIGNED;
+        let minIndex: number = UNASSIGNED;
 
         while (true) {
-            edge = TEdge.at(edge.findNextLocMin());
+            currIndex = TEdge.findNextLocMin(currIndex);
 
-            if (edge === minEdge) {
+            if (currIndex === minIndex) {
                 break;
             }
 
-            if (minEdge === null) {
-                minEdge = edge;
+            if (minIndex === UNASSIGNED) {
+                minIndex = currIndex;
             }
 
-            isClockwise = edge.dx >= edge.prev.dx;
-            const localMinima: LocalMinima = this.createLocalMinima(edge);
+            const isClockwise = TEdge.getClockwise(currIndex);
+            const localMinima: LocalMinima = this.createLocalMinima(currIndex);
 
-            edge = TEdge.at(localMinima.leftBound).processBound(isClockwise);
-            const edge2: TEdge = TEdge.at(localMinima.rightBound).processBound(!isClockwise);
+            currIndex = TEdge.processBound(localMinima.leftBound, isClockwise);
+            nextIndex = TEdge.processBound(localMinima.rightBound, !isClockwise);
 
             this.insertLocalMinima(localMinima);
 
             if (!isClockwise) {
-                edge = edge2;
+                currIndex = nextIndex;
             }
         }
     }
@@ -163,7 +164,7 @@ export default class TEdgeManager {
                 continue;
             }
 
-            if (edge.prev === edge.next) {
+            if (edge.prevIndex === edge.nextIndex) {
                 break;
             }
 
@@ -173,24 +174,24 @@ export default class TEdgeManager {
                 //However, if the PreserveCollinear property is enabled, only overlapping
                 //collinear edges (ie spikes) will be removed from closed paths.
                 if (edge === startEdge) {
-                    startEdge = edge.next;
+                    startEdge = TEdge.at(edge.nextIndex);
                 }
 
                 edge = TEdge.at(edge.remove());
-                edge = edge.prev;
+                edge = TEdge.at(edge.prevIndex);
                 loopStopEdge = edge;
 
                 continue;
             }
 
-            edge = edge.next;
+            edge = TEdge.at(edge.nextIndex);
 
             if (edge === loopStopEdge) {
                 break;
             }
         }
 
-        if (edge.prev === edge.next) {
+        if (edge.prevIndex === edge.nextIndex) {
             return null;
         }
 
@@ -225,20 +226,20 @@ export default class TEdgeManager {
         }
 
         const result = edge.nextLocalMinima;
-        const AelPrev: NullPtr<TEdge> = edge.prevActive;
-        const AelNext: NullPtr<TEdge> = edge.nextActive;
+        
+        
         const nextEdge = TEdge.at(edge.nextLocalMinima);
 
         nextEdge.index = edge.index;
 
         if (edge.prevActiveIndex !== UNASSIGNED) {
-            AelPrev.nextActiveIndex = result;
+            TEdge.setNeighboarIndex(edge.prevActiveIndex, true, true, result);
         } else {
             this.activeEdges = nextEdge.currentIndex;
         }
 
-        if (edge.nextActiveIndex !== UNASSIGNED) {
-            AelNext.prevActiveIndex = result;
+        if (edge.nextActive !== UNASSIGNED) {
+            TEdge.setNeighboarIndex(edge.nextActive, false, true, result);
         }
 
         nextEdge.updateCurrent(edge.currentIndex)
@@ -309,9 +310,9 @@ export default class TEdgeManager {
 
         while (edge !== null) {
             edge.prevSorted = edge.prevActiveIndex;
-            edge.nextSorted = edge.nextActiveIndex;
+            edge.nextSorted = edge.nextActive;
             edge.curr.x = edge.topX(topY);
-            edge = edge.nextActive;
+            edge = TEdge.at(edge.nextActive);
         }
         //bubblesort ...
         let isModified: boolean = true;
@@ -704,10 +705,10 @@ export default class TEdgeManager {
             }
 
             if (isMaximaEdge) {
-                edge2 = edge1.prevActive;
+                edge2 = TEdge.at(edge1.prevActiveIndex);
                 this.doMaxima(edge1);
 
-                edge1 = edge2 === null ? TEdge.at(this.activeEdges) : edge2.nextActive;
+                edge1 = edge2 === null ? TEdge.at(this.activeEdges) : TEdge.at(edge2.nextActive);
             } else {
                 //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
                 if (edge1.getIntermediate(topY) && TEdge.at(edge1.nextLocalMinima).isHorizontal) {
@@ -723,11 +724,11 @@ export default class TEdgeManager {
                 }
 
                 if (strictlySimple) {
-                    edge2 = edge1.prevActive;
+                    edge2 = TEdge.at(edge1.prevActiveIndex);
 
                     this.joinManager.addScanbeamJoin(edge1, edge2);
                 }
-                edge1 = edge1.nextActive;
+                edge1 = TEdge.at(edge1.nextActive);
             }
         }
         //3. Process horizontals at the Top of the scanbeam ...
@@ -743,7 +744,7 @@ export default class TEdgeManager {
                 this.joinManager.addSharedJoin(outPt1, edge1);
             }
 
-            edge1 = edge1.nextActive;
+            edge1 = TEdge.at(edge1.nextActive);
         }
     }
 
@@ -760,12 +761,12 @@ export default class TEdgeManager {
                 return;
             }
     
-            let nextEdge: NullPtr<TEdge> = edge.nextActive;
+            let nextEdge: NullPtr<TEdge> = TEdge.at(edge.nextActive);
     
             while (nextEdge !== null && nextEdge !== maxPairEdge) {
                 this.intersectEdges(edge, nextEdge, edge.top, true);
                 this.swapPositionsInAEL(edge.currentIndex, nextEdge.currentIndex);
-                nextEdge = edge.nextActive;
+                nextEdge = TEdge.at(edge.nextActive);
             }
     
             if (!edge.isAssigned && !maxPairEdge.isAssigned) {
@@ -890,10 +891,10 @@ export default class TEdgeManager {
 
             this.joinManager.addLeftJoin(outPt, leftBound);
 
-            if (leftBound.nextActive !== rightBound) {
+            if (leftBound.nextActive !== rightBound.currentIndex) {
                 this.joinManager.addRightJoin(outPt, rightBound);
 
-                let edge: NullPtr<TEdge> = leftBound.nextActive;
+                let edge: NullPtr<TEdge> = TEdge.at(leftBound.nextActive);
 
                 if (edge !== null)
                     while (edge !== rightBound) {
@@ -901,20 +902,22 @@ export default class TEdgeManager {
                         //that param1 will be to the right of param2 ABOVE the intersection ...
                         this.intersectEdges(rightBound, edge, leftBound.curr, false);
                         //order important here
-                        edge = edge.nextActive;
+                        edge = TEdge.at(edge.nextActive);
                     }
             }
         }
     }
 
-    public createLocalMinima(edge: TEdge): LocalMinima {
-        const isClockwise = edge.dx >= edge.prev.dx;
-        const y = edge.bot.y;
-        const leftBound = isClockwise ? edge : edge.prev;
-        const rightBound = isClockwise ? edge.prev : edge;
+    public createLocalMinima(edgeIndex: number): LocalMinima {
+        const currEdge: TEdge = TEdge.at(edgeIndex);
+        const prevEdge: TEdge = TEdge.at(currEdge.prevIndex);
+        const isClockwise = currEdge.dx >= prevEdge.dx;
+        const y = currEdge.bot.y;
+        const leftBound = isClockwise ? currEdge : prevEdge;
+        const rightBound = isClockwise ? prevEdge : currEdge;
         leftBound.side = DIRECTION.LEFT;
         rightBound.side = DIRECTION.RIGHT;
-        leftBound.windDelta = leftBound.next === rightBound ? UNASSIGNED : 1;
+        leftBound.windDelta = leftBound.nextIndex === rightBound.currentIndex ? -1 : 1;
         rightBound.windDelta = -leftBound.windDelta;
 
         return new LocalMinima(y, leftBound.currentIndex, rightBound.currentIndex);

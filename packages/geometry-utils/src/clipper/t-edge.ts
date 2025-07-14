@@ -20,7 +20,7 @@ export default class TEdge {
     public currentIndex: number;
     public nextIndex: number;
     public prevIndex: number;
-    public nextActiveIndex: number;
+    public nextActive: number;
     public prevActiveIndex: number;
     public nextSorted: number;
     public prevSorted: number;
@@ -41,7 +41,7 @@ export default class TEdge {
         this.nextLocalMinima = UNASSIGNED;
         this.nextIndex = UNASSIGNED;
         this.prevIndex = UNASSIGNED;
-        this.nextActiveIndex = UNASSIGNED;
+        this.nextActive = UNASSIGNED;
         this.prevActiveIndex = UNASSIGNED;
         this.nextSorted = UNASSIGNED;
         this.prevSorted = UNASSIGNED;
@@ -72,14 +72,6 @@ export default class TEdge {
 
     public set prev(value: TEdge) {
         this.prevIndex = value ? value.currentIndex : UNASSIGNED;
-    }
-
-    public get nextActive() {
-        return TEdge.at(this.nextActiveIndex);
-    }
-
-    public set nextActive(value: TEdge) {
-        this.nextActiveIndex = value ? value.currentIndex : UNASSIGNED;
     }
     
     public get prevActive() {
@@ -133,12 +125,13 @@ export default class TEdge {
         this.bot.x = tmp;
     }
 
-    public findNextLocMin(): number {
-        let result: number = this.currentIndex;
-        let edge: TEdge = this;
+    public static findNextLocMin(index: number): number {
+        let result: number = index;
+        let edge: TEdge = TEdge.at(index);
 
         while (true) {
             edge = TEdge.at(result);
+
             while (!edge.bot.almostEqual(edge.prev.bot) || edge.curr.almostEqual(edge.top)) {
                 result = edge.nextIndex;
                 edge = TEdge.at(result);
@@ -189,9 +182,9 @@ export default class TEdge {
 
     public copyAELToSEL(): number {
         this.prevSorted = this.prevActiveIndex;
-        this.nextSorted = this.nextActiveIndex;
+        this.nextSorted = this.nextActive;
 
-        return this.nextActiveIndex;
+        return this.nextActive;
     }
 
     public topX(y: number): number {
@@ -201,12 +194,12 @@ export default class TEdge {
     }
 
     public getNext(isAel: boolean): NullPtr<TEdge> {
-        return TEdge.at(isAel ? this.nextActiveIndex : this.nextSorted);
+        return TEdge.at(isAel ? this.nextActive : this.nextSorted);
     }
 
     public setNext(isAel: boolean, value: NullPtr<TEdge>): void{
         if (isAel) {
-            this.nextActiveIndex = value ? value.currentIndex : UNASSIGNED;
+            this.nextActive = value ? value.currentIndex : UNASSIGNED;
          }  else {
             this.nextSorted = value ? value.currentIndex : UNASSIGNED;
          }
@@ -318,7 +311,7 @@ export default class TEdge {
 
         const edge: TEdge = TEdge.at(result);
 
-        return result !== UNASSIGNED && edge.nextActiveIndex === edge.prevActiveIndex && !edge.isHorizontal ? UNASSIGNED : result;
+        return result !== UNASSIGNED && edge.nextActive === edge.prevActiveIndex && !edge.isHorizontal ? UNASSIGNED : result;
     }
 
     public updateCurrent(index: number): void {
@@ -329,7 +322,7 @@ export default class TEdge {
         this.windCount1 = edge.windCount1;
         this.windCount2 = edge.windCount2;
         this.prevActiveIndex =  edge.prevActiveIndex;
-        this.nextActiveIndex = edge.nextActiveIndex;
+        this.nextActive = edge.nextActive;
         this.curr.update(this.bot);
     }
 
@@ -376,14 +369,14 @@ export default class TEdge {
     public insertEdgeIntoAEL(activeEdgeIndex: number, startEdgeIndex: number = UNASSIGNED): number {
         if (activeEdgeIndex === UNASSIGNED) {
             this.prevActiveIndex = UNASSIGNED;
-            this.nextActiveIndex = UNASSIGNED;
+            this.nextActive = UNASSIGNED;
 
             return this.currentIndex;
         }
 
         if (startEdgeIndex === UNASSIGNED && this.insertsBefore(activeEdgeIndex)) {
             this.prevActiveIndex = UNASSIGNED;
-            this.nextActiveIndex = activeEdgeIndex;
+            this.nextActive = activeEdgeIndex;
 
             TEdge.setNeighboarIndex(activeEdgeIndex, false, true, this.currentIndex);
 
@@ -398,7 +391,7 @@ export default class TEdge {
             nextIndex = TEdge.getNeighboarIndex(edgeIndex, true, true);
         }
 
-        this.nextActiveIndex = nextIndex;
+        this.nextActive = nextIndex;
 
         if (nextIndex !== UNASSIGNED) {
             TEdge.setNeighboarIndex(nextIndex, false, true, this.currentIndex);
@@ -411,7 +404,7 @@ export default class TEdge {
     }
 
     public getNextInAEL(direction: DIRECTION): NullPtr<TEdge> {
-        return direction === DIRECTION.RIGHT ? this.nextActive : this.prevActive;
+        return TEdge.at(direction === DIRECTION.RIGHT ? this.nextActive : this.prevActiveIndex);
     }
 
     public unassign(): void {
@@ -428,8 +421,8 @@ export default class TEdge {
         return this.index !== UNASSIGNED;
     }
 
-    public processBound(isClockwise: boolean): TEdge {
-        let edge: TEdge = this;
+    public static processBound(index: number, isClockwise: boolean): number {
+        let edge: TEdge = TEdge.at(index);
         let startEdge: TEdge = edge;
         let result: TEdge = edge;
         let horzEdge: TEdge = null;
@@ -523,14 +516,14 @@ export default class TEdge {
             //move to the edge just beyond current bound
         }
 
-        return result;
+        return result.currentIndex;
     }
 
     public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE): void {
-        let edge: NullPtr<TEdge> = this.prevActive;
+        let edge: NullPtr<TEdge> = TEdge.at(this.prevActiveIndex);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
         while (edge !== null && (edge.polyTyp !== this.polyTyp || edge.isWindDeletaEmpty)) {
-            edge = edge.prevActive;
+            edge = TEdge.at(edge.prevActiveIndex);
         }
 
         if (edge === null) {
@@ -541,7 +534,7 @@ export default class TEdge {
         } else if (this.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
             this.windCount1 = 1;
             this.windCount2 = edge.windCount2;
-            edge = edge.nextActive;
+            edge = TEdge.at(edge.nextActive);
             //ie get ready to calc WindCnt2
         } else {
             //nonZero, Positive or Negative filling ...
@@ -566,13 +559,13 @@ export default class TEdge {
             }
 
             this.windCount2 = edge.windCount2;
-            edge = edge.nextActive;
+            edge = TEdge.at(edge.nextActive);
             //ie get ready to calc WindCnt2
         }
         //nonZero, Positive or Negative filling ...
         while (edge !== this) {
             this.windCount2 += edge.windDelta;
-            edge = edge.nextActive;
+            edge = TEdge.at(edge.nextActive);
         }
     }
 
@@ -737,7 +730,7 @@ export default class TEdge {
         }
 
         if (isNext) {
-            return isAel ? edge.nextActiveIndex : edge.nextSorted;
+            return isAel ? edge.nextActive : edge.nextSorted;
         } 
 
         return isAel ? edge.prevActiveIndex : edge.prevSorted;
@@ -752,7 +745,7 @@ export default class TEdge {
 
         if (isNext) {
             if (isAel) {
-                edge.nextActiveIndex = value;
+                edge.nextActive = value;
 
                 return
             }
@@ -796,7 +789,7 @@ export default class TEdge {
                 break;
             }
 
-            currentIndex = edge.nextActiveIndex;
+            currentIndex = edge.nextActive;
         }
     }
 
@@ -820,5 +813,12 @@ export default class TEdge {
         }
 
         return { isHole, index };
+    }
+
+    public static getClockwise(index: number): boolean {
+        const currEdge: TEdge = TEdge.at(index);
+        const prevEdge: TEdge = TEdge.at(currEdge.prevIndex);
+
+        return currEdge.dx >= prevEdge.dx;
     }
 }
