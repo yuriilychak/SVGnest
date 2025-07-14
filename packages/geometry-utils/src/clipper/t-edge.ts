@@ -368,7 +368,9 @@ export default class TEdge {
         }
     }
 
-    public insertsBefore(edge: TEdge): boolean {
+    public insertsBefore(edgeIndex: number): boolean {
+        const edge: TEdge = TEdge.at(edgeIndex);
+
         if (this.curr.x === edge.curr.x) {
             return this.top.y > edge.top.y ? this.top.x < edge.topX(this.top.y) : edge.top.x > this.topX(edge.top.y);
         }
@@ -389,38 +391,41 @@ export default class TEdge {
         return this.currentIndex;
     }
 
-    public insertEdgeIntoAEL(activeEdge: NullPtr<TEdge>, startEdge: NullPtr<TEdge> = null): TEdge {
-        if (activeEdge === null) {
-            this.prevActive = null;
-            this.nextActive = null;
+    public insertEdgeIntoAEL(activeEdgeIndex: number, startEdgeIndex: number = UNASSIGNED): number {
+        if (activeEdgeIndex === UNASSIGNED) {
+            this.prevActiveIndex = UNASSIGNED;
+            this.nextActiveIndex = UNASSIGNED;
 
-            return this;
+            return this.currentIndex;
         }
 
-        if (startEdge === null && this.insertsBefore(activeEdge)) {
-            this.prevActive = null;
-            this.nextActive = activeEdge;
-            activeEdge.prevActive = this;
+        if (startEdgeIndex === UNASSIGNED && this.insertsBefore(activeEdgeIndex)) {
+            this.prevActiveIndex = UNASSIGNED;
+            this.nextActiveIndex = activeEdgeIndex;
 
-            return this;
+            TEdge.setNeighboarIndex(activeEdgeIndex, false, true, this.currentIndex);
+
+            return this.currentIndex;
         }
 
-        let edge: TEdge = startEdge === null ? activeEdge : startEdge;
+        let edgeIndex: number = startEdgeIndex === UNASSIGNED ? activeEdgeIndex : startEdgeIndex;
+        let nextIndex: number = TEdge.getNeighboarIndex(edgeIndex, true, true);
 
-        while (edge.nextActive !== null && !this.insertsBefore(edge.nextActive)) {
-            edge = edge.nextActive;
+        while (nextIndex !== UNASSIGNED && !this.insertsBefore(nextIndex)) {
+            edgeIndex = nextIndex;
+            nextIndex = TEdge.getNeighboarIndex(edgeIndex, true, true);
         }
 
-        this.nextActive = edge.nextActive;
+        this.nextActiveIndex = nextIndex;
 
-        if (edge.nextActive !== null) {
-            edge.nextActive.prevActive = this;
+        if (nextIndex !== UNASSIGNED) {
+            TEdge.setNeighboarIndex(nextIndex, false, true, this.currentIndex);
         }
 
-        this.prevActive = edge;
-        edge.nextActive = this;
+        this.prevActiveIndex = edgeIndex;
+        TEdge.setNeighboarIndex(edgeIndex, true, true, this.currentIndex);
 
-        return activeEdge;
+        return activeEdgeIndex;
     }
 
     public getNextInAEL(direction: DIRECTION): NullPtr<TEdge> {
