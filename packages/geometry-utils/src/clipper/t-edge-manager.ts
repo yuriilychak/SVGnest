@@ -250,19 +250,19 @@ export default class TEdgeManager {
         return result;
     }
 
-    public swapPositionsInAEL(edge1: TEdge, edge2: TEdge): void {
-        const edge = TEdge.swapPositionsInEL(edge1, edge2, true);
+    public swapPositionsInAEL(edgeIndex1: number, edgeIndex2: number): void {
+        const edgeIndex = TEdge.swapPositionsInEL(edgeIndex1, edgeIndex2, true);
 
-        if (edge !== null) {
-            this.activeEdges = edge.currentIndex;
+        if (edgeIndex !== UNASSIGNED) {
+            this.activeEdges = edgeIndex;
         }
     }
     
-    public swapPositionsInSEL(edge1: TEdge, edge2: TEdge) {
-        const edge = TEdge.swapPositionsInEL(edge1, edge2, false);
+    public swapPositionsInSEL(edgeIndex1: number, edgeIndex2: number) {
+        const edgeIndex = TEdge.swapPositionsInEL(edgeIndex1, edgeIndex2, false);
 
-        if (edge !== null) {
-            this.sortedEdges = edge.currentIndex;
+        if (edgeIndex !== UNASSIGNED) {
+            this.sortedEdges = edgeIndex;
         }
     }
 
@@ -341,7 +341,7 @@ export default class TEdgeManager {
                     }
 
                     this.intersections.push(new IntersectNode(edge.currentIndex, nextEdge.currentIndex, point));
-                    this.swapPositionsInSEL(edge, nextEdge);
+                    this.swapPositionsInSEL(edge.currentIndex, nextEdge.currentIndex);
                     isModified = true;
                 } else {
                     edge = nextEdge;
@@ -466,7 +466,7 @@ export default class TEdgeManager {
                 this.intersections[j] = node;
             }
 
-            this.swapPositionsInSEL(TEdge.at(this.intersections[i].edge1), TEdge.at(this.intersections[i].edge2));
+            this.swapPositionsInSEL(this.intersections[i].edge1, this.intersections[i].edge2);
         }
 
         return true;
@@ -607,7 +607,7 @@ export default class TEdgeManager {
                         this.intersectEdges(e, horzEdge, Pt, true);
                     }
 
-                    this.swapPositionsInAEL(horzEdge, e);
+                    this.swapPositionsInAEL(horzEdge.currentIndex, e.currentIndex);
                 } else if (
                     (dir === DIRECTION.RIGHT && e.curr.x >= horzRight) ||
                     (dir === DIRECTION.LEFT && e.curr.x <= horzLeft)
@@ -764,7 +764,7 @@ export default class TEdgeManager {
     
             while (nextEdge !== null && nextEdge !== maxPairEdge) {
                 this.intersectEdges(edge, nextEdge, edge.top, true);
-                this.swapPositionsInAEL(edge, nextEdge);
+                this.swapPositionsInAEL(edge.currentIndex, nextEdge.currentIndex);
                 nextEdge = edge.nextActive;
             }
     
@@ -800,7 +800,7 @@ export default class TEdgeManager {
         for (i = 0; i < intersectCount; ++i) {
             node = this.intersections[i];
             this.intersectEdges(TEdge.at(node.edge1), TEdge.at(node.edge2), node.point, true);
-            this.swapPositionsInAEL(TEdge.at(node.edge1), TEdge.at(node.edge2));
+            this.swapPositionsInAEL(node.edge1, node.edge2);
         }
 
         this.intersections = [];

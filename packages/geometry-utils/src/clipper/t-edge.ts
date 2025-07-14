@@ -730,16 +730,20 @@ export default class TEdge {
         return true;
     }
 
-    public static swapPositionsInEL(edge1: TEdge, edge2: TEdge, isAel: boolean): NullPtr<TEdge> {
+    public static swapPositionsInEL(edgeIndex1: number, edgeIndex2: number, isAel: boolean): number {
+        const edge1 = TEdge.at(edgeIndex1);
+        const edge2 = TEdge.at(edgeIndex2);
+        
         if (TEdge.getSwapPositionInEL(edge1, edge2, isAel)) {
-            if (edge1.getPrev(isAel) === null) {
-                return edge1;
-            } else if (edge2.getPrev(isAel) === null) {
-                return edge2;
+            if (TEdge.getNeighboarIndex(edgeIndex1, false, isAel) === UNASSIGNED) {
+                return edgeIndex1;
+            }
+            if (TEdge.getNeighboarIndex(edgeIndex2, false, isAel) === UNASSIGNED) {
+                return edgeIndex2;
             }
         }
 
-        return null;
+        return UNASSIGNED;
     }
 
     public static getNeighboarIndex(index: number, isNext: boolean, isAel: boolean): number {
