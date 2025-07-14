@@ -519,7 +519,8 @@ export default class TEdge {
         return result.currentIndex;
     }
 
-    public setWindingCount(activeEdge: TEdge, clipType: CLIP_TYPE): void {
+    public setWindingCount(activeEdgeIndex: number, clipType: CLIP_TYPE): void {
+        const activeEdge: TEdge = TEdge.at(activeEdgeIndex);
         let edge: NullPtr<TEdge> = TEdge.at(this.prevActiveIndex);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
         while (edge !== null && (edge.polyTyp !== this.polyTyp || edge.isWindDeletaEmpty)) {

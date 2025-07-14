@@ -847,14 +847,14 @@ export default class TEdgeManager {
 
             if (leftBound === null) {
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges);
-                rightBound.setWindingCount(TEdge.at(this.activeEdges), this.clipType);
+                rightBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (rightBound.getContributing(this.clipType, this.fillType)) {
                     outPt = this.outRecManager.addOutPt(rightBound, rightBound.bot);
                 }
             } else if (rightBound === null) {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
-                leftBound.setWindingCount(TEdge.at(this.activeEdges), this.clipType);
+                leftBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
                     outPt = this.outRecManager.addOutPt(leftBound, leftBound.bot);
@@ -864,7 +864,7 @@ export default class TEdgeManager {
             } else {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges, leftBound.currentIndex);
-                leftBound.setWindingCount(TEdge.at(this.activeEdges), this.clipType);
+                leftBound.setWindingCount(this.activeEdges, this.clipType);
                 rightBound.windCount1 = leftBound.windCount1;
                 rightBound.windCount2 = leftBound.windCount2;
 
