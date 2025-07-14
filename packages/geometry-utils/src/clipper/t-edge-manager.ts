@@ -308,8 +308,8 @@ export default class TEdgeManager {
         this.sortedEdges = this.activeEdges;
 
         while (edge !== null) {
-            edge.prevSorted = edge.prevActive;
-            edge.nextSorted = edge.nextActive;
+            edge.prevSorted = edge.prevActiveIndex;
+            edge.nextSorted = edge.nextActiveIndex;
             edge.curr.x = edge.topX(topY);
             edge = edge.nextActive;
         }
@@ -322,8 +322,8 @@ export default class TEdgeManager {
             isModified = false;
             edge = TEdge.at(this.sortedEdges);
 
-            while (edge.nextSorted !== null) {
-                nextEdge = edge.nextSorted;
+            while (edge.nextSorted !== UNASSIGNED) {
+                nextEdge = TEdge.at(edge.nextSorted);
                 point = PointI32.create();
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.curr.x > nextEdge.curr.x) {
@@ -348,8 +348,8 @@ export default class TEdgeManager {
                 }
             }
 
-            if (edge.prevSorted !== null) {
-                edge.prevSorted.nextSorted = null;
+            if (edge.prevSorted !== UNASSIGNED) {
+                TEdge.at(edge.prevSorted).nextSorted = UNASSIGNED;
             } else {
                 break;
             }
@@ -433,7 +433,7 @@ export default class TEdgeManager {
     }
 
     public edgesAdjacent(node: IntersectNode): boolean {
-        return TEdge.at(node.edge1).nextSortedIndex === node.edge2 || TEdge.at(node.edge1).prevSortedIndex === node.edge2;
+        return TEdge.at(node.edge1).nextSorted === node.edge2 || TEdge.at(node.edge1).prevSorted === node.edge2;
     }
 
     public fixupIntersectionOrder(): boolean {

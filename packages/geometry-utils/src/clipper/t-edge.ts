@@ -22,8 +22,8 @@ export default class TEdge {
     public prevIndex: number;
     public nextActiveIndex: number;
     public prevActiveIndex: number;
-    public nextSortedIndex: number;
-    public prevSortedIndex: number;
+    public nextSorted: number;
+    public prevSorted: number;
     public nextLocalMinima: number;
 
     constructor() {
@@ -38,14 +38,13 @@ export default class TEdge {
         this.windCount1 = 0;
         this.windCount2 = 0;
         this.index = 0;
-        this.prev = null;
         this.nextLocalMinima = UNASSIGNED;
         this.nextIndex = UNASSIGNED;
         this.prevIndex = UNASSIGNED;
         this.nextActiveIndex = UNASSIGNED;
         this.prevActiveIndex = UNASSIGNED;
-        this.nextSortedIndex = UNASSIGNED;
-        this.prevSortedIndex = UNASSIGNED;
+        this.nextSorted = UNASSIGNED;
+        this.prevSorted = UNASSIGNED;
         this.currentIndex = TEdge.edges.length;
 
         TEdge.edges.push(this);
@@ -89,22 +88,6 @@ export default class TEdge {
 
     public set prevActive(value: TEdge) {
         this.prevActiveIndex = value ? value.currentIndex : UNASSIGNED;
-    }
-
-    public get nextSorted() {
-        return TEdge.at(this.nextSortedIndex);
-    }
-
-    public set nextSorted(value: TEdge) {
-        this.nextSortedIndex = value ? value.currentIndex : UNASSIGNED;
-    }
-    
-    public get prevSorted() {
-        return TEdge.at(this.prevSortedIndex);
-    }
-
-    public set prevSorted(value: TEdge) {
-        this.prevSortedIndex = value ? value.currentIndex : UNASSIGNED;
     }
 
     public init(nextIndex: number, prevIndex: number, point: PointI32): void {
@@ -205,8 +188,8 @@ export default class TEdge {
     }
 
     public copyAELToSEL(): number {
-        this.prevSortedIndex = this.prevActiveIndex;
-        this.nextSortedIndex = this.nextActiveIndex;
+        this.prevSorted = this.prevActiveIndex;
+        this.nextSorted = this.nextActiveIndex;
 
         return this.nextActiveIndex;
     }
@@ -218,26 +201,26 @@ export default class TEdge {
     }
 
     public getNext(isAel: boolean): NullPtr<TEdge> {
-        return isAel ? this.nextActive : this.nextSorted;
+        return TEdge.at(isAel ? this.nextActiveIndex : this.nextSorted);
     }
 
     public setNext(isAel: boolean, value: NullPtr<TEdge>): void{
         if (isAel) {
-            this.nextActive = value;
+            this.nextActiveIndex = value ? value.currentIndex : UNASSIGNED;
          }  else {
-            this.nextSorted = value;
+            this.nextSorted = value ? value.currentIndex : UNASSIGNED;
          }
     }
 
     public getPrev(isAel: boolean): NullPtr<TEdge> {
-        return isAel ? this.prevActive : this.prevSorted;
+        return TEdge.at(isAel ? this.prevActiveIndex : this.prevSorted);
     }
 
     public setPrev(isAel: boolean, value: NullPtr<TEdge>): void{
         if (isAel) {
-            this.prevActive = value;
+            this.prevActiveIndex = value ? value.currentIndex : UNASSIGNED;
          }  else {
-            this.prevSorted = value;
+            this.prevSorted = value ? value.currentIndex : UNASSIGNED;
          }
     }
 
@@ -380,8 +363,8 @@ export default class TEdge {
     public addEdgeToSEL(sortedEdgeIndex: number): number {
         //SEL pointers in PEdge are reused to build a list of horizontal edges.
         //However, we don't need to worry about order with horizontal edge processing.
-        this.prevSortedIndex = UNASSIGNED;
-        this.nextSortedIndex = sortedEdgeIndex;
+        this.prevSorted = UNASSIGNED;
+        this.nextSorted = sortedEdgeIndex;
 
         if (sortedEdgeIndex !== UNASSIGNED) {
             TEdge.setNeighboarIndex(sortedEdgeIndex, false, false, this.currentIndex);
@@ -733,7 +716,7 @@ export default class TEdge {
     public static swapPositionsInEL(edgeIndex1: number, edgeIndex2: number, isAel: boolean): number {
         const edge1 = TEdge.at(edgeIndex1);
         const edge2 = TEdge.at(edgeIndex2);
-        
+
         if (TEdge.getSwapPositionInEL(edge1, edge2, isAel)) {
             if (TEdge.getNeighboarIndex(edgeIndex1, false, isAel) === UNASSIGNED) {
                 return edgeIndex1;
@@ -754,10 +737,10 @@ export default class TEdge {
         }
 
         if (isNext) {
-            return isAel ? edge.nextActiveIndex : edge.nextSortedIndex;
+            return isAel ? edge.nextActiveIndex : edge.nextSorted;
         } 
 
-        return isAel ? edge.prevActiveIndex : edge.prevSortedIndex;
+        return isAel ? edge.prevActiveIndex : edge.prevSorted;
     }
 
     public static setNeighboarIndex(index: number, isNext: boolean, isAel: boolean, value: number): void {
@@ -774,7 +757,7 @@ export default class TEdge {
                 return
             }
 
-            edge.nextSortedIndex = value;
+            edge.nextSorted = value;
 
             return;
         }
@@ -785,7 +768,7 @@ export default class TEdge {
             return;
         } 
 
-        edge.prevSortedIndex = value;
+        edge.prevSorted = value;
     }
 
     public static swapSides(edge1: TEdge, edge2: TEdge): void {
