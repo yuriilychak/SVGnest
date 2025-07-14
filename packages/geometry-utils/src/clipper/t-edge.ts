@@ -1,4 +1,3 @@
-import { Point } from '../types';
 import { PointI32 } from '../geometry';
 import { HORIZONTAL, UNASSIGNED } from './constants';
 import { slopesEqual } from '../helpers';
