@@ -12,7 +12,7 @@ import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./type
 export default class TEdgeManager {
     private minimaList: LocalMinima[] = [];
     private activeEdges: number = UNASSIGNED;
-    private sortedEdges: TEdge = null;
+    private sortedEdges: number = UNASSIGNED;
     private intersections: IntersectNode[] = [];
     private clipType: CLIP_TYPE = CLIP_TYPE.UNION;
     private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
@@ -262,12 +262,12 @@ export default class TEdgeManager {
         const edge = TEdge.swapPositionsInEL(edge1, edge2, false);
 
         if (edge !== null) {
-            this.sortedEdges = edge;
+            this.sortedEdges = edge.currentIndex;
         }
     }
 
     public copyAELToSEL(): void {
-        this.sortedEdges = TEdge.at(this.activeEdges);
+        this.sortedEdges = this.activeEdges;
 
         let currentIndex = this.activeEdges;
         let edge: TEdge = TEdge.at(currentIndex);
@@ -295,7 +295,7 @@ export default class TEdgeManager {
         }
         
         this.activeEdges = UNASSIGNED;
-        this.sortedEdges = null;  
+        this.sortedEdges = UNASSIGNED;  
     }
 
     public buildIntersectList(botY: number, topY: number): void {
@@ -305,7 +305,7 @@ export default class TEdgeManager {
         //prepare for sorting ...
         let edge: TEdge = TEdge.at(this.activeEdges);
         //console.log(JSON.stringify(JSON.decycle( e )));
-        this.sortedEdges = edge;
+        this.sortedEdges = this.activeEdges;
 
         while (edge !== null) {
             edge.prevSorted = edge.prevActive;
@@ -318,9 +318,9 @@ export default class TEdgeManager {
         let nextEdge: TEdge = null;
         let point: PointI32 = null;
 
-        while (isModified && this.sortedEdges !== null) {
+        while (isModified && this.sortedEdges !== UNASSIGNED) {
             isModified = false;
-            edge = this.sortedEdges;
+            edge = TEdge.at(this.sortedEdges);
 
             while (edge.nextSorted !== null) {
                 nextEdge = edge.nextSorted;
@@ -355,7 +355,7 @@ export default class TEdgeManager {
             }
         }
 
-        this.sortedEdges = null;
+        this.sortedEdges = UNASSIGNED;
     }
 
     public intersectEdges(edge1: TEdge, edge2: TEdge, point: PointI32, isProtect: boolean): void {
@@ -676,14 +676,14 @@ export default class TEdgeManager {
     }
 
     public processHorizontals(isTopOfScanbeam: boolean): void {
-        let horzEdge: TEdge = this.sortedEdges;
+        let horzEdge: TEdge = TEdge.at(this.sortedEdges);
 
         while (horzEdge !== null) {
-            this.sortedEdges = TEdge.at(horzEdge.deleteFromEL(this.sortedEdgeIndex, false));
+            this.sortedEdges = horzEdge.deleteFromEL(this.sortedEdges, false);
 
             this.processHorizontal(horzEdge, isTopOfScanbeam);
 
-            horzEdge = this.sortedEdges;
+            horzEdge = TEdge.at(this.sortedEdges);
         }
     }
 
@@ -717,7 +717,7 @@ export default class TEdgeManager {
                         this.outRecManager.addOutPt(edge1, edge1.bot);
                     }
 
-                    this.sortedEdges = TEdge.at(edge1.addEdgeToSEL(this.sortedEdgeIndex));
+                    this.sortedEdges = edge1.addEdgeToSEL(this.sortedEdges);
                 } else {
                     edge1.curr.set(edge1.topX(topY), topY);
                 }
@@ -792,10 +792,6 @@ export default class TEdgeManager {
             }
         }
 
-    private get sortedEdgeIndex(): number {
-        return this.sortedEdges === null ? UNASSIGNED : this.sortedEdges.currentIndex;
-    }
-
     public processIntersectList(): void {
         const intersectCount: number = this.intersections.length;
         let i: number = 0;
@@ -828,13 +824,13 @@ export default class TEdgeManager {
                 return false;
             }
         } catch (error) {
-            this.sortedEdges = null;
+            this.sortedEdges = UNASSIGNED;
             this.intersections.length = 0;
 
             showError('ProcessIntersections error');
         }
 
-        this.sortedEdges = null;
+        this.sortedEdges = UNASSIGNED;
 
         return true;
     }
@@ -880,7 +876,7 @@ export default class TEdgeManager {
 
             if (rightBound !== null) {
                 if (rightBound.isHorizontal) {
-                    this.sortedEdges = TEdge.at(rightBound.addEdgeToSEL(this.sortedEdgeIndex));
+                    this.sortedEdges = rightBound.addEdgeToSEL(this.sortedEdges);
                 } else {
                     this.scanbeam.insert(rightBound.top.y);
                 }
