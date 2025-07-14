@@ -241,30 +241,30 @@ export default class TEdge {
          }
     }
 
-    public deleteFromEL(inputEdge: TEdge, isAel: boolean): NullPtr<TEdge> {
-        const next = this.getNext(isAel);
-        const prev = this.getPrev(isAel);
-        const hasNext = next !== null;
-        const hasPrev = prev !== null;
+    public deleteFromEL(inputEdgeIndex: number, isAel: boolean): number {
+        const nextIndex = TEdge.getNeighboarIndex(this.currentIndex, true, isAel);
+        const prevIndex = TEdge.getNeighboarIndex(this.currentIndex, false, isAel);
+        const hasNext = nextIndex !== UNASSIGNED;
+        const hasPrev = prevIndex !== UNASSIGNED;
 
-        if (!hasPrev && !hasNext && this !== inputEdge) {
-            return inputEdge;
+        if (!hasPrev && !hasNext && this.currentIndex !== inputEdgeIndex) {
+            return inputEdgeIndex;
         }
 
-        let result: TEdge = inputEdge;
+        let result: number = inputEdgeIndex;
         //already deleted
         if (hasPrev) {
-            prev.setNext(isAel, next);
+            TEdge.setNeighboarIndex(prevIndex, true, isAel, nextIndex);
         } else {
-            result = next;
+            result = nextIndex;
         }
 
         if (hasNext) {
-            next.setPrev(isAel, prev);
+            TEdge.setNeighboarIndex(nextIndex, false, isAel, prevIndex);
         }
 
-        this.setNext(isAel, null);
-        this.setPrev(isAel, null);
+        TEdge.setNeighboarIndex(this.currentIndex, true, isAel, UNASSIGNED);
+        TEdge.setNeighboarIndex(this.currentIndex, false, isAel, UNASSIGNED);
 
         return result;
     }
@@ -741,7 +741,7 @@ export default class TEdge {
 
                 return
             }
-            
+
             edge.nextSortedIndex = value;
 
             return;

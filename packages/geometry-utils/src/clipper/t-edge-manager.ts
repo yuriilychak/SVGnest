@@ -422,11 +422,11 @@ export default class TEdgeManager {
         }
         //finally, delete any non-contributing maxima edges  ...
         if (edge1Stops) {
-            this.activeEdges = edge1.deleteFromEL(this.activeEdges, true);
+            this.activeEdges = TEdge.at(edge1.deleteFromEL(this.activeEdgeIndex, true));
         }
 
         if (edge2Stops) {
-            this.activeEdges = edge2.deleteFromEL(this.activeEdges, true);
+            this.activeEdges = TEdge.at(edge2.deleteFromEL(this.activeEdgeIndex, true));
         }
     }
 
@@ -537,7 +537,7 @@ export default class TEdgeManager {
 
         if (edge1Stops) {
             if (!edge1.isAssigned) {
-                this.activeEdges = edge1.deleteFromEL(this.activeEdges, true);
+                this.activeEdges = TEdge.at(edge1.deleteFromEL(this.activeEdgeIndex, true));
             } else {
                 showError('Error intersecting polylines');
             }
@@ -545,7 +545,7 @@ export default class TEdgeManager {
 
         if (edge2Stops) {
             if (!edge2.isAssigned) {
-                this.activeEdges = edge2.deleteFromEL(this.activeEdges, true);
+                this.activeEdges = TEdge.at(edge2.deleteFromEL(this.activeEdgeIndex, true));
             } else {
                 showError('Error intersecting polylines');
             }
@@ -667,15 +667,15 @@ export default class TEdgeManager {
                     showError('ProcessHorizontal error');
                 }
             } else {
-                this.activeEdges = horzEdge.deleteFromEL(this.activeEdges, true);
-                this.activeEdges = eMaxPair.deleteFromEL(this.activeEdges, true);
+                this.activeEdges = TEdge.at(horzEdge.deleteFromEL(this.activeEdgeIndex, true));
+                this.activeEdges = TEdge.at(eMaxPair.deleteFromEL(this.activeEdgeIndex, true));
             }
         } else {
             if (horzEdge.isAssigned) {
                 this.outRecManager.addOutPt(horzEdge, horzEdge.top);
             }
 
-            this.activeEdges = horzEdge.deleteFromEL(this.activeEdges, true);
+            this.activeEdges = TEdge.at(horzEdge.deleteFromEL(this.activeEdgeIndex, true));
         }
     }
 
@@ -683,7 +683,7 @@ export default class TEdgeManager {
         let horzEdge: TEdge = this.sortedEdges;
 
         while (horzEdge !== null) {
-            this.sortedEdges = horzEdge.deleteFromEL(this.sortedEdges, false);
+            this.sortedEdges = TEdge.at(horzEdge.deleteFromEL(this.sortedEdgeIndex, false));
 
             this.processHorizontal(horzEdge, isTopOfScanbeam);
 
@@ -759,7 +759,7 @@ export default class TEdgeManager {
                     this.outRecManager.addOutPt(edge, edge.top);
                 }
     
-                this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
+                this.activeEdges = TEdge.at(edge.deleteFromEL(this.activeEdgeIndex, true));
     
                 return;
             }
@@ -773,8 +773,8 @@ export default class TEdgeManager {
             }
     
             if (!edge.isAssigned && !maxPairEdge.isAssigned) {
-                this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
-                this.activeEdges = maxPairEdge.deleteFromEL(this.activeEdges, true);
+                this.activeEdges = TEdge.at(edge.deleteFromEL(this.activeEdgeIndex, true));
+                this.activeEdges = TEdge.at(maxPairEdge.deleteFromEL(this.activeEdgeIndex, true));
             } else if (edge.isAssigned && maxPairEdge.isAssigned) {
                 this.intersectEdges(edge, maxPairEdge, edge.top, false);
             } else if (edge.isWindDeletaEmpty) {
@@ -783,18 +783,26 @@ export default class TEdgeManager {
                     edge.unassign();
                 }
     
-                this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
+                this.activeEdges = TEdge.at(edge.deleteFromEL(this.activeEdgeIndex, true));
     
                 if (maxPairEdge.isAssigned) {
                     this.outRecManager.addOutPt(maxPairEdge, edge.top);
                     maxPairEdge.unassign();
                 }
     
-                this.activeEdges = maxPairEdge.deleteFromEL(this.activeEdges, true);
+                this.activeEdges = TEdge.at(maxPairEdge.deleteFromEL(this.activeEdgeIndex, true));
             } else {
                 showError('DoMaxima error');
             }
         }
+
+    private get activeEdgeIndex(): number {
+        return this.activeEdges === null ? UNASSIGNED : this.activeEdges.currentIndex;
+    }
+
+    private get sortedEdgeIndex(): number {
+        return this.sortedEdges === null ? UNASSIGNED : this.sortedEdges.currentIndex;
+    }
 
     public processIntersectList(): void {
         const intersectCount: number = this.intersections.length;
