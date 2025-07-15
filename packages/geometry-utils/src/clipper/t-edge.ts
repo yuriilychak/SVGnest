@@ -82,10 +82,10 @@ export default class TEdge {
     }
 
     public removeDuplicates(polyType: POLY_TYPE, isUseFullRange: boolean): number {
-        let startEdge: TEdge = this;
+        let startIndex: number = this.current;
+        let stopIndex: number = this.current;
         //2. Remove duplicate vertices, and (when closed) collinear edges ...
-        let edge: TEdge = startEdge;
-        let loopStopEdge: TEdge = startEdge;
+        let edge: TEdge = this;
 
         while (true) {
             if (edge.curr.almostEqual(edge.next.curr)) {
@@ -93,12 +93,12 @@ export default class TEdge {
                     break;
                 }
 
-                if (edge === startEdge) {
-                    startEdge = edge.next;
+                if (edge.current === startIndex) {
+                    startIndex = edge.nextIndex;
                 }
 
                 edge = TEdge.at(edge.remove());
-                loopStopEdge = edge;
+                stopIndex = edge.current;
 
                 continue;
             }
@@ -112,20 +112,20 @@ export default class TEdge {
                 //the default is to merge adjacent collinear edges into a single edge.
                 //However, if the PreserveCollinear property is enabled, only overlapping
                 //collinear edges (ie spikes) will be removed from closed paths.
-                if (edge === startEdge) {
-                    startEdge = TEdge.at(edge.nextIndex);
+                if (edge.current === startIndex) {
+                    startIndex = edge.nextIndex;
                 }
 
                 edge = TEdge.at(edge.remove());
                 edge = TEdge.at(edge.prevIndex);
-                loopStopEdge = edge;
+                stopIndex = edge.prevIndex;
 
                 continue;
             }
 
             edge = TEdge.at(edge.nextIndex);
 
-            if (edge === loopStopEdge) {
+            if (edge.current === stopIndex) {
                 break;
             }
         }
@@ -136,8 +136,8 @@ export default class TEdge {
 
         //3. Do second stage of edge initialization ...
         let isFlat: boolean = true;
-        const startIndex = startEdge.current;
-        let edgeIndex: number = startEdge.current;
+        let edgeIndex: number = startIndex;
+        const startEdge = TEdge.at(startIndex);
 
         do {
             const edge1 = TEdge.at(edgeIndex);
