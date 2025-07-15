@@ -538,9 +538,15 @@ export default class TEdge {
         return isNext ? this.nextIndex : this.prevIndex;
     }
 
+    public checkReverseHorizontal(index: number, isNext: boolean): boolean {
+        const neighboarIndex = this.getBaseNeighboar(isNext);
+        const neighboar: TEdge = TEdge.at(neighboarIndex);
+
+        return this.isDxHorizontal && this.current !== index && this.bot.x !== neighboar.top.x;
+    }
+
     public static processBound(index: number, isClockwise: boolean): number {
         let edge: TEdge = TEdge.at(index);
-        let startEdge: TEdge = edge;
         let result: TEdge = edge;
 
         if (edge.isDxHorizontal) {
@@ -582,43 +588,22 @@ export default class TEdge {
             }
         }
 
-        if (isClockwise) {
-            while (edge !== result) {
-                edge.nextLocalMinima = edge.nextIndex;
+        while (edge !== result) {
+            edge.nextLocalMinima = edge.getBaseNeighboar(isClockwise);
 
-                if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
-                    edge.reverseHorizontal();
-                }
-
-                edge = edge.next;
-            }
-
-            if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
+            if (edge.checkReverseHorizontal(index, !isClockwise)) {
                 edge.reverseHorizontal();
             }
 
-            result = result.next;
-            //move to the edge just beyond current bound
-        } else {
-            while (edge !== result) {
-                edge.nextLocalMinima = edge.prevIndex;
-
-                if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
-                    edge.reverseHorizontal();
-                }
-
-                edge = edge.prev;
-            }
-
-            if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
-                edge.reverseHorizontal();
-            }
-
-            result = result.prev;
-            //move to the edge just beyond current bound
+            edge = TEdge.at(edge.nextLocalMinima);
         }
 
-        return result.current;
+        if (edge.checkReverseHorizontal(index, !isClockwise)) {
+            edge.reverseHorizontal();
+        }
+
+        return result.getBaseNeighboar(isClockwise);
+        //move to the edge just beyond current bound
     }
 
     public setWindingCount(activeEdgeIndex: number, clipType: CLIP_TYPE): void {
