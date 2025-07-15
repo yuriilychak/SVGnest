@@ -534,11 +534,33 @@ export default class TEdge {
         return this.index !== UNASSIGNED;
     }
 
+    public getBaseNeighboar(isNext: boolean): number {
+        return isNext ? this.nextIndex : this.prevIndex;
+    }
+
+    public processHorizontalBound(isClockwise: boolean): TEdge {
+        let horzNeighboarIndex = this.getBaseNeighboar(!isClockwise);
+        let horzNeighboar: TEdge = TEdge.at(horzNeighboarIndex);
+
+        while (horzNeighboar.isDxHorizontal) {
+            horzNeighboarIndex = horzNeighboar.getBaseNeighboar(!isClockwise);
+            horzNeighboar = TEdge.at(horzNeighboarIndex);
+        }
+
+        const currNeighboarIndex = this.getBaseNeighboar(isClockwise);
+        const currNeighboar: TEdge = TEdge.at(currNeighboarIndex);
+
+        if ((horzNeighboar.top.x === currNeighboar.top.x && !isClockwise) || horzNeighboar.top.x > currNeighboar.top.x) {
+            return horzNeighboar;
+        }
+
+        return this;
+    }
+
     public static processBound(index: number, isClockwise: boolean): number {
         let edge: TEdge = TEdge.at(index);
         let startEdge: TEdge = edge;
         let result: TEdge = edge;
-        let horzEdge: TEdge = null;
 
         if (edge.isDxHorizontal) {
             //it's possible for adjacent overlapping horz edges to start heading left
@@ -559,23 +581,11 @@ export default class TEdge {
                 //nb: at the top of a bound, horizontals are added to the bound
                 //only when the preceding edge attaches to the horizontal's left vertex
                 //unless a Skip edge is encountered when that becomes the top divide
-                horzEdge = result;
-
-                while (horzEdge.prev.isDxHorizontal) {
-                    horzEdge = horzEdge.prev;
-                }
-
-                if (horzEdge.prev.top.x === result.next.top.x) {
-                    if (!isClockwise) {
-                        result = horzEdge.prev;
-                    }
-                } else if (horzEdge.prev.top.x > result.next.top.x) {
-                    result = horzEdge.prev;
-                }
+                result = result.processHorizontalBound(isClockwise);
             }
 
             while (edge !== result) {
-                edge.nextLocalMinima = edge.next.current;
+                edge.nextLocalMinima = edge.nextIndex;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.prev.top.x) {
                     edge.reverseHorizontal();
@@ -596,19 +606,7 @@ export default class TEdge {
             }
 
             if (result.isDxHorizontal) {
-                horzEdge = result;
-
-                while (horzEdge.next.isDxHorizontal) {
-                    horzEdge = horzEdge.next;
-                }
-
-                if (horzEdge.next.top.x === result.prev.top.x) {
-                    if (!isClockwise) {
-                        result = horzEdge.next;
-                    }
-                } else if (horzEdge.next.top.x > result.prev.top.x) {
-                    result = horzEdge.next;
-                }
+                result = result.processHorizontalBound(isClockwise);
             }
 
             while (edge !== result) {
