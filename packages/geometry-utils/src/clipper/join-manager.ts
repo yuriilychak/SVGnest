@@ -37,7 +37,7 @@ export default class JoinManager {
         neighboar.curr.almostEqual(edge.bot) &&
         neighboar.isFilled &&
         neighboar.curr.y > neighboar.top.y &&
-        TEdge.slopesEqual(edge, neighboar, isUseFullRange)
+        TEdge.slopesEqual(edge.currentIndex, neighboar.currentIndex, isUseFullRange)
     }
 
     static checkSharedCondition(outHash: number, edge: TEdge, neighboar: TEdge, isUseFullRange: boolean): boolean {
@@ -59,11 +59,14 @@ export default class JoinManager {
         }
     }
 
-    public addMinJoin(outHash: number, edge: TEdge, edgePrev: TEdge, point: PointI32): void {
+    public addMinJoin(outHash: number, edgeIndex: number, edgePrevIndex: number, point: PointI32): void {
+        const edge: TEdge = TEdge.at(edgeIndex);
+        const edgePrev: NullPtr<TEdge> = TEdge.at(edgePrevIndex);
+
         const condition = edgePrev !== null &&
         edgePrev.isFilled &&
         edgePrev.topX(point.y) === edge.topX(point.y) &&
-        TEdge.slopesEqual(edge, edgePrev, this.isUseFullRange) &&
+        TEdge.slopesEqual(edgeIndex, edgePrevIndex, this.isUseFullRange) &&
         !edge.isWindDeletaEmpty;
 
         this.insertJoin(condition, outHash, edgePrev, point, edge.top);
@@ -74,7 +77,7 @@ export default class JoinManager {
         leftBound.prevActiveIndex !== UNASSIGNED &&
         leftBound.prevActive.curr.x === leftBound.bot.x &&
         leftBound.prevActive.isFilled &&
-        TEdge.slopesEqual(leftBound.prevActive, leftBound, this.isUseFullRange);
+        TEdge.slopesEqual(leftBound.prevActiveIndex, leftBound.currentIndex, this.isUseFullRange);
 
         this.insertJoin(condition, outHash, leftBound.prevActive,  leftBound.bot, leftBound.top);
 
@@ -83,7 +86,7 @@ export default class JoinManager {
     public addRightJoin(outHash: number, rightBound: TEdge) {
         const condition =  rightBound.isFilled &&
         rightBound.prevActive.isFilled &&
-        TEdge.slopesEqual(rightBound.prevActive, rightBound, this.isUseFullRange);
+        TEdge.slopesEqual(rightBound.prevActiveIndex, rightBound.currentIndex, this.isUseFullRange);
 
         this.insertJoin(condition, outHash, rightBound.prevActive, rightBound.bot, rightBound.top);
     }
@@ -163,23 +166,23 @@ export default class JoinManager {
 
     public addLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32): number {
         let result: number = UNASSIGNED;
-        let edge: TEdge = null;
-        let edgePrev: TEdge;
+        let edge: number = UNASSIGNED;
+        let edgePrev: number = UNASSIGNED;
 
         if (edge2.isHorizontal || edge1.dx > edge2.dx) {
             result = this.outRecManager.addOutPt(edge1, point);
             edge2.index = edge1.index;
             edge2.side = DIRECTION.RIGHT;
             edge1.side = DIRECTION.LEFT;
-            edge = edge1;
-            edgePrev = edge.prevActive === edge2 ? edge2.prevActive : edge.prevActive;
+            edge = edge1.currentIndex;
+            edgePrev = edge1.prevActiveIndex === edge2.currentIndex ? edge2.prevActiveIndex : edge1.prevActiveIndex;
         } else {
             result = this.outRecManager.addOutPt(edge2, point);
             edge1.index = edge2.index;
             edge1.side = DIRECTION.RIGHT;
             edge2.side = DIRECTION.LEFT;
-            edge = edge2;
-            edgePrev = edge.prevActive === edge1 ? edge1.prevActive : edge.prevActive;
+            edge = edge2.currentIndex;
+            edgePrev = edge2.prevActiveIndex === edge1.currentIndex ? edge1.prevActiveIndex : edge2.prevActiveIndex;
         }
 
         this.addMinJoin(result, edge, edgePrev, point);

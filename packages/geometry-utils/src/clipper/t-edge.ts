@@ -573,7 +573,7 @@ export default class TEdge {
     public static intersectPoint(edge1: TEdge, edge2: TEdge, intersectPoint: PointI32, useFullRange: boolean): boolean {
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
-        if (TEdge.slopesEqual(edge1, edge2, useFullRange) || edge1.dx === edge2.dx) {
+        if (TEdge.slopesEqual(edge1.currentIndex, edge2.currentIndex, useFullRange) || edge1.dx === edge2.dx) {
             const point: PointI32 = edge2.bot.y > edge1.bot.y ? edge2.bot : edge1.bot;
 
             intersectPoint.update(point);
@@ -618,7 +618,9 @@ export default class TEdge {
         return true;
     }
 
-    public static slopesEqual(e1: TEdge, e2: TEdge, useFullRange: boolean): boolean {
+    public static slopesEqual(e1Index: number, e2Index: number, useFullRange: boolean): boolean {
+        const e1: TEdge = TEdge.at(e1Index);
+        const e2: TEdge = TEdge.at(e2Index);
         return slopesEqual(e1.delta.y, e2.delta.x, e1.delta.x, e2.delta.y, useFullRange);
     }
 
