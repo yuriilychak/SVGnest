@@ -232,8 +232,8 @@ export default class TEdgeManager {
 
         nextEdge.index = edge.index;
 
-        if (edge.prevActiveIndex !== UNASSIGNED) {
-            TEdge.setNeighboarIndex(edge.prevActiveIndex, true, true, result);
+        if (edge.prevActive !== UNASSIGNED) {
+            TEdge.setNeighboarIndex(edge.prevActive, true, true, result);
         } else {
             this.activeEdges = nextEdge.currentIndex;
         }
@@ -309,7 +309,7 @@ export default class TEdgeManager {
         this.sortedEdges = this.activeEdges;
 
         while (edge !== null) {
-            edge.prevSorted = edge.prevActiveIndex;
+            edge.prevSorted = edge.prevActive;
             edge.nextSorted = edge.nextActive;
             edge.curr.x = edge.topX(topY);
             edge = TEdge.at(edge.nextActive);
@@ -705,7 +705,7 @@ export default class TEdgeManager {
             }
 
             if (isMaximaEdge) {
-                edge2 = TEdge.at(edge1.prevActiveIndex);
+                edge2 = TEdge.at(edge1.prevActive);
                 this.doMaxima(edge1);
 
                 edge1 = edge2 === null ? TEdge.at(this.activeEdges) : TEdge.at(edge2.nextActive);
@@ -724,7 +724,7 @@ export default class TEdgeManager {
                 }
 
                 if (strictlySimple) {
-                    edge2 = TEdge.at(edge1.prevActiveIndex);
+                    edge2 = TEdge.at(edge1.prevActive);
 
                     this.joinManager.addScanbeamJoin(edge1, edge2);
                 }

@@ -23,8 +23,9 @@ export default class JoinManager {
         this.isUseFullRange = isUseFullRange;
     }
 
-    private insertJoin(condition: boolean, outHash1: number, edge: TEdge, point1: PointI32, point2: PointI32 = point1): boolean {
+    private insertJoin(condition: boolean, outHash1: number, edgeIndex: number, point1: PointI32, point2: PointI32 = point1): boolean {
         if (condition) {
+            const edge: TEdge = TEdge.at(edgeIndex);
             const outHash2 = this.outRecManager.addOutPt(edge, point1);
             this.joins.push(new Join(outHash1, outHash2, point2.x, point2.y));
         }  
@@ -32,30 +33,15 @@ export default class JoinManager {
         return condition;
     }
 
-    static checkHorizontalCondition(edge: TEdge, neighboar: TEdge, isUseFullRange: boolean) {
-        return neighboar !== null &&
-        neighboar.curr.almostEqual(edge.bot) &&
-        neighboar.isFilled &&
-        neighboar.curr.y > neighboar.top.y &&
-        TEdge.slopesEqual(edge.currentIndex, neighboar.currentIndex, isUseFullRange)
-    }
-
-    static checkSharedCondition(outHash: number, edge: TEdge, neighboar: TEdge, isUseFullRange: boolean): boolean {
-        return outHash !== UNASSIGNED && JoinManager.checkHorizontalCondition(edge, neighboar, isUseFullRange) && !edge.isWindDeletaEmpty;
-    }
-
     public addHorizontalJoin(outHash: number, edge: TEdge): void {
-        let prevEdge: NullPtr<TEdge> = TEdge.at(edge.prevActiveIndex);
-        let nextEdge: NullPtr<TEdge> = TEdge.at(edge.nextActive);
+        const condition1 = edge.checkHorizontalCondition(false, this.isUseFullRange);
 
-        const condition1 = JoinManager.checkHorizontalCondition(edge, prevEdge, this.isUseFullRange);
-
-        this.insertJoin(condition1, outHash, prevEdge, edge.bot);
+        this.insertJoin(condition1, outHash, edge.prevActive, edge.bot);
 
         if (!condition1) {
-            const condition2 = JoinManager.checkHorizontalCondition(edge, nextEdge, this.isUseFullRange);
+            const condition2 = edge.checkHorizontalCondition(true, this.isUseFullRange);
 
-            this.insertJoin(condition2, outHash, nextEdge, edge.bot);
+            this.insertJoin(condition2, outHash, edge.nextActive, edge.bot);
         }
     }
 
@@ -69,24 +55,18 @@ export default class JoinManager {
         TEdge.slopesEqual(edgeIndex, edgePrevIndex, this.isUseFullRange) &&
         !edge.isWindDeletaEmpty;
 
-        this.insertJoin(condition, outHash, edgePrev, point, edge.top);
+        this.insertJoin(condition, outHash, edgePrevIndex, point, edge.top);
     }
 
     public addLeftJoin(outHash: number, leftBound: TEdge) {
-        const condition = leftBound.isFilled &&
-        leftBound.prevActiveIndex !== UNASSIGNED &&
-        leftBound.prevActive.curr.x === leftBound.bot.x &&
-        leftBound.prevActive.isFilled &&
-        TEdge.slopesEqual(leftBound.prevActiveIndex, leftBound.currentIndex, this.isUseFullRange);
+        const condition = leftBound.canJoinLeft(this.isUseFullRange);
 
-        this.insertJoin(condition, outHash, leftBound.prevActive,  leftBound.bot, leftBound.top);
+        this.insertJoin(condition, outHash, leftBound.prevActive, leftBound.bot, leftBound.top);
 
     }
 
     public addRightJoin(outHash: number, rightBound: TEdge) {
-        const condition =  rightBound.isFilled &&
-        rightBound.prevActive.isFilled &&
-        TEdge.slopesEqual(rightBound.prevActiveIndex, rightBound.currentIndex, this.isUseFullRange);
+        const condition = rightBound.canJoinRight(this.isUseFullRange);
 
         this.insertJoin(condition, outHash, rightBound.prevActive, rightBound.bot, rightBound.top);
     }
@@ -102,14 +82,11 @@ export default class JoinManager {
     }
 
     public addSharedJoin(outHash: number, edge1: TEdge) {
-        const ePrev: TEdge = TEdge.at(edge1.prevActiveIndex);
-        const eNext: TEdge = TEdge.at(edge1.nextActive);
+        const condition1 = edge1.checkSharedCondition(outHash, false, this.isUseFullRange);
 
-        const condition1 = JoinManager.checkSharedCondition(outHash, edge1, ePrev, this.isUseFullRange);
-
-        if(!this.insertJoin(condition1, outHash, ePrev,  edge1.bot, edge1.top)) {
-            const condition2 = JoinManager.checkSharedCondition(outHash, edge1, eNext, this.isUseFullRange);;
-            this.insertJoin(condition2, outHash, eNext,  edge1.bot, edge1.top);
+        if(!this.insertJoin(condition1, outHash, edge1.prevActive,  edge1.bot, edge1.top)) {
+            const condition2 = edge1.checkSharedCondition(outHash, true, this.isUseFullRange);;
+            this.insertJoin(condition2, outHash, edge1.nextActive,  edge1.bot, edge1.top);
         }
     }
 
@@ -175,14 +152,14 @@ export default class JoinManager {
             edge2.side = DIRECTION.RIGHT;
             edge1.side = DIRECTION.LEFT;
             edge = edge1.currentIndex;
-            edgePrev = edge1.prevActiveIndex === edge2.currentIndex ? edge2.prevActiveIndex : edge1.prevActiveIndex;
+            edgePrev = edge1.prevActive === edge2.currentIndex ? edge2.prevActive : edge1.prevActive;
         } else {
             result = this.outRecManager.addOutPt(edge2, point);
             edge1.index = edge2.index;
             edge1.side = DIRECTION.RIGHT;
             edge2.side = DIRECTION.LEFT;
             edge = edge2.currentIndex;
-            edgePrev = edge2.prevActiveIndex === edge1.currentIndex ? edge1.prevActiveIndex : edge2.prevActiveIndex;
+            edgePrev = edge2.prevActive === edge1.currentIndex ? edge1.prevActive : edge2.prevActive;
         }
 
         this.addMinJoin(result, edge, edgePrev, point);
