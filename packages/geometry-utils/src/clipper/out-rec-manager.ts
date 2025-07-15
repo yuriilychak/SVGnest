@@ -44,7 +44,7 @@ export default class OutRecManager {
 
             outRec = this.createRec(pointIndex);
  
-            this.setHoleState(outRec, edge.currentIndex);
+            this.setHoleState(outRec, edge.current);
 
             edge.index = outRec.currentIndex;
             //nb: do this after SetZ !

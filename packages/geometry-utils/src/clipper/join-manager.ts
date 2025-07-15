@@ -151,15 +151,15 @@ export default class JoinManager {
             edge2.index = edge1.index;
             edge2.side = DIRECTION.RIGHT;
             edge1.side = DIRECTION.LEFT;
-            edge = edge1.currentIndex;
-            edgePrev = edge1.prevActive === edge2.currentIndex ? edge2.prevActive : edge1.prevActive;
+            edge = edge1.current;
+            edgePrev = edge1.prevActive === edge2.current ? edge2.prevActive : edge1.prevActive;
         } else {
             result = this.outRecManager.addOutPt(edge2, point);
             edge1.index = edge2.index;
             edge1.side = DIRECTION.RIGHT;
             edge2.side = DIRECTION.LEFT;
-            edge = edge2.currentIndex;
-            edgePrev = edge2.prevActive === edge1.currentIndex ? edge1.prevActive : edge2.prevActive;
+            edge = edge2.current;
+            edgePrev = edge2.prevActive === edge1.current ? edge1.prevActive : edge2.prevActive;
         }
 
         this.addMinJoin(result, edge, edgePrev, point);
