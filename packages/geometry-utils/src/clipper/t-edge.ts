@@ -81,7 +81,7 @@ export default class TEdge {
         this.unassign();
     }
 
-    public removeDuplicates(polyType: POLY_TYPE, isUseFullRange: boolean): TEdge | null {
+    public removeDuplicates(polyType: POLY_TYPE, isUseFullRange: boolean): number {
         let startEdge: TEdge = this;
         //2. Remove duplicate vertices, and (when closed) collinear edges ...
         let edge: TEdge = startEdge;
@@ -131,7 +131,7 @@ export default class TEdge {
         }
 
         if (edge.prevIndex === edge.nextIndex) {
-            return null;
+            return UNASSIGNED;
         }
 
         //3. Do second stage of edge initialization ...
@@ -151,10 +151,10 @@ export default class TEdge {
         //Totally flat paths must be handled differently when adding them
         //to LocalMinima list to avoid endless loops etc ...
         if (isFlat) {
-            return null;
+            return UNASSIGNED;
         }
 
-        return edge;
+        return edge.current;
     }
 
     public initFromPolyType(polyType: POLY_TYPE): void {

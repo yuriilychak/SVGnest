@@ -32,11 +32,11 @@ export default class TEdgeManager {
     }
 
     public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
-        const edge = this.createPath(polygon, polyType);
-        const result = edge !== null;
+        const edgeIndex = this.createPath(polygon, polyType);
+        const result = edgeIndex !== UNASSIGNED;
 
         if (result) {
-            this.addEdgeBounds(edge.current);
+            this.addEdgeBounds(edgeIndex);
         }
 
         return result;
@@ -105,7 +105,7 @@ export default class TEdgeManager {
         this.fillType = fillType;
     }
 
-    public createPath(polygon: PointI32[], polyType: POLY_TYPE): NullPtr<TEdge> {
+    public createPath(polygon: PointI32[], polyType: POLY_TYPE): number {
         let lastIndex = polygon.length - 1;
 
         while (
@@ -116,7 +116,7 @@ export default class TEdgeManager {
         }
 
         if (lastIndex < 2) {
-            return null;
+            return UNASSIGNED;
         }
         //create a new edge array ...
         const edges: TEdge[] = [];
