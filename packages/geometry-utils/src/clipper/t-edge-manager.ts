@@ -161,13 +161,13 @@ export default class TEdgeManager {
         nextEdge.index = edge.index;
 
         if (edge.prevActive !== UNASSIGNED) {
-            TEdge.setNeighboarIndex(edge.prevActive, true, true, result);
+            TEdge.setNeighboar(edge.prevActive, true, true, result);
         } else {
             this.activeEdges = nextEdge.current;
         }
 
         if (edge.nextActive !== UNASSIGNED) {
-            TEdge.setNeighboarIndex(edge.nextActive, false, true, result);
+            TEdge.setNeighboar(edge.nextActive, false, true, result);
         }
 
         nextEdge.updateCurrent(edge.current)
@@ -838,14 +838,14 @@ export default class TEdgeManager {
 
     public createLocalMinima(edgeIndex: number): LocalMinima {
         const currEdge: TEdge = TEdge.at(edgeIndex);
-        const prevEdge: TEdge = TEdge.at(currEdge.prevIndex);
+        const prevEdge: TEdge = TEdge.at(currEdge.prev);
         const isClockwise = currEdge.dx >= prevEdge.dx;
         const y = currEdge.bot.y;
         const leftBound = isClockwise ? currEdge : prevEdge;
         const rightBound = isClockwise ? prevEdge : currEdge;
         leftBound.side = DIRECTION.LEFT;
         rightBound.side = DIRECTION.RIGHT;
-        leftBound.windDelta = leftBound.nextIndex === rightBound.current ? -1 : 1;
+        leftBound.windDelta = leftBound.next === rightBound.current ? -1 : 1;
         rightBound.windDelta = -leftBound.windDelta;
 
         return new LocalMinima(y, leftBound.current, rightBound.current);

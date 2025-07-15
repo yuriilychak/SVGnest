@@ -18,8 +18,8 @@ export default class TEdge {
     public windCount2: number;
     public index: number;
     public current: number;
-    public nextIndex: number;
-    public prevIndex: number;
+    public next: number;
+    public prev: number;
     public nextActive: number;
     public prevActive: number;
     public nextSorted: number;
@@ -39,8 +39,8 @@ export default class TEdge {
         this.windCount2 = 0;
         this.index = 0;
         this.nextLocalMinima = UNASSIGNED;
-        this.nextIndex = UNASSIGNED;
-        this.prevIndex = UNASSIGNED;
+        this.next = UNASSIGNED;
+        this.prev = UNASSIGNED;
         this.nextActive = UNASSIGNED;
         this.prevActive = UNASSIGNED;
         this.nextSorted = UNASSIGNED;
@@ -58,25 +58,9 @@ export default class TEdge {
         TEdge.edges.length = 0;
     }
 
-    public get next() {
-        return TEdge.at(this.nextIndex);
-    }
-
-    public set next(value: TEdge) {
-        this.nextIndex = value ? value.current : UNASSIGNED;
-    }
-    
-    public get prev() {
-        return TEdge.at(this.prevIndex);
-    }
-
-    public set prev(value: TEdge) {
-        this.prevIndex = value ? value.current : UNASSIGNED;
-    }
-
     public init(nextIndex: number, prevIndex: number, point: PointI32): void {
-        this.nextIndex = nextIndex;
-        this.prevIndex = prevIndex;
+        this.next = nextIndex;
+        this.prev = prevIndex;
         this.curr.update(point);
         this.unassign();
     }
@@ -89,11 +73,11 @@ export default class TEdge {
 
         while (true) {
             const currEdge = TEdge.at(currIndex);
-            const nextEdge = TEdge.at(currEdge.nextIndex);
-            const prevEdge = TEdge.at(currEdge.prevIndex);
+            const nextEdge = TEdge.at(currEdge.next);
+            const prevEdge = TEdge.at(currEdge.prev);
 
             if (currEdge.curr.almostEqual(nextEdge.curr)) {
-                if (currIndex === nextEdge.nextIndex) {
+                if (currIndex === nextEdge.next) {
                     break;
                 }
 
@@ -107,7 +91,7 @@ export default class TEdge {
                 continue;
             }
 
-            if (currEdge.prevIndex === currEdge.nextIndex) {
+            if (currEdge.prev === currEdge.next) {
                 break;
             }
 
@@ -117,7 +101,7 @@ export default class TEdge {
                 //However, if the PreserveCollinear property is enabled, only overlapping
                 //collinear edges (ie spikes) will be removed from closed paths.
                 if (currEdge.current === startIndex) {
-                    startIndex = currEdge.nextIndex;
+                    startIndex = currEdge.next;
                 }
 
                 currEdge.remove();
@@ -136,7 +120,7 @@ export default class TEdge {
 
         const edge = TEdge.at(currIndex);
 
-        if (edge.prevIndex === edge.nextIndex) {
+        if (edge.prev === edge.next) {
             return UNASSIGNED;
         }
 
@@ -149,7 +133,7 @@ export default class TEdge {
         do {
             const edge1 = TEdge.at(currIndex);
             edge1.initFromPolyType(polyType);
-            currIndex = edge1.nextIndex;
+            currIndex = edge1.next;
 
             const edge2 = TEdge.at(currIndex);
 
@@ -164,7 +148,7 @@ export default class TEdge {
     }
 
     public initFromPolyType(polyType: POLY_TYPE): void {
-        const next = TEdge.at(this.nextIndex);
+        const next = TEdge.at(this.next);
 
         if (this.curr.y >= next.curr.y) {
             this.bot.update(this.curr);
@@ -180,14 +164,14 @@ export default class TEdge {
     }
 
     public remove(): number {
-        const result: number = this.nextIndex;
-        const next = TEdge.at(this.nextIndex);
-        const prev = TEdge.at(this.prevIndex);
+        const result: number = this.next;
+        const next = TEdge.at(this.next);
+        const prev = TEdge.at(this.prev);
         //removes e from double_linked_list (but without removing from memory)
-        prev.nextIndex = this.nextIndex;
-        next.prevIndex = this.prevIndex;
-        this.prevIndex = UNASSIGNED; //flag as removed (see ClipperBase.Clear)
-        this.nextIndex = UNASSIGNED;
+        prev.next = this.next;
+        next.prev = this.prev;
+        this.prev = UNASSIGNED; //flag as removed (see ClipperBase.Clear)
+        this.next = UNASSIGNED;
 
         return result;
     }
@@ -240,39 +224,43 @@ export default class TEdge {
 
     public static findNextLocMin(index: number): number {
         let result: number = index;
-        let edge: TEdge = TEdge.at(index);
 
         while (true) {
-            edge = TEdge.at(result);
+            let currEdge = TEdge.at(result);
+            let prevEdge = TEdge.at(currEdge.prev);
 
-            while (!edge.bot.almostEqual(edge.prev.bot) || edge.curr.almostEqual(edge.top)) {
-                result = edge.nextIndex;
-                edge = TEdge.at(result);
+            while (!currEdge.bot.almostEqual(prevEdge.bot) || currEdge.curr.almostEqual(currEdge.top)) {
+                result = currEdge.next;
+                currEdge = TEdge.at(result);
+                prevEdge = TEdge.at(currEdge.prev);
             }
 
-            if (!edge.isDxHorizontal && !edge.prev.isDxHorizontal) {
+            if (!currEdge.isDxHorizontal && !prevEdge.isDxHorizontal) {
                 break;
             }
 
-            while (edge.prev.isDxHorizontal) {
-                result = edge.prevIndex;
-                edge = TEdge.at(result);
+            while (prevEdge.isDxHorizontal) {
+                result = currEdge.prev;
+                currEdge = TEdge.at(result);
+                prevEdge = TEdge.at(currEdge.prev);
             }
 
             const edgeIndex = result
 
-            while (edge.isDxHorizontal) {
-                result = edge.nextIndex;
-                edge = TEdge.at(result);
+            while (currEdge.isDxHorizontal) {
+                result = currEdge.next;
+                currEdge = TEdge.at(result);
+                prevEdge = TEdge.at(currEdge.prev);
             }
 
-            if (edge.top.y === edge.prev.bot.y) {
+            if (currEdge.top.y === prevEdge.bot.y) {
                 continue;
             }
 
             const tempEdge = TEdge.at(edgeIndex);
+            prevEdge = TEdge.at(tempEdge.prev);
             //ie just an intermediate horz.
-            if (tempEdge.prev.bot.x < edge.bot.x) {
+            if (prevEdge.bot.x < currEdge.bot.x) {
                 result = edgeIndex;
             }
 
@@ -331,8 +319,8 @@ export default class TEdge {
     }
 
     public deleteFromEL(inputEdgeIndex: number, isAel: boolean): number {
-        const nextIndex = TEdge.getNeighboarIndex(this.current, true, isAel);
-        const prevIndex = TEdge.getNeighboarIndex(this.current, false, isAel);
+        const nextIndex = TEdge.getNeighboar(this.current, true, isAel);
+        const prevIndex = TEdge.getNeighboar(this.current, false, isAel);
         const hasNext = nextIndex !== UNASSIGNED;
         const hasPrev = prevIndex !== UNASSIGNED;
 
@@ -343,17 +331,17 @@ export default class TEdge {
         let result: number = inputEdgeIndex;
         //already deleted
         if (hasPrev) {
-            TEdge.setNeighboarIndex(prevIndex, true, isAel, nextIndex);
+            TEdge.setNeighboar(prevIndex, true, isAel, nextIndex);
         } else {
             result = nextIndex;
         }
 
         if (hasNext) {
-            TEdge.setNeighboarIndex(nextIndex, false, isAel, prevIndex);
+            TEdge.setNeighboar(nextIndex, false, isAel, prevIndex);
         }
 
-        TEdge.setNeighboarIndex(this.current, true, isAel, UNASSIGNED);
-        TEdge.setNeighboarIndex(this.current, false, isAel, UNASSIGNED);
+        TEdge.setNeighboar(this.current, true, isAel, UNASSIGNED);
+        TEdge.setNeighboar(this.current, false, isAel, UNASSIGNED);
 
         return result;
     }
@@ -407,7 +395,7 @@ export default class TEdge {
     }
 
     public checkMaxPair(isNext: boolean): boolean {
-        const index = isNext ? this.nextIndex : this.prevIndex;
+        const index = isNext ? this.next : this.prev;
         const edge: TEdge = TEdge.at(index);
 
         return edge !== null && edge.top.almostEqual(this.top) && edge.nextLocalMinima === UNASSIGNED
@@ -417,9 +405,9 @@ export default class TEdge {
         let result: number = UNASSIGNED;
 
         if (this.checkMaxPair(true)) {
-            result = this.nextIndex;
+            result = this.next;
         } else if (this.checkMaxPair(false)) {
-            result = this.prevIndex;
+            result = this.prev;
         }
 
         const edge: TEdge = TEdge.at(result);
@@ -473,7 +461,7 @@ export default class TEdge {
         this.nextSorted = sortedEdgeIndex;
 
         if (sortedEdgeIndex !== UNASSIGNED) {
-            TEdge.setNeighboarIndex(sortedEdgeIndex, false, false, this.current);
+            TEdge.setNeighboar(sortedEdgeIndex, false, false, this.current);
         }
 
         return this.current;
@@ -491,27 +479,27 @@ export default class TEdge {
             this.prevActive = UNASSIGNED;
             this.nextActive = activeEdgeIndex;
 
-            TEdge.setNeighboarIndex(activeEdgeIndex, false, true, this.current);
+            TEdge.setNeighboar(activeEdgeIndex, false, true, this.current);
 
             return this.current;
         }
 
         let edgeIndex: number = startEdgeIndex === UNASSIGNED ? activeEdgeIndex : startEdgeIndex;
-        let nextIndex: number = TEdge.getNeighboarIndex(edgeIndex, true, true);
+        let nextIndex: number = TEdge.getNeighboar(edgeIndex, true, true);
 
         while (nextIndex !== UNASSIGNED && !this.insertsBefore(nextIndex)) {
             edgeIndex = nextIndex;
-            nextIndex = TEdge.getNeighboarIndex(edgeIndex, true, true);
+            nextIndex = TEdge.getNeighboar(edgeIndex, true, true);
         }
 
         this.nextActive = nextIndex;
 
         if (nextIndex !== UNASSIGNED) {
-            TEdge.setNeighboarIndex(nextIndex, false, true, this.current);
+            TEdge.setNeighboar(nextIndex, false, true, this.current);
         }
 
         this.prevActive = edgeIndex;
-        TEdge.setNeighboarIndex(edgeIndex, true, true, this.current);
+        TEdge.setNeighboar(edgeIndex, true, true, this.current);
 
         return activeEdgeIndex;
     }
@@ -535,7 +523,7 @@ export default class TEdge {
     }
 
     public getBaseNeighboar(isNext: boolean): number {
-        return isNext ? this.nextIndex : this.prevIndex;
+        return isNext ? this.next : this.prev;
     }
 
     public checkReverseHorizontal(index: number, isNext: boolean): boolean {
@@ -552,9 +540,10 @@ export default class TEdge {
         if (edge.isDxHorizontal) {
             //it's possible for adjacent overlapping horz edges to start heading left
             //before finishing right, so ...
-            const startX: number = isClockwise ? edge.prev.bot.x : edge.next.bot.x;
+            const neighboarIndex = edge.getBaseNeighboar(!isClockwise);
+            const neighboar: TEdge = TEdge.at(neighboarIndex);
 
-            if (edge.bot.x !== startX) {
+            if (edge.bot.x !== neighboar.bot.x) {
                 edge.reverseHorizontal();
             }
         }
@@ -801,10 +790,10 @@ export default class TEdge {
         const edge2 = TEdge.at(edgeIndex2);
 
         if (TEdge.getSwapPositionInEL(edge1, edge2, isAel)) {
-            if (TEdge.getNeighboarIndex(edgeIndex1, false, isAel) === UNASSIGNED) {
+            if (TEdge.getNeighboar(edgeIndex1, false, isAel) === UNASSIGNED) {
                 return edgeIndex1;
             }
-            if (TEdge.getNeighboarIndex(edgeIndex2, false, isAel) === UNASSIGNED) {
+            if (TEdge.getNeighboar(edgeIndex2, false, isAel) === UNASSIGNED) {
                 return edgeIndex2;
             }
         }
@@ -812,7 +801,7 @@ export default class TEdge {
         return UNASSIGNED;
     }
 
-    public static getNeighboarIndex(index: number, isNext: boolean, isAel: boolean): number {
+    public static getNeighboar(index: number, isNext: boolean, isAel: boolean): number {
         const edge: TEdge = TEdge.at(index);
 
         if (edge === null) {
@@ -826,7 +815,7 @@ export default class TEdge {
         return isAel ? edge.prevActive : edge.prevSorted;
     }
 
-    public static setNeighboarIndex(index: number, isNext: boolean, isAel: boolean, value: number): void {
+    public static setNeighboar(index: number, isNext: boolean, isAel: boolean, value: number): void {
         const edge: TEdge = TEdge.at(index);    
 
         if (edge === null) {
@@ -907,7 +896,7 @@ export default class TEdge {
 
     public static getClockwise(index: number): boolean {
         const currEdge: TEdge = TEdge.at(index);
-        const prevEdge: TEdge = TEdge.at(currEdge.prevIndex);
+        const prevEdge: TEdge = TEdge.at(currEdge.prev);
 
         return currEdge.dx >= prevEdge.dx;
     }
