@@ -88,44 +88,46 @@ export default class TEdge {
         //2. Remove duplicate vertices, and (when closed) collinear edges ...
 
         while (true) {
-            const edge = TEdge.at(currIndex);
+            const currEdge = TEdge.at(currIndex);
+            const nextEdge = TEdge.at(currEdge.nextIndex);
+            const prevEdge = TEdge.at(currEdge.prevIndex);
 
-            if (edge.curr.almostEqual(edge.next.curr)) {
-                if (edge === edge.next) {
+            if (currEdge.curr.almostEqual(nextEdge.curr)) {
+                if (currIndex === nextEdge.nextIndex) {
                     break;
                 }
 
-                if (edge.current === startIndex) {
-                    startIndex = edge.nextIndex;
+                if (currEdge.current === startIndex) {
+                    startIndex = nextEdge.current;
                 }
 
-                currIndex = edge.remove();
-                stopIndex = edge.current;
-
-                continue;
-            }
-
-            if (edge.prevIndex === edge.nextIndex) {
-                break;
-            }
-
-            if (PointI32.slopesEqual(edge.prev.curr, edge.curr, edge.next.curr, isUseFullRange)) {
-                //Collinear edges are allowed for open paths but in closed paths
-                //the default is to merge adjacent collinear edges into a single edge.
-                //However, if the PreserveCollinear property is enabled, only overlapping
-                //collinear edges (ie spikes) will be removed from closed paths.
-                if (edge.current === startIndex) {
-                    startIndex = edge.nextIndex;
-                }
-
-                currIndex = edge.remove();
-                currIndex = TEdge.at(currIndex).prevIndex;
+                currIndex = currEdge.remove();
                 stopIndex = currIndex;
 
                 continue;
             }
 
-            currIndex = edge.nextIndex;
+            if (currEdge.prevIndex === currEdge.nextIndex) {
+                break;
+            }
+
+            if (PointI32.slopesEqual(prevEdge.curr, currEdge.curr, nextEdge.curr, isUseFullRange)) {
+                //Collinear edges are allowed for open paths but in closed paths
+                //the default is to merge adjacent collinear edges into a single edge.
+                //However, if the PreserveCollinear property is enabled, only overlapping
+                //collinear edges (ie spikes) will be removed from closed paths.
+                if (currEdge.current === startIndex) {
+                    startIndex = currEdge.nextIndex;
+                }
+
+                currEdge.remove();
+                currIndex = prevEdge.current;
+                stopIndex = currIndex;
+
+                continue;
+            }
+
+            currIndex = nextEdge.current;
 
             if (currIndex === stopIndex) {
                 break;
