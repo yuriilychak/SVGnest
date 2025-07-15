@@ -222,6 +222,16 @@ export default class TEdge {
         return outHash !== UNASSIGNED && this.checkHorizontalCondition(isNext, isUseFullRange) && !this.isWindDeletaEmpty;
     }
 
+    public checkMinJoin(edgePrevIndex: number, point: PointI32, isUseFullRange: boolean): boolean {
+        const edgePrev: NullPtr<TEdge> = TEdge.at(edgePrevIndex);
+
+        return edgePrevIndex !== UNASSIGNED &&
+            edgePrev.isFilled &&
+            edgePrev.topX(point.y) === this.topX(point.y) &&
+            TEdge.slopesEqual(this.current, edgePrevIndex, isUseFullRange) &&
+            !this.isWindDeletaEmpty;
+    }
+
     public static findNextLocMin(index: number): number {
         let result: number = index;
 

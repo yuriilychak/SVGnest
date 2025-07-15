@@ -33,7 +33,8 @@ export default class JoinManager {
         return condition;
     }
 
-    public addHorizontalJoin(outHash: number, edge: TEdge): void {
+    public addHorizontalJoin(outHash: number, edgeIndex: number): void {
+        const edge: TEdge = TEdge.at(edgeIndex);
         const condition1 = edge.checkHorizontalCondition(false, this.isUseFullRange);
 
         this.insertJoin(condition1, outHash, edge.prevActive, edge.bot);
@@ -47,25 +48,21 @@ export default class JoinManager {
 
     public addMinJoin(outHash: number, edgeIndex: number, edgePrevIndex: number, point: PointI32): void {
         const edge: TEdge = TEdge.at(edgeIndex);
-        const edgePrev: NullPtr<TEdge> = TEdge.at(edgePrevIndex);
-
-        const condition = edgePrev !== null &&
-        edgePrev.isFilled &&
-        edgePrev.topX(point.y) === edge.topX(point.y) &&
-        TEdge.slopesEqual(edgeIndex, edgePrevIndex, this.isUseFullRange) &&
-        !edge.isWindDeletaEmpty;
+        const condition = edge.checkMinJoin(edgePrevIndex, point, this.isUseFullRange);
 
         this.insertJoin(condition, outHash, edgePrevIndex, point, edge.top);
     }
 
-    public addLeftJoin(outHash: number, leftBound: TEdge) {
+    public addLeftJoin(outHash: number, leftBoundIndex: number) {
+        const leftBound: TEdge = TEdge.at(leftBoundIndex);
         const condition = leftBound.canJoinLeft(this.isUseFullRange);
 
         this.insertJoin(condition, outHash, leftBound.prevActive, leftBound.bot, leftBound.top);
 
     }
 
-    public addRightJoin(outHash: number, rightBound: TEdge) {
+    public addRightJoin(outHash: number, rightBoundIndex: number) {
+        const rightBound: TEdge = TEdge.at(rightBoundIndex);
         const condition = rightBound.canJoinRight(this.isUseFullRange);
 
         this.insertJoin(condition, outHash, rightBound.prevActive, rightBound.bot, rightBound.top);
@@ -81,7 +78,8 @@ export default class JoinManager {
         }
     }
 
-    public addSharedJoin(outHash: number, edge1: TEdge) {
+    public addSharedJoin(outHash: number, edgeIndex: number) {
+        const edge1: TEdge = TEdge.at(edgeIndex);
         const condition1 = edge1.checkSharedCondition(outHash, false, this.isUseFullRange);
 
         if(!this.insertJoin(condition1, outHash, edge1.prevActive,  edge1.bot, edge1.top)) {
@@ -90,7 +88,8 @@ export default class JoinManager {
         }
     }
 
-    public addOutputJoins(outHash: number, rightBound: TEdge) {
+    public addOutputJoins(outHash: number, rightBoundIndex: number) {
+        const rightBound: TEdge = TEdge.at(rightBoundIndex);
         if (outHash !== UNASSIGNED && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
             const joinCount: number = this.ghostJoins.length;
            

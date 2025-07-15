@@ -577,7 +577,7 @@ export default class TEdgeManager {
                 }
 
                 //nb: HorzEdge is no longer horizontal here
-                this.joinManager.addHorizontalJoin(op1, horzEdge)
+                this.joinManager.addHorizontalJoin(op1, horzEdge.current)
             } else {
                 horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.current));
             }
@@ -669,7 +669,7 @@ export default class TEdgeManager {
                 outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.top) : UNASSIGNED;
                 edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.current));
                 //if output polygons share an edge, they'll need joining later...
-                this.joinManager.addSharedJoin(outPt1, edge1);
+                this.joinManager.addSharedJoin(outPt1, edge1.current);
             }
 
             edge1 = TEdge.at(edge1.nextActive);
@@ -815,12 +815,12 @@ export default class TEdgeManager {
                 continue;
             }
             //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            this.joinManager.addOutputJoins(outPt, rightBound);
+            this.joinManager.addOutputJoins(outPt, rightBound.current);
 
-            this.joinManager.addLeftJoin(outPt, leftBound);
+            this.joinManager.addLeftJoin(outPt, leftBound.current);
 
             if (leftBound.nextActive !== rightBound.current) {
-                this.joinManager.addRightJoin(outPt, rightBound);
+                this.joinManager.addRightJoin(outPt, rightBound.current);
 
                 let edge: NullPtr<TEdge> = TEdge.at(leftBound.nextActive);
 
