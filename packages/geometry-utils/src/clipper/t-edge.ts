@@ -538,25 +538,6 @@ export default class TEdge {
         return isNext ? this.nextIndex : this.prevIndex;
     }
 
-    public processHorizontalBound(isClockwise: boolean): TEdge {
-        let horzNeighboarIndex = this.getBaseNeighboar(!isClockwise);
-        let horzNeighboar: TEdge = TEdge.at(horzNeighboarIndex);
-
-        while (horzNeighboar.isDxHorizontal) {
-            horzNeighboarIndex = horzNeighboar.getBaseNeighboar(!isClockwise);
-            horzNeighboar = TEdge.at(horzNeighboarIndex);
-        }
-
-        const currNeighboarIndex = this.getBaseNeighboar(isClockwise);
-        const currNeighboar: TEdge = TEdge.at(currNeighboarIndex);
-
-        if ((horzNeighboar.top.x === currNeighboar.top.x && !isClockwise) || horzNeighboar.top.x > currNeighboar.top.x) {
-            return horzNeighboar;
-        }
-
-        return this;
-    }
-
     public static processBound(index: number, isClockwise: boolean): number {
         let edge: TEdge = TEdge.at(index);
         let startEdge: TEdge = edge;
@@ -572,18 +553,36 @@ export default class TEdge {
             }
         }
 
+        let neighboarIndex = edge.getBaseNeighboar(isClockwise);
+        let neighboar: TEdge = TEdge.at(neighboarIndex);
+        
+        while (result.top.y === neighboar.bot.y) {
+            result = neighboar;
+            neighboarIndex = neighboar.getBaseNeighboar(isClockwise);
+            neighboar = TEdge.at(neighboarIndex);
+        }
+
+        if (result.isDxHorizontal) {
+            //nb: at the top of a bound, horizontals are added to the bound
+            //only when the preceding edge attaches to the horizontal's left vertex
+            //unless a Skip edge is encountered when that becomes the top divide
+            let horzNeighboarIndex = result.getBaseNeighboar(!isClockwise);
+            let horzNeighboar: TEdge = TEdge.at(horzNeighboarIndex);
+
+            while (horzNeighboar.isDxHorizontal) {
+                horzNeighboarIndex = horzNeighboar.getBaseNeighboar(!isClockwise);
+                horzNeighboar = TEdge.at(horzNeighboarIndex);
+            }
+
+            const currNeighboarIndex = result.getBaseNeighboar(isClockwise);
+            const currNeighboar: TEdge = TEdge.at(currNeighboarIndex);
+
+            if ((horzNeighboar.top.x === currNeighboar.top.x && !isClockwise) || horzNeighboar.top.x > currNeighboar.top.x) {
+                result = horzNeighboar;
+            }
+        }
+
         if (isClockwise) {
-            while (result.top.y === result.next.bot.y) {
-                result = result.next;
-            }
-
-            if (result.isDxHorizontal) {
-                //nb: at the top of a bound, horizontals are added to the bound
-                //only when the preceding edge attaches to the horizontal's left vertex
-                //unless a Skip edge is encountered when that becomes the top divide
-                result = result.processHorizontalBound(isClockwise);
-            }
-
             while (edge !== result) {
                 edge.nextLocalMinima = edge.nextIndex;
 
@@ -601,16 +600,8 @@ export default class TEdge {
             result = result.next;
             //move to the edge just beyond current bound
         } else {
-            while (result.top.y === result.prev.bot.y) {
-                result = result.prev;
-            }
-
-            if (result.isDxHorizontal) {
-                result = result.processHorizontalBound(isClockwise);
-            }
-
             while (edge !== result) {
-                edge.nextLocalMinima = edge.prev.current;
+                edge.nextLocalMinima = edge.prevIndex;
 
                 if (edge.isDxHorizontal && edge !== startEdge && edge.bot.x !== edge.next.top.x) {
                     edge.reverseHorizontal();
