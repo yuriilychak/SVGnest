@@ -135,26 +135,25 @@ export default class TEdge {
         }
 
         //3. Do second stage of edge initialization ...
-        edge = startEdge;
-
         let isFlat: boolean = true;
+        const startIndex = startEdge.current;
+        let edgeIndex: number = startEdge.current;
 
         do {
-            edge.initFromPolyType(polyType);
-            edge = edge.next;
+            const edge1 = TEdge.at(edgeIndex);
+            edge1.initFromPolyType(polyType);
+            edgeIndex = edge1.nextIndex;
 
-            if (isFlat && edge.curr.y !== startEdge.curr.y) {
+            const edge2 = TEdge.at(edgeIndex);
+
+            if (isFlat && edge2.curr.y !== startEdge.curr.y) {
                 isFlat = false;
             }
-        } while (edge !== startEdge);
+        } while (edgeIndex !== startIndex);
         //4. Finally, add edge bounds to LocalMinima list ...
         //Totally flat paths must be handled differently when adding them
         //to LocalMinima list to avoid endless loops etc ...
-        if (isFlat) {
-            return UNASSIGNED;
-        }
-
-        return edge.current;
+        return isFlat ? UNASSIGNED : edgeIndex;
     }
 
     public initFromPolyType(polyType: POLY_TYPE): void {
