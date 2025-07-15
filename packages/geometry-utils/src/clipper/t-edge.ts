@@ -81,6 +81,82 @@ export default class TEdge {
         this.unassign();
     }
 
+    public removeDuplicates(polyType: POLY_TYPE, isUseFullRange: boolean): TEdge | null {
+        let startEdge: TEdge = this;
+        //2. Remove duplicate vertices, and (when closed) collinear edges ...
+        let edge: TEdge = startEdge;
+        let loopStopEdge: TEdge = startEdge;
+
+        while (true) {
+            if (edge.curr.almostEqual(edge.next.curr)) {
+                if (edge === edge.next) {
+                    break;
+                }
+
+                if (edge === startEdge) {
+                    startEdge = edge.next;
+                }
+
+                edge = TEdge.at(edge.remove());
+                loopStopEdge = edge;
+
+                continue;
+            }
+
+            if (edge.prevIndex === edge.nextIndex) {
+                break;
+            }
+
+            if (PointI32.slopesEqual(edge.prev.curr, edge.curr, edge.next.curr, isUseFullRange)) {
+                //Collinear edges are allowed for open paths but in closed paths
+                //the default is to merge adjacent collinear edges into a single edge.
+                //However, if the PreserveCollinear property is enabled, only overlapping
+                //collinear edges (ie spikes) will be removed from closed paths.
+                if (edge === startEdge) {
+                    startEdge = TEdge.at(edge.nextIndex);
+                }
+
+                edge = TEdge.at(edge.remove());
+                edge = TEdge.at(edge.prevIndex);
+                loopStopEdge = edge;
+
+                continue;
+            }
+
+            edge = TEdge.at(edge.nextIndex);
+
+            if (edge === loopStopEdge) {
+                break;
+            }
+        }
+
+        if (edge.prevIndex === edge.nextIndex) {
+            return null;
+        }
+
+        //3. Do second stage of edge initialization ...
+        edge = startEdge;
+
+        let isFlat: boolean = true;
+
+        do {
+            edge.initFromPolyType(polyType);
+            edge = edge.next;
+
+            if (isFlat && edge.curr.y !== startEdge.curr.y) {
+                isFlat = false;
+            }
+        } while (edge !== startEdge);
+        //4. Finally, add edge bounds to LocalMinima list ...
+        //Totally flat paths must be handled differently when adding them
+        //to LocalMinima list to avoid endless loops etc ...
+        if (isFlat) {
+            return null;
+        }
+
+        return edge;
+    }
+
     public initFromPolyType(polyType: POLY_TYPE): void {
         const next = TEdge.at(this.nextIndex);
 
