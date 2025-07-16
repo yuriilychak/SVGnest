@@ -153,11 +153,9 @@ export default class ClipperOffset {
         let right: number = path[0].x;
         let top: number = path[0].y;
         let bottom: number = path[0].y;
-        let point: PointI32 = null;
-        let i: number = 0;
 
-        for (i = 0; i < pointCount; ++i) {
-            point = path[i];
+        for (let i = 0; i < pointCount; ++i) {
+            const point = path[i];
             left = Math.min(point.x, left);
             right = Math.max(point.x, right);
             top = Math.min(point.y, top);

@@ -177,10 +177,9 @@ export default class OutPt {
 
     public static reverse(index: number): void {
         let pp1: OutPt = OutPt.at(index);
-        let pp2: NullPtr<OutPt> = null;
 
         do {
-            pp2 = OutPt.at(pp1.next);
+            const pp2 = OutPt.at(pp1.next);
             pp1.next = pp1.prev;
             pp1.prev = pp2.current;
             pp1 = pp2;

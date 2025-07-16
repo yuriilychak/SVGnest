@@ -3,7 +3,7 @@ import { UNASSIGNED } from "./constants";
 import Join from "./join";
 import OutRecManager from "./out-rec-manager";
 import TEdge from "./t-edge";
-import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./types";
+import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from "./types";
 
 export default class JoinManager {
     private joins: Join[] = [];
@@ -68,8 +68,11 @@ export default class JoinManager {
         this.insertJoin(condition, outHash, rightBound.prevActive, rightBound.bot, rightBound.top);
     }
 
-    public addScanbeamJoin(edge1: TEdge, edge2: TEdge): void {
-        if (edge1.isFilled && edge2 !== null && edge2.isFilled && edge2.curr.x === edge1.curr.x) {
+    public addScanbeamJoin(edge1Index: number): void {
+        const edge1: TEdge = TEdge.at(edge1Index);
+
+        if (edge1.canAddScanbeam()) {
+            const edge2: TEdge = TEdge.at(edge1.prevActive);
             const outPt1 = this.outRecManager.addOutPt(edge2, edge1.curr);
             const outPt2 = this.outRecManager.addOutPt(edge1, edge1.curr);
 
@@ -79,29 +82,26 @@ export default class JoinManager {
     }
 
     public addSharedJoin(outHash: number, edgeIndex: number) {
-        const edge1: TEdge = TEdge.at(edgeIndex);
-        const condition1 = edge1.checkSharedCondition(outHash, false, this.isUseFullRange);
+        const edge: TEdge = TEdge.at(edgeIndex);
+        const condition1 = edge.checkSharedCondition(outHash, false, this.isUseFullRange);
 
-        if(!this.insertJoin(condition1, outHash, edge1.prevActive,  edge1.bot, edge1.top)) {
-            const condition2 = edge1.checkSharedCondition(outHash, true, this.isUseFullRange);;
-            this.insertJoin(condition2, outHash, edge1.nextActive,  edge1.bot, edge1.top);
+        if(!this.insertJoin(condition1, outHash, edge.prevActive,  edge.bot, edge.top)) {
+            const condition2 = edge.checkSharedCondition(outHash, true, this.isUseFullRange);;
+            this.insertJoin(condition2, outHash, edge.nextActive,  edge.bot, edge.top);
         }
     }
 
     public addOutputJoins(outHash: number, rightBoundIndex: number) {
-        const rightBound: TEdge = TEdge.at(rightBoundIndex);
-        if (outHash !== UNASSIGNED && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
+        const edge: TEdge = TEdge.at(rightBoundIndex);
+        if (outHash !== UNASSIGNED && edge.isHorizontal && this.ghostJoins.length > 0 && !edge.isWindDeletaEmpty) {
             const joinCount: number = this.ghostJoins.length;
-           
-            let i: number = 0;
-            let join: Join = null;
 
-            for (i = 0; i < joinCount; ++i) {
+            for (let i = 0; i < joinCount; ++i) {
                 //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
                 //the 'ghost' join to a real join ready for later ...
-                join = this.ghostJoins[i];
+                const join = this.ghostJoins[i];
 
-                if (this.outRecManager.horzSegmentsOverlap(join.outHash1, join.offPoint, rightBound)) {
+                if (this.outRecManager.horzSegmentsOverlap(join.outHash1, join.offPoint, edge)) {
                     this.joins.push(new Join(join.outHash1, outHash, join.offPoint.x, join.offPoint.y));
                 }
             }
@@ -122,7 +122,7 @@ export default class JoinManager {
         this.ghostJoins.length = 0;
     }
 
-    public prepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean) {
+    public prepareHorzJoins(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
         //Also, since horizontal edges at the top of one SB are often removed from
         //the AEL before we process the horizontal edges at the bottom of the next,
         //we need to create 'ghost' Join records of 'contrubuting' horizontals that
@@ -130,7 +130,7 @@ export default class JoinManager {
         if (isTopOfScanbeam) {
             //get the last Op for this horizontal edge
             //the point may be anywhere along the horizontal ...
-            const [outPtHash, x, y] = this.outRecManager.getJoinData(horzEdge);
+            const [outPtHash, x, y] = this.outRecManager.getJoinData(horzEdgeIndex);
 
             this.ghostJoins.push(new Join(outPtHash, UNASSIGNED, x, y));
         }
@@ -140,28 +140,27 @@ export default class JoinManager {
         this.ghostJoins.length = 0;
     }
 
-    public addLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32): number {
+    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: PointI32): number {
+        const edge1: TEdge = TEdge.at(edge1Index);
+        const edge2: TEdge = TEdge.at(edge2Index);
+        let firstEdge: TEdge = edge2;
+        let secondEdge: TEdge = edge1;
         let result: number = UNASSIGNED;
-        let edge: number = UNASSIGNED;
-        let edgePrev: number = UNASSIGNED;
 
         if (edge2.isHorizontal || edge1.dx > edge2.dx) {
-            result = this.outRecManager.addOutPt(edge1, point);
-            edge2.index = edge1.index;
-            edge2.side = DIRECTION.RIGHT;
-            edge1.side = DIRECTION.LEFT;
-            edge = edge1.current;
-            edgePrev = edge1.prevActive === edge2.current ? edge2.prevActive : edge1.prevActive;
-        } else {
-            result = this.outRecManager.addOutPt(edge2, point);
-            edge1.index = edge2.index;
-            edge1.side = DIRECTION.RIGHT;
-            edge2.side = DIRECTION.LEFT;
-            edge = edge2.current;
-            edgePrev = edge2.prevActive === edge1.current ? edge1.prevActive : edge2.prevActive;
+            firstEdge = edge1;
+            secondEdge = edge2;
         }
 
-        this.addMinJoin(result, edge, edgePrev, point);
+        result = this.outRecManager.addOutPt(firstEdge, point);
+        secondEdge.index = firstEdge.index;
+        secondEdge.side = DIRECTION.RIGHT;
+        firstEdge.side = DIRECTION.LEFT;
+
+        const currIndex = firstEdge.current;
+        const prevIndex = firstEdge.prevActive === secondEdge.current ? secondEdge.prevActive : firstEdge.prevActive;
+
+        this.addMinJoin(result, currIndex, prevIndex, point);
 
         return result;
     }
@@ -187,12 +186,12 @@ export default class JoinManager {
 
         
         if (edge1.polyTyp !== edge2.polyTyp) {
-            this.addLocalMinPoly(edge1, edge2, point);
+            this.addLocalMinPoly(edge1.current, edge2.current, point);
         } else if (e1Wc === 1 && e2Wc === 1) {
             switch (this.clipType) {
                 case CLIP_TYPE.UNION:
                     if (e1Wc2 <= 0 && e2Wc2 <= 0) {
-                        this.addLocalMinPoly(edge1, edge2, point);
+                        this.addLocalMinPoly(edge1.current, edge2.current, point);
                     }
                     break;
                 case CLIP_TYPE.DIFFERENCE:
@@ -200,12 +199,12 @@ export default class JoinManager {
                         (edge1.polyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
                         (edge1.polyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
                     ) {
-                        this.addLocalMinPoly(edge1, edge2, point);
+                        this.addLocalMinPoly(edge1.current, edge2.current, point);
                     }
                     break;
             }
         } else {
-            TEdge.swapSides(edge1, edge2);
+            TEdge.swapSides(edge1.current, edge2.current);
         }
     }
 

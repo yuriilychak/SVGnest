@@ -206,6 +206,16 @@ export default class TEdge {
         return  prevEdge.isFilled && TEdge.slopesEqual(this.prevActive, this.current, isUseFullRange);
     }
 
+    public canAddScanbeam() {
+        if(!this.isFilled || this.prevActive === UNASSIGNED) {
+            return false;
+        }
+
+        const prevEdge: TEdge = TEdge.at(this.prevActive);
+
+        return prevEdge.isFilled && prevEdge.curr.x === this.curr.x
+    }
+
     public checkHorizontalCondition(isNext: boolean, isUseFullRange: boolean): boolean {
         const neighboarIndex =  isNext ? this.nextActive : this.prevActive;
 
@@ -408,7 +418,7 @@ export default class TEdge {
         const index = isNext ? this.next : this.prev;
         const edge: TEdge = TEdge.at(index);
 
-        return edge !== null && edge.top.almostEqual(this.top) && edge.nextLocalMinima === UNASSIGNED
+        return index !== UNASSIGNED && edge.top.almostEqual(this.top) && edge.nextLocalMinima === UNASSIGNED
     }
 
     public get maximaPair(): number {
@@ -853,7 +863,9 @@ export default class TEdge {
         edge.prevSorted = value;
     }
 
-    public static swapSides(edge1: TEdge, edge2: TEdge): void {
+    public static swapSides(edge1Index: number, edge2Index: number): void {
+        const edge1: TEdge = TEdge.at(edge1Index);
+        const edge2: TEdge = TEdge.at(edge2Index);
         const side: DIRECTION = edge1.side;
         edge1.side = edge2.side;
         edge2.side = side;

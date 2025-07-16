@@ -28,9 +28,11 @@ export default class OutRecManager {
         return result;
     }
 
-    public getJoinData(horzEdge: TEdge) {
+    public getJoinData(horzEdgeIndex: number) {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
+        const horzEdge: TEdge = TEdge.at(horzEdgeIndex);
+        
         return this.polyOuts[horzEdge.index].getJoinData(horzEdge.side, horzEdge.top, horzEdge.bot);
     }
 

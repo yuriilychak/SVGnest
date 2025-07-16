@@ -41,16 +41,13 @@ export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
     let currIndex: number = 0;
     let prevIndex: number = 0; 
     let nextIndex: number = 0;
-    let currPoint: PointI32 = null;
-    let prevPoint: PointI32 = null;
-    let nextPoint: PointI32 = null;
 
     while(!marked[currIndex] && pointCount > 2) {
         prevIndex = cycle_index_wasm(currIndex, pointCount, -1);
         nextIndex = cycle_index_wasm(currIndex, pointCount, 1);
-        currPoint = result[currIndex];
-        prevPoint = result[prevIndex];
-        nextPoint = result[nextIndex];
+        const currPoint = result[currIndex];
+        const prevPoint = result[prevIndex];
+        const nextPoint = result[nextIndex];
 
         if (currPoint.closeTo(prevPoint, distSqrd)) {
             marked[prevIndex] = false;

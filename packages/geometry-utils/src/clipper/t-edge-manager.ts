@@ -322,19 +322,19 @@ export default class TEdgeManager {
             } else {
                 this.outRecManager.addOutPt(edge1, point);
                 this.outRecManager.addOutPt(edge2, point);
-                TEdge.swapSides(edge1, edge2);
+                TEdge.swapSides(edge1.current, edge2.current);
                 TEdge.swapPolyIndexes(edge1, edge2);
             }
         } else if (edge1Contributing) {
             if (e2Wc === 0 || e2Wc === 1) {
                 this.outRecManager.addOutPt(edge1, point);
-                TEdge.swapSides(edge1, edge2);
+                TEdge.swapSides(edge1.current, edge2.current);
                 TEdge.swapPolyIndexes(edge1, edge2);
             }
         } else if (edge2Contributing) {
             if (e1Wc === 0 || e1Wc === 1) {
                 this.outRecManager.addOutPt(edge2, point);
-                TEdge.swapSides(edge1, edge2);
+                TEdge.swapSides(edge1.current, edge2.current);
                 TEdge.swapPolyIndexes(edge1, edge2);
             }
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
@@ -342,7 +342,7 @@ export default class TEdgeManager {
             this.joinManager.swapEdges(e1Wc, e2Wc, edge1, edge2, point);
         }
         if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
-            TEdge.swapSides(edge1, edge2);
+            TEdge.swapSides(edge1.current, edge2.current);
             TEdge.swapPolyIndexes(edge1, edge2);
         }
         //finally, delete any non-contributing maxima edges  ...
@@ -510,7 +510,7 @@ export default class TEdgeManager {
                 //saves eNext for later
                 if ((dir === DIRECTION.RIGHT && e.curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.curr.x >= horzLeft)) {
                     if (horzEdge.isFilled) {
-                        this.joinManager.prepareHorzJoins(horzEdge, isTopOfScanbeam);
+                        this.joinManager.prepareHorzJoins(horzEdge.current, isTopOfScanbeam);
                     }
 
                     //so far we're still in range of the horizontal Edge  but make sure
@@ -548,7 +548,7 @@ export default class TEdgeManager {
             }
             //end while
             if (horzEdge.isFilled) {
-                this.joinManager.prepareHorzJoins(horzEdge, isTopOfScanbeam);
+                this.joinManager.prepareHorzJoins(horzEdge.current, isTopOfScanbeam);
             }
 
             if (horzEdge.nextLocalMinima !== UNASSIGNED && TEdge.at(horzEdge.nextLocalMinima).isHorizontal) {
@@ -654,7 +654,7 @@ export default class TEdgeManager {
                 if (strictlySimple) {
                     edge2 = TEdge.at(edge1.prevActive);
 
-                    this.joinManager.addScanbeamJoin(edge1, edge2);
+                    this.joinManager.addScanbeamJoin(edge1.current);
                 }
                 edge1 = TEdge.at(edge1.nextActive);
             }
@@ -797,7 +797,7 @@ export default class TEdgeManager {
                 rightBound.windCount2 = leftBound.windCount2;
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.joinManager.addLocalMinPoly(leftBound, rightBound, leftBound.bot);
+                    outPt = this.joinManager.addLocalMinPoly(leftBound.current, rightBound.current, leftBound.bot);
                 }
 
                 this.scanbeam.insert(leftBound.top.y);
