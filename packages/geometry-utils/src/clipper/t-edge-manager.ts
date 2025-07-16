@@ -322,28 +322,24 @@ export default class TEdgeManager {
             } else {
                 this.outRecManager.addOutPt(edge1, point);
                 this.outRecManager.addOutPt(edge2, point);
-                TEdge.swapSides(edge1.current, edge2.current);
-                TEdge.swapPolyIndexes(edge1, edge2);
+                TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
             }
         } else if (edge1Contributing) {
             if (e2Wc === 0 || e2Wc === 1) {
                 this.outRecManager.addOutPt(edge1, point);
-                TEdge.swapSides(edge1.current, edge2.current);
-                TEdge.swapPolyIndexes(edge1, edge2);
+                TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
             }
         } else if (edge2Contributing) {
             if (e1Wc === 0 || e1Wc === 1) {
                 this.outRecManager.addOutPt(edge2, point);
-                TEdge.swapSides(edge1.current, edge2.current);
-                TEdge.swapPolyIndexes(edge1, edge2);
+                TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
             }
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
             //neither edge is currently contributing ...
             this.joinManager.swapEdges(e1Wc, e2Wc, edge1, edge2, point);
         }
         if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
-            TEdge.swapSides(edge1.current, edge2.current);
-            TEdge.swapPolyIndexes(edge1, edge2);
+            TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
         }
         //finally, delete any non-contributing maxima edges  ...
         if (edge1Stops) {

@@ -813,6 +813,7 @@ export default class TEdge {
             if (TEdge.getNeighboar(edgeIndex1, false, isAel) === UNASSIGNED) {
                 return edgeIndex1;
             }
+
             if (TEdge.getNeighboar(edgeIndex2, false, isAel) === UNASSIGNED) {
                 return edgeIndex2;
             }
@@ -822,11 +823,11 @@ export default class TEdge {
     }
 
     public static getNeighboar(index: number, isNext: boolean, isAel: boolean): number {
-        const edge: TEdge = TEdge.at(index);
-
-        if (edge === null) {
+        if (index === UNASSIGNED) {
             return UNASSIGNED;
         }
+
+        const edge: TEdge = TEdge.at(index);
 
         if (isNext) {
             return isAel ? edge.nextActive : edge.nextSorted;
@@ -836,11 +837,11 @@ export default class TEdge {
     }
 
     public static setNeighboar(index: number, isNext: boolean, isAel: boolean, value: number): void {
-        const edge: TEdge = TEdge.at(index);    
-
-        if (edge === null) {
+        if (index === UNASSIGNED) {
             return;
         }  
+
+        const edge: TEdge = TEdge.at(index);   
 
         if (isNext) {
             if (isAel) {
@@ -871,8 +872,13 @@ export default class TEdge {
         edge2.side = side;
     }
 
-    public static swapPolyIndexes(edge1: TEdge, edge2: TEdge): void {
+    public static swapSidesAndIndeces(edge1Index: number, edge2Index: number): void {
+        const edge1: TEdge = TEdge.at(edge1Index);
+        const edge2: TEdge = TEdge.at(edge2Index);
+        const side: DIRECTION = edge1.side;
         const outIdx: number = edge1.index;
+        edge1.side = edge2.side;
+        edge2.side = side;
         edge1.index = edge2.index;
         edge2.index = outIdx;
     }
