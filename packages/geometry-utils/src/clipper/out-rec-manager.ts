@@ -6,9 +6,92 @@ import TEdge from "./t-edge";
 import { DIRECTION, NullPtr } from "./types";
 import { PointI32 } from "../geometry";
 import { UNASSIGNED } from "./constants";
+import Join from "./join";
 
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
+    private join: Join = new Join();
+
+    public insertJoin(condition: boolean, outHash1: number, edgeIndex: number, point1: PointI32, point2: PointI32 = point1): boolean {
+        if (condition) {
+            const edge: TEdge = TEdge.at(edgeIndex);
+            const outHash2 = this.addOutPt(edge, point1);
+            this.join.add(outHash1, outHash2, point2);
+        }  
+
+        return condition;
+    }
+
+    public addScanbeamJoin(edge1Index: number): void {
+        const edge1: TEdge = TEdge.at(edge1Index);
+
+        if (edge1.canAddScanbeam()) {
+            const edge2: TEdge = TEdge.at(edge1.prevActive);
+            const outPt1 = this.addOutPt(edge2, edge1.curr);
+            const outPt2 = this.addOutPt(edge1, edge1.curr);
+
+            this.join.add(outPt1, outPt2, edge1.curr);
+            //StrictlySimple (type-3) join
+        }
+    }
+
+    public addOutputJoins(outHash: number, rightBoundIndex: number) {
+        const edge: TEdge = TEdge.at(rightBoundIndex);
+        const joinCount: number = this.join.getLength(true);
+
+        if (outHash !== UNASSIGNED && edge.isHorizontal && joinCount > 0 && !edge.isWindDeletaEmpty) {
+            const point = PointI32.create();
+
+            for (let i = 0; i < joinCount; ++i) {
+                //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
+                //the 'ghost' join to a real join ready for later ...
+                point.set(
+                    this.join.getX(i, true), 
+                    this.join.getY(i, true)
+                )
+
+                if (this.horzSegmentsOverlap(this.join.getHash1(i, true), point, edge)) {
+                    this.join.fromGhost(i, outHash);
+                }
+            }
+        }
+    }
+
+    public joinCommonEdges(isReverseSolution: boolean, isUseFullRange: boolean): void {
+        let i: number = 0;
+        const joinCount: number = this.join.getLength(false);
+        const point = PointI32.create();
+
+        for (i = 0; i < joinCount; ++i) {
+            point.set(
+                this.join.getX(i, false), 
+                this.join.getY(i, false)
+            );
+            this.joinCommonEdge1(i, point, isUseFullRange, isReverseSolution);
+        }
+    }
+
+    public reset() {
+        this.join.reset();
+    }
+
+    public prepareHorzJoins(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
+        //Also, since horizontal edges at the top of one SB are often removed from
+        //the AEL before we process the horizontal edges at the bottom of the next,
+        //we need to create 'ghost' Join records of 'contrubuting' horizontals that
+        //we can compare with horizontals at the bottom of the next SB.
+        if (isTopOfScanbeam) {
+            //get the last Op for this horizontal edge
+            //the point may be anywhere along the horizontal ...
+            const [outPtHash, x, y] = this.getJoinData(horzEdgeIndex);
+
+            this.join.addGhost(outPtHash, x, y);
+        }
+    }
+
+    public clearGhostJoins() {
+        this.join.clearGhosts();
+    }
 
     public createRec(pointIndex: number) {
         const result: OutRec = new OutRec(this.polyOuts.length, pointIndex);
@@ -163,11 +246,14 @@ export default class OutRecManager {
         }
     }
 
-    public joinCommonEdge(inputHash1: number, inputHash2: number, offPoint: Point<Int32Array>, isUseFullRange: boolean, isReverseSolution: boolean): number[] {
+    public joinCommonEdge1(index: number, offPoint: Point<Int32Array>, isUseFullRange: boolean, isReverseSolution: boolean): void {
+        const inputHash1 = this.join.getHash1(index, false);
+        const inputHash2 = this.join.getHash2(index);
         const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint, isUseFullRange);
 
         if(!result) {
-            return [outHash1, outHash2];
+            this.join.updateHash(index, outHash1, outHash2);
+            return;
         }
 
         //get the polygon fragment with the correct hole state (FirstLeft)
@@ -187,7 +273,8 @@ export default class OutRecManager {
             outRec2 = this.createRec(outPt2Index);
             outRec2.postInit(isReverseSolution);
 
-            return [outHash1, outHash2];
+            this.join.updateHash(index, outHash1, outHash2);
+            return;
         }
 
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
@@ -202,7 +289,7 @@ export default class OutRecManager {
 
         outRec2.firstLeftIndex = outRec1.index;
 
-        return [outHash1, outHash2];
+        this.join.updateHash(index, outHash1, outHash2);
     }
 
     private param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {

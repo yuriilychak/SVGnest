@@ -2,7 +2,6 @@ import { PointI32 } from "../geometry";
 import { UNASSIGNED } from "./constants";
 import { showError } from "./helpers";
 import IntersectNode from "./intersect-node";
-import JoinManager from "./join-manager";
 import LocalMinima from "./local-minima";
 import OutRecManager from "./out-rec-manager";
 import Scanbeam from "./scanbeam";
@@ -17,15 +16,13 @@ export default class TEdgeManager {
     private clipType: CLIP_TYPE = CLIP_TYPE.UNION;
     private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
     private scanbeam: Scanbeam;
-    private joinManager: JoinManager;
     private outRecManager: OutRecManager;
     public isUseFullRange: boolean = false;
 
-    constructor(scanbeam: Scanbeam, joinManager: JoinManager, outRecManager: OutRecManager) {
+    constructor(scanbeam: Scanbeam, outRecManager: OutRecManager) {
         this.intersections = new IntersectNode();
         this.localMinima = new LocalMinima();
         this.scanbeam = scanbeam;
-        this.joinManager = joinManager;
         this.outRecManager = outRecManager;
     }
 
@@ -317,7 +314,7 @@ export default class TEdgeManager {
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
             //neither edge is currently contributing ...
             if (TEdge.swapEdges(this.clipType, this.fillType, e1Wc, e2Wc, edge1.current, edge2.current)) {
-                this.joinManager.addLocalMinPoly(edge1.current, edge2.current, point);
+                this.addLocalMinPoly(edge1.current, edge2.current, point);
             }
         }
         if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
@@ -331,6 +328,31 @@ export default class TEdgeManager {
         if (edge2Stops) {
             this.activeEdges = edge2.deleteFromEL(this.activeEdges, true);
         }
+    }
+
+    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: PointI32): number {
+        const edge1: TEdge = TEdge.at(edge1Index);
+        const edge2: TEdge = TEdge.at(edge2Index);
+        let firstEdge: TEdge = edge2;
+        let secondEdge: TEdge = edge1;
+        let result: number = UNASSIGNED;
+
+        if (edge2.isHorizontal || edge1.dx > edge2.dx) {
+            firstEdge = edge1;
+            secondEdge = edge2;
+        }
+
+        result = this.outRecManager.addOutPt(firstEdge, point);
+        secondEdge.index = firstEdge.index;
+        secondEdge.side = DIRECTION.RIGHT;
+        firstEdge.side = DIRECTION.LEFT;
+
+        const prevIndex = firstEdge.prevActive === secondEdge.current ? secondEdge.prevActive : firstEdge.prevActive;
+        const condition = firstEdge.checkMinJoin(prevIndex, point, this.isUseFullRange);
+
+        this.outRecManager.insertJoin(condition, result, prevIndex, point, firstEdge.top);
+
+        return result;
     }
 
     public edgesAdjacent(nodeIndex: number): boolean {
@@ -482,7 +504,7 @@ export default class TEdgeManager {
                 //saves eNext for later
                 if ((dir === DIRECTION.RIGHT && e.curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.curr.x >= horzLeft)) {
                     if (horzEdge.isFilled) {
-                        this.joinManager.prepareHorzJoins(horzEdge.current, isTopOfScanbeam);
+                        this.outRecManager.prepareHorzJoins(horzEdge.current, isTopOfScanbeam);
                     }
 
                     //so far we're still in range of the horizontal Edge  but make sure
@@ -520,7 +542,7 @@ export default class TEdgeManager {
             }
             //end while
             if (horzEdge.isFilled) {
-                this.joinManager.prepareHorzJoins(horzEdge.current, isTopOfScanbeam);
+                this.outRecManager.prepareHorzJoins(horzEdge.current, isTopOfScanbeam);
             }
 
             if (horzEdge.nextLocalMinima !== UNASSIGNED && TEdge.at(horzEdge.nextLocalMinima).isHorizontal) {
@@ -549,7 +571,15 @@ export default class TEdgeManager {
                 }
 
                 //nb: HorzEdge is no longer horizontal here
-                this.joinManager.addHorizontalJoin(op1, horzEdge.current)
+                const condition1 = horzEdge.checkHorizontalCondition(false, this.isUseFullRange);
+
+                this.outRecManager.insertJoin(condition1, op1, horzEdge.prevActive, horzEdge.bot);
+
+                if (!condition1) {
+                    const condition2 = horzEdge.checkHorizontalCondition(true, this.isUseFullRange);
+
+                    this.outRecManager.insertJoin(condition2, op1, horzEdge.nextActive, horzEdge.bot);
+                }
             } else {
                 horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.current));
             }
@@ -626,7 +656,7 @@ export default class TEdgeManager {
                 if (strictlySimple) {
                     edge2 = TEdge.at(edge1.prevActive);
 
-                    this.joinManager.addScanbeamJoin(edge1.current);
+                    this.outRecManager.addScanbeamJoin(edge1.current);
                 }
                 edge1 = TEdge.at(edge1.nextActive);
             }
@@ -641,7 +671,12 @@ export default class TEdgeManager {
                 outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.top) : UNASSIGNED;
                 edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.current));
                 //if output polygons share an edge, they'll need joining later...
-                this.joinManager.addSharedJoin(outPt1, edge1.current);
+                const condition1 = edge1.checkSharedCondition(outPt1, false, this.isUseFullRange);
+
+                if (!this.outRecManager.insertJoin(condition1, outPt1, edge1.prevActive,  edge1.bot, edge1.top)) {
+                    const condition2 = edge1.checkSharedCondition(outPt1, true, this.isUseFullRange);;
+                    this.outRecManager.insertJoin(condition2, outPt1, edge1.nextActive,  edge1.bot, edge1.top);
+                }
             }
 
             edge1 = TEdge.at(edge1.nextActive);
@@ -772,7 +807,7 @@ export default class TEdgeManager {
                 rightBound.windCount2 = leftBound.windCount2;
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.joinManager.addLocalMinPoly(leftBound.current, rightBound.current, leftBound.bot);
+                    outPt = this.addLocalMinPoly(leftBound.current, rightBound.current, leftBound.bot);
                 }
 
                 this.scanbeam.insert(leftBound.top.y);
@@ -790,12 +825,16 @@ export default class TEdgeManager {
                 continue;
             }
             //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            this.joinManager.addOutputJoins(outPt, rightBound.current);
+            this.outRecManager.addOutputJoins(outPt, rightBound.current);
 
-            this.joinManager.addLeftJoin(outPt, leftBound.current);
+            const condition = leftBound.canJoinLeft(this.isUseFullRange);
+
+            this.outRecManager.insertJoin(condition, outPt, leftBound.prevActive, leftBound.bot, leftBound.top);
 
             if (leftBound.nextActive !== rightBound.current) {
-                this.joinManager.addRightJoin(outPt, rightBound.current);
+                const condition = rightBound.canJoinRight(this.isUseFullRange);
+
+                this.outRecManager.insertJoin(condition, outPt, rightBound.prevActive, rightBound.bot, rightBound.top);
 
                 let edge: NullPtr<TEdge> = TEdge.at(leftBound.nextActive);
 

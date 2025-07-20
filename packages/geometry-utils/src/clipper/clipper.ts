@@ -1,5 +1,4 @@
 import { PointI32 } from '../geometry';
-import JoinManager from './join-manager';
 import OutRecManager from './out-rec-manager';
 import Scanbeam from './scanbeam';
 import TEdgeManager from './t-edge-manager';
@@ -9,7 +8,6 @@ export default class Clipper {
     private scanbeam: Scanbeam;
     private tEdgeManager: TEdgeManager;
     private isExecuteLocked: boolean = false;
-    private joinManager: JoinManager;
     private outRecManager: OutRecManager;
     public ReverseSolution: boolean = false;
     public StrictlySimple: boolean = false;
@@ -18,8 +16,7 @@ export default class Clipper {
         this.outRecManager = new OutRecManager();
         this.scanbeam = new Scanbeam();
         this.outRecManager = new OutRecManager();
-        this.joinManager = new JoinManager(this.outRecManager);
-        this.tEdgeManager = new TEdgeManager(this.scanbeam, this.joinManager, this.outRecManager);
+        this.tEdgeManager = new TEdgeManager(this.scanbeam, this.outRecManager);
     }
 
     public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
@@ -48,7 +45,6 @@ export default class Clipper {
         }
 
         this.isExecuteLocked = true;
-        this.joinManager.init(this.tEdgeManager.isUseFullRange);
         this.tEdgeManager.init(clipType, fillType);
 
         solution.length = 0;
@@ -83,7 +79,7 @@ export default class Clipper {
 
             do {
                 this.tEdgeManager.insertLocalMinimaIntoAEL(botY);
-                this.joinManager.clearGhostJoins();
+                this.outRecManager.clearGhostJoins();
                 this.tEdgeManager.processHorizontals(false);
 
                 if (this.scanbeam.isEmpty) {
@@ -102,7 +98,7 @@ export default class Clipper {
             } while (!this.scanbeam.isEmpty || !this.tEdgeManager.isMinimaEmpty);
             //fix orientations ...
             this.outRecManager.fixOrientation(this.ReverseSolution);
-            this.joinManager.joinCommonEdges(this.ReverseSolution);
+            this.outRecManager.joinCommonEdges(this.ReverseSolution, this.tEdgeManager.isUseFullRange);
 
             this.outRecManager.fixupOutPolygon(this.tEdgeManager.isUseFullRange);
 
@@ -112,7 +108,7 @@ export default class Clipper {
 
             return true;
         } finally {
-            this.joinManager.reset();
+            this.outRecManager.reset();
         }
     }
 
