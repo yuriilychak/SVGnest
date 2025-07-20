@@ -13,7 +13,7 @@ export default class TEdgeManager {
     private localMinima: LocalMinima;
     private activeEdges: number = UNASSIGNED;
     private sortedEdges: number = UNASSIGNED;
-    private intersections: IntersectNode[] = [];
+    private intersections: IntersectNode;
     private clipType: CLIP_TYPE = CLIP_TYPE.UNION;
     private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
     private scanbeam: Scanbeam;
@@ -22,6 +22,7 @@ export default class TEdgeManager {
     public isUseFullRange: boolean = false;
 
     constructor(scanbeam: Scanbeam, joinManager: JoinManager, outRecManager: OutRecManager) {
+        this.intersections = new IntersectNode();
         this.localMinima = new LocalMinima();
         this.scanbeam = scanbeam;
         this.joinManager = joinManager;
@@ -248,7 +249,7 @@ export default class TEdgeManager {
                         point.set(Math.abs(edge.dx) > Math.abs(nextEdge.dx) ? nextEdge.topX(botY) : edge.topX(botY), botY);
                     }
 
-                    this.intersections.push(new IntersectNode(edge.current, nextEdge.current, point));
+                    this.intersections.add(edge.current, nextEdge.current, point);
                     this.swapPositionsInSEL(edge.current, nextEdge.current);
                     isModified = true;
                 } else {
@@ -332,34 +333,30 @@ export default class TEdgeManager {
         }
     }
 
-    public static sort(node1: IntersectNode, node2: IntersectNode): number {
-        //the following typecast is safe because the differences in Pt.Y will
-        //be limited to the height of the scanbeam.
-        return node2.point.y - node1.point.y;
-    }
+    public edgesAdjacent(nodeIndex: number): boolean {
+        const edge1Index = this.intersections.getEdge1Index(nodeIndex);
+        const edge2Index = this.intersections.getEdge2Index(nodeIndex);
 
-    public edgesAdjacent(node: IntersectNode): boolean {
-        return TEdge.at(node.edge1).nextSorted === node.edge2 || TEdge.at(node.edge1).prevSorted === node.edge2;
+        return TEdge.at(edge1Index).nextSorted === edge2Index || TEdge.at(edge1Index).prevSorted === edge2Index;
     }
 
     public fixupIntersectionOrder(): boolean {
         //pre-condition: intersections are sorted bottom-most first.
         //Now it's crucial that intersections are made only between adjacent edges,
         //so to ensure this the order of intersections may need adjusting ...
-        this.intersections.sort(TEdgeManager.sort);
+        this.intersections.sort();
 
         this.copyAELToSEL();
 
         const intersectCount: number = this.intersections.length;
         let i: number = 0;
         let j: number = 0;
-        let node: IntersectNode = null;
 
         for (i = 0; i < intersectCount; ++i) {
-            if (!this.edgesAdjacent(this.intersections[i])) {
+            if (!this.edgesAdjacent(i)) {
                 j = i + 1;
 
-                while (j < intersectCount && !this.edgesAdjacent(this.intersections[j])) {
+                while (j < intersectCount && !this.edgesAdjacent(j)) {
                     ++j;
                 }
 
@@ -367,12 +364,10 @@ export default class TEdgeManager {
                     return false;
                 }
 
-                node = this.intersections[i];
-                this.intersections[i] = this.intersections[j];
-                this.intersections[j] = node;
+                this.intersections.swap(i, j);
             }
 
-            this.swapPositionsInSEL(this.intersections[i].edge1, this.intersections[i].edge2);
+            this.swapPositionsInSEL(this.intersections.getEdge1Index(i), this.intersections.getEdge2Index(i));
         }
 
         return true;
@@ -701,15 +696,18 @@ export default class TEdgeManager {
     public processIntersectList(): void {
         const intersectCount: number = this.intersections.length;
         let i: number = 0;
-        let node: IntersectNode = null;
+        const point = PointI32.create();
 
         for (i = 0; i < intersectCount; ++i) {
-            node = this.intersections[i];
-            this.intersectEdges(TEdge.at(node.edge1), TEdge.at(node.edge2), node.point, true);
-            this.swapPositionsInAEL(node.edge1, node.edge2);
+            const edge1Index: number = this.intersections.getEdge1Index(i);
+            const edge2Index: number = this.intersections.getEdge2Index(i);
+            point.set(this.intersections.getX(i), this.intersections.getY(i));
+
+            this.intersectEdges(TEdge.at(edge1Index), TEdge.at(edge2Index), point, true);
+            this.swapPositionsInAEL(edge1Index, edge2Index);
         }
 
-        this.intersections = [];
+        this.intersections.clean();
     }
 
     public processIntersections(botY: number, topY: number): boolean {
@@ -720,7 +718,7 @@ export default class TEdgeManager {
         try {
             this.buildIntersectList(botY, topY);
 
-            if (this.intersections.length === 0) {
+            if (this.intersections.isEmpty) {
                 return true;
             }
 
@@ -731,7 +729,7 @@ export default class TEdgeManager {
             }
         } catch (error) {
             this.sortedEdges = UNASSIGNED;
-            this.intersections.length = 0;
+            this.intersections.clean();
 
             showError('ProcessIntersections error');
         }

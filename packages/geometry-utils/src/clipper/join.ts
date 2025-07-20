@@ -1,5 +1,4 @@
 import { PointI32 } from '../geometry';
-import { NullPtr } from './types';
 import { Point } from '../types';
 export default class Join {
     public outHash1: number;
