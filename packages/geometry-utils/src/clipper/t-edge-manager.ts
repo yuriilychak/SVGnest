@@ -595,7 +595,6 @@ export default class TEdgeManager {
 
     public processEdgesAtTopOfScanbeam(topY: number, strictlySimple: boolean): void {
         let edge1: TEdge = TEdge.at(this.activeEdges);
-        let edge2: NullPtr<TEdge> = null;
         let isMaximaEdge: boolean = false;
         let outPt1: number = UNASSIGNED;
 
@@ -605,15 +604,15 @@ export default class TEdgeManager {
             isMaximaEdge = edge1.getMaxima(topY);
 
             if (isMaximaEdge) {
-                edge2 = TEdge.at(edge1.maximaPair);
-                isMaximaEdge = edge2 === null || !edge2.isHorizontal;
+                const edge2 = TEdge.at(edge1.maximaPair);
+                isMaximaEdge = edge1.maximaPair === UNASSIGNED || !edge2.isHorizontal;
             }
 
             if (isMaximaEdge) {
-                edge2 = TEdge.at(edge1.prevActive);
+                const edge2 = TEdge.at(edge1.prevActive);
                 this.doMaxima(edge1);
 
-                edge1 = edge2 === null ? TEdge.at(this.activeEdges) : TEdge.at(edge2.nextActive);
+                edge1 = edge1.prevActive === UNASSIGNED ? TEdge.at(this.activeEdges) : TEdge.at(edge2.nextActive);
             } else {
                 //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
                 if (edge1.getIntermediate(topY) && TEdge.at(edge1.nextLocalMinima).isHorizontal) {
@@ -628,10 +627,9 @@ export default class TEdgeManager {
                     edge1.curr.set(edge1.topX(topY), topY);
                 }
 
-                if (strictlySimple) {
-                    edge2 = TEdge.at(edge1.prevActive);
-
-                    this.outRecManager.addScanbeamJoin(edge1.current);
+                if (strictlySimple && edge1.canAddScanbeam()) {
+                    this.outRecManager.addScanbeamJoin(edge1.current, edge1.prevActive, edge1.curr);
+                    //StrictlySimple (type-3) join
                 }
                 edge1 = TEdge.at(edge1.nextActive);
             }

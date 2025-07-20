@@ -32,16 +32,12 @@ export default class OutRecManager {
         return condition;
     }
 
-    public addScanbeamJoin(edge1Index: number): void {
-        const edge = TEdge.at(edge1Index);
+    public addScanbeamJoin(edge1Index: number, edge2Index: number, point: Point<Int32Array>): void {
+        const outPt1 = this.addOutPt(edge2Index, point);
+        const outPt2 = this.addOutPt(edge1Index, point);
 
-        if (edge.canAddScanbeam()) {
-            const outPt1 = this.addOutPt(edge.prevActive, edge.curr);
-            const outPt2 = this.addOutPt(edge1Index, edge.curr);
-
-            this.join.add(outPt1, outPt2, edge.curr);
-            //StrictlySimple (type-3) join
-        }
+        this.join.add(outPt1, outPt2, point);
+        //StrictlySimple (type-3) join
     }
 
     public addOutputJoins(outHash: number, rightBoundIndex: number) {
@@ -300,7 +296,7 @@ export default class OutRecManager {
         const inputHash2 = this.join.getHash2(index);
         const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint, isUseFullRange);
 
-        if(!result) {
+        if (!result) {
             this.join.updateHash(index, outHash1, outHash2);
             return;
         }
@@ -409,7 +405,9 @@ export default class OutRecManager {
             result.result = true;
 
             return result;
-        } else if (isHorizontal) {
+        }
+        
+        if (isHorizontal) {
             //treat horizontal joins differently to non-horizontal joins since with
             //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
             //may be anywhere along the horizontal edge.
@@ -469,48 +467,48 @@ export default class OutRecManager {
             result.result = OutPt.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, point, discardLeftSide);
 
             return result;
-        } else {
-            let op1 = outPt1;
-            let op2 = outPt2;
-            let op1b: OutPt = OutPt.at(op1.getUniquePt(true));
-            let op2b: OutPt = OutPt.at(op2.getUniquePt(true));
-            //nb: For non-horizontal joins ...
-            //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
-            //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
-            //make sure the polygons are correctly oriented ...
+        }
 
-            const reverse1: boolean =
-                op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange);
+        let op1 = outPt1;
+        let op2 = outPt2;
+        let op1b: OutPt = OutPt.at(op1.getUniquePt(true));
+        let op2b: OutPt = OutPt.at(op2.getUniquePt(true));
+        //nb: For non-horizontal joins ...
+        //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
+        //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
+        //make sure the polygons are correctly oriented ...
 
-            if (reverse1) {
-                op1b = OutPt.at(op1.getUniquePt(false));
+        const reverse1: boolean =
+            op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange);
 
-                if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange)) {
-                    return result;
-                }
-            }
+        if (reverse1) {
+            op1b = OutPt.at(op1.getUniquePt(false));
 
-            const reverse2: boolean =
-                op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange);
-
-            if (reverse2) {
-                op2b = OutPt.at(op2.getUniquePt(false));
-
-                if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange)) {
-                    return result;
-                }
-            }
-
-            if (op1b === op1 || op2b === op2 || op1b === op2b || (isRecordsSame && reverse1 === reverse2)) {
+            if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange)) {
                 return result;
             }
+        }
 
-            result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1Index, outPt2Index, reverse1));
+        const reverse2: boolean =
+            op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange);
 
-            result.result = true;
+        if (reverse2) {
+            op2b = OutPt.at(op2.getUniquePt(false));
 
+            if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange)) {
+                return result;
+            }
+        }
+
+        if (op1b === op1 || op2b === op2 || op1b === op2b || (isRecordsSame && reverse1 === reverse2)) {
             return result;
         }
+
+        result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1Index, outPt2Index, reverse1));
+
+        result.result = true;
+
+        return result;
     }
 
     public horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBoundIndex: number): boolean {
