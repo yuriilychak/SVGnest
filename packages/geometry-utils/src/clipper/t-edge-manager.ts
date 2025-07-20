@@ -297,18 +297,18 @@ export default class TEdgeManager {
             ) {
                 this.outRecManager.addLocalMaxPoly(edge1, edge2, point, this.activeEdges);
             } else {
-                this.outRecManager.addOutPt(edge1, point);
-                this.outRecManager.addOutPt(edge2, point);
+                this.outRecManager.addOutPt(edge1.current, point);
+                this.outRecManager.addOutPt(edge2.current, point);
                 TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
             }
         } else if (edge1Contributing) {
             if (e2Wc === 0 || e2Wc === 1) {
-                this.outRecManager.addOutPt(edge1, point);
+                this.outRecManager.addOutPt(edge1.current, point);
                 TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
             }
         } else if (edge2Contributing) {
             if (e1Wc === 0 || e1Wc === 1) {
-                this.outRecManager.addOutPt(edge2, point);
+                this.outRecManager.addOutPt(edge2.current, point);
                 TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
             }
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
@@ -342,7 +342,7 @@ export default class TEdgeManager {
             secondEdge = edge2;
         }
 
-        result = this.outRecManager.addOutPt(firstEdge, point);
+        result = this.outRecManager.addOutPt(firstEdge.current, point);
         secondEdge.index = firstEdge.index;
         secondEdge.side = DIRECTION.RIGHT;
         firstEdge.side = DIRECTION.LEFT;
@@ -415,7 +415,7 @@ export default class TEdgeManager {
         ) {
             if (edge1.isWindDeletaEmpty) {
                 if (edge2Contributing) {
-                    this.outRecManager.addOutPt(edge1, point);
+                    this.outRecManager.addOutPt(edge1.current, point);
 
                     if (edge1Contributing) {
                         edge1.unassign();
@@ -423,7 +423,7 @@ export default class TEdgeManager {
                 }
             } else {
                 if (edge1Contributing) {
-                    this.outRecManager.addOutPt(edge2, point);
+                    this.outRecManager.addOutPt(edge2.current, point);
 
                     if (edge2Contributing) {
                         edge2.unassign();
@@ -436,7 +436,7 @@ export default class TEdgeManager {
                 Math.abs(edge2.windCount1) === 1 &&
                 (this.clipType !== CLIP_TYPE.UNION || edge2.windCount2 === 0)
             ) {
-                this.outRecManager.addOutPt(edge1, point);
+                this.outRecManager.addOutPt(edge1.current, point);
 
                 if (edge1Contributing) {
                     edge1.unassign();
@@ -446,7 +446,7 @@ export default class TEdgeManager {
                 Math.abs(edge1.windCount1) === 1 &&
                 (this.clipType !== CLIP_TYPE.UNION || edge1.windCount2 === 0)
             ) {
-                this.outRecManager.addOutPt(edge2, point);
+                this.outRecManager.addOutPt(edge2.current, point);
 
                 if (edge2Contributing) {
                     edge2.unassign();
@@ -549,7 +549,7 @@ export default class TEdgeManager {
                 horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.current));
 
                 if (horzEdge.isAssigned) {
-                    this.outRecManager.addOutPt(horzEdge, horzEdge.bot);
+                    this.outRecManager.addOutPt(horzEdge.current, horzEdge.bot);
                 }
 
                 dirValue = horzEdge.horzDirection;
@@ -563,7 +563,7 @@ export default class TEdgeManager {
         //end for (;;)
         if (horzEdge.nextLocalMinima !== UNASSIGNED) {
             if (horzEdge.isAssigned) {
-                const op1 = this.outRecManager.addOutPt(horzEdge, horzEdge.top);
+                const op1 = this.outRecManager.addOutPt(horzEdge.current, horzEdge.top);
                 horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.current));
 
                 if (horzEdge.isWindDeletaEmpty) {
@@ -599,7 +599,7 @@ export default class TEdgeManager {
             }
         } else {
             if (horzEdge.isAssigned) {
-                this.outRecManager.addOutPt(horzEdge, horzEdge.top);
+                this.outRecManager.addOutPt(horzEdge.current, horzEdge.top);
             }
 
             this.activeEdges = horzEdge.deleteFromEL(this.activeEdges, true);
@@ -645,7 +645,7 @@ export default class TEdgeManager {
                     edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.current));
 
                     if (edge1.isAssigned) {
-                        this.outRecManager.addOutPt(edge1, edge1.bot);
+                        this.outRecManager.addOutPt(edge1.current, edge1.bot);
                     }
 
                     this.sortedEdges = edge1.addEdgeToSEL(this.sortedEdges);
@@ -668,7 +668,7 @@ export default class TEdgeManager {
 
         while (edge1 !== null) {
             if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1, edge1.top) : UNASSIGNED;
+                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1.current, edge1.top) : UNASSIGNED;
                 edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.current));
                 //if output polygons share an edge, they'll need joining later...
                 const condition1 = edge1.checkSharedCondition(outPt1, false, this.isUseFullRange);
@@ -688,7 +688,7 @@ export default class TEdgeManager {
     
             if (maxPairEdge === null) {
                 if (edge.isAssigned) {
-                    this.outRecManager.addOutPt(edge, edge.top);
+                    this.outRecManager.addOutPt(edge.current, edge.top);
                 }
     
                 this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
@@ -711,14 +711,14 @@ export default class TEdgeManager {
                 this.intersectEdges(edge, maxPairEdge, edge.top, false);
             } else if (edge.isWindDeletaEmpty) {
                 if (edge.isAssigned) {
-                    this.outRecManager.addOutPt(edge, edge.top);
+                    this.outRecManager.addOutPt(edge.current, edge.top);
                     edge.unassign();
                 }
     
                 this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
     
                 if (maxPairEdge.isAssigned) {
-                    this.outRecManager.addOutPt(maxPairEdge, edge.top);
+                    this.outRecManager.addOutPt(maxPairEdge.current, edge.top);
                     maxPairEdge.unassign();
                 }
     
@@ -788,14 +788,14 @@ export default class TEdgeManager {
                 rightBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (rightBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.outRecManager.addOutPt(rightBound, rightBound.bot);
+                    outPt = this.outRecManager.addOutPt(rightBound.current, rightBound.bot);
                 }
             } else if (rightBound === null) {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
                 leftBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.outRecManager.addOutPt(leftBound, leftBound.bot);
+                    outPt = this.outRecManager.addOutPt(leftBound.current, leftBound.bot);
                 }
 
                 this.scanbeam.insert(leftBound.top.y);

@@ -14,8 +14,7 @@ export default class OutRecManager {
 
     public insertJoin(condition: boolean, outHash1: number, edgeIndex: number, point1: PointI32, point2: PointI32 = point1): boolean {
         if (condition) {
-            const edge: TEdge = TEdge.at(edgeIndex);
-            const outHash2 = this.addOutPt(edge, point1);
+            const outHash2 = this.addOutPt(edgeIndex, point1);
             this.join.add(outHash1, outHash2, point2);
         }  
 
@@ -26,9 +25,8 @@ export default class OutRecManager {
         const edge1: TEdge = TEdge.at(edge1Index);
 
         if (edge1.canAddScanbeam()) {
-            const edge2: TEdge = TEdge.at(edge1.prevActive);
-            const outPt1 = this.addOutPt(edge2, edge1.curr);
-            const outPt2 = this.addOutPt(edge1, edge1.curr);
+            const outPt1 = this.addOutPt(edge1.prevActive, edge1.curr);
+            const outPt2 = this.addOutPt(edge1Index, edge1.curr);
 
             this.join.add(outPt1, outPt2, edge1.curr);
             //StrictlySimple (type-3) join
@@ -119,7 +117,8 @@ export default class OutRecManager {
         return this.polyOuts[horzEdge.index].getJoinData(horzEdge.side, horzEdge.top, horzEdge.bot);
     }
 
-    public addOutPt(edge: TEdge, point: Point<Int32Array>): number {
+    public addOutPt(edgeIndex: number, point: Point<Int32Array>): number {
+        const edge = TEdge.at(edgeIndex);
         const isToFront: boolean = edge.side === DIRECTION.LEFT;
         let outRec: OutRec;
         let pointIndex: number;
@@ -143,10 +142,10 @@ export default class OutRecManager {
     }
 
     public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdgeIndex: number): void {
-        this.addOutPt(edge1, point);
+        this.addOutPt(edge1.current, point);
 
         if (edge2.isWindDeletaEmpty) {
-            this.addOutPt(edge2, point);
+            this.addOutPt(edge2.current, point);
         }
 
         if (edge1.index === edge2.index) {
