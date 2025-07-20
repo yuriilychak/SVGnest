@@ -295,7 +295,7 @@ export default class TEdgeManager {
                 (e2Wc !== 0 && e2Wc !== 1) ||
                 edge1.polyTyp !== edge2.polyTyp
             ) {
-                this.outRecManager.addLocalMaxPoly(edge1, edge2, point, this.activeEdges);
+                this.outRecManager.addLocalMaxPoly(edge1.current, edge2.current, point, this.activeEdges);
             } else {
                 this.outRecManager.addOutPt(edge1.current, point);
                 this.outRecManager.addOutPt(edge2.current, point);
@@ -314,7 +314,7 @@ export default class TEdgeManager {
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
             //neither edge is currently contributing ...
             if (TEdge.swapEdges(this.clipType, this.fillType, e1Wc, e2Wc, edge1.current, edge2.current)) {
-                this.addLocalMinPoly(edge1.current, edge2.current, point);
+                this.outRecManager.addLocalMinPoly(edge1.current, edge2.current, point, this.isUseFullRange);
             }
         }
         if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
@@ -328,31 +328,6 @@ export default class TEdgeManager {
         if (edge2Stops) {
             this.activeEdges = edge2.deleteFromEL(this.activeEdges, true);
         }
-    }
-
-    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: PointI32): number {
-        const edge1: TEdge = TEdge.at(edge1Index);
-        const edge2: TEdge = TEdge.at(edge2Index);
-        let firstEdge: TEdge = edge2;
-        let secondEdge: TEdge = edge1;
-        let result: number = UNASSIGNED;
-
-        if (edge2.isHorizontal || edge1.dx > edge2.dx) {
-            firstEdge = edge1;
-            secondEdge = edge2;
-        }
-
-        result = this.outRecManager.addOutPt(firstEdge.current, point);
-        secondEdge.index = firstEdge.index;
-        secondEdge.side = DIRECTION.RIGHT;
-        firstEdge.side = DIRECTION.LEFT;
-
-        const prevIndex = firstEdge.prevActive === secondEdge.current ? secondEdge.prevActive : firstEdge.prevActive;
-        const condition = firstEdge.checkMinJoin(prevIndex, point, this.isUseFullRange);
-
-        this.outRecManager.insertJoin(condition, result, prevIndex, point, firstEdge.top);
-
-        return result;
     }
 
     public edgesAdjacent(nodeIndex: number): boolean {
@@ -404,7 +379,7 @@ export default class TEdgeManager {
         //are both open paths, AND they are both 'contributing maximas' ...
         if (edge1.isWindDeletaEmpty && edge2.isWindDeletaEmpty) {
             if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
-                this.outRecManager.addLocalMaxPoly(edge1, edge2, point, this.activeEdges);
+                this.outRecManager.addLocalMaxPoly(edge1.current, edge2.current, point, this.activeEdges);
             }
         }
         //if intersecting a subj line with a subj poly ...
@@ -807,7 +782,7 @@ export default class TEdgeManager {
                 rightBound.windCount2 = leftBound.windCount2;
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.addLocalMinPoly(leftBound.current, rightBound.current, leftBound.bot);
+                    outPt = this.outRecManager.addLocalMinPoly(leftBound.current, rightBound.current, leftBound.bot, this.isUseFullRange);
                 }
 
                 this.scanbeam.insert(leftBound.top.y);

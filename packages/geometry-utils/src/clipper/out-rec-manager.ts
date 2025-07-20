@@ -3,7 +3,7 @@ import { Point } from "../types";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
 import TEdge from "./t-edge";
-import { DIRECTION, NullPtr } from "./types";
+import { DIRECTION } from "./types";
 import { PointI32 } from "../geometry";
 import { UNASSIGNED } from "./constants";
 import Join from "./join";
@@ -22,22 +22,22 @@ export default class OutRecManager {
     }
 
     public addScanbeamJoin(edge1Index: number): void {
-        const edge1: TEdge = TEdge.at(edge1Index);
+        const edge = TEdge.at(edge1Index);
 
-        if (edge1.canAddScanbeam()) {
-            const outPt1 = this.addOutPt(edge1.prevActive, edge1.curr);
-            const outPt2 = this.addOutPt(edge1Index, edge1.curr);
+        if (edge.canAddScanbeam()) {
+            const outPt1 = this.addOutPt(edge.prevActive, edge.curr);
+            const outPt2 = this.addOutPt(edge1Index, edge.curr);
 
-            this.join.add(outPt1, outPt2, edge1.curr);
+            this.join.add(outPt1, outPt2, edge.curr);
             //StrictlySimple (type-3) join
         }
     }
 
     public addOutputJoins(outHash: number, rightBoundIndex: number) {
-        const edge: TEdge = TEdge.at(rightBoundIndex);
+        const edge = TEdge.at(rightBoundIndex);
         const joinCount: number = this.join.getLength(true);
 
-        if (outHash !== UNASSIGNED && edge.isHorizontal && joinCount > 0 && !edge.isWindDeletaEmpty) {
+        if (outHash !== UNASSIGNED && edge.isHorizontal && !edge.isWindDeletaEmpty && joinCount > 0) {
             const point = PointI32.create();
 
             for (let i = 0; i < joinCount; ++i) {
@@ -48,7 +48,7 @@ export default class OutRecManager {
                     this.join.getY(i, true)
                 )
 
-                if (this.horzSegmentsOverlap(this.join.getHash1(i, true), point, edge)) {
+                if (this.horzSegmentsOverlap(this.join.getHash1(i, true), point, rightBoundIndex)) {
                     this.join.fromGhost(i, outHash);
                 }
             }
@@ -112,9 +112,9 @@ export default class OutRecManager {
     public getJoinData(horzEdgeIndex: number) {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        const horzEdge: TEdge = TEdge.at(horzEdgeIndex);
+        const edge = TEdge.at(horzEdgeIndex);
         
-        return this.polyOuts[horzEdge.index].getJoinData(horzEdge.side, horzEdge.top, horzEdge.bot);
+        return this.polyOuts[edge.index].getJoinData(edge.side, edge.top, edge.bot);
     }
 
     public addOutPt(edgeIndex: number, point: Point<Int32Array>): number {
@@ -141,11 +141,39 @@ export default class OutRecManager {
         return outRec.getHash(pointIndex);
     }
 
-    public addLocalMaxPoly(edge1: TEdge, edge2: TEdge, point: Point<Int32Array>, activeEdgeIndex: number): void {
-        this.addOutPt(edge1.current, point);
+    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: PointI32, isUseFullRange: boolean): number {
+        const edge1: TEdge = TEdge.at(edge1Index);
+        const edge2: TEdge = TEdge.at(edge2Index);
+        let firstEdge: TEdge = edge2;
+        let secondEdge: TEdge = edge1;
+        let result: number = UNASSIGNED;
+
+        if (edge2.isHorizontal || edge1.dx > edge2.dx) {
+            firstEdge = edge1;
+            secondEdge = edge2;
+        }
+
+        result = this.addOutPt(firstEdge.current, point);
+        secondEdge.index = firstEdge.index;
+        secondEdge.side = DIRECTION.RIGHT;
+        firstEdge.side = DIRECTION.LEFT;
+
+        const prevIndex = firstEdge.prevActive === secondEdge.current ? secondEdge.prevActive : firstEdge.prevActive;
+        const condition = firstEdge.checkMinJoin(prevIndex, point, isUseFullRange);
+
+        this.insertJoin(condition, result, prevIndex, point, firstEdge.top);
+
+        return result;
+    }
+
+    public addLocalMaxPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>, activeEdgeIndex: number): void {
+        this.addOutPt(edge1Index, point);
+
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
 
         if (edge2.isWindDeletaEmpty) {
-            this.addOutPt(edge2.current, point);
+            this.addOutPt(edge2Index, point);
         }
 
         if (edge1.index === edge2.index) {
@@ -154,8 +182,8 @@ export default class OutRecManager {
             return;
         }
 
-        const firstEdge: TEdge = edge1.index < edge2.index ? edge1 : edge2;
-        const secondEdge: TEdge = edge1.index < edge2.index ? edge2 : edge1;
+        const firstEdge = edge1.index < edge2.index ? edge1 : edge2;
+        const secondEdge = edge1.index < edge2.index ? edge2 : edge1;
 
         //get the start and ends of both output polygons ...
         const outRec1: OutRec = this.polyOuts[firstEdge.index];
@@ -262,8 +290,8 @@ export default class OutRecManager {
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
         const outPt2Index: number = get_u16_from_u32(outHash2, 1);
-        const outRec1: NullPtr<OutRec> = this.getOutRec(index1);
-        let outRec2: NullPtr<OutRec> = this.getOutRec(index2);
+        const outRec1: OutRec = this.getOutRec(index1);
+        let outRec2: OutRec = this.getOutRec(index2);
 
         if (index1 === index2) {
             //instead of joining two polygons, we've just created a new one by
@@ -463,7 +491,8 @@ export default class OutRecManager {
         }
     }
 
-    public horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBound: TEdge): boolean {
+    public horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBoundIndex: number): boolean {
+        const rightBound = TEdge.at(rightBoundIndex);
         const outPtIndex = get_u16_from_u32(outHash, 1);
         const outPt = OutPt.at(outPtIndex);
         
