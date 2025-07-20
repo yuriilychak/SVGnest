@@ -928,4 +928,48 @@ export default class TEdge {
 
         return currEdge.dx >= prevEdge.dx;
     }
+
+    public static swapEdges(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE, e1Wc: number, e2Wc: number, edge1Index: number, edge2Index: number): boolean {
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
+        let e1Wc2: number = 0;
+        let e2Wc2: number = 0;
+
+        switch (fillType) {
+            case POLY_FILL_TYPE.POSITIVE:
+                e1Wc2 = edge1.windCount2;
+                e2Wc2 = edge2.windCount2;
+                break;
+            case POLY_FILL_TYPE.NEGATIVE:
+                e1Wc2 = -edge1.windCount2;
+                e2Wc2 = -edge2.windCount2;
+                break;
+            default:
+                e1Wc2 = Math.abs(edge1.windCount2);
+                e2Wc2 = Math.abs(edge2.windCount2);
+                break;
+        }
+        
+        if (edge1.polyTyp !== edge2.polyTyp) {
+            return true;
+        }
+        
+        if (e1Wc === 1 && e2Wc === 1) {
+            switch (clipType) {
+                case CLIP_TYPE.UNION:
+                    return e1Wc2 <= 0 && e2Wc2 <= 0;
+                case CLIP_TYPE.DIFFERENCE:
+                    return (
+                        (edge1.polyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
+                        (edge1.polyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
+                    );
+                default:
+                    return false;
+            }
+        }
+
+        TEdge.swapSides(edge1Index, edge2Index);
+
+        return false;
+    }
 }

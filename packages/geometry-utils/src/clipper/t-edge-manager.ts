@@ -10,7 +10,7 @@ import TEdge from "./t-edge";
 import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./types";
 
 export default class TEdgeManager {
-    private minimaList: LocalMinima[] = [];
+    private localMinima: LocalMinima;
     private activeEdges: number = UNASSIGNED;
     private sortedEdges: number = UNASSIGNED;
     private intersections: IntersectNode[] = [];
@@ -22,6 +22,7 @@ export default class TEdgeManager {
     public isUseFullRange: boolean = false;
 
     constructor(scanbeam: Scanbeam, joinManager: JoinManager, outRecManager: OutRecManager) {
+        this.localMinima = new LocalMinima();
         this.scanbeam = scanbeam;
         this.joinManager = joinManager;
         this.outRecManager = outRecManager;
@@ -59,12 +60,10 @@ export default class TEdgeManager {
             }
 
             const isClockwise = TEdge.getClockwise(currIndex);
-            const localMinima: LocalMinima = this.createLocalMinima(currIndex);
+            const localMinima: number = this.createLocalMinima(currIndex);
 
-            currIndex = TEdge.processBound(localMinima.leftBound, isClockwise);
-            nextIndex = TEdge.processBound(localMinima.rightBound, !isClockwise);
-
-            this.insertLocalMinima(localMinima);
+            currIndex = TEdge.processBound(this.localMinima.getLeftBound(localMinima), isClockwise);
+            nextIndex = TEdge.processBound(this.localMinima.getRightBound(localMinima), !isClockwise);
 
             if (!isClockwise) {
                 currIndex = nextIndex;
@@ -72,32 +71,8 @@ export default class TEdgeManager {
         }
     }
 
-    private insertLocalMinima(localMinima: LocalMinima): void {
-        for (let i = 0; i < this.minimaList.length; ++i) {
-            if (localMinima.y >= this.minimaList[i].y) {
-                this.minimaList.splice(i, 0, localMinima);
-                return;
-            }
-        }
-        
-        this.minimaList.push(localMinima);
-    }
-
-    public popMinima(): number[] {
-        if (this.isMinimaEmpty) {
-            throw new Error("No minima to pop");
-        }
-
-        const minima = this.minimaList.shift()!;
-        return [minima.leftBound, minima.rightBound];
-    }
-
     public get isMinimaEmpty(): boolean {
-        return this.minimaList.length === 0;
-    }
-
-    public get minY(): number {
-        return this.isMinimaEmpty ? NaN : this.minimaList[0].y;
+        return this.localMinima.isEmpty;
     }
 
     public init(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
@@ -208,19 +183,23 @@ export default class TEdgeManager {
     }
 
     public reset(): void {
-        for (const minima of this.minimaList) {
-            if (minima.leftBound !== UNASSIGNED) {
-                TEdge.at(minima.leftBound).reset(DIRECTION.LEFT);
-            }
-            if (minima.rightBound !== UNASSIGNED) {
-                TEdge.at(minima.rightBound).reset(DIRECTION.RIGHT);
-            }
-        }
-
         this.scanbeam.clean();
 
-        for (const minima of this.minimaList) {
-            this.scanbeam.insert(minima.y);
+        const minimaCount = this.localMinima.length;
+
+        for(let i = 0; i < minimaCount; ++i) {
+            const leftBound = this.localMinima.getLeftBound(i);
+            const rightBound = this.localMinima.getRightBound(i);
+            const y = this.localMinima.getY(i);
+
+            if (leftBound !== UNASSIGNED) {
+                TEdge.at(leftBound).reset(DIRECTION.LEFT);
+            }
+            if (rightBound !== UNASSIGNED) {
+                TEdge.at(rightBound).reset(DIRECTION.RIGHT);
+            }
+
+            this.scanbeam.insert(y);
         }
         
         this.activeEdges = UNASSIGNED;
@@ -336,7 +315,9 @@ export default class TEdgeManager {
             }
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
             //neither edge is currently contributing ...
-            this.joinManager.swapEdges(e1Wc, e2Wc, edge1, edge2, point);
+            if (TEdge.swapEdges(this.clipType, this.fillType, e1Wc, e2Wc, edge1.current, edge2.current)) {
+                this.joinManager.addLocalMinPoly(edge1.current, edge2.current, point);
+            }
         }
         if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
             TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
@@ -763,8 +744,8 @@ export default class TEdgeManager {
     public insertLocalMinimaIntoAEL(botY: number): void {
         let outPt: number = UNASSIGNED;
 
-        while (!Number.isNaN(this.minY) && this.minY === botY) {
-            let [leftBoundIndex, rightBoundIndex] = this.popMinima();
+        while (!Number.isNaN(this.localMinima.minY) && this.localMinima.minY === botY) {
+            let [leftBoundIndex, rightBoundIndex] = this.localMinima.pop();
             const leftBound: NullPtr<TEdge> = TEdge.at(leftBoundIndex);
             const rightBound: NullPtr<TEdge> = TEdge.at(rightBoundIndex);
             outPt = UNASSIGNED;
@@ -832,7 +813,7 @@ export default class TEdgeManager {
         }
     }
 
-    public createLocalMinima(edgeIndex: number): LocalMinima {
+    private createLocalMinima(edgeIndex: number): number {
         const currEdge: TEdge = TEdge.at(edgeIndex);
         const prevEdge: TEdge = TEdge.at(currEdge.prev);
         const isClockwise = currEdge.dx >= prevEdge.dx;
@@ -844,6 +825,6 @@ export default class TEdgeManager {
         leftBound.windDelta = leftBound.next === rightBound.current ? -1 : 1;
         rightBound.windDelta = -leftBound.windDelta;
 
-        return new LocalMinima(y, leftBound.current, rightBound.current);
+        return this.localMinima.insert(y, leftBound.current, rightBound.current);
     }
 }

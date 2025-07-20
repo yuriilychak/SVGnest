@@ -3,13 +3,11 @@ import { UNASSIGNED } from "./constants";
 import Join from "./join";
 import OutRecManager from "./out-rec-manager";
 import TEdge from "./t-edge";
-import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from "./types";
+import { DIRECTION } from "./types";
 
 export default class JoinManager {
     private joins: Join[] = [];
     private ghostJoins: Join[] = [];
-    private clipType: CLIP_TYPE = CLIP_TYPE.UNION;
-    private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
     private isUseFullRange: boolean = false;
     private outRecManager: OutRecManager;
 
@@ -17,9 +15,7 @@ export default class JoinManager {
         this.outRecManager = outRecManager;
     }
 
-    public init(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE, isUseFullRange: boolean): void {
-        this.clipType = clipType;
-        this.fillType = fillType;
+    public init(isUseFullRange: boolean): void {
         this.isUseFullRange = isUseFullRange;
     }
 
@@ -163,49 +159,6 @@ export default class JoinManager {
         this.addMinJoin(result, currIndex, prevIndex, point);
 
         return result;
-    }
-
-    public swapEdges(e1Wc: number, e2Wc: number, edge1: TEdge, edge2: TEdge, point: PointI32) {
-        let e1Wc2: number = 0;
-        let e2Wc2: number = 0;
-
-        switch (this.fillType) {
-            case POLY_FILL_TYPE.POSITIVE:
-                e1Wc2 = edge1.windCount2;
-                e2Wc2 = edge2.windCount2;
-                break;
-            case POLY_FILL_TYPE.NEGATIVE:
-                e1Wc2 = -edge1.windCount2;
-                e2Wc2 = -edge2.windCount2;
-                break;
-            default:
-                e1Wc2 = Math.abs(edge1.windCount2);
-                e2Wc2 = Math.abs(edge2.windCount2);
-                break;
-        }
-
-        
-        if (edge1.polyTyp !== edge2.polyTyp) {
-            this.addLocalMinPoly(edge1.current, edge2.current, point);
-        } else if (e1Wc === 1 && e2Wc === 1) {
-            switch (this.clipType) {
-                case CLIP_TYPE.UNION:
-                    if (e1Wc2 <= 0 && e2Wc2 <= 0) {
-                        this.addLocalMinPoly(edge1.current, edge2.current, point);
-                    }
-                    break;
-                case CLIP_TYPE.DIFFERENCE:
-                    if (
-                        (edge1.polyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
-                        (edge1.polyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
-                    ) {
-                        this.addLocalMinPoly(edge1.current, edge2.current, point);
-                    }
-                    break;
-            }
-        } else {
-            TEdge.swapSides(edge1.current, edge2.current);
-        }
     }
 
     private joinCommonEdge(join: Join, isReverseSolution: boolean): void {
