@@ -758,37 +758,37 @@ export default class TEdgeManager {
             const rightBound: NullPtr<TEdge> = TEdge.at(rightBoundIndex);
             outPt = UNASSIGNED;
 
-            if (leftBound === null) {
+            if (leftBoundIndex === UNASSIGNED) {
                 this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges);
                 rightBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (rightBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.outRecManager.addOutPt(rightBound.current, rightBound.bot);
+                    outPt = this.outRecManager.addOutPt(rightBoundIndex, rightBound.bot);
                 }
-            } else if (rightBound === null) {
+            } else if (rightBoundIndex === UNASSIGNED) {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
                 leftBound.setWindingCount(this.activeEdges, this.clipType);
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.outRecManager.addOutPt(leftBound.current, leftBound.bot);
+                    outPt = this.outRecManager.addOutPt(leftBoundIndex, leftBound.bot);
                 }
 
                 this.scanbeam.insert(leftBound.top.y);
             } else {
                 this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
-                this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges, leftBound.current);
+                this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges, leftBoundIndex);
                 leftBound.setWindingCount(this.activeEdges, this.clipType);
                 rightBound.windCount1 = leftBound.windCount1;
                 rightBound.windCount2 = leftBound.windCount2;
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.outRecManager.addLocalMinPoly(leftBound.current, rightBound.current, leftBound.bot, this.isUseFullRange);
+                    outPt = this.outRecManager.addLocalMinPoly(leftBoundIndex, rightBoundIndex, leftBound.bot, this.isUseFullRange);
                 }
 
                 this.scanbeam.insert(leftBound.top.y);
             }
 
-            if (rightBound !== null) {
+            if (rightBoundIndex !== UNASSIGNED) {
                 if (rightBound.isHorizontal) {
                     this.sortedEdges = rightBound.addEdgeToSEL(this.sortedEdges);
                 } else {
@@ -796,17 +796,17 @@ export default class TEdgeManager {
                 }
             }
 
-            if (leftBound === null || rightBound === null) {
+            if (leftBoundIndex === UNASSIGNED || rightBoundIndex === UNASSIGNED) {
                 continue;
             }
             //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            this.outRecManager.addOutputJoins(outPt, rightBound.current);
+            this.outRecManager.addOutputJoins(outPt, rightBoundIndex);
 
             const condition = leftBound.canJoinLeft(this.isUseFullRange);
 
             this.outRecManager.insertJoin(condition, outPt, leftBound.prevActive, leftBound.bot, leftBound.top);
 
-            if (leftBound.nextActive !== rightBound.current) {
+            if (leftBound.nextActive !== rightBoundIndex) {
                 const condition = rightBound.canJoinRight(this.isUseFullRange);
 
                 this.outRecManager.insertJoin(condition, outPt, rightBound.prevActive, rightBound.bot, rightBound.top);

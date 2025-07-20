@@ -12,7 +12,7 @@ export default class ClipperOffset {
 
         const result: PointI32[][] = [];
         const destPolygon = this.doOffset(delta);
-        const clipper: Clipper = new Clipper();
+        const clipper: Clipper = new Clipper(delta <= 0, false);
 
         clipper.addPath(destPolygon, POLY_TYPE.SUBJECT);
 
@@ -22,7 +22,6 @@ export default class ClipperOffset {
             const outer: PointI32[] = ClipperOffset.getOuterBounds(destPolygon);
 
             clipper.addPath(outer, POLY_TYPE.SUBJECT);
-            clipper.ReverseSolution = true;
             clipper.execute(CLIP_TYPE.UNION, result, POLY_FILL_TYPE.NEGATIVE);
 
             if (result.length > 0) {

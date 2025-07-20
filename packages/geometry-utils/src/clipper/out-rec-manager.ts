@@ -11,6 +11,17 @@ import Join from "./join";
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
     private join: Join = new Join();
+    private isReverseSolution: boolean = false;
+    private isStrictlySimple: boolean = false;
+
+    constructor(reverseSolution: boolean, strictlySimple: boolean) {
+        this.isReverseSolution = reverseSolution;
+        this.isStrictlySimple = strictlySimple;
+    }
+
+    public get strictlySimple(): boolean {
+        return this.isStrictlySimple;
+    }
 
     public insertJoin(condition: boolean, outHash1: number, edgeIndex: number, point1: PointI32, point2: PointI32 = point1): boolean {
         if (condition) {
@@ -55,7 +66,7 @@ export default class OutRecManager {
         }
     }
 
-    public joinCommonEdges(isReverseSolution: boolean, isUseFullRange: boolean): void {
+    public joinCommonEdges(isUseFullRange: boolean): void {
         let i: number = 0;
         const joinCount: number = this.join.getLength(false);
         const point = PointI32.create();
@@ -65,7 +76,7 @@ export default class OutRecManager {
                 this.join.getX(i, false), 
                 this.join.getY(i, false)
             );
-            this.joinCommonEdge1(i, point, isUseFullRange, isReverseSolution);
+            this.joinCommonEdge(i, point, isUseFullRange);
         }
     }
 
@@ -216,25 +227,42 @@ export default class OutRecManager {
     }
 
     public fixupOutPolygon(isUseFullRange: boolean): void {
-        for (let i = 0; i < this.polyOuts.length; ++i) {
-            const outRec = this.polyOuts[i];
+        let i: number = 0;
 
-            if (!outRec.isEmpty) {
-                outRec.fixupOutPolygon(false, isUseFullRange);
-            }
-        }
-    }
-
-    public fixOrientation(reverseSolution: boolean): void {
-        for (let i = 0; i < this.polyOuts.length; ++i) {
+        for (i = 0; i < this.polyOuts.length; ++i) {
             const outRec = this.polyOuts[i];
 
             if (outRec.isEmpty) {
                 continue;
             }
 
-            if ((outRec.isHole !== reverseSolution) === outRec.area > 0) {
+            if ((outRec.isHole !== this.isReverseSolution) === outRec.area > 0) {
                 outRec.reverse();
+            }
+        }
+
+        const joinCount: number = this.join.getLength(false);
+        const point = PointI32.create();
+
+        for (i = 0; i < joinCount; ++i) {
+            point.set(
+                this.join.getX(i, false), 
+                this.join.getY(i, false)
+            );
+            this.joinCommonEdge(i, point, isUseFullRange);
+        }
+
+        for (i = 0; i < this.polyOuts.length; ++i) {
+            const outRec = this.polyOuts[i];
+
+            if (!outRec.isEmpty) {
+                outRec.fixupOutPolygon(false, isUseFullRange);
+            }
+        }
+
+        if (this.isStrictlySimple) {
+            for (i = 0; i < this.polyOuts.length; ++i) {
+                this.polyOuts.concat(this.polyOuts[i].simplify(this.polyOuts.length));
             }
         }
     }
@@ -255,12 +283,6 @@ export default class OutRecManager {
         OutPt.cleanup();
     }
 
-    public doSimplePolygons(): void {
-        for (let i = 0; i < this.polyOuts.length; ++i) {
-            this.polyOuts.concat(this.polyOuts[i].simplify(this.polyOuts.length));
-        }
-    }
-
     private setHoleState(outRec: OutRec, edgeIndex: number): void {
         const { isHole, index } = TEdge.getHoleState(outRec.firstLeftIndex, edgeIndex);
 
@@ -273,7 +295,7 @@ export default class OutRecManager {
         }
     }
 
-    public joinCommonEdge1(index: number, offPoint: Point<Int32Array>, isUseFullRange: boolean, isReverseSolution: boolean): void {
+    public joinCommonEdge(index: number, offPoint: Point<Int32Array>, isUseFullRange: boolean): void {
         const inputHash1 = this.join.getHash1(index, false);
         const inputHash2 = this.join.getHash2(index);
         const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint, isUseFullRange);
@@ -298,7 +320,7 @@ export default class OutRecManager {
             //splitting one polygon into two.
             outRec1.pointIndex = outPt1Index;
             outRec2 = this.createRec(outPt2Index);
-            outRec2.postInit(isReverseSolution);
+            outRec2.postInit(this.isReverseSolution);
 
             this.join.updateHash(index, outHash1, outHash2);
             return;

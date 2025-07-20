@@ -7,15 +7,12 @@ import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './types';
 export default class Clipper {
     private scanbeam: Scanbeam;
     private tEdgeManager: TEdgeManager;
-    private isExecuteLocked: boolean = false;
     private outRecManager: OutRecManager;
-    public ReverseSolution: boolean = false;
-    public StrictlySimple: boolean = false;
-
-    constructor() {
-        this.outRecManager = new OutRecManager();
+    private isExecuteLocked: boolean = false;
+    
+    constructor(reverseSolution: boolean, strictlySimple: boolean) {
         this.scanbeam = new Scanbeam();
-        this.outRecManager = new OutRecManager();
+        this.outRecManager = new OutRecManager(reverseSolution, strictlySimple);
         this.tEdgeManager = new TEdgeManager(this.scanbeam, this.outRecManager);
     }
 
@@ -92,19 +89,12 @@ export default class Clipper {
                     return false;
                 }
 
-                this.tEdgeManager.processEdgesAtTopOfScanbeam(topY, this.StrictlySimple);
+                this.tEdgeManager.processEdgesAtTopOfScanbeam(topY, this.outRecManager.strictlySimple);
 
                 botY = topY;
             } while (!this.scanbeam.isEmpty || !this.tEdgeManager.isMinimaEmpty);
-            //fix orientations ...
-            this.outRecManager.fixOrientation(this.ReverseSolution);
-            this.outRecManager.joinCommonEdges(this.ReverseSolution, this.tEdgeManager.isUseFullRange);
 
             this.outRecManager.fixupOutPolygon(this.tEdgeManager.isUseFullRange);
-
-            if (this.StrictlySimple) {
-                this.outRecManager.doSimplePolygons();
-            }
 
             return true;
         } finally {
