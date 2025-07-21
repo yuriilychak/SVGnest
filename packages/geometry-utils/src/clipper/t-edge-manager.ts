@@ -172,7 +172,7 @@ export default class TEdgeManager {
         this.sortedEdges = this.activeEdges;
 
         let currentIndex = this.activeEdges;
-        let edge: TEdge = TEdge.at(currentIndex);
+        let edge = TEdge.at(currentIndex);
 
         while (currentIndex !== UNASSIGNED) {
             currentIndex = edge.copyAELToSEL();
@@ -209,7 +209,7 @@ export default class TEdgeManager {
             return;
         }
         //prepare for sorting ...
-        let edge: TEdge = TEdge.at(this.activeEdges);
+        let edge = TEdge.at(this.activeEdges);
         //console.log(JSON.stringify(JSON.decycle( e )));
         this.sortedEdges = this.activeEdges;
 
@@ -221,7 +221,6 @@ export default class TEdgeManager {
         }
         //bubblesort ...
         let isModified: boolean = true;
-        let nextEdge: TEdge = null;
         const point: PointI32 = PointI32.create();
 
         while (isModified && this.sortedEdges !== UNASSIGNED) {
@@ -229,7 +228,7 @@ export default class TEdgeManager {
             edge = TEdge.at(this.sortedEdges);
 
             while (edge.nextSorted !== UNASSIGNED) {
-                nextEdge = TEdge.at(edge.nextSorted);
+                const nextEdge = TEdge.at(edge.nextSorted);
                 point.set(0, 0);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.curr.x > nextEdge.curr.x) {
@@ -267,8 +266,8 @@ export default class TEdgeManager {
     public intersectEdges(edge1Index: number, edge2Index: number, point: PointI32, isProtect: boolean): void {
         //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
         //e2 in AEL except when e1 is being inserted at the intersection point ...
-        const edge1: TEdge = TEdge.at(edge1Index);
-        const edge2: TEdge = TEdge.at(edge2Index);
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
         const edge1Stops: boolean = edge1.getStop(point, isProtect);
         const edge2Stops: boolean = edge2.getStop(point, isProtect);
         const edge1Contributing: boolean = edge1.isAssigned;
@@ -278,7 +277,7 @@ export default class TEdgeManager {
         if (edge1.isWindDeletaEmpty || edge2.isWindDeletaEmpty) {
             //ignore subject-subject open path intersections UNLESS they
             //are both open paths, AND they are both 'contributing maximas' ...
-            this.intersectOpenEdges(edge1, edge2, isProtect, point);
+            this.intersectOpenEdges(edge1Index, edge2Index, isProtect, point);
             return;
         }
 
@@ -336,7 +335,7 @@ export default class TEdgeManager {
         const edge1Index = this.intersections.getEdge1Index(nodeIndex);
         const edge2Index = this.intersections.getEdge2Index(nodeIndex);
 
-        return TEdge.at(edge1Index).nextSorted === edge2Index || TEdge.at(edge1Index).prevSorted === edge2Index;
+        return TEdge.getNeighboar(edge1Index, true, false) === edge2Index || TEdge.getNeighboar(edge1Index, false, false) === edge2Index;
     }
 
     public fixupIntersectionOrder(): boolean {
@@ -372,7 +371,9 @@ export default class TEdgeManager {
         return true;
     }
 
-    public intersectOpenEdges(edge1: TEdge, edge2: TEdge, isProtect: boolean, point: PointI32) {
+    public intersectOpenEdges(edge1Index: number, edge2Index: number, isProtect: boolean, point: PointI32) {
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
         const edge1Stops: boolean = !isProtect && edge1.nextLocalMinima === UNASSIGNED && edge1.top.almostEqual(point);
         const edge2Stops: boolean = !isProtect && edge2.nextLocalMinima === UNASSIGNED && edge2.top.almostEqual(point);
         const edge1Contributing: boolean = edge1.isAssigned;
@@ -448,7 +449,8 @@ export default class TEdgeManager {
         }
     }
 
-    public processHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
+    public processHorizontal(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
+        let horzEdge = TEdge.at(horzEdgeIndex);
         let dirValue: Float64Array = horzEdge.horzDirection;
         let dir: DIRECTION = dirValue[0] as DIRECTION;
         let horzLeft: number = dirValue[1];
@@ -584,19 +586,19 @@ export default class TEdgeManager {
     }
 
     public processHorizontals(isTopOfScanbeam: boolean): void {
-        let horzEdge: TEdge = TEdge.at(this.sortedEdges);
+        let horzEdge = TEdge.at(this.sortedEdges);
 
         while (horzEdge !== null) {
             this.sortedEdges = horzEdge.deleteFromEL(this.sortedEdges, false);
 
-            this.processHorizontal(horzEdge, isTopOfScanbeam);
+            this.processHorizontal(horzEdge.current, isTopOfScanbeam);
 
             horzEdge = TEdge.at(this.sortedEdges);
         }
     }
 
     public processEdgesAtTopOfScanbeam(topY: number, strictlySimple: boolean): void {
-        let edge1: TEdge = TEdge.at(this.activeEdges);
+        let edge1 = TEdge.at(this.activeEdges);
         let isMaximaEdge: boolean = false;
         let outPt1: number = UNASSIGNED;
 
@@ -612,7 +614,7 @@ export default class TEdgeManager {
 
             if (isMaximaEdge) {
                 const edge2 = TEdge.at(edge1.prevActive);
-                this.doMaxima(edge1);
+                this.doMaxima(edge1.current);
 
                 edge1 = edge1.prevActive === UNASSIGNED ? TEdge.at(this.activeEdges) : TEdge.at(edge2.nextActive);
             } else {
@@ -658,7 +660,8 @@ export default class TEdgeManager {
         }
     }
 
-    private doMaxima(edge: TEdge): void {
+    private doMaxima(edgeIndex: number): void {
+        const edge = TEdge.at(edgeIndex);
         if (edge.maximaPair === UNASSIGNED) {
             if (edge.isAssigned) {
                 this.outRecManager.addOutPt(edge.current, edge.top);
@@ -825,8 +828,8 @@ export default class TEdgeManager {
     }
 
     private createLocalMinima(edgeIndex: number): number {
-        const currEdge: TEdge = TEdge.at(edgeIndex);
-        const prevEdge: TEdge = TEdge.at(currEdge.prev);
+        const currEdge = TEdge.at(edgeIndex);
+        const prevEdge = TEdge.at(currEdge.prev);
         const isClockwise = currEdge.dx >= prevEdge.dx;
         const y = currEdge.bot.y;
         const leftBound = isClockwise ? currEdge : prevEdge;
