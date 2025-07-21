@@ -58,7 +58,7 @@ export default class TEdgeManager {
             }
 
             const isClockwise = TEdge.getClockwise(currIndex);
-            const localMinima: number = this.createLocalMinima(currIndex);
+            const localMinima = this.createLocalMinima(currIndex);
 
             currIndex = TEdge.processBound(this.localMinima.getLeftBound(localMinima), isClockwise);
             nextIndex = TEdge.processBound(this.localMinima.getRightBound(localMinima), !isClockwise);
@@ -264,9 +264,11 @@ export default class TEdgeManager {
         this.sortedEdges = UNASSIGNED;
     }
 
-    public intersectEdges(edge1: TEdge, edge2: TEdge, point: PointI32, isProtect: boolean): void {
+    public intersectEdges(edge1Index: number, edge2Index: number, point: PointI32, isProtect: boolean): void {
         //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
         //e2 in AEL except when e1 is being inserted at the intersection point ...
+        const edge1: TEdge = TEdge.at(edge1Index);
+        const edge2: TEdge = TEdge.at(edge2Index);
         const edge1Stops: boolean = edge1.getStop(point, isProtect);
         const edge2Stops: boolean = edge2.getStop(point, isProtect);
         const edge1Contributing: boolean = edge1.isAssigned;
@@ -486,9 +488,9 @@ export default class TEdgeManager {
                     //we're at the last of consec. horizontals when matching with eMaxPair
                     if (e === eMaxPair && isLastHorz) {
                         if (dir === DIRECTION.RIGHT) {
-                            this.intersectEdges(horzEdge, e, e.top, false);
+                            this.intersectEdges(horzEdge.current, e.current, e.top, false);
                         } else {
-                            this.intersectEdges(e, horzEdge, e.top, false);
+                            this.intersectEdges(e.current, horzEdge.current, e.top, false);
                         }
                         if (eMaxPair.isAssigned) {
                             showError('ProcessHorizontal error');
@@ -500,9 +502,9 @@ export default class TEdgeManager {
                     const Pt: PointI32 = PointI32.create(e.curr.x, horzEdge.curr.y);
 
                     if (dir === DIRECTION.RIGHT) {
-                        this.intersectEdges(horzEdge, e, Pt, true);
+                        this.intersectEdges(horzEdge.current, e.current, Pt, true);
                     } else {
-                        this.intersectEdges(e, horzEdge, Pt, true);
+                        this.intersectEdges(e.current, horzEdge.current, Pt, true);
                     }
 
                     this.swapPositionsInAEL(horzEdge.current, e.current);
@@ -561,9 +563,9 @@ export default class TEdgeManager {
         } else if (eMaxPair !== null) {
             if (eMaxPair.isAssigned) {
                 if (dir === DIRECTION.RIGHT) {
-                    this.intersectEdges(horzEdge, eMaxPair, horzEdge.top, false);
+                    this.intersectEdges(horzEdge.current, eMaxPair.current, horzEdge.top, false);
                 } else {
-                    this.intersectEdges(eMaxPair, horzEdge, horzEdge.top, false);
+                    this.intersectEdges(eMaxPair.current, horzEdge.current, horzEdge.top, false);
                 }
                 if (eMaxPair.isAssigned) {
                     showError('ProcessHorizontal error');
@@ -656,50 +658,49 @@ export default class TEdgeManager {
         }
     }
 
-        private doMaxima(edge: TEdge): void {
-            const maxPairEdge: NullPtr<TEdge> = TEdge.at(edge.maximaPair);
-    
-            if (maxPairEdge === null) {
-                if (edge.isAssigned) {
-                    this.outRecManager.addOutPt(edge.current, edge.top);
-                }
-    
-                this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
-    
-                return;
+    private doMaxima(edge: TEdge): void {
+        if (edge.maximaPair === UNASSIGNED) {
+            if (edge.isAssigned) {
+                this.outRecManager.addOutPt(edge.current, edge.top);
             }
-    
-            let nextEdge: NullPtr<TEdge> = TEdge.at(edge.nextActive);
-    
-            while (nextEdge !== null && nextEdge !== maxPairEdge) {
-                this.intersectEdges(edge, nextEdge, edge.top, true);
-                this.swapPositionsInAEL(edge.current, nextEdge.current);
-                nextEdge = TEdge.at(edge.nextActive);
-            }
-    
-            if (!edge.isAssigned && !maxPairEdge.isAssigned) {
-                this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
-                this.activeEdges = maxPairEdge.deleteFromEL(this.activeEdges, true);
-            } else if (edge.isAssigned && maxPairEdge.isAssigned) {
-                this.intersectEdges(edge, maxPairEdge, edge.top, false);
-            } else if (edge.isWindDeletaEmpty) {
-                if (edge.isAssigned) {
-                    this.outRecManager.addOutPt(edge.current, edge.top);
-                    edge.unassign();
-                }
-    
-                this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
-    
-                if (maxPairEdge.isAssigned) {
-                    this.outRecManager.addOutPt(maxPairEdge.current, edge.top);
-                    maxPairEdge.unassign();
-                }
-    
-                this.activeEdges = maxPairEdge.deleteFromEL(this.activeEdges, true);
-            } else {
-                showError('DoMaxima error');
-            }
+
+            this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
+
+            return;
         }
+
+        const maxPairEdge: NullPtr<TEdge> = TEdge.at(edge.maximaPair);
+        let nextEdgeIndex: number = edge.nextActive;
+
+        while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== maxPairEdge.current) {
+            this.intersectEdges(edge.current, nextEdgeIndex, edge.top, true);
+            this.swapPositionsInAEL(edge.current, nextEdgeIndex);
+            nextEdgeIndex = edge.nextActive;
+        }
+
+        if (!edge.isAssigned && !maxPairEdge.isAssigned) {
+            this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
+            this.activeEdges = maxPairEdge.deleteFromEL(this.activeEdges, true);
+        } else if (edge.isAssigned && maxPairEdge.isAssigned) {
+            this.intersectEdges(edge.current, maxPairEdge.current, edge.top, false);
+        } else if (edge.isWindDeletaEmpty) {
+            if (edge.isAssigned) {
+                this.outRecManager.addOutPt(edge.current, edge.top);
+                edge.unassign();
+            }
+
+            this.activeEdges = edge.deleteFromEL(this.activeEdges, true);
+
+            if (maxPairEdge.isAssigned) {
+                this.outRecManager.addOutPt(maxPairEdge.current, edge.top);
+                maxPairEdge.unassign();
+            }
+
+            this.activeEdges = maxPairEdge.deleteFromEL(this.activeEdges, true);
+        } else {
+            showError('DoMaxima error');
+        }
+    }
 
     public processIntersectList(): void {
         const intersectCount: number = this.intersections.length;
@@ -711,7 +712,7 @@ export default class TEdgeManager {
             const edge2Index: number = this.intersections.getEdge2Index(i);
             point.set(this.intersections.getX(i), this.intersections.getY(i));
 
-            this.intersectEdges(TEdge.at(edge1Index), TEdge.at(edge2Index), point, true);
+            this.intersectEdges(edge1Index, edge2Index, point, true);
             this.swapPositionsInAEL(edge1Index, edge2Index);
         }
 
@@ -815,7 +816,7 @@ export default class TEdgeManager {
                     while (edge !== rightBound) {
                         //nb: For calculating winding counts etc, IntersectEdges() assumes
                         //that param1 will be to the right of param2 ABOVE the intersection ...
-                        this.intersectEdges(rightBound, edge, leftBound.curr, false);
+                        this.intersectEdges(rightBound.current, edge.current, leftBound.curr, false);
                         //order important here
                         edge = TEdge.at(edge.nextActive);
                     }
