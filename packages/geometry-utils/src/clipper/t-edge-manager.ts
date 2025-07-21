@@ -284,7 +284,7 @@ export default class TEdgeManager {
 
         //update winding counts...
         //assumes that e1 will be to the Right of e2 ABOVE the intersection
-        edge1.alignWndCount(edge2.current);
+        edge1.alignWndCount(edge2Index);
 
         const e1Wc: number = edge1.getWndTypeFilled(this.fillType);
         const e2Wc: number = edge2.getWndTypeFilled(this.fillType);
@@ -297,30 +297,30 @@ export default class TEdgeManager {
                 (e2Wc !== 0 && e2Wc !== 1) ||
                 edge1.polyTyp !== edge2.polyTyp
             ) {
-                this.outRecManager.addLocalMaxPoly(edge1.current, edge2.current, point, this.activeEdges);
+                this.outRecManager.addLocalMaxPoly(edge1Index, edge2Index, point, this.activeEdges);
             } else {
-                this.outRecManager.addOutPt(edge1.current, point);
-                this.outRecManager.addOutPt(edge2.current, point);
-                TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
+                this.outRecManager.addOutPt(edge1Index, point);
+                this.outRecManager.addOutPt(edge2Index, point);
+                TEdge.swapSidesAndIndeces(edge1Index, edge2Index);
             }
         } else if (edge1Contributing) {
             if (e2Wc === 0 || e2Wc === 1) {
-                this.outRecManager.addOutPt(edge1.current, point);
-                TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
+                this.outRecManager.addOutPt(edge1Index, point);
+                TEdge.swapSidesAndIndeces(edge1Index, edge2Index);
             }
         } else if (edge2Contributing) {
             if (e1Wc === 0 || e1Wc === 1) {
-                this.outRecManager.addOutPt(edge2.current, point);
-                TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
+                this.outRecManager.addOutPt(edge2Index, point);
+                TEdge.swapSidesAndIndeces(edge1Index, edge2Index);
             }
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
             //neither edge is currently contributing ...
-            if (TEdge.swapEdges(this.clipType, this.fillType, e1Wc, e2Wc, edge1.current, edge2.current)) {
-                this.outRecManager.addLocalMinPoly(edge1.current, edge2.current, point, this.isUseFullRange);
+            if (TEdge.swapEdges(this.clipType, this.fillType, e1Wc, e2Wc, edge1Index, edge2Index)) {
+                this.outRecManager.addLocalMinPoly(edge1Index, edge2Index, point, this.isUseFullRange);
             }
         }
         if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
-            TEdge.swapSidesAndIndeces(edge1.current, edge2.current);
+            TEdge.swapSidesAndIndeces(edge1Index, edge2Index);
         }
         //finally, delete any non-contributing maxima edges  ...
         if (edge1Stops) {
