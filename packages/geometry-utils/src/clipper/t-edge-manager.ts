@@ -222,7 +222,7 @@ export default class TEdgeManager {
         //bubblesort ...
         let isModified: boolean = true;
         let nextEdge: TEdge = null;
-        let point: PointI32 = null;
+        const point: PointI32 = PointI32.create();
 
         while (isModified && this.sortedEdges !== UNASSIGNED) {
             isModified = false;
@@ -230,7 +230,7 @@ export default class TEdgeManager {
 
             while (edge.nextSorted !== UNASSIGNED) {
                 nextEdge = TEdge.at(edge.nextSorted);
-                point = PointI32.create();
+                point.set(0, 0);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.curr.x > nextEdge.curr.x) {
                     if (
