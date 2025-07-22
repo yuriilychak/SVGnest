@@ -461,43 +461,44 @@ export default class TEdgeManager {
         let horzRight: number = dirValue[2];
 
         let eLastHorz: NullPtr<TEdge> = horzEdge;
-        let eMaxPair: NullPtr<TEdge> = null;
 
         while (eLastHorz.nextLocalMinima !== UNASSIGNED && TEdge.at(eLastHorz.nextLocalMinima).isHorizontal) {
             eLastHorz = TEdge.at(eLastHorz.nextLocalMinima);
         }
 
-        if (eLastHorz.nextLocalMinima === UNASSIGNED) {
-            eMaxPair = TEdge.at(eLastHorz.maximaPair);
-        }
+        const eMaxPairIndex = eLastHorz.nextLocalMinima === UNASSIGNED ? eLastHorz.maximaPair : UNASSIGNED;
 
         while (true) {
             const isLastHorz: boolean = horzEdge === eLastHorz;
-            let e: NullPtr<TEdge> = TEdge.at(TEdge.getNeighboar(horzEdge.current, dir === DIRECTION.RIGHT, true));
-            let eNext: NullPtr<TEdge> = null;
+            let currIndex = TEdge.getNeighboar(horzEdge.current, dir === DIRECTION.RIGHT, true);
+            let nextIndex = UNASSIGNED;
 
-            while (e !== null) {
+            while (currIndex !== UNASSIGNED) {
+                const edge = TEdge.at(currIndex);
                 //Break if we've got to the end of an intermediate horizontal edge ...
                 //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
-                if (e.curr.x === horzEdge.top.x && horzEdge.nextLocalMinima !== UNASSIGNED && e.dx < TEdge.at(horzEdge.nextLocalMinima).dx) {
+                if (edge.curr.x === horzEdge.top.x && horzEdge.nextLocalMinima !== UNASSIGNED && edge.dx < TEdge.at(horzEdge.nextLocalMinima).dx) {
                     break;
                 }
 
-                eNext = TEdge.at(TEdge.getNeighboar(e.current, dir === DIRECTION.RIGHT, true));
+                nextIndex = TEdge.getNeighboar(edge.current, dir === DIRECTION.RIGHT, true);
                 //saves eNext for later
-                if ((dir === DIRECTION.RIGHT && e.curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.curr.x >= horzLeft)) {
+                if ((dir === DIRECTION.RIGHT && edge.curr.x <= horzRight) || (dir === DIRECTION.LEFT && edge.curr.x >= horzLeft)) {
                     if (horzEdge.isFilled && isTopOfScanbeam) {
                         this.outRecManager.prepareHorzJoins(horzEdge.current);
                     }
 
                     //so far we're still in range of the horizontal Edge  but make sure
                     //we're at the last of consec. horizontals when matching with eMaxPair
-                    if (e === eMaxPair && isLastHorz) {
+                    if (edge.current === eMaxPairIndex && isLastHorz) {
                         if (dir === DIRECTION.RIGHT) {
-                            this.intersectEdges(horzEdge.current, e.current, e.top, false);
+                            this.intersectEdges(horzEdge.current, edge.current, edge.top, false);
                         } else {
-                            this.intersectEdges(e.current, horzEdge.current, e.top, false);
+                            this.intersectEdges(edge.current, horzEdge.current, edge.top, false);
                         }
+
+                        const eMaxPair = TEdge.at(eMaxPairIndex);
+
                         if (eMaxPair.isAssigned) {
                             showError('ProcessHorizontal error');
                         }
@@ -505,23 +506,23 @@ export default class TEdgeManager {
                         return;
                     }
 
-                    const Pt: PointI32 = PointI32.create(e.curr.x, horzEdge.curr.y);
+                    const Pt: PointI32 = PointI32.create(edge.curr.x, horzEdge.curr.y);
 
                     if (dir === DIRECTION.RIGHT) {
-                        this.intersectEdges(horzEdge.current, e.current, Pt, true);
+                        this.intersectEdges(horzEdge.current, edge.current, Pt, true);
                     } else {
-                        this.intersectEdges(e.current, horzEdge.current, Pt, true);
+                        this.intersectEdges(edge.current, horzEdge.current, Pt, true);
                     }
 
-                    this.swapPositionsInAEL(horzEdge.current, e.current);
+                    this.swapPositionsInAEL(horzEdge.current, edge.current);
                 } else if (
-                    (dir === DIRECTION.RIGHT && e.curr.x >= horzRight) ||
-                    (dir === DIRECTION.LEFT && e.curr.x <= horzLeft)
+                    (dir === DIRECTION.RIGHT && edge.curr.x >= horzRight) ||
+                    (dir === DIRECTION.LEFT && edge.curr.x <= horzLeft)
                 ) {
                     break;
                 }
 
-                e = eNext;
+                currIndex = nextIndex;
             }
             //end while
             if (horzEdge.isFilled && isTopOfScanbeam) {
@@ -566,13 +567,16 @@ export default class TEdgeManager {
             } else {
                 horzEdge = TEdge.at(this.updateEdgeIntoAEL(horzEdge.current));
             }
-        } else if (eMaxPair !== null) {
+        } else if (eMaxPairIndex !== UNASSIGNED) {
+            const eMaxPair = TEdge.at(eMaxPairIndex);
+
             if (eMaxPair.isAssigned) {
                 if (dir === DIRECTION.RIGHT) {
-                    this.intersectEdges(horzEdge.current, eMaxPair.current, horzEdge.top, false);
+                    this.intersectEdges(horzEdge.current, eMaxPairIndex, horzEdge.top, false);
                 } else {
-                    this.intersectEdges(eMaxPair.current, horzEdge.current, horzEdge.top, false);
+                    this.intersectEdges(eMaxPairIndex, horzEdge.current, horzEdge.top, false);
                 }
+
                 if (eMaxPair.isAssigned) {
                     showError('ProcessHorizontal error');
                 }
