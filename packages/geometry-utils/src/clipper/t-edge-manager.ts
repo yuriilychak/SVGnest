@@ -606,69 +606,70 @@ export default class TEdgeManager {
     }
 
     public processEdgesAtTopOfScanbeam(topY: number, strictlySimple: boolean): void {
-        let edge1 = TEdge.at(this.activeEdges);
         let isMaximaEdge: boolean = false;
         let outPt1: number = UNASSIGNED;
         let edgeIndex: number = this.activeEdges;
 
         while (edgeIndex !== UNASSIGNED) {
-            let edge1 = TEdge.at(edgeIndex);
+            let edge = TEdge.at(edgeIndex);
             //1. process maxima, treating them as if they're 'bent' horizontal edges,
             //   but exclude maxima with horizontal edges. nb: e can't be a horizontal.
-            isMaximaEdge = edge1.getMaxima(topY);
+            isMaximaEdge = edge.getMaxima(topY);
 
             if (isMaximaEdge) {
-                const edge2 = TEdge.at(edge1.maximaPair);
-                isMaximaEdge = edge1.maximaPair === UNASSIGNED || !edge2.isHorizontal;
+                const tempEdge = TEdge.at(edge.maximaPair);
+                isMaximaEdge = edge.maximaPair === UNASSIGNED || !tempEdge.isHorizontal;
             }
 
             if (isMaximaEdge) {
-                const edge2 = TEdge.at(edge1.prevActive);
-                this.doMaxima(edge1.current);
+                const tempEdge = TEdge.at(edge.prevActive);
+                this.doMaxima(edge.current);
 
-                edgeIndex = edge1.prevActive === UNASSIGNED ? this.activeEdges : edge2.nextActive;
+                edgeIndex = edge.prevActive === UNASSIGNED ? this.activeEdges : tempEdge.nextActive;
                 continue;
             }
 
             //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-            if (edge1.getIntermediate(topY) && TEdge.at(edge1.nextLocalMinima).isHorizontal) {
-                edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.current));
+            if (edge.getIntermediate(topY) && TEdge.at(edge.nextLocalMinima).isHorizontal) {
+                edge = TEdge.at(this.updateEdgeIntoAEL(edge.current));
 
-                if (edge1.isAssigned) {
-                    this.outRecManager.addOutPt(edge1.current, edge1.bot);
+                if (edge.isAssigned) {
+                    this.outRecManager.addOutPt(edge.current, edge.bot);
                 }
 
-                this.sortedEdges = edge1.addEdgeToSEL(this.sortedEdges);
+                this.sortedEdges = edge.addEdgeToSEL(this.sortedEdges);
             } else {
-                edge1.curr.set(edge1.topX(topY), topY);
+                edge.curr.set(edge.topX(topY), topY);
             }
 
-            if (strictlySimple && edge1.canAddScanbeam()) {
-                this.outRecManager.addScanbeamJoin(edge1.current, edge1.prevActive, edge1.curr);
+            if (strictlySimple && edge.canAddScanbeam()) {
+                this.outRecManager.addScanbeamJoin(edge.current, edge.prevActive, edge.curr);
                 //StrictlySimple (type-3) join
             }
 
-            edgeIndex = edge1.nextActive;
+            edgeIndex = edge.nextActive;
         }
         //3. Process horizontals at the Top of the scanbeam ...
         this.processHorizontals(true);
         //4. Promote intermediate vertices ...
-        edge1 = TEdge.at(this.activeEdges);
+        edgeIndex = this.activeEdges;
 
-        while (edge1 !== null) {
-            if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edge1.current, edge1.top) : UNASSIGNED;
-                edge1 = TEdge.at(this.updateEdgeIntoAEL(edge1.current));
+        while (edgeIndex !== UNASSIGNED) {
+            let edge = TEdge.at(edgeIndex);
+
+            if (edge.getIntermediate(topY)) {
+                outPt1 = edge.isAssigned ? this.outRecManager.addOutPt(edgeIndex, edge.top) : UNASSIGNED;
+                edge = TEdge.at(this.updateEdgeIntoAEL(edge.current));
                 //if output polygons share an edge, they'll need joining later...
-                const condition1 = edge1.checkSharedCondition(outPt1, false, this.isUseFullRange);
+                const condition1 = edge.checkSharedCondition(outPt1, false, this.isUseFullRange);
 
-                if (!this.outRecManager.insertJoin(condition1, outPt1, edge1.prevActive,  edge1.bot, edge1.top)) {
-                    const condition2 = edge1.checkSharedCondition(outPt1, true, this.isUseFullRange);;
-                    this.outRecManager.insertJoin(condition2, outPt1, edge1.nextActive,  edge1.bot, edge1.top);
+                if (!this.outRecManager.insertJoin(condition1, outPt1, edge.prevActive,  edge.bot, edge.top)) {
+                    const condition2 = edge.checkSharedCondition(outPt1, true, this.isUseFullRange);;
+                    this.outRecManager.insertJoin(condition2, outPt1, edge.nextActive,  edge.bot, edge.top);
                 }
             }
 
-            edge1 = TEdge.at(edge1.nextActive);
+            edgeIndex = edge.nextActive;
         }
     }
 
