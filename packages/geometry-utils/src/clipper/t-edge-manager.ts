@@ -209,23 +209,27 @@ export default class TEdgeManager {
             return;
         }
         //prepare for sorting ...
-        let edge = TEdge.at(this.activeEdges);
         //console.log(JSON.stringify(JSON.decycle( e )));
         this.sortedEdges = this.activeEdges;
 
-        while (edge !== null) {
+        let edgeIndex = this.activeEdges;
+
+        while (edgeIndex !== UNASSIGNED) {
+            const edge = TEdge.at(edgeIndex);
+
             edge.prevSorted = edge.prevActive;
             edge.nextSorted = edge.nextActive;
             edge.curr.x = edge.topX(topY);
-            edge = TEdge.at(edge.nextActive);
+            edgeIndex = edge.nextActive;
         }
+
         //bubblesort ...
         let isModified: boolean = true;
         const point: PointI32 = PointI32.create();
 
         while (isModified && this.sortedEdges !== UNASSIGNED) {
             isModified = false;
-            edge = TEdge.at(this.sortedEdges);
+            let edge = TEdge.at(this.sortedEdges);
 
             while (edge.nextSorted !== UNASSIGNED) {
                 const nextEdge = TEdge.at(edge.nextSorted);
@@ -469,7 +473,7 @@ export default class TEdgeManager {
 
         while (true) {
             const isLastHorz: boolean = horzEdge === eLastHorz;
-            let e: NullPtr<TEdge> = horzEdge.getNextInAEL(dir);
+            let e: NullPtr<TEdge> = TEdge.at(TEdge.getNeighboar(horzEdge.current, dir === DIRECTION.RIGHT, true));
             let eNext: NullPtr<TEdge> = null;
 
             while (e !== null) {
@@ -479,7 +483,7 @@ export default class TEdgeManager {
                     break;
                 }
 
-                eNext = e.getNextInAEL(dir);
+                eNext = TEdge.at(TEdge.getNeighboar(e.current, dir === DIRECTION.RIGHT, true));
                 //saves eNext for later
                 if ((dir === DIRECTION.RIGHT && e.curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.curr.x >= horzLeft)) {
                     if (horzEdge.isFilled && isTopOfScanbeam) {

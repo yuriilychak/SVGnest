@@ -496,10 +496,6 @@ export default class TEdge {
         return activeEdgeIndex;
     }
 
-    public getNextInAEL(direction: DIRECTION): NullPtr<TEdge> {
-        return TEdge.at(direction === DIRECTION.RIGHT ? this.nextActive : this.prevActive);
-    }
-
     public unassign(): void {
         this.index = UNASSIGNED;
     }
