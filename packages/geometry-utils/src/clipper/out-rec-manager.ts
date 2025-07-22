@@ -40,11 +40,10 @@ export default class OutRecManager {
         //StrictlySimple (type-3) join
     }
 
-    public addOutputJoins(outHash: number, rightBoundIndex: number) {
-        const edge = TEdge.at(rightBoundIndex);
+    public addOutputJoins(outHash: number, rightBoundIndex: number): void {
         const joinCount: number = this.join.getLength(true);
 
-        if (outHash !== UNASSIGNED && edge.isHorizontal && !edge.isWindDeletaEmpty && joinCount > 0) {
+        if (joinCount > 0) {
             const point = PointI32.create();
 
             for (let i = 0; i < joinCount; ++i) {
@@ -62,71 +61,28 @@ export default class OutRecManager {
         }
     }
 
-    public joinCommonEdges(isUseFullRange: boolean): void {
-        let i: number = 0;
-        const joinCount: number = this.join.getLength(false);
-        const point = PointI32.create();
-
-        for (i = 0; i < joinCount; ++i) {
-            point.set(
-                this.join.getX(i, false), 
-                this.join.getY(i, false)
-            );
-            this.joinCommonEdge(i, point, isUseFullRange);
-        }
-    }
-
     public reset() {
         this.join.reset();
     }
 
-    public prepareHorzJoins(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
+    public prepareHorzJoins(horzEdgeIndex: number) {
         //Also, since horizontal edges at the top of one SB are often removed from
         //the AEL before we process the horizontal edges at the bottom of the next,
         //we need to create 'ghost' Join records of 'contrubuting' horizontals that
         //we can compare with horizontals at the bottom of the next SB.
-        if (isTopOfScanbeam) {
-            //get the last Op for this horizontal edge
-            //the point may be anywhere along the horizontal ...
-            const [outPtHash, x, y] = this.getJoinData(horzEdgeIndex);
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        const [outPtHash, x, y] = this.getJoinData(horzEdgeIndex);
 
-            this.join.addGhost(outPtHash, x, y);
-        }
+        this.join.addGhost(outPtHash, x, y);
     }
 
     public clearGhostJoins() {
         this.join.clearGhosts();
     }
 
-    public createRec(pointIndex: number) {
-        const result: OutRec = new OutRec(this.polyOuts.length, pointIndex);
-
-        this.polyOuts.push(result);
-
-        return result;
-    }
-
-    public getOutRec(idx: number): OutRec {
-        let result: OutRec = this.polyOuts[idx];
-
-        while (result.index !== this.polyOuts[result.currentIndex].index) {
-            result = this.polyOuts[result.currentIndex];
-        }
-
-        return result;
-    }
-
-    public getJoinData(horzEdgeIndex: number) {
-        //get the last Op for this horizontal edge
-        //the point may be anywhere along the horizontal ...
-        const edge = TEdge.at(horzEdgeIndex);
-        
-        return this.polyOuts[edge.index].getJoinData(edge.side, edge.top, edge.bot);
-    }
-
     public addOutPt(edgeIndex: number, point: Point<Int32Array>): number {
         const edge = TEdge.at(edgeIndex);
-        const isToFront: boolean = edge.side === DIRECTION.LEFT;
         let outRec: OutRec;
         let pointIndex: number;
 
@@ -135,11 +91,13 @@ export default class OutRecManager {
 
             outRec = this.createRec(pointIndex);
  
-            this.setHoleState(outRec, edge.current);
+            this.setHoleState(outRec, edgeIndex);
 
             edge.index = outRec.currentIndex;
             //nb: do this after SetZ !
         } else {
+            const isToFront: boolean = edge.side === DIRECTION.LEFT;
+
             outRec = this.getOutRec(edge.index);
 
             pointIndex = outRec.addOutPt(isToFront, point);
@@ -279,6 +237,32 @@ export default class OutRecManager {
         OutPt.cleanup();
     }
 
+    private createRec(pointIndex: number) {
+        const result: OutRec = new OutRec(this.polyOuts.length, pointIndex);
+
+        this.polyOuts.push(result);
+
+        return result;
+    }
+
+    private getOutRec(idx: number): OutRec {
+        let result: OutRec = this.polyOuts[idx];
+
+        while (result.index !== this.polyOuts[result.currentIndex].index) {
+            result = this.polyOuts[result.currentIndex];
+        }
+
+        return result;
+    }
+
+    private getJoinData(horzEdgeIndex: number) {
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        const edge = TEdge.at(horzEdgeIndex);
+        
+        return this.polyOuts[edge.index].getJoinData(edge.side, edge.top, edge.bot);
+    }
+
     private setHoleState(outRec: OutRec, edgeIndex: number): void {
         const { isHole, index } = TEdge.getHoleState(outRec.firstLeftIndex, edgeIndex);
 
@@ -291,7 +275,7 @@ export default class OutRecManager {
         }
     }
 
-    public joinCommonEdge(index: number, offPoint: Point<Int32Array>, isUseFullRange: boolean): void {
+    private joinCommonEdge(index: number, offPoint: Point<Int32Array>, isUseFullRange: boolean): void {
         const inputHash1 = this.join.getHash1(index, false);
         const inputHash2 = this.join.getHash2(index);
         const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint, isUseFullRange);
@@ -367,7 +351,7 @@ export default class OutRecManager {
         }
     }
 
-    public joinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>, isUseFullRange: boolean): { outHash1: number, outHash2: number, result: boolean  } {
+    private joinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>, isUseFullRange: boolean): { outHash1: number, outHash2: number, result: boolean  } {
         const index1: number = get_u16_from_u32(outHash1, 0);
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outRec1 = this.getOutRec(index1);
@@ -511,7 +495,7 @@ export default class OutRecManager {
         return result;
     }
 
-    public horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBoundIndex: number): boolean {
+    private horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBoundIndex: number): boolean {
         const rightBound = TEdge.at(rightBoundIndex);
         const outPtIndex = get_u16_from_u32(outHash, 1);
         const outPt = OutPt.at(outPtIndex);

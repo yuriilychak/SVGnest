@@ -190,7 +190,7 @@ export default class TEdge {
             return false;
         }
 
-        const prevEdge: TEdge = TEdge.at(this.prevActive);
+        const prevEdge = TEdge.at(this.prevActive);
 
         return prevEdge.curr.x === this.bot.x && prevEdge.isFilled &&
         TEdge.slopesEqual(this.prevActive, this.current, isUseFullRange);
@@ -201,7 +201,7 @@ export default class TEdge {
             return false;
         }
 
-        const prevEdge: TEdge = TEdge.at(this.prevActive);
+        const prevEdge = TEdge.at(this.prevActive);
 
         return  prevEdge.isFilled && TEdge.slopesEqual(this.prevActive, this.current, isUseFullRange);
     }
@@ -211,7 +211,7 @@ export default class TEdge {
             return false;
         }
 
-        const prevEdge: TEdge = TEdge.at(this.prevActive);
+        const prevEdge = TEdge.at(this.prevActive);
 
         return prevEdge.isFilled && prevEdge.curr.x === this.curr.x
     }
@@ -338,36 +338,8 @@ export default class TEdge {
          }
     }
 
-    public deleteFromEL(inputEdgeIndex: number, isAel: boolean): number {
-        const nextIndex = TEdge.getNeighboar(this.current, true, isAel);
-        const prevIndex = TEdge.getNeighboar(this.current, false, isAel);
-        const hasNext = nextIndex !== UNASSIGNED;
-        const hasPrev = prevIndex !== UNASSIGNED;
-
-        if (!hasPrev && !hasNext && this.current !== inputEdgeIndex) {
-            return inputEdgeIndex;
-        }
-
-        let result: number = inputEdgeIndex;
-        //already deleted
-        if (hasPrev) {
-            TEdge.setNeighboar(prevIndex, true, isAel, nextIndex);
-        } else {
-            result = nextIndex;
-        }
-
-        if (hasNext) {
-            TEdge.setNeighboar(nextIndex, false, isAel, prevIndex);
-        }
-
-        TEdge.setNeighboar(this.current, true, isAel, UNASSIGNED);
-        TEdge.setNeighboar(this.current, false, isAel, UNASSIGNED);
-
-        return result;
-    }
-
     public alignWndCount(edgeIndex: number): void {
-        const edge: TEdge = TEdge.at(edgeIndex);
+        const edge = TEdge.at(edgeIndex);
 
         if (this.polyTyp === edge.polyTyp) {
             this.windCount1 = this.windCount1 === -edge.windDelta ? -this.windCount1 : this.windCount1 + edge.windDelta;
@@ -416,7 +388,7 @@ export default class TEdge {
 
     public checkMaxPair(isNext: boolean): boolean {
         const index = isNext ? this.next : this.prev;
-        const edge: TEdge = TEdge.at(index);
+        const edge = TEdge.at(index);
 
         return index !== UNASSIGNED && edge.top.almostEqual(this.top) && edge.nextLocalMinima === UNASSIGNED
     }
@@ -430,7 +402,7 @@ export default class TEdge {
             result = this.prev;
         }
 
-        const edge: TEdge = TEdge.at(result);
+        const edge = TEdge.at(result);
 
         return result !== UNASSIGNED && edge.nextActive === edge.prevActive && !edge.isHorizontal ? UNASSIGNED : result;
     }
@@ -465,7 +437,7 @@ export default class TEdge {
     }
 
     public insertsBefore(edgeIndex: number): boolean {
-        const edge: TEdge = TEdge.at(edgeIndex);
+        const edge = TEdge.at(edgeIndex);
 
         if (this.curr.x === edge.curr.x) {
             return this.top.y > edge.top.y ? this.top.x < edge.topX(this.top.y) : edge.top.x > this.topX(edge.top.y);
@@ -548,20 +520,20 @@ export default class TEdge {
 
     public checkReverseHorizontal(index: number, isNext: boolean): boolean {
         const neighboarIndex = this.getBaseNeighboar(isNext);
-        const neighboar: TEdge = TEdge.at(neighboarIndex);
+        const neighboar = TEdge.at(neighboarIndex);
 
         return this.isDxHorizontal && this.current !== index && this.bot.x !== neighboar.top.x;
     }
 
     public static processBound(index: number, isClockwise: boolean): number {
-        let edge: TEdge = TEdge.at(index);
-        let result: TEdge = edge;
+        let edge = TEdge.at(index);
+        let result = edge;
 
         if (edge.isDxHorizontal) {
             //it's possible for adjacent overlapping horz edges to start heading left
             //before finishing right, so ...
             const neighboarIndex = edge.getBaseNeighboar(!isClockwise);
-            const neighboar: TEdge = TEdge.at(neighboarIndex);
+            const neighboar = TEdge.at(neighboarIndex);
 
             if (edge.bot.x !== neighboar.bot.x) {
                 edge.reverseHorizontal();
@@ -569,7 +541,7 @@ export default class TEdge {
         }
 
         let neighboarIndex = edge.getBaseNeighboar(isClockwise);
-        let neighboar: TEdge = TEdge.at(neighboarIndex);
+        let neighboar = TEdge.at(neighboarIndex);
         
         while (result.top.y === neighboar.bot.y) {
             result = neighboar;
@@ -582,7 +554,7 @@ export default class TEdge {
             //only when the preceding edge attaches to the horizontal's left vertex
             //unless a Skip edge is encountered when that becomes the top divide
             let horzNeighboarIndex = result.getBaseNeighboar(!isClockwise);
-            let horzNeighboar: TEdge = TEdge.at(horzNeighboarIndex);
+            let horzNeighboar = TEdge.at(horzNeighboarIndex);
 
             while (horzNeighboar.isDxHorizontal) {
                 horzNeighboarIndex = horzNeighboar.getBaseNeighboar(!isClockwise);
@@ -590,7 +562,7 @@ export default class TEdge {
             }
 
             const currNeighboarIndex = result.getBaseNeighboar(isClockwise);
-            const currNeighboar: TEdge = TEdge.at(currNeighboarIndex);
+            const currNeighboar = TEdge.at(currNeighboarIndex);
 
             if ((horzNeighboar.top.x === currNeighboar.top.x && !isClockwise) || horzNeighboar.top.x > currNeighboar.top.x) {
                 result = horzNeighboar;
@@ -616,8 +588,8 @@ export default class TEdge {
     }
 
     public setWindingCount(activeEdgeIndex: number, clipType: CLIP_TYPE): void {
-        const activeEdge: TEdge = TEdge.at(activeEdgeIndex);
-        let edge: NullPtr<TEdge> = TEdge.at(this.prevActive);
+        const activeEdge = TEdge.at(activeEdgeIndex);
+        let edge = TEdge.at(this.prevActive);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
         while (edge !== null && (edge.polyTyp !== this.polyTyp || edge.isWindDeletaEmpty)) {
             edge = TEdge.at(edge.prevActive);
@@ -666,10 +638,12 @@ export default class TEdge {
         }
     }
 
-    public static intersectPoint(edge1: TEdge, edge2: TEdge, intersectPoint: PointI32, useFullRange: boolean): boolean {
+    public static intersectPoint(edge1Index: number, edge2Index: number, intersectPoint: PointI32, useFullRange: boolean): boolean {
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
-        if (TEdge.slopesEqual(edge1.current, edge2.current, useFullRange) || edge1.dx === edge2.dx) {
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
+        if (TEdge.slopesEqual(edge1Index, edge2Index, useFullRange) || edge1.dx === edge2.dx) {
             const point: PointI32 = edge2.bot.y > edge1.bot.y ? edge2.bot : edge1.bot;
 
             intersectPoint.update(point);
@@ -715,13 +689,15 @@ export default class TEdge {
     }
 
     public static slopesEqual(e1Index: number, e2Index: number, useFullRange: boolean): boolean {
-        const e1: TEdge = TEdge.at(e1Index);
-        const e2: TEdge = TEdge.at(e2Index);
+        const e1 = TEdge.at(e1Index);
+        const e2 = TEdge.at(e2Index);
         return slopesEqual(e1.delta.y, e2.delta.x, e1.delta.x, e2.delta.y, useFullRange);
     }
 
-    public static getSwapPositionInEL(edge1: TEdge, edge2: TEdge, isAel: boolean): boolean {
+    public static getSwapPositionInEL(edge1Index: number, edge2Index: number, isAel: boolean): boolean {
         //check that one or other edge hasn't already been removed from EL ...
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
         const isRemoved: boolean = isAel 
             ? edge1.getNext(isAel) === edge1.getPrev(isAel) || edge2.getNext(isAel) === edge2.getPrev(isAel)
             : (edge1.getNext(isAel) === null && edge1.getPrev(isAel) === null) || (edge2.getNext(isAel) === null && edge2.getPrev(isAel) === null);
@@ -806,10 +782,7 @@ export default class TEdge {
     }
 
     public static swapPositionsInEL(edgeIndex1: number, edgeIndex2: number, isAel: boolean): number {
-        const edge1 = TEdge.at(edgeIndex1);
-        const edge2 = TEdge.at(edgeIndex2);
-
-        if (TEdge.getSwapPositionInEL(edge1, edge2, isAel)) {
+        if (TEdge.getSwapPositionInEL(edgeIndex1, edgeIndex2, isAel)) {
             if (TEdge.getNeighboar(edgeIndex1, false, isAel) === UNASSIGNED) {
                 return edgeIndex1;
             }
@@ -827,7 +800,7 @@ export default class TEdge {
             return UNASSIGNED;
         }
 
-        const edge: TEdge = TEdge.at(index);
+        const edge = TEdge.at(index);
 
         if (isNext) {
             return isAel ? edge.nextActive : edge.nextSorted;
@@ -841,7 +814,7 @@ export default class TEdge {
             return;
         }  
 
-        const edge: TEdge = TEdge.at(index);   
+        const edge = TEdge.at(index);   
 
         if (isNext) {
             if (isAel) {
@@ -865,16 +838,16 @@ export default class TEdge {
     }
 
     public static swapSides(edge1Index: number, edge2Index: number): void {
-        const edge1: TEdge = TEdge.at(edge1Index);
-        const edge2: TEdge = TEdge.at(edge2Index);
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
         const side: DIRECTION = edge1.side;
         edge1.side = edge2.side;
         edge2.side = side;
     }
 
     public static swapSidesAndIndeces(edge1Index: number, edge2Index: number): void {
-        const edge1: TEdge = TEdge.at(edge1Index);
-        const edge2: TEdge = TEdge.at(edge2Index);
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
         const side: DIRECTION = edge1.side;
         const outIdx: number = edge1.index;
         edge1.side = edge2.side;
@@ -923,8 +896,8 @@ export default class TEdge {
     }
 
     public static getClockwise(index: number): boolean {
-        const currEdge: TEdge = TEdge.at(index);
-        const prevEdge: TEdge = TEdge.at(currEdge.prev);
+        const currEdge = TEdge.at(index);
+        const prevEdge = TEdge.at(currEdge.prev);
 
         return currEdge.dx >= prevEdge.dx;
     }
