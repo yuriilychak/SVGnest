@@ -741,10 +741,10 @@ export default class TEdge {
         const edge1 = TEdge.at(edge1Index);
         const edge2 = TEdge.at(edge2Index);
 
-        edge1.setNext(isAel, edge2.getNext(isAel));
+        TEdge.setNeighboar(edge1Index, true, isAel, nextIndex2);
 
-        if (edge1.getNext(isAel) !== null) {
-            edge1.getNext(isAel).setPrev(isAel, edge1);
+        if (nextIndex2 !== UNASSIGNED) {
+            TEdge.setNeighboar(nextIndex2, false, isAel, edge1Index);
         }
 
         edge1.setPrev(isAel, edge2.getPrev(isAel));
