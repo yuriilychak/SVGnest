@@ -1,5 +1,3 @@
-import { Point } from "../types";
-
 export enum POLY_FILL_TYPE {
     NON_ZERO = 1,
     POSITIVE = 2,
@@ -20,5 +18,3 @@ export enum DIRECTION {
     LEFT = 0,
     RIGHT = 1
 }
-
-export type NullPtr<T> = T | null;

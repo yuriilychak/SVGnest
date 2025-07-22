@@ -6,7 +6,7 @@ import LocalMinima from "./local-minima";
 import OutRecManager from "./out-rec-manager";
 import Scanbeam from "./scanbeam";
 import TEdge from "./t-edge";
-import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from "./types";
+import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from "./types";
 
 export default class TEdgeManager {
     private localMinima: LocalMinima;
@@ -460,7 +460,7 @@ export default class TEdgeManager {
         let horzLeft: number = dirValue[1];
         let horzRight: number = dirValue[2];
 
-        let eLastHorz: NullPtr<TEdge> = horzEdge;
+        let eLastHorz = horzEdge;
 
         while (eLastHorz.nextLocalMinima !== UNASSIGNED && TEdge.at(eLastHorz.nextLocalMinima).isHorizontal) {
             eLastHorz = TEdge.at(eLastHorz.nextLocalMinima);
@@ -745,7 +745,7 @@ export default class TEdgeManager {
             nextEdgeIndex = edge.nextActive;
         }
 
-        const maxPairEdge: NullPtr<TEdge> = TEdge.at(edge.maximaPair);
+        const maxPairEdge = TEdge.at(edge.maximaPair);
 
         if (!edge.isAssigned && !maxPairEdge.isAssigned) {
             this.deleteFromActive(edgeIndex);
@@ -822,8 +822,8 @@ export default class TEdgeManager {
 
         while (!Number.isNaN(this.localMinima.minY) && this.localMinima.minY === botY) {
             let [leftBoundIndex, rightBoundIndex] = this.localMinima.pop();
-            const leftBound: NullPtr<TEdge> = TEdge.at(leftBoundIndex);
-            const rightBound: NullPtr<TEdge> = TEdge.at(rightBoundIndex);
+            const leftBound = TEdge.at(leftBoundIndex);
+            const rightBound = TEdge.at(rightBoundIndex);
             outPt = UNASSIGNED;
 
             if (leftBoundIndex === UNASSIGNED) {

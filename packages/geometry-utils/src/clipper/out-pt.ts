@@ -1,7 +1,7 @@
 import { Point } from '../types';
 import { PointI32 } from '../geometry';
 import { HORIZONTAL, UNASSIGNED } from './constants';
-import { DIRECTION, NullPtr } from './types';
+import { DIRECTION } from './types';
 export default class OutPt {
     private static points: OutPt[] = [];
 
@@ -85,15 +85,15 @@ export default class OutPt {
         //FixupOutPolygon() - removes duplicate points and simplifies consecutive
         //parallel edges by removing the middle vertex.
         let lastOutIndex: number = UNASSIGNED;
-        let outPt: NullPtr<OutPt> = OutPt.at(index);
+        let outPt = OutPt.at(index);
 
         while (true) {
             if (outPt.prev === outPt.current || outPt.prev === outPt.next) {
                 return UNASSIGNED;
             }
 
-            const nextPt: NullPtr<OutPt> = OutPt.at(outPt.next);
-            const prevPt: NullPtr<OutPt> = OutPt.at(outPt.prev);
+            const nextPt = OutPt.at(outPt.next);
+            const prevPt = OutPt.at(outPt.prev);
             //test for duplicate points and collinear edges ...
             if (
                 OutPt.almostEqual(outPt.current, prevPt.current) ||

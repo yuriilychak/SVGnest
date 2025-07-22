@@ -2,7 +2,7 @@ import { PointI32 } from '../geometry';
 import { HORIZONTAL, UNASSIGNED } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
-import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION, NullPtr } from './types';
+import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION } from './types';
 
 export default class TEdge {
     private static edges: TEdge[] = [];
@@ -50,7 +50,7 @@ export default class TEdge {
         TEdge.edges.push(this);
     }
 
-    public static at(index: number): NullPtr<TEdge> {
+    public static at(index: number): TEdge | null {
         return index >= 0 && index < TEdge.edges.length ? TEdge.edges[index] : null;
     }
 
@@ -233,7 +233,7 @@ export default class TEdge {
     }
 
     public checkMinJoin(edgePrevIndex: number, point: PointI32, isUseFullRange: boolean): boolean {
-        const edgePrev: NullPtr<TEdge> = TEdge.at(edgePrevIndex);
+        const edgePrev = TEdge.at(edgePrevIndex);
 
         return edgePrevIndex !== UNASSIGNED &&
             edgePrev.isFilled &&
@@ -838,12 +838,11 @@ export default class TEdge {
 
     public static getHoleState(firstLeftIndex: number, edgeIndex: number): { isHole: boolean, index: number } {
         let isHole: boolean = false;
-        let edge: NullPtr<TEdge> = TEdge.at(edgeIndex);
-        let currentIndex: number = edge.prevActive;
+        let currentIndex: number = TEdge.getNeighboar(edgeIndex, false, true);
         let index: number = UNASSIGNED;
 
         while (currentIndex !== UNASSIGNED) {
-            edge = TEdge.at(currentIndex);
+            const edge = TEdge.at(currentIndex);
             if (edge.isAssigned && !edge.isWindDeletaEmpty) {
                 isHole = !isHole;
 
