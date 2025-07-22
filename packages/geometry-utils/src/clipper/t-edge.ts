@@ -560,24 +560,26 @@ export default class TEdge {
     }
 
     public setWindingCount(activeEdgeIndex: number, clipType: CLIP_TYPE): void {
-        const activeEdge = TEdge.at(activeEdgeIndex);
-        let edge = TEdge.at(this.prevActive);
+        let edgeIndex: number = this.prevActive;
+        let edge = TEdge.at(edgeIndex);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
-        while (edge !== null && (edge.polyTyp !== this.polyTyp || edge.isWindDeletaEmpty)) {
-            edge = TEdge.at(edge.prevActive);
+        while (edgeIndex !== UNASSIGNED && (edge.polyTyp !== this.polyTyp || edge.isWindDeletaEmpty)) {
+            edgeIndex = TEdge.getNeighboar(edgeIndex, false, true);
+            edge = TEdge.at(edgeIndex);
         }
 
-        if (edge === null) {
+        if (edgeIndex === UNASSIGNED) {
             this.windCount1 = this.isWindDeletaEmpty ? 1 : this.windDelta;
             this.windCount2 = 0;
-            edge = activeEdge;
+            edgeIndex = activeEdgeIndex;
             //ie get ready to calc WindCnt2
         } else if (this.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
             this.windCount1 = 1;
             this.windCount2 = edge.windCount2;
-            edge = TEdge.at(edge.nextActive);
+            edgeIndex = TEdge.getNeighboar(edgeIndex, true, true);
             //ie get ready to calc WindCnt2
         } else {
+            edge = TEdge.at(edgeIndex);
             //nonZero, Positive or Negative filling ...
             if (edge.windCount1 * edge.windDelta < 0) {
                 //prev edge is 'decreasing' WindCount (WC) toward zero
@@ -600,13 +602,14 @@ export default class TEdge {
             }
 
             this.windCount2 = edge.windCount2;
-            edge = TEdge.at(edge.nextActive);
+            edgeIndex = edge.nextActive;
             //ie get ready to calc WindCnt2
         }
         //nonZero, Positive or Negative filling ...
-        while (edge !== this) {
+        while (edgeIndex !== this.current) {
+            edge = TEdge.at(edgeIndex);
             this.windCount2 += edge.windDelta;
-            edge = TEdge.at(edge.nextActive);
+            edgeIndex = TEdge.getNeighboar(edgeIndex, true, true);
         }
     }
 
