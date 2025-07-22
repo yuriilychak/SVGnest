@@ -704,55 +704,42 @@ export default class TEdge {
             return false;
         }
 
+        if (nextIndex1 === edge2Index) {
+            if (nextIndex2 !== UNASSIGNED) {
+                TEdge.setNeighboar(nextIndex2, false, isAel, edge1Index);
+            }
+
+            if (prevIndex1 !== UNASSIGNED) {
+                TEdge.setNeighboar(prevIndex1, true, isAel, edge2Index);
+            }
+
+            TEdge.setNeighboar(edge2Index, false, isAel, prevIndex1);
+            TEdge.setNeighboar(edge2Index, true, isAel, edge1Index);
+            TEdge.setNeighboar(edge1Index, false, isAel, edge2Index);
+            TEdge.setNeighboar(edge1Index, true, isAel, nextIndex2);
+
+            return true;
+        }
+
+        if (nextIndex2 === edge1Index) {
+            if (nextIndex1 !== UNASSIGNED) {
+                TEdge.setNeighboar(nextIndex1, false, isAel, edge2Index);
+            }
+
+            if (prevIndex2 !== UNASSIGNED) {
+                TEdge.setNeighboar(prevIndex2, true, isAel, edge1Index);
+            }
+
+            TEdge.setNeighboar(edge1Index, false, isAel, prevIndex2);
+            TEdge.setNeighboar(edge1Index, true, isAel, edge2Index);
+            TEdge.setNeighboar(edge2Index, false, isAel, edge1Index);
+            TEdge.setNeighboar(edge2Index, true, isAel, nextIndex1);
+
+            return true;
+        }
+
         const edge1 = TEdge.at(edge1Index);
         const edge2 = TEdge.at(edge2Index);
-        let prev: NullPtr<TEdge> = null;
-        let next: NullPtr<TEdge> = null;
-
-        if (edge1.getNext(isAel) === edge2) {
-            next = edge2.getNext(isAel);
-
-            if (next !== null) {
-                next.setPrev(isAel, edge1);
-            }
-
-            prev = edge1.getPrev(isAel);
-
-            if (prev !== null) {
-                prev.setNext(isAel, edge2);
-            }
-
-            edge2.setPrev(isAel, prev);
-            edge2.setNext(isAel, edge1);
-            edge1.setPrev(isAel, edge2);
-            edge1.setNext(isAel, next);
-
-            return true;
-        }
-
-        if (edge2.getNext(isAel) === edge1) {
-            next = edge1.getNext(isAel);
-
-            if (next !== null) {
-                next.setPrev(isAel, edge2);
-            }
-
-            prev = edge2.getPrev(isAel);
-
-            if (prev !== null) {
-                prev.setNext(isAel, edge1);
-            }
-
-            edge1.setPrev(isAel, prev)
-            edge1.setNext(isAel, edge2);
-            edge2.setPrev(isAel, edge1);
-            edge2.setNext(isAel, next);
-
-            return true;
-        }
-
-        next = edge1.getNext(isAel);
-        prev = edge1.getPrev(isAel);
 
         edge1.setNext(isAel, edge2.getNext(isAel));
 
@@ -766,16 +753,16 @@ export default class TEdge {
             edge1.getPrev(isAel).setNext(isAel, edge1);
         }
 
-        edge2.setNext(isAel, next);
+        TEdge.setNeighboar(edge2Index, true, isAel, nextIndex1);
 
-        if (edge2.getNext(isAel) !== null) {
-            edge2.getNext(isAel).setPrev(isAel, edge2);
+        if (edge1Index !== UNASSIGNED) {
+            TEdge.setNeighboar(nextIndex1, false, isAel, edge2Index);
         }
 
-        edge2.setPrev(isAel, prev);
+        TEdge.setNeighboar(edge2Index, false, isAel, prevIndex1);
 
-        if (edge2.getPrev(isAel) !== null) {
-            edge2.getPrev(isAel).setNext(isAel, edge2);
+        if (prevIndex1 !== UNASSIGNED) {
+            TEdge.setNeighboar(prevIndex1, true, isAel, edge2Index);
         }
 
         return true;
