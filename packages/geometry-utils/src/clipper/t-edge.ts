@@ -314,30 +314,6 @@ export default class TEdge {
         return y === this.top.y ? this.top.x : this.bot.x + clipperRound(this.dx * (y - this.bot.y));
     }
 
-    public getNext(isAel: boolean): NullPtr<TEdge> {
-        return TEdge.at(isAel ? this.nextActive : this.nextSorted);
-    }
-
-    public setNext(isAel: boolean, value: NullPtr<TEdge>): void{
-        if (isAel) {
-            this.nextActive = value ? value.current : UNASSIGNED;
-         }  else {
-            this.nextSorted = value ? value.current : UNASSIGNED;
-         }
-    }
-
-    public getPrev(isAel: boolean): NullPtr<TEdge> {
-        return TEdge.at(isAel ? this.prevActive : this.prevSorted);
-    }
-
-    public setPrev(isAel: boolean, value: NullPtr<TEdge>): void{
-        if (isAel) {
-            this.prevActive = value ? value.current : UNASSIGNED;
-         }  else {
-            this.prevSorted = value ? value.current : UNASSIGNED;
-         }
-    }
-
     public alignWndCount(edgeIndex: number): void {
         const edge = TEdge.at(edgeIndex);
 
@@ -738,19 +714,16 @@ export default class TEdge {
             return true;
         }
 
-        const edge1 = TEdge.at(edge1Index);
-        const edge2 = TEdge.at(edge2Index);
-
         TEdge.setNeighboar(edge1Index, true, isAel, nextIndex2);
 
         if (nextIndex2 !== UNASSIGNED) {
             TEdge.setNeighboar(nextIndex2, false, isAel, edge1Index);
         }
 
-        edge1.setPrev(isAel, edge2.getPrev(isAel));
+        TEdge.setNeighboar(edge1Index, false, isAel, prevIndex2);
 
-        if (edge1.getPrev(isAel) !== null) {
-            edge1.getPrev(isAel).setNext(isAel, edge1);
+        if (prevIndex2 !== UNASSIGNED) {
+            TEdge.setNeighboar(prevIndex2, false, isAel, edge1Index);
         }
 
         TEdge.setNeighboar(edge2Index, true, isAel, nextIndex1);
