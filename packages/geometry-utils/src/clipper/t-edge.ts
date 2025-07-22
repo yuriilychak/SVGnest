@@ -692,16 +692,20 @@ export default class TEdge {
 
     public static getSwapPositionInEL(edge1Index: number, edge2Index: number, isAel: boolean): boolean {
         //check that one or other edge hasn't already been removed from EL ...
-        const edge1 = TEdge.at(edge1Index);
-        const edge2 = TEdge.at(edge2Index);
+        const nextIndex1 = TEdge.getNeighboar(edge1Index, true, isAel);
+        const nextIndex2 = TEdge.getNeighboar(edge2Index, true, isAel);
+        const prevIndex1 = TEdge.getNeighboar(edge1Index, false, isAel);
+        const prevIndex2 = TEdge.getNeighboar(edge2Index, false, isAel);
         const isRemoved: boolean = isAel 
-            ? edge1.getNext(isAel) === edge1.getPrev(isAel) || edge2.getNext(isAel) === edge2.getPrev(isAel)
-            : (edge1.getNext(isAel) === null && edge1.getPrev(isAel) === null) || (edge2.getNext(isAel) === null && edge2.getPrev(isAel) === null);
+            ? nextIndex1 === prevIndex1 || nextIndex2 === prevIndex2
+            : (nextIndex1 === UNASSIGNED && prevIndex1 === UNASSIGNED) || (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
 
         if (isRemoved) {
             return false;
         }
 
+        const edge1 = TEdge.at(edge1Index);
+        const edge2 = TEdge.at(edge2Index);
         let prev: NullPtr<TEdge> = null;
         let next: NullPtr<TEdge> = null;
 
