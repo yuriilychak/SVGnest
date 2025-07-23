@@ -17,6 +17,7 @@ export default class TEdgeManager {
     private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
     private scanbeam: Scanbeam;
     private outRecManager: OutRecManager;
+    private paths: number[][];
     public isUseFullRange: boolean = false;
 
     constructor(scanbeam: Scanbeam, outRecManager: OutRecManager) {
@@ -24,6 +25,7 @@ export default class TEdgeManager {
         this.localMinima = new LocalMinima();
         this.scanbeam = scanbeam;
         this.outRecManager = outRecManager;
+        this.paths = [];
     }
 
     public dispose(): void {    
@@ -47,7 +49,7 @@ export default class TEdgeManager {
         let minIndex: number = UNASSIGNED;
 
         while (true) {
-            currIndex = TEdge.findNextLocMin(currIndex);
+            currIndex = this.findNextLocMin(currIndex);
 
             if (currIndex === minIndex) {
                 break;
@@ -57,7 +59,7 @@ export default class TEdgeManager {
                 minIndex = currIndex;
             }
 
-            const isClockwise = TEdge.getClockwise(currIndex);
+            const isClockwise = this.getClockwise(currIndex);
             const localMinima = this.createLocalMinima(currIndex);
 
             currIndex = TEdge.processBound(this.localMinima.getLeftBound(localMinima), isClockwise);
@@ -67,6 +69,13 @@ export default class TEdgeManager {
                 currIndex = nextIndex;
             }
         }
+    }
+
+    public getClockwise(index: number): boolean {
+        const currEdge = TEdge.at(index);
+        const prevEdge = TEdge.at(currEdge.prev);
+
+        return currEdge.dx >= prevEdge.dx;
     }
 
     public get isMinimaEmpty(): boolean {
@@ -93,10 +102,13 @@ export default class TEdgeManager {
         }
         //create a new edge array ...
         const edges: TEdge[] = [];
+        const path: number[] = [];
         let i: number = 0;
 
         for (i = 0; i <= lastIndex; ++i) {
-            edges.push(new TEdge());
+            const edge = new TEdge();
+            edges.push(edge);
+            path.push(edge.current);
         }
 
         //1. Basic (first) edge initialization ...
@@ -107,16 +119,179 @@ export default class TEdgeManager {
         this.isUseFullRange = polygon[0].rangeTest(this.isUseFullRange);
         this.isUseFullRange = polygon[lastIndex].rangeTest(this.isUseFullRange);
 
-        edges[0].init(edges[1].current, edges[lastIndex].current, polygon[0]);
-        edges[lastIndex].init(edges[0].current, edges[lastIndex - 1].current, polygon[lastIndex]);
+        this.initEdge(edges[0].current, edges[1].current, edges[lastIndex].current, polygon[0]);
+        this.initEdge(edges[lastIndex].current, edges[0].current, edges[lastIndex - 1].current, polygon[lastIndex]);
 
         for (i = lastIndex - 1; i >= 1; --i) {
             this.isUseFullRange = polygon[i].rangeTest(this.isUseFullRange);
 
-            edges[i].init(edges[i + 1].current, edges[i - 1].current, polygon[i]);
+            this.initEdge(edges[i].current, edges[i + 1].current, edges[i - 1].current, polygon[i]);
         }
 
-        return edges[0].removeDuplicates(polyType, this.isUseFullRange);
+        return this.removeDuplicates(edges[0].current, polyType, this.isUseFullRange);
+    }
+
+    private initEdge(edgeIndex: number, nextIndex: number, prevIndex: number, point: PointI32): void {
+        const edge = TEdge.at(edgeIndex);
+        edge.next = nextIndex;
+        edge.prev = prevIndex;
+        edge.curr.update(point);
+    }
+
+    private removeDuplicates(index: number, polyType: POLY_TYPE, isUseFullRange: boolean): number {
+        let startIndex: number = index;
+        let stopIndex: number = index;
+        let currIndex: number = index;
+        //2. Remove duplicate vertices, and (when closed) collinear edges ...
+
+        while (true) {
+            const currEdge = TEdge.at(currIndex);
+            const nextEdge = TEdge.at(currEdge.next);
+            const prevEdge = TEdge.at(currEdge.prev);
+
+            if (currEdge.curr.almostEqual(nextEdge.curr)) {
+                if (currIndex === nextEdge.next) {
+                    break;
+                }
+
+                if (currEdge.current === startIndex) {
+                    startIndex = nextEdge.current;
+                }
+
+                currIndex = this.removeEdge(currEdge.current);
+                stopIndex = currIndex;
+
+                continue;
+            }
+
+            if (currEdge.prev === currEdge.next) {
+                break;
+            }
+
+            if (PointI32.slopesEqual(prevEdge.curr, currEdge.curr, nextEdge.curr, isUseFullRange)) {
+                //Collinear edges are allowed for open paths but in closed paths
+                //the default is to merge adjacent collinear edges into a single edge.
+                //However, if the PreserveCollinear property is enabled, only overlapping
+                //collinear edges (ie spikes) will be removed from closed paths.
+                if (currEdge.current === startIndex) {
+                    startIndex = currEdge.next;
+                }
+
+                this.removeEdge(currEdge.current);
+                currIndex = prevEdge.current;
+                stopIndex = currIndex;
+
+                continue;
+            }
+
+            currIndex = nextEdge.current;
+
+            if (currIndex === stopIndex) {
+                break;
+            }
+        }
+
+        const edge = TEdge.at(currIndex);
+
+        if (edge.prev === edge.next) {
+            return UNASSIGNED;
+        }
+
+        //3. Do second stage of edge initialization ...
+        const startEdge = TEdge.at(startIndex);
+        let isFlat: boolean = true;
+
+        currIndex = startIndex;
+
+        do {
+            const edge1 = TEdge.at(currIndex);
+            const next = TEdge.at(edge1.next);
+
+            if (edge1.curr.y >= next.curr.y) {
+                edge1.bot.update(edge1.curr);
+                edge1.top.update(next.curr);
+            } else {
+                edge1.top.update(edge1.curr);
+                edge1.bot.update(next.curr);
+            }
+
+            edge1.setDx();
+            edge1.polyTyp = polyType;
+
+            currIndex = edge1.next;
+
+            const edge2 = TEdge.at(currIndex);
+
+            if (isFlat && edge2.curr.y !== startEdge.curr.y) {
+                isFlat = false;
+            }
+        } while (currIndex !== startIndex);
+        //4. Finally, add edge bounds to LocalMinima list ...
+        //Totally flat paths must be handled differently when adding them
+        //to LocalMinima list to avoid endless loops etc ...
+        return isFlat ? UNASSIGNED : currIndex;
+    }
+
+    public findNextLocMin(index: number): number {
+        let result: number = index;
+
+        while (true) {
+            let currEdge = TEdge.at(result);
+            let prevEdge = TEdge.at(currEdge.prev);
+
+            while (!currEdge.bot.almostEqual(prevEdge.bot) || currEdge.curr.almostEqual(currEdge.top)) {
+                result = currEdge.next;
+                currEdge = TEdge.at(result);
+                prevEdge = TEdge.at(currEdge.prev);
+            }
+
+            if (!currEdge.isDxHorizontal && !prevEdge.isDxHorizontal) {
+                break;
+            }
+
+            while (prevEdge.isDxHorizontal) {
+                result = currEdge.prev;
+                currEdge = TEdge.at(result);
+                prevEdge = TEdge.at(currEdge.prev);
+            }
+
+            const edgeIndex = result
+
+            while (currEdge.isDxHorizontal) {
+                result = currEdge.next;
+                currEdge = TEdge.at(result);
+                prevEdge = TEdge.at(currEdge.prev);
+            }
+
+            if (currEdge.top.y === prevEdge.bot.y) {
+                continue;
+            }
+
+            const tempEdge = TEdge.at(edgeIndex);
+            prevEdge = TEdge.at(tempEdge.prev);
+            //ie just an intermediate horz.
+            if (prevEdge.bot.x < currEdge.bot.x) {
+                result = edgeIndex;
+            }
+
+            break;
+        }
+
+        return result;
+    }
+
+    public removeEdge(edgeIndex: number): number {
+        const edge = TEdge.at(edgeIndex);
+        const result: number = edge.next;
+        const next = TEdge.at(edge.next);
+        const prev = TEdge.at(edge.prev);
+        //removes e from double_linked_list (but without removing from memory)
+        prev.next = edge.next;
+        next.prev = edge.prev;
+        edge.prev = UNASSIGNED; //flag as removed (see ClipperBase.Clear)
+        edge.next = UNASSIGNED;
+
+        return result;
     }
 
     public updateEdgeIntoAEL(edgeIndex: number): number {
@@ -466,7 +641,7 @@ export default class TEdgeManager {
             eLastHorz = TEdge.at(eLastHorz.nextLocalMinima);
         }
 
-        const eMaxPairIndex = eLastHorz.nextLocalMinima === UNASSIGNED ? eLastHorz.maximaPair : UNASSIGNED;
+        const eMaxPairIndex = eLastHorz.nextLocalMinima === UNASSIGNED ? this.maximaPair(eLastHorz.current) : UNASSIGNED;
 
         while (true) {
             const isLastHorz: boolean = horzEdge === eLastHorz;
@@ -617,8 +792,8 @@ export default class TEdgeManager {
             isMaximaEdge = edge.getMaxima(topY);
 
             if (isMaximaEdge) {
-                const tempEdge = TEdge.at(edge.maximaPair);
-                isMaximaEdge = edge.maximaPair === UNASSIGNED || !tempEdge.isHorizontal;
+                const tempEdge = TEdge.at(this.maximaPair(edge.current));
+                isMaximaEdge = this.maximaPair(edge.current) === UNASSIGNED || !tempEdge.isHorizontal;
             }
 
             if (isMaximaEdge) {
@@ -672,6 +847,31 @@ export default class TEdgeManager {
             edgeIndex = edge.nextActive;
         }
     }
+
+    
+    public checkMaxPair(edgeIndex: number, isNext: boolean): boolean {
+        const currEdge = TEdge.at(edgeIndex);
+        const index = isNext ? currEdge.next : currEdge.prev;
+        const edge = TEdge.at(index);
+
+        return index !== UNASSIGNED && edge.top.almostEqual(currEdge.top) && edge.nextLocalMinima === UNASSIGNED
+    }
+
+    public maximaPair(edge1Index: number): number {
+        let result: number = UNASSIGNED;
+        const edge1 = TEdge.at(edge1Index);
+
+        if (this.checkMaxPair(edge1Index, true)) {
+            result = edge1.next;
+        } else if (this.checkMaxPair(edge1Index, false)) {
+            result = edge1.prev;
+        }
+
+        const edge = TEdge.at(result);
+
+        return result !== UNASSIGNED && edge.nextActive === edge.prevActive && !edge.isHorizontal ? UNASSIGNED : result;
+    }
+
 
     private deleteFromActive(edgeIndex: number): void {
         const nextIndex = TEdge.getNeighboar(edgeIndex, true, true);
@@ -727,7 +927,7 @@ export default class TEdgeManager {
     private doMaxima(edgeIndex: number): void {
         const edge = TEdge.at(edgeIndex);
 
-        if (edge.maximaPair === UNASSIGNED) {
+        if (this.maximaPair(edgeIndex) === UNASSIGNED) {
             if (edge.isAssigned) {
                 this.outRecManager.addOutPt(edgeIndex, edge.top);
             }
@@ -739,13 +939,13 @@ export default class TEdgeManager {
 
         let nextEdgeIndex: number = edge.nextActive;
 
-        while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== edge.maximaPair) {
+        while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== this.maximaPair(edge.current)) {
             this.intersectEdges(edgeIndex, nextEdgeIndex, edge.top, true);
             this.swapPositionsInAEL(edgeIndex, nextEdgeIndex);
             nextEdgeIndex = edge.nextActive;
         }
 
-        const maxPairEdge = TEdge.at(edge.maximaPair);
+        const maxPairEdge = TEdge.at(this.maximaPair(edge.current));
 
         if (!edge.isAssigned && !maxPairEdge.isAssigned) {
             this.deleteFromActive(edgeIndex);

@@ -37,7 +37,7 @@ export default class TEdge {
         this.windDelta = 0;
         this.windCount1 = 0;
         this.windCount2 = 0;
-        this.index = 0;
+        this.index = UNASSIGNED;
         this.nextLocalMinima = UNASSIGNED;
         this.next = UNASSIGNED;
         this.prev = UNASSIGNED;
@@ -56,124 +56,6 @@ export default class TEdge {
 
     public static cleanup() {
         TEdge.edges.length = 0;
-    }
-
-    public init(nextIndex: number, prevIndex: number, point: PointI32): void {
-        this.next = nextIndex;
-        this.prev = prevIndex;
-        this.curr.update(point);
-        this.unassign();
-    }
-
-    public removeDuplicates(polyType: POLY_TYPE, isUseFullRange: boolean): number {
-        let startIndex: number = this.current;
-        let stopIndex: number = this.current;
-        let currIndex: number = this.current;
-        //2. Remove duplicate vertices, and (when closed) collinear edges ...
-
-        while (true) {
-            const currEdge = TEdge.at(currIndex);
-            const nextEdge = TEdge.at(currEdge.next);
-            const prevEdge = TEdge.at(currEdge.prev);
-
-            if (currEdge.curr.almostEqual(nextEdge.curr)) {
-                if (currIndex === nextEdge.next) {
-                    break;
-                }
-
-                if (currEdge.current === startIndex) {
-                    startIndex = nextEdge.current;
-                }
-
-                currIndex = currEdge.remove();
-                stopIndex = currIndex;
-
-                continue;
-            }
-
-            if (currEdge.prev === currEdge.next) {
-                break;
-            }
-
-            if (PointI32.slopesEqual(prevEdge.curr, currEdge.curr, nextEdge.curr, isUseFullRange)) {
-                //Collinear edges are allowed for open paths but in closed paths
-                //the default is to merge adjacent collinear edges into a single edge.
-                //However, if the PreserveCollinear property is enabled, only overlapping
-                //collinear edges (ie spikes) will be removed from closed paths.
-                if (currEdge.current === startIndex) {
-                    startIndex = currEdge.next;
-                }
-
-                currEdge.remove();
-                currIndex = prevEdge.current;
-                stopIndex = currIndex;
-
-                continue;
-            }
-
-            currIndex = nextEdge.current;
-
-            if (currIndex === stopIndex) {
-                break;
-            }
-        }
-
-        const edge = TEdge.at(currIndex);
-
-        if (edge.prev === edge.next) {
-            return UNASSIGNED;
-        }
-
-        //3. Do second stage of edge initialization ...
-        const startEdge = TEdge.at(startIndex);
-        let isFlat: boolean = true;
-
-        currIndex = startIndex;
-
-        do {
-            const edge1 = TEdge.at(currIndex);
-            edge1.initFromPolyType(polyType);
-            currIndex = edge1.next;
-
-            const edge2 = TEdge.at(currIndex);
-
-            if (isFlat && edge2.curr.y !== startEdge.curr.y) {
-                isFlat = false;
-            }
-        } while (currIndex !== startIndex);
-        //4. Finally, add edge bounds to LocalMinima list ...
-        //Totally flat paths must be handled differently when adding them
-        //to LocalMinima list to avoid endless loops etc ...
-        return isFlat ? UNASSIGNED : currIndex;
-    }
-
-    public initFromPolyType(polyType: POLY_TYPE): void {
-        const next = TEdge.at(this.next);
-
-        if (this.curr.y >= next.curr.y) {
-            this.bot.update(this.curr);
-            this.top.update(next.curr);
-        } else {
-            this.top.update(this.curr);
-            this.bot.update(next.curr);
-        }
-
-        this.setDx();
-
-        this.polyTyp = polyType;
-    }
-
-    public remove(): number {
-        const result: number = this.next;
-        const next = TEdge.at(this.next);
-        const prev = TEdge.at(this.prev);
-        //removes e from double_linked_list (but without removing from memory)
-        prev.next = this.next;
-        next.prev = this.prev;
-        this.prev = UNASSIGNED; //flag as removed (see ClipperBase.Clear)
-        this.next = UNASSIGNED;
-
-        return result;
     }
 
     public reverseHorizontal(): void {
@@ -240,54 +122,6 @@ export default class TEdge {
             edgePrev.topX(point.y) === this.topX(point.y) &&
             TEdge.slopesEqual(this.current, edgePrevIndex, isUseFullRange) &&
             !this.isWindDeletaEmpty;
-    }
-
-    public static findNextLocMin(index: number): number {
-        let result: number = index;
-
-        while (true) {
-            let currEdge = TEdge.at(result);
-            let prevEdge = TEdge.at(currEdge.prev);
-
-            while (!currEdge.bot.almostEqual(prevEdge.bot) || currEdge.curr.almostEqual(currEdge.top)) {
-                result = currEdge.next;
-                currEdge = TEdge.at(result);
-                prevEdge = TEdge.at(currEdge.prev);
-            }
-
-            if (!currEdge.isDxHorizontal && !prevEdge.isDxHorizontal) {
-                break;
-            }
-
-            while (prevEdge.isDxHorizontal) {
-                result = currEdge.prev;
-                currEdge = TEdge.at(result);
-                prevEdge = TEdge.at(currEdge.prev);
-            }
-
-            const edgeIndex = result
-
-            while (currEdge.isDxHorizontal) {
-                result = currEdge.next;
-                currEdge = TEdge.at(result);
-                prevEdge = TEdge.at(currEdge.prev);
-            }
-
-            if (currEdge.top.y === prevEdge.bot.y) {
-                continue;
-            }
-
-            const tempEdge = TEdge.at(edgeIndex);
-            prevEdge = TEdge.at(tempEdge.prev);
-            //ie just an intermediate horz.
-            if (prevEdge.bot.x < currEdge.bot.x) {
-                result = edgeIndex;
-            }
-
-            break;
-        }
-
-        return result;
     }
 
     public setDx(): void {
@@ -360,27 +194,6 @@ export default class TEdge {
 
     public get isDxHorizontal(): boolean {
         return this.dx === HORIZONTAL;
-    }
-
-    public checkMaxPair(isNext: boolean): boolean {
-        const index = isNext ? this.next : this.prev;
-        const edge = TEdge.at(index);
-
-        return index !== UNASSIGNED && edge.top.almostEqual(this.top) && edge.nextLocalMinima === UNASSIGNED
-    }
-
-    public get maximaPair(): number {
-        let result: number = UNASSIGNED;
-
-        if (this.checkMaxPair(true)) {
-            result = this.next;
-        } else if (this.checkMaxPair(false)) {
-            result = this.prev;
-        }
-
-        const edge = TEdge.at(result);
-
-        return result !== UNASSIGNED && edge.nextActive === edge.prevActive && !edge.isHorizontal ? UNASSIGNED : result;
     }
 
     public updateCurrent(index: number): void {
@@ -855,13 +668,6 @@ export default class TEdge {
         }
 
         return { isHole, index };
-    }
-
-    public static getClockwise(index: number): boolean {
-        const currEdge = TEdge.at(index);
-        const prevEdge = TEdge.at(currEdge.prev);
-
-        return currEdge.dx >= prevEdge.dx;
     }
 
     public static swapEdges(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE, e1Wc: number, e2Wc: number, edge1Index: number, edge2Index: number): boolean {
