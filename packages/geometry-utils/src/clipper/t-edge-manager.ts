@@ -62,8 +62,8 @@ export default class TEdgeManager {
             const isClockwise = this.getClockwise(currIndex);
             const localMinima = this.createLocalMinima(currIndex);
 
-            currIndex = TEdge.processBound(this.localMinima.getLeftBound(localMinima), isClockwise);
-            nextIndex = TEdge.processBound(this.localMinima.getRightBound(localMinima), !isClockwise);
+            currIndex = this.processBound(this.localMinima.getLeftBound(localMinima), isClockwise);
+            nextIndex = this.processBound(this.localMinima.getRightBound(localMinima), !isClockwise);
 
             if (!isClockwise) {
                 currIndex = nextIndex;
@@ -1109,5 +1109,81 @@ export default class TEdgeManager {
         rightBound.windDelta = -leftBound.windDelta;
 
         return this.localMinima.insert(y, leftBound.current, rightBound.current);
+    }
+
+
+    private processBound(index: number, isClockwise: boolean): number {
+        let edge = TEdge.at(index);
+        let result = edge;
+
+        if (edge.isDxHorizontal) {
+            //it's possible for adjacent overlapping horz edges to start heading left
+            //before finishing right, so ...
+            const neighboarIndex = this.getBaseNeighboar(index, !isClockwise);
+            const neighboar = TEdge.at(neighboarIndex);
+
+            if (edge.bot.x !== neighboar.bot.x) {
+                edge.reverseHorizontal();
+            }
+        }
+
+        let neighboarIndex = this.getBaseNeighboar(index, isClockwise);
+        let neighboar = TEdge.at(neighboarIndex);
+        
+        while (result.top.y === neighboar.bot.y) {
+            result = neighboar;
+            neighboarIndex = this.getBaseNeighboar(neighboar.current, isClockwise);
+            neighboar = TEdge.at(neighboarIndex);
+        }
+
+        if (result.isDxHorizontal) {
+            //nb: at the top of a bound, horizontals are added to the bound
+            //only when the preceding edge attaches to the horizontal's left vertex
+            //unless a Skip edge is encountered when that becomes the top divide
+            let horzNeighboarIndex = this.getBaseNeighboar(result.current, !isClockwise);
+            let horzNeighboar = TEdge.at(horzNeighboarIndex);
+
+            while (horzNeighboar.isDxHorizontal) {
+                horzNeighboarIndex = this.getBaseNeighboar(horzNeighboar.current, !isClockwise);
+                horzNeighboar = TEdge.at(horzNeighboarIndex);
+            }
+
+            const currNeighboarIndex = this.getBaseNeighboar(result.current, isClockwise);
+            const currNeighboar = TEdge.at(currNeighboarIndex);
+
+            if ((horzNeighboar.top.x === currNeighboar.top.x && !isClockwise) || horzNeighboar.top.x > currNeighboar.top.x) {
+                result = horzNeighboar;
+            }
+        }
+
+        while (edge !== result) {
+            edge.nextLocalMinima = this.getBaseNeighboar(edge.current, isClockwise);
+
+            if (this.checkReverseHorizontal(edge.current, index, !isClockwise)) {
+                edge.reverseHorizontal();
+            }
+
+            edge = TEdge.at(edge.nextLocalMinima);
+        }
+
+        if (this.checkReverseHorizontal(edge.current, index, !isClockwise)) {
+            edge.reverseHorizontal();
+        }
+
+        return this.getBaseNeighboar(result.current, isClockwise);
+        //move to the edge just beyond current bound
+    }
+
+    private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
+        const edge = TEdge.at(edgeIndex);
+        const neighboarIndex = this.getBaseNeighboar(edge.current, isNext);
+        const neighboar = TEdge.at(neighboarIndex);
+
+        return edge.isDxHorizontal && edge.current !== index && edge.bot.x !== neighboar.top.x;
+    }
+
+    private getBaseNeighboar(edgeIndex: number, isNext: boolean): number {
+        const edge = TEdge.at(edgeIndex);
+        return isNext ? edge.next : edge.prev;
     }
 }
