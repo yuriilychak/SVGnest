@@ -2,21 +2,23 @@ import { join_u16_to_u32, get_u16_from_u32 } from "wasm-nesting";
 import { Point } from "../types";
 import OutPt from "./out-pt";
 import OutRec from "./out-rec";
-import TEdge from "./t-edge";
+import Join from "./join";
 import { DIRECTION } from "./types";
 import { PointI32 } from "../geometry";
 import { UNASSIGNED } from "./constants";
-import Join from "./join";
+import TEdgeController from "./t-edge-controller";
 
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
     private join: Join = new Join();
     private isReverseSolution: boolean = false;
     private isStrictlySimple: boolean = false;
+    private tEdgeController: TEdgeController;
 
-    constructor(reverseSolution: boolean, strictlySimple: boolean) {
+    constructor(tEdgeController: TEdgeController, reverseSolution: boolean, strictlySimple: boolean) {
         this.isReverseSolution = reverseSolution;
         this.isStrictlySimple = strictlySimple;
+        this.tEdgeController = tEdgeController;
     }
 
     public get strictlySimple(): boolean {
@@ -82,7 +84,7 @@ export default class OutRecManager {
     }
 
     public addOutPt(edgeIndex: number, point: Point<Int32Array>): number {
-        const edge = TEdge.at(edgeIndex);
+        const edge = this.tEdgeController.at(edgeIndex);
         let outRec: OutRec;
         let pointIndex: number;
 
@@ -107,10 +109,10 @@ export default class OutRecManager {
     }
 
     public addLocalMinPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>, isUseFullRange: boolean): number {
-        const edge1: TEdge = TEdge.at(edge1Index);
-        const edge2: TEdge = TEdge.at(edge2Index);
-        let firstEdge: TEdge = edge2;
-        let secondEdge: TEdge = edge1;
+        const edge1 = this.tEdgeController.at(edge1Index);
+        const edge2 = this.tEdgeController.at(edge2Index);
+        let firstEdge = edge2;
+        let secondEdge = edge1;
         let result: number = UNASSIGNED;
 
         if (edge2.isHorizontal || edge1.dx > edge2.dx) {
@@ -124,7 +126,7 @@ export default class OutRecManager {
         firstEdge.side = DIRECTION.LEFT;
 
         const prevIndex = firstEdge.prevActive === secondEdge.current ? secondEdge.prevActive : firstEdge.prevActive;
-        const condition = firstEdge.checkMinJoin(prevIndex, point, isUseFullRange);
+        const condition = this.tEdgeController.checkMinJoin(firstEdge.current, prevIndex, point, isUseFullRange);
 
         this.insertJoin(condition, result, prevIndex, point, firstEdge.top);
 
@@ -134,8 +136,8 @@ export default class OutRecManager {
     public addLocalMaxPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>, activeEdgeIndex: number): void {
         this.addOutPt(edge1Index, point);
 
-        const edge1 = TEdge.at(edge1Index);
-        const edge2 = TEdge.at(edge2Index);
+        const edge1 = this.tEdgeController.at(edge1Index);
+        const edge2 = this.tEdgeController.at(edge2Index);
 
         if (edge2.isWindDeletaEmpty) {
             this.addOutPt(edge2Index, point);
@@ -175,7 +177,7 @@ export default class OutRecManager {
         //nb: safe because we only get here via AddLocalMaxPoly
         secondEdge.unassign();
 
-        TEdge.updateIndexAEL(activeEdgeIndex, side, ObsoleteIdx, OKIdx);
+        this.tEdgeController.updateIndexAEL(activeEdgeIndex, side, ObsoleteIdx, OKIdx);
 
         outRec2.currentIndex = outRec1.currentIndex;
     }
@@ -258,13 +260,13 @@ export default class OutRecManager {
     private getJoinData(horzEdgeIndex: number) {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        const edge = TEdge.at(horzEdgeIndex);
+        const edge = this.tEdgeController.at(horzEdgeIndex);
         
         return this.polyOuts[edge.index].getJoinData(edge.side, edge.top, edge.bot);
     }
 
     private setHoleState(outRec: OutRec, edgeIndex: number): void {
-        const { isHole, index } = TEdge.getHoleState(outRec.firstLeftIndex, edgeIndex);
+        const { isHole, index } = this.tEdgeController.getHoleState(outRec.firstLeftIndex, edgeIndex);
 
         if (outRec.firstLeftIndex === UNASSIGNED && index !== UNASSIGNED) {
             outRec.firstLeftIndex = this.polyOuts[index].index;
@@ -496,7 +498,7 @@ export default class OutRecManager {
     }
 
     private horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBoundIndex: number): boolean {
-        const rightBound = TEdge.at(rightBoundIndex);
+        const rightBound = this.tEdgeController.at(rightBoundIndex);
         const outPtIndex = get_u16_from_u32(outHash, 1);
         const outPt = OutPt.at(outPtIndex);
         

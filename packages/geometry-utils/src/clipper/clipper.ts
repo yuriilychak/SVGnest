@@ -14,8 +14,8 @@ export default class Clipper {
     
     constructor(reverseSolution: boolean, strictlySimple: boolean) {
         this.scanbeam = new Scanbeam();
-        this.outRecManager = new OutRecManager(reverseSolution, strictlySimple);
         this.tEdgeController = new TEdgeController();
+        this.outRecManager = new OutRecManager(this.tEdgeController, reverseSolution, strictlySimple);
         this.tEdgeManager = new TEdgeManager(this.scanbeam, this.outRecManager, this.tEdgeController);
     }
 
@@ -60,7 +60,6 @@ export default class Clipper {
         } finally {
             this.outRecManager.dispose();
             this.tEdgeController.dispose();
-            this.tEdgeManager.dispose();
             this.isExecuteLocked = false;
         }
 
