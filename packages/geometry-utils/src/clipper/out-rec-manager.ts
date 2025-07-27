@@ -23,7 +23,7 @@ export default class OutRecManager {
         return this.isStrictlySimple;
     }
 
-    public insertJoin(condition: boolean, outHash1: number, edgeIndex: number, point1: PointI32, point2: PointI32 = point1): boolean {
+    public insertJoin(condition: boolean, outHash1: number, edgeIndex: number, point1: Point<Int32Array>, point2: Point<Int32Array> = point1): boolean {
         if (condition) {
             const outHash2 = this.addOutPt(edgeIndex, point1);
             this.join.add(outHash1, outHash2, point2);
@@ -106,7 +106,7 @@ export default class OutRecManager {
         return outRec.getHash(pointIndex);
     }
 
-    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: PointI32, isUseFullRange: boolean): number {
+    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>, isUseFullRange: boolean): number {
         const edge1: TEdge = TEdge.at(edge1Index);
         const edge2: TEdge = TEdge.at(edge2Index);
         let firstEdge: TEdge = edge2;

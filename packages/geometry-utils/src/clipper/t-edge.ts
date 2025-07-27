@@ -3,13 +3,14 @@ import { HORIZONTAL, UNASSIGNED } from './constants';
 import { slopesEqual } from '../helpers';
 import { clipperRound } from '../helpers';
 import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION } from './types';
+import { Point } from '../types';
 
 export default class TEdge {
     private static edges: TEdge[] = [];
-    public bot: PointI32;
-    public curr: PointI32;
-    public top: PointI32;
-    public delta: PointI32;
+    public bot: Point<Int32Array>;
+    public curr: Point<Int32Array>;
+    public top: Point<Int32Array>;
+    public delta: Point<Int32Array>;
     public dx: number;
     public polyTyp: POLY_TYPE;
     public side: DIRECTION;
@@ -18,15 +19,13 @@ export default class TEdge {
     public windCount2: number;
     public index: number;
     public current: number;
-    public next: number;
-    public prev: number;
     public nextActive: number;
     public prevActive: number;
     public nextSorted: number;
     public prevSorted: number;
     public nextLocalMinima: number;
 
-    constructor(curr: PointI32, polyType: POLY_TYPE) {
+    constructor(curr: Point<Int32Array>, polyType: POLY_TYPE, current: number) {
         this.bot = PointI32.create();
         this.curr = PointI32.from(curr);
         this.top = PointI32.create();
@@ -39,13 +38,11 @@ export default class TEdge {
         this.windCount2 = 0;
         this.index = UNASSIGNED;
         this.nextLocalMinima = UNASSIGNED;
-        this.next = UNASSIGNED;
-        this.prev = UNASSIGNED;
         this.nextActive = UNASSIGNED;
         this.prevActive = UNASSIGNED;
         this.nextSorted = UNASSIGNED;
         this.prevSorted = UNASSIGNED;
-        this.current = TEdge.edges.length;
+        this.current = current;
 
         TEdge.edges.push(this);
     }
@@ -114,7 +111,7 @@ export default class TEdge {
         return outHash !== UNASSIGNED && this.checkHorizontalCondition(isNext, isUseFullRange) && !this.isWindDeletaEmpty;
     }
 
-    public checkMinJoin(edgePrevIndex: number, point: PointI32, isUseFullRange: boolean): boolean {
+    public checkMinJoin(edgePrevIndex: number, point: Point<Int32Array>, isUseFullRange: boolean): boolean {
         const edgePrev = TEdge.at(edgePrevIndex);
 
         return edgePrevIndex !== UNASSIGNED &&
@@ -167,7 +164,7 @@ export default class TEdge {
         }
     }
 
-    public getStop(point: PointI32, isProtect: boolean): boolean {
+    public getStop(point: Point<Int32Array>, isProtect: boolean): boolean {
         return !isProtect && this.nextLocalMinima === UNASSIGNED && this.top.almostEqual(point);
     }
 
@@ -354,7 +351,7 @@ export default class TEdge {
         const edge1 = TEdge.at(edge1Index);
         const edge2 = TEdge.at(edge2Index);
         if (TEdge.slopesEqual(edge1Index, edge2Index, useFullRange) || edge1.dx === edge2.dx) {
-            const point: PointI32 = edge2.bot.y > edge1.bot.y ? edge2.bot : edge1.bot;
+            const point: Point<Int32Array> = edge2.bot.y > edge1.bot.y ? edge2.bot : edge1.bot;
 
             intersectPoint.update(point);
 
