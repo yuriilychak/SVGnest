@@ -11,8 +11,8 @@ export default class TEdgeController {
     private _isUseFullRange: boolean = true;
     private _paths: number[][];
     private _edgeData: number[][];
-    public activeEdges: number = UNASSIGNED;
-    public sortedEdges: number = UNASSIGNED;
+    public active: number = UNASSIGNED;
+    public sorted: number = UNASSIGNED;
 
     public constructor() {
         this._edges = [];
@@ -882,9 +882,9 @@ export default class TEdgeController {
     }
 
     public copyAELToSEL(): void {
-        this.sortedEdges = this.activeEdges;
+        this.sorted = this.active;
 
-        let currentIndex = this.activeEdges;
+        let currentIndex = this.active;
         let edge = this.at(currentIndex);
 
         while (currentIndex !== UNASSIGNED) {
@@ -898,7 +898,7 @@ export default class TEdgeController {
     }
 
     private getCurrentEdge(isAel: boolean): number {
-        return isAel ? this.activeEdges : this.sortedEdges;
+        return isAel ? this.active : this.sorted;
     }
 
     public swapPositionsInList(edgeIndex1: number, edgeIndex2: number, isAel: boolean): void {
@@ -919,9 +919,9 @@ export default class TEdgeController {
 
     private setCurrentEdge(value: number, isAel: boolean): void {
         if (isAel) {
-            this.activeEdges = value;
+            this.active = value;
         } else {
-            this.sortedEdges = value;
+            this.sorted = value;
         }
     }
 
@@ -959,7 +959,27 @@ export default class TEdgeController {
     }
 
     public reset(): void {
-        this.activeEdges = UNASSIGNED;
-        this.sortedEdges = UNASSIGNED;
+        this.active = UNASSIGNED;
+        this.sorted = UNASSIGNED;
+    }
+
+    public prepareForIntersections(topY: number): boolean {
+        if (this.active === UNASSIGNED) {
+            return false;
+        }
+        //prepare for sorting ...
+        //console.log(JSON.stringify(JSON.decycle( e )));
+        this.sorted = this.active;
+
+        let edgeIndex = this.active;
+
+        while (edgeIndex !== UNASSIGNED) {
+            const edge = this.at(edgeIndex);
+
+            edge.curr.x = edge.topX(topY);
+            edgeIndex = this.copyActiveToSorted(edgeIndex);
+        }
+
+        return true;
     }
 }
