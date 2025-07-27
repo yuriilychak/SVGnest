@@ -40,7 +40,7 @@ export default class TEdgeController {
 
         for (i = 0; i <= lastIndex; ++i) {
             const edge = new TEdge(polygon[i], polyType, this._edges.length);
-            
+
             this._isUseFullRange = edge.curr.rangeTest(this._isUseFullRange);
             this._edges.push(edge);
             this._edgeData.push([pathIndex, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED]);
@@ -214,7 +214,7 @@ export default class TEdgeController {
             result = this.prev(edge1Index);
         }
 
-        if(result === UNASSIGNED) {
+        if (result === UNASSIGNED) {
             return UNASSIGNED;
         }
 
@@ -341,10 +341,10 @@ export default class TEdgeController {
         const edge = this.at(index);
 
         return index !== UNASSIGNED && edge.top.almostEqual(currEdge.top) && !this.hasNextLocalMinima(index);
-    }  
+    }
 
     public getStop(index: number, point: Point<Int32Array>, isProtect: boolean): boolean {
-        if(isProtect || this.hasNextLocalMinima(index)) {
+        if (isProtect || this.hasNextLocalMinima(index)) {
             return false;
         }
 
@@ -354,7 +354,7 @@ export default class TEdgeController {
     }
 
     public getIntermediate(index: number, y: number): boolean {
-        if(!this.hasNextLocalMinima(index)) {
+        if (!this.hasNextLocalMinima(index)) {
             return false;
         }
 
@@ -578,14 +578,17 @@ export default class TEdgeController {
         if (!this.getIndexValid(index)) {
             return UNASSIGNED;
         }
+        
 
-        const edge = this.at(index);
+        if(isAel) {
+            const edge = this.at(index);
 
-        if (isNext) {
-            return isAel ? edge.nextActive : edge.nextSorted;
+            return isNext ? edge.nextActive : edge.prevActive;
         }
 
-        return isAel ? edge.prevActive : edge.prevSorted;
+        const dataIndex: number = isNext ? 3 : 4; 
+
+        return this._edgeData[index][dataIndex];
     }
 
     public setNeighboar(index: number, isNext: boolean, isAel: boolean, value: number): void {
@@ -595,25 +598,21 @@ export default class TEdgeController {
 
         const edge = this.at(index);
 
-        if (isNext) {
-            if (isAel) {
+        if(isAel) {
+            if (isNext) {
                 edge.nextActive = value;
 
-                return
+                return;
             }
 
-            edge.nextSorted = value;
-
-            return;
-        }
-
-        if (isAel) {
             edge.prevActive = value;
 
             return;
         }
 
-        edge.prevSorted = value;
+        const dataIndex: number = isNext ? 3 : 4;
+
+        this._edgeData[index][dataIndex] = value;
     }
 
     private getSwapPositionInEL(edge1Index: number, edge2Index: number, isAel: boolean): boolean {
@@ -731,11 +730,10 @@ export default class TEdgeController {
     }
 
     public addEdgeToSEL(index: number, sortedEdgeIndex: number): number {
-        const edge = this.at(index);
         //SEL pointers in PEdge are reused to build a list of horizontal edges.
         //However, we don't need to worry about order with horizontal edge processing.
-        edge.prevSorted = UNASSIGNED;
-        edge.nextSorted = sortedEdgeIndex;
+        this.setNeighboar(index, false, false, UNASSIGNED);
+        this.setNeighboar(index, true, false, sortedEdgeIndex);
 
         if (sortedEdgeIndex !== UNASSIGNED) {
             this.setNeighboar(sortedEdgeIndex, false, false, index);
@@ -864,6 +862,13 @@ export default class TEdgeController {
         currEdge.prevActive = edge.prevActive;
         currEdge.nextActive = edge.nextActive;
         currEdge.curr.update(currEdge.bot);
+    }
+
+    public copyActiveToSorted(index: number): number {
+        this.setNeighboar(index, false, false, this.getNeighboar(index, false, true));
+        this.setNeighboar(index, true, false, this.getNeighboar(index, true, true));
+
+        return this.getNeighboar(index, true, true);
     }
 
     public slopesEqual(e1Index: number, e2Index: number, useFullRange: boolean): boolean {

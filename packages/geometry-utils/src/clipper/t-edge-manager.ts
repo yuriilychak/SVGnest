@@ -133,7 +133,7 @@ export default class TEdgeManager {
         let edge = this.tEdgeController.at(currentIndex);
 
         while (currentIndex !== UNASSIGNED) {
-            currentIndex = edge.copyAELToSEL();
+            currentIndex = this.tEdgeController.copyActiveToSorted(edge.current);
             edge = this.tEdgeController.at(currentIndex);
         }
     }
@@ -175,10 +175,9 @@ export default class TEdgeManager {
         while (edgeIndex !== UNASSIGNED) {
             const edge = this.tEdgeController.at(edgeIndex);
 
-            edge.prevSorted = edge.prevActive;
-            edge.nextSorted = edge.nextActive;
             edge.curr.x = edge.topX(topY);
-            edgeIndex = edge.nextActive;
+            edgeIndex = this.tEdgeController.copyActiveToSorted(edgeIndex);
+            
         }
 
         //bubblesort ...
@@ -189,8 +188,9 @@ export default class TEdgeManager {
             isModified = false;
             let edge = this.tEdgeController.at(this.sortedEdges);
 
-            while (edge.nextSorted !== UNASSIGNED) {
-                const nextEdge = this.tEdgeController.at(edge.nextSorted);
+            while (this.tEdgeController.getNeighboar(edge.current, true, false) !== UNASSIGNED) {
+                const nextIndex = this.tEdgeController.getNeighboar(edge.current, true, false);
+                const nextEdge = this.tEdgeController.at(nextIndex);
                 point.set(0, 0);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (edge.curr.x > nextEdge.curr.x) {
@@ -215,8 +215,10 @@ export default class TEdgeManager {
                 }
             }
 
-            if (edge.prevSorted !== UNASSIGNED) {
-                this.tEdgeController.at(edge.prevSorted).nextSorted = UNASSIGNED;
+            const prevIndex = this.tEdgeController.getNeighboar(edge.current, false, false);
+
+            if (prevIndex !== UNASSIGNED) {
+                this.tEdgeController.setNeighboar(prevIndex, true, false, UNASSIGNED);
             } else {
                 break;
             }

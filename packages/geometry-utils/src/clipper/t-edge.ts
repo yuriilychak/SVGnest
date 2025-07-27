@@ -19,8 +19,6 @@ export default class TEdge {
     public current: number;
     public nextActive: number;
     public prevActive: number;
-    public nextSorted: number;
-    public prevSorted: number;
 
     constructor(curr: Point<Int32Array>, polyType: POLY_TYPE, current: number) {
         this.bot = PointI32.create();
@@ -36,8 +34,6 @@ export default class TEdge {
         this.index = UNASSIGNED;
         this.nextActive = UNASSIGNED;
         this.prevActive = UNASSIGNED;
-        this.nextSorted = UNASSIGNED;
-        this.prevSorted = UNASSIGNED;
         this.current = current;
     }
 
@@ -54,13 +50,6 @@ export default class TEdge {
         this.curr.update(this.bot);
         this.side = side;
         this.unassign();
-    }
-
-    public copyAELToSEL(): number {
-        this.prevSorted = this.prevActive;
-        this.nextSorted = this.nextActive;
-
-        return this.nextActive;
     }
 
     public topX(y: number): number {
