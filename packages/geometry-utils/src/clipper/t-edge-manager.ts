@@ -686,14 +686,14 @@ export default class TEdgeManager {
             outPt = UNASSIGNED;
 
             if (leftBoundIndex === UNASSIGNED) {
-                this.tEdgeController.active = this.tEdgeController.insertEdgeIntoAEL(rightBoundIndex, this.tEdgeController.active);
+                this.tEdgeController.insertEdgeIntoAEL(rightBoundIndex);
                 this.tEdgeController.setWindingCount(rightBoundIndex, this.tEdgeController.active, this.clipType);
 
                 if (rightBound.getContributing(this.clipType, this.fillType)) {
                     outPt = this.outRecManager.addOutPt(rightBoundIndex, rightBound.bot);
                 }
             } else if (rightBoundIndex === UNASSIGNED) {
-                this.tEdgeController.active = this.tEdgeController.insertEdgeIntoAEL(leftBoundIndex, this.tEdgeController.active);
+                this.tEdgeController.insertEdgeIntoAEL(leftBoundIndex);
                 this.tEdgeController.setWindingCount(leftBoundIndex, this.tEdgeController.active, this.clipType);
 
                 if (leftBound.getContributing(this.clipType, this.fillType)) {
@@ -702,8 +702,8 @@ export default class TEdgeManager {
 
                 this.scanbeam.insert(leftBound.top.y);
             } else {
-                this.tEdgeController.active = this.tEdgeController.insertEdgeIntoAEL(leftBoundIndex, this.tEdgeController.active);
-                this.tEdgeController.active = this.tEdgeController.insertEdgeIntoAEL(rightBoundIndex, this.tEdgeController.active, leftBoundIndex);
+                this.tEdgeController.insertEdgeIntoAEL(leftBoundIndex);
+                this.tEdgeController.insertEdgeIntoAEL(rightBoundIndex, leftBoundIndex);
                 this.tEdgeController.setWindingCount(leftBoundIndex, this.tEdgeController.active, this.clipType);
                 rightBound.windCount1 = leftBound.windCount1;
                 rightBound.windCount2 = leftBound.windCount2;

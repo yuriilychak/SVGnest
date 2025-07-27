@@ -696,24 +696,26 @@ export default class TEdgeController {
         return true;
     }
 
-    public insertEdgeIntoAEL(index: number, activeEdgeIndex: number, startEdgeIndex: number = UNASSIGNED): number {
-        if (activeEdgeIndex === UNASSIGNED) {
+    public insertEdgeIntoAEL(index: number, startEdgeIndex: number = UNASSIGNED): void {
+        if (this.active === UNASSIGNED) {
             this.setPrevActive(index, UNASSIGNED);
             this.setNextActive(index, UNASSIGNED);
 
-            return index;
+            this.active = index;
+            return;
         }
 
-        if (startEdgeIndex === UNASSIGNED && this.insertsBefore(index, activeEdgeIndex)) {
+        if (startEdgeIndex === UNASSIGNED && this.insertsBefore(index, this.active)) {
             this.setPrevActive(index, UNASSIGNED);
-            this.setNextActive(index, activeEdgeIndex);
+            this.setNextActive(index, this.active);
 
-            this.setNeighboar(activeEdgeIndex, false, true, index);
+            this.setNeighboar(this.active, false, true, index);
 
-            return index;
+            this.active = index;
+            return;
         }
 
-        let edgeIndex: number = startEdgeIndex === UNASSIGNED ? activeEdgeIndex : startEdgeIndex;
+        let edgeIndex: number = startEdgeIndex === UNASSIGNED ? this.active : startEdgeIndex;
         let nextIndex: number = this.nextActive(edgeIndex);
 
         while (nextIndex !== UNASSIGNED && !this.insertsBefore(index, nextIndex)) {
@@ -730,7 +732,7 @@ export default class TEdgeController {
         this.setPrevActive(index, edgeIndex);
         this.setNeighboar(edgeIndex, true, true, index);
 
-        return activeEdgeIndex;
+        return;
     }
 
     public addEdgeToSEL(index: number, sortedEdgeIndex: number): number {
