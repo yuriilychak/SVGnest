@@ -11,6 +11,8 @@ export default class TEdgeController {
     private _isUseFullRange: boolean = true;
     private _paths: number[][];
     private _edgeData: number[][];
+    public activeEdges: number = UNASSIGNED;
+    public sortedEdges: number = UNASSIGNED;
 
     public constructor() {
         this._edges = [];
@@ -411,7 +413,7 @@ export default class TEdgeController {
 
     public getHoleState(firstLeftIndex: number, edgeIndex: number): { isHole: boolean, index: number } {
         let isHole: boolean = false;
-        let currentIndex: number = this.getNeighboar(edgeIndex, false, true);
+        let currentIndex: number = this.prevActive(edgeIndex);
         let index: number = UNASSIGNED;
 
         while (currentIndex !== UNASSIGNED) {
@@ -474,26 +476,12 @@ export default class TEdgeController {
         return false;
     }
 
-    public swapPositionsInEL(edgeIndex1: number, edgeIndex2: number, isAel: boolean): number {
-        if (this.getSwapPositionInEL(edgeIndex1, edgeIndex2, isAel)) {
-            if (this.getNeighboar(edgeIndex1, false, isAel) === UNASSIGNED) {
-                return edgeIndex1;
-            }
-
-            if (this.getNeighboar(edgeIndex2, false, isAel) === UNASSIGNED) {
-                return edgeIndex2;
-            }
-        }
-
-        return UNASSIGNED;
-    }
-
-    public intersectPoint(edge1Index: number, edge2Index: number, intersectPoint: PointI32, useFullRange: boolean): boolean {
+    public intersectPoint(edge1Index: number, edge2Index: number, intersectPoint: PointI32): boolean {
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
         const edge1 = this.at(edge1Index);
         const edge2 = this.at(edge2Index);
-        if (this.slopesEqual(edge1Index, edge2Index, useFullRange) || edge1.dx === edge2.dx) {
+        if (this.slopesEqual(edge1Index, edge2Index) || edge1.dx === edge2.dx) {
             const point: Point<Int32Array> = edge2.bot.y > edge1.bot.y ? edge2.bot : edge1.bot;
 
             intersectPoint.update(point);
@@ -548,7 +536,7 @@ export default class TEdgeController {
         const prevEdge = this.at(this.prevActive(index));
 
         return prevEdge.curr.x === edge.bot.x && prevEdge.isFilled &&
-            this.slopesEqual(this.prevActive(index), index, this._isUseFullRange);
+            this.slopesEqual(this.prevActive(index), index);
     }
 
     public canJoinRight(index: number): boolean {
@@ -560,7 +548,7 @@ export default class TEdgeController {
 
         const prevEdge = this.at(this.prevActive(index));
 
-        return prevEdge.isFilled && this.slopesEqual(this.prevActive(index), index, this._isUseFullRange);
+        return prevEdge.isFilled && this.slopesEqual(this.prevActive(index), index);
     }
 
     public canAddScanbeam(index: number): boolean {
@@ -574,12 +562,28 @@ export default class TEdgeController {
         return prevEdge.isFilled && prevEdge.curr.x === edge.curr.x
     }
 
+    public nextNeighboar(index: number, isAel: boolean): number {
+        return this.getNeighboar(index, true, isAel);
+    }
+
+    public prevNeighboar(index: number, isAel: boolean): number {
+        return this.getNeighboar(index, false, isAel);
+    }
+
     public nextActive(index: number): number {
-        return this.getNeighboar(index, true, true);
+        return this.nextNeighboar(index, true);
     }
 
     public prevActive(index: number): number {
-        return this.getNeighboar(index, false, true);
+        return this.prevNeighboar(index, true);
+    }
+
+    public nextSorted(index: number): number {
+        return this.nextNeighboar(index, false);
+    }
+
+    public prevSorted(index: number): number {
+        return this.prevNeighboar(index, false);
     }
 
     public setNextActive(index: number, value: number): void {
@@ -590,16 +594,19 @@ export default class TEdgeController {
         this.setNeighboar(index, false, true, value);
     }
 
+    private getNeighboarIndex(isNext: boolean, isAel: boolean) {
+        const index = isNext ? 3 : 4;
+        const offset = isAel ? 2 : 0;
+
+        return index + offset;
+    }
+
     public getNeighboar(index: number, isNext: boolean, isAel: boolean): number {
         if (!this.getIndexValid(index)) {
             return UNASSIGNED;
         }
         
-        let dataIndex: number = isNext ? 3 : 4; 
-
-        if(isAel) {
-            dataIndex += 2;
-        }
+        const dataIndex: number = this.getNeighboarIndex(isNext, isAel); 
 
         return this._edgeData[index][dataIndex];
     }
@@ -609,21 +616,17 @@ export default class TEdgeController {
             return;
         }
 
-        let dataIndex: number = isNext ? 3 : 4; 
-
-        if (isAel) {
-            dataIndex += 2;
-        }
+        const dataIndex: number = this.getNeighboarIndex(isNext, isAel); 
 
         this._edgeData[index][dataIndex] = value;
     }
 
     private getSwapPositionInEL(edge1Index: number, edge2Index: number, isAel: boolean): boolean {
         //check that one or other edge hasn't already been removed from EL ...
-        const nextIndex1 = this.getNeighboar(edge1Index, true, isAel);
-        const nextIndex2 = this.getNeighboar(edge2Index, true, isAel);
-        const prevIndex1 = this.getNeighboar(edge1Index, false, isAel);
-        const prevIndex2 = this.getNeighboar(edge2Index, false, isAel);
+        const nextIndex1 = this.nextNeighboar(edge1Index, isAel);
+        const nextIndex2 = this.nextNeighboar(edge2Index, isAel);
+        const prevIndex1 = this.prevNeighboar(edge1Index, isAel);
+        const prevIndex2 = this.prevNeighboar(edge2Index, isAel);
         const isRemoved: boolean = isAel
             ? nextIndex1 === prevIndex1 || nextIndex2 === prevIndex2
             : (nextIndex1 === UNASSIGNED && prevIndex1 === UNASSIGNED) || (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
@@ -711,11 +714,11 @@ export default class TEdgeController {
         }
 
         let edgeIndex: number = startEdgeIndex === UNASSIGNED ? activeEdgeIndex : startEdgeIndex;
-        let nextIndex: number = this.getNeighboar(edgeIndex, true, true);
+        let nextIndex: number = this.nextActive(edgeIndex);
 
         while (nextIndex !== UNASSIGNED && !this.insertsBefore(index, nextIndex)) {
             edgeIndex = nextIndex;
-            nextIndex = this.getNeighboar(edgeIndex, true, true);
+            nextIndex = this.nextActive(edgeIndex);
         }
 
         this.setNextActive(index, nextIndex);
@@ -749,7 +752,7 @@ export default class TEdgeController {
         let edge = this.at(edgeIndex);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
         while (edgeIndex !== UNASSIGNED && (edge.polyTyp !== inputEdge.polyTyp || edge.isWindDeletaEmpty)) {
-            edgeIndex = this.getNeighboar(edgeIndex, false, true);
+            edgeIndex = this.prevActive(edgeIndex);
             edge = this.at(edgeIndex);
         }
 
@@ -761,7 +764,7 @@ export default class TEdgeController {
         } else if (inputEdge.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
             inputEdge.windCount1 = 1;
             inputEdge.windCount2 = edge.windCount2;
-            edgeIndex = this.getNeighboar(edgeIndex, true, true);
+            edgeIndex = this.nextActive(edgeIndex);
             //ie get ready to calc WindCnt2
         } else {
             edge = this.at(edgeIndex);
@@ -794,7 +797,7 @@ export default class TEdgeController {
         while (edgeIndex !== inputEdge.current) {
             edge = this.at(edgeIndex);
             inputEdge.windCount2 += edge.windDelta;
-            edgeIndex = this.getNeighboar(edgeIndex, true, true);
+            edgeIndex = this.nextActive(edgeIndex);
         }
     }
 
@@ -822,21 +825,21 @@ export default class TEdgeController {
         }
     }
 
-    public checkMinJoin(index: number, edgePrevIndex: number, point: Point<Int32Array>, isUseFullRange: boolean): boolean {
+    public checkMinJoin(index: number, edgePrevIndex: number, point: Point<Int32Array>): boolean {
         const edge = this.at(index);
         const edgePrev = this.at(edgePrevIndex);
 
         return edgePrevIndex !== UNASSIGNED &&
             edgePrev.isFilled &&
             edgePrev.topX(point.y) === edge.topX(point.y) &&
-            this.slopesEqual(index, edgePrevIndex, isUseFullRange) &&
+            this.slopesEqual(index, edgePrevIndex) &&
             !edge.isWindDeletaEmpty;
     }
 
-    public checkHorizontalCondition(index: number, isNext: boolean, isUseFullRange: boolean): boolean {
+    public checkHorizontalCondition(index: number, isNext: boolean): boolean {
         const neighboarIndex = this.getNeighboar(index, isNext, true);
 
-        if (neighboarIndex === UNASSIGNED || !this.slopesEqual(index, neighboarIndex, isUseFullRange)) {
+        if (neighboarIndex === UNASSIGNED || !this.slopesEqual(index, neighboarIndex)) {
             return false;
         }
 
@@ -846,10 +849,10 @@ export default class TEdgeController {
         return neighboar.curr.almostEqual(edge.bot) && neighboar.isFilled && neighboar.curr.y > neighboar.top.y;
     }
 
-    public checkSharedCondition(index: number, outHash: number, isNext: boolean, isUseFullRange: boolean): boolean {
+    public checkSharedCondition(index: number, outHash: number, isNext: boolean): boolean {
         const edge = this.at(index);
 
-        return outHash !== UNASSIGNED && this.checkHorizontalCondition(index, isNext, isUseFullRange) && !edge.isWindDeletaEmpty;
+        return outHash !== UNASSIGNED && this.checkHorizontalCondition(index, isNext) && !edge.isWindDeletaEmpty;
     }
 
     public updateCurrent(index: number, edgeIndex: number): void {
@@ -866,19 +869,92 @@ export default class TEdgeController {
     }
 
     public copyActiveToSorted(index: number): number {
-        this.setNeighboar(index, false, false, this.getNeighboar(index, false, true));
-        this.setNeighboar(index, true, false, this.getNeighboar(index, true, true));
+        this.setNeighboar(index, false, false, this.prevActive(index));
+        this.setNeighboar(index, true, false, this.nextActive(index));
 
-        return this.getNeighboar(index, true, true);
+        return this.nextActive(index);
     }
 
-    public slopesEqual(e1Index: number, e2Index: number, useFullRange: boolean): boolean {
+    public slopesEqual(e1Index: number, e2Index: number): boolean {
         const e1 = this.at(e1Index);
         const e2 = this.at(e2Index);
-        return slopesEqual(e1.delta.y, e2.delta.x, e1.delta.x, e2.delta.y, useFullRange);
+        return slopesEqual(e1.delta.y, e2.delta.x, e1.delta.x, e2.delta.y, this._isUseFullRange);
+    }
+
+    public copyAELToSEL(): void {
+        this.sortedEdges = this.activeEdges;
+
+        let currentIndex = this.activeEdges;
+        let edge = this.at(currentIndex);
+
+        while (currentIndex !== UNASSIGNED) {
+            currentIndex = this.copyActiveToSorted(edge.current);
+            edge = this.at(currentIndex);
+        }
+    }
+
+    public edgesAdjacent(edge1Index: number, edge2Index: number): boolean {
+        return this.nextSorted(edge1Index) === edge2Index || this.prevSorted(edge1Index) === edge2Index;
+    }
+
+    private getCurrentEdge(isAel: boolean): number {
+        return isAel ? this.activeEdges : this.sortedEdges;
+    }
+
+    public swapPositionsInList(edgeIndex1: number, edgeIndex2: number, isAel: boolean): void {
+        let edgeIndex = UNASSIGNED;
+
+        if (this.getSwapPositionInEL(edgeIndex1, edgeIndex2, isAel)) {
+            if (this.prevNeighboar(edgeIndex1, isAel) === UNASSIGNED) {
+                edgeIndex = edgeIndex1;
+            } else if (this.prevNeighboar(edgeIndex2, isAel) === UNASSIGNED) {
+                edgeIndex = edgeIndex2;
+            }
+        }
+
+        if (edgeIndex !== UNASSIGNED) {
+            this.setCurrentEdge(edgeIndex, isAel);
+        }
+    }
+
+    private setCurrentEdge(value: number, isAel: boolean): void {
+        if (isAel) {
+            this.activeEdges = value;
+        } else {
+            this.sortedEdges = value;
+        }
+    }
+
+    public deleteFromList(edgeIndex: number, isAel: boolean): void {
+        const nextIndex = this.nextNeighboar(edgeIndex, isAel);
+        const prevIndex = this.prevNeighboar(edgeIndex, isAel);
+        const hasNext = nextIndex !== UNASSIGNED;
+        const hasPrev = prevIndex !== UNASSIGNED;
+
+        if (!hasPrev && !hasNext && edgeIndex !== this.sortedEdges) {
+            return;
+        }
+
+        //already deleted
+        if (hasPrev) {
+            this.setNeighboar(prevIndex, true, isAel, nextIndex);
+        } else {
+            this.setCurrentEdge(nextIndex, isAel);
+        }
+
+        if (hasNext) {
+            this.setNeighboar(nextIndex, false, isAel, prevIndex);
+        }
+
+        this.setNeighboar(edgeIndex, true, isAel, UNASSIGNED);
+        this.setNeighboar(edgeIndex, false, isAel, UNASSIGNED);
     }
 
     public get isUseFullRange(): boolean {
         return this._isUseFullRange;
+    }
+
+    public checkReverse(p1: Point<Int32Array>, p2: Point<Int32Array>, p3: Point<Int32Array>): boolean {
+        return p2.y > p1.y || !PointI32.slopesEqual(p1, p2, p3, this._isUseFullRange);
     }
 }

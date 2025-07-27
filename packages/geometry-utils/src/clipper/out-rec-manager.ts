@@ -108,7 +108,7 @@ export default class OutRecManager {
         return outRec.getHash(pointIndex);
     }
 
-    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>, isUseFullRange: boolean): number {
+    public addLocalMinPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>): number {
         const edge1 = this.tEdgeController.at(edge1Index);
         const edge2 = this.tEdgeController.at(edge2Index);
         let firstEdge = edge2;
@@ -127,7 +127,7 @@ export default class OutRecManager {
 
         const prevIndex = this.tEdgeController.prevActive(firstEdge.current) === secondEdge.current 
             ? this.tEdgeController.prevActive(secondEdge.current) : this.tEdgeController.prevActive(firstEdge.current);
-        const condition = this.tEdgeController.checkMinJoin(firstEdge.current, prevIndex, point, isUseFullRange);
+        const condition = this.tEdgeController.checkMinJoin(firstEdge.current, prevIndex, point);
 
         this.insertJoin(condition, result, prevIndex, point, firstEdge.top);
 
@@ -183,7 +183,7 @@ export default class OutRecManager {
         outRec2.currentIndex = outRec1.currentIndex;
     }
 
-    public fixupOutPolygon(isUseFullRange: boolean): void {
+    public fixupOutPolygon(): void {
         let i: number = 0;
 
         for (i = 0; i < this.polyOuts.length; ++i) {
@@ -206,14 +206,14 @@ export default class OutRecManager {
                 this.join.getX(i, false), 
                 this.join.getY(i, false)
             );
-            this.joinCommonEdge(i, point, isUseFullRange);
+            this.joinCommonEdge(i, point);
         }
 
         for (i = 0; i < this.polyOuts.length; ++i) {
             const outRec = this.polyOuts[i];
 
             if (!outRec.isEmpty) {
-                outRec.fixupOutPolygon(false, isUseFullRange);
+                outRec.fixupOutPolygon(false, this.tEdgeController.isUseFullRange);
             }
         }
 
@@ -278,10 +278,10 @@ export default class OutRecManager {
         }
     }
 
-    private joinCommonEdge(index: number, offPoint: Point<Int32Array>, isUseFullRange: boolean): void {
+    private joinCommonEdge(index: number, offPoint: Point<Int32Array>): void {
         const inputHash1 = this.join.getHash1(index, false);
         const inputHash2 = this.join.getHash2(index);
-        const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint, isUseFullRange);
+        const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint);
 
         if (!result) {
             this.join.updateHash(index, outHash1, outHash2);
@@ -354,7 +354,7 @@ export default class OutRecManager {
         }
     }
 
-    private joinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>, isUseFullRange: boolean): { outHash1: number, outHash2: number, result: boolean  } {
+    private joinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>): { outHash1: number, outHash2: number, result: boolean  } {
         const index1: number = get_u16_from_u32(outHash1, 0);
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outRec1 = this.getOutRec(index1);
@@ -465,24 +465,22 @@ export default class OutRecManager {
         //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
         //make sure the polygons are correctly oriented ...
 
-        const reverse1: boolean =
-            op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange);
+        const reverse1: boolean = this.tEdgeController.checkReverse(op1.point, op1b.point, offPoint);
 
         if (reverse1) {
             op1b = OutPt.at(op1.getUniquePt(false));
 
-            if (op1b.point.y > op1.point.y || !PointI32.slopesEqual(op1.point, op1b.point, offPoint, isUseFullRange)) {
+            if (this.tEdgeController.checkReverse(op1.point, op1b.point, offPoint)) {
                 return result;
             }
         }
 
-        const reverse2: boolean =
-            op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange);
+        const reverse2: boolean = this.tEdgeController.checkReverse(op2.point, op2b.point, offPoint);
 
         if (reverse2) {
             op2b = OutPt.at(op2.getUniquePt(false));
 
-            if (op2b.point.y > op2.point.y || !PointI32.slopesEqual(op2.point, op2b.point, offPoint, isUseFullRange)) {
+            if (this.tEdgeController.checkReverse(op2.point, op2b.point, offPoint)) {
                 return result;
             }
         }

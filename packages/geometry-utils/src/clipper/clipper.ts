@@ -97,7 +97,7 @@ export default class Clipper {
                 botY = topY;
             } while (!this.scanbeam.isEmpty || !this.tEdgeManager.isMinimaEmpty);
 
-            this.outRecManager.fixupOutPolygon(this.tEdgeManager.isUseFullRange);
+            this.outRecManager.fixupOutPolygon();
 
             return true;
         } finally {
