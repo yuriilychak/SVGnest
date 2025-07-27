@@ -395,8 +395,8 @@ export default class TEdgeController {
     }
 
 
-    public updateIndexAEL(edgeIndex: number, side: DIRECTION, oldIndex: number, newIndex: number): void {
-        let currentIndex: number = edgeIndex;
+    public updateIndexAEL(side: DIRECTION, oldIndex: number, newIndex: number): void {
+        let currentIndex: number = this.active;
 
         while (currentIndex !== UNASSIGNED) {
             const edge = this.at(currentIndex);

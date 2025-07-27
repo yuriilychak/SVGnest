@@ -214,7 +214,7 @@ export default class TEdgeManager {
                 (e2Wc !== 0 && e2Wc !== 1) ||
                 edge1.polyTyp !== edge2.polyTyp
             ) {
-                this.outRecManager.addLocalMaxPoly(edge1Index, edge2Index, point, this.tEdgeController.active);
+                this.outRecManager.addLocalMaxPoly(edge1Index, edge2Index, point);
             } else {
                 this.outRecManager.addOutPt(edge1Index, point);
                 this.outRecManager.addOutPt(edge2Index, point);
@@ -300,7 +300,7 @@ export default class TEdgeManager {
         //are both open paths, AND they are both 'contributing maximas' ...
         if (edge1.isWindDeletaEmpty && edge2.isWindDeletaEmpty) {
             if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
-                this.outRecManager.addLocalMaxPoly(edge1.current, edge2.current, point, this.tEdgeController.active);
+                this.outRecManager.addLocalMaxPoly(edge1.current, edge2.current, point);
             }
         }
         //if intersecting a subj line with a subj poly ...

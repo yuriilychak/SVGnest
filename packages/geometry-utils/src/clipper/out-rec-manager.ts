@@ -134,7 +134,7 @@ export default class OutRecManager {
         return result;
     }
 
-    public addLocalMaxPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>, activeEdgeIndex: number): void {
+    public addLocalMaxPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>): void {
         this.addOutPt(edge1Index, point);
 
         const edge1 = this.tEdgeController.at(edge1Index);
@@ -178,7 +178,7 @@ export default class OutRecManager {
         //nb: safe because we only get here via AddLocalMaxPoly
         secondEdge.unassign();
 
-        this.tEdgeController.updateIndexAEL(activeEdgeIndex, side, ObsoleteIdx, OKIdx);
+        this.tEdgeController.updateIndexAEL(side, ObsoleteIdx, OKIdx);
 
         outRec2.currentIndex = outRec1.currentIndex;
     }
