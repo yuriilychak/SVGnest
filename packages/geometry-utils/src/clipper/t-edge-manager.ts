@@ -596,7 +596,7 @@ export default class TEdgeManager {
             return;
         }
 
-        let nextEdgeIndex: number = this.tEdgeController.nextActive(edge.current);
+        let nextEdgeIndex: number = this.tEdgeController.nextActive(edgeIndex);
 
         while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== this.tEdgeController.maximaPair(edgeIndex)) {
             this.intersectEdges(edgeIndex, nextEdgeIndex, edge.top, true);
@@ -604,13 +604,14 @@ export default class TEdgeManager {
             nextEdgeIndex = this.tEdgeController.nextActive(edgeIndex);
         }
 
-        const maxPairEdge = this.tEdgeController.at(this.tEdgeController.maximaPair(edgeIndex));
+        const maxIndex = this.tEdgeController.maximaPair(edgeIndex);
+        const maxPairEdge = this.tEdgeController.at(maxIndex);
 
         if (!edge.isAssigned && !maxPairEdge.isAssigned) {
             this.tEdgeController.deleteFromList(edgeIndex, true);
-            this.tEdgeController.deleteFromList(maxPairEdge.current, true);
+            this.tEdgeController.deleteFromList(maxIndex, true);
         } else if (edge.isAssigned && maxPairEdge.isAssigned) {
-            this.intersectEdges(edgeIndex, maxPairEdge.current, edge.top, false);
+            this.intersectEdges(edgeIndex, maxIndex, edge.top, false);
         } else if (edge.isWindDeletaEmpty) {
             if (edge.isAssigned) {
                 this.outRecManager.addOutPt(edgeIndex, edge.top);
@@ -620,11 +621,11 @@ export default class TEdgeManager {
             this.tEdgeController.deleteFromList(edgeIndex, true);
 
             if (maxPairEdge.isAssigned) {
-                this.outRecManager.addOutPt(maxPairEdge.current, edge.top);
+                this.outRecManager.addOutPt(maxIndex, edge.top);
                 maxPairEdge.unassign();
             }
 
-            this.tEdgeController.deleteFromList(maxPairEdge.current, true);
+            this.tEdgeController.deleteFromList(maxIndex, true);
         } else {
             showError('DoMaxima error');
         }
