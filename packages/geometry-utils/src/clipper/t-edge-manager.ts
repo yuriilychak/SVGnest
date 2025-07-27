@@ -521,27 +521,27 @@ export default class TEdgeManager {
         let edgeIndex: number = this.tEdgeController.active;
 
         while (edgeIndex !== UNASSIGNED) {
-            let edge = this.tEdgeController.at(edgeIndex);
             //1. process maxima, treating them as if they're 'bent' horizontal edges,
             //   but exclude maxima with horizontal edges. nb: e can't be a horizontal.
             isMaximaEdge = this.tEdgeController.getMaxima(edgeIndex, topY);
 
             if (isMaximaEdge) {
-                const tempEdge = this.tEdgeController.at(this.tEdgeController.maximaPair(edge.current));
-                isMaximaEdge = this.tEdgeController.maximaPair(edge.current) === UNASSIGNED || !tempEdge.isHorizontal;
+                const tempEdge = this.tEdgeController.at(this.tEdgeController.maximaPair(edgeIndex));
+                isMaximaEdge = this.tEdgeController.maximaPair(edgeIndex) === UNASSIGNED || !tempEdge.isHorizontal;
             }
 
             if (isMaximaEdge) {
-                const prevIndex = this.tEdgeController.prevActive(edge.current);
-                this.doMaxima(edge.current);
+                const prevIndex = this.tEdgeController.prevActive(edgeIndex);
+                this.doMaxima(edgeIndex);
 
-                edgeIndex = this.tEdgeController.prevActive(edge.current) === UNASSIGNED ? this.tEdgeController.active : this.tEdgeController.nextActive(prevIndex);
+                edgeIndex = this.tEdgeController.prevActive(edgeIndex) === UNASSIGNED ? this.tEdgeController.active : this.tEdgeController.nextActive(prevIndex);
                 continue;
             }
 
+            let edge = this.tEdgeController.at(edgeIndex);
             //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-            if (this.tEdgeController.getIntermediate(edge.current, topY) && this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(edge.current)).isHorizontal) {
-                edge = this.tEdgeController.at(this.updateEdgeIntoAEL(edge.current));
+            if (this.tEdgeController.getIntermediate(edgeIndex, topY) && this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(edgeIndex)).isHorizontal) {
+                edge = this.tEdgeController.at(this.updateEdgeIntoAEL(edgeIndex));
 
                 if (edge.isAssigned) {
                     this.outRecManager.addOutPt(edge.current, edge.bot);
