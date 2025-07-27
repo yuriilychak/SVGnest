@@ -23,7 +23,6 @@ export default class TEdge {
     public prevActive: number;
     public nextSorted: number;
     public prevSorted: number;
-    public nextLocalMinima: number;
 
     constructor(curr: Point<Int32Array>, polyType: POLY_TYPE, current: number) {
         this.bot = PointI32.create();
@@ -37,7 +36,6 @@ export default class TEdge {
         this.windCount1 = 0;
         this.windCount2 = 0;
         this.index = UNASSIGNED;
-        this.nextLocalMinima = UNASSIGNED;
         this.nextActive = UNASSIGNED;
         this.prevActive = UNASSIGNED;
         this.nextSorted = UNASSIGNED;
@@ -164,14 +162,6 @@ export default class TEdge {
         }
     }
 
-    public getStop(point: Point<Int32Array>, isProtect: boolean): boolean {
-        return !isProtect && this.nextLocalMinima === UNASSIGNED && this.top.almostEqual(point);
-    }
-
-    public getIntermediate(y: number): boolean {
-        return this.top.y === y && this.nextLocalMinima !== UNASSIGNED;
-    }
-
     public get isFilled(): boolean {
         return this.isAssigned && !this.isWindDeletaEmpty;
     }
@@ -198,10 +188,6 @@ export default class TEdge {
         this.prevActive =  edge.prevActive;
         this.nextActive = edge.nextActive;
         this.curr.update(this.bot);
-    }
-
-    public getMaxima(y: number): boolean {
-        return this.top.y === y && this.nextLocalMinima === UNASSIGNED;
     }
 
     public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {

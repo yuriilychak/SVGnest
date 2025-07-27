@@ -122,7 +122,7 @@ export default class TEdgeController {
     }
 
     public at(index: number): TEdge | null {
-        return index === UNASSIGNED || index >= this._edges.length ? null : this._edges[index];
+        return this.getIndexValid(index) ? this._edges[index] : null;
     }
 
     public dispose(): void {
@@ -222,6 +222,10 @@ export default class TEdgeController {
         return edge.nextActive === edge.prevActive && !edge.isHorizontal ? UNASSIGNED : result;
     }
 
+    public hasNextLocalMinima(index: number): boolean {
+        return this.getIndexValid(index) && this._edgeData[index][2] !== UNASSIGNED;
+    }
+
     public processBound(index: number, isClockwise: boolean): number {
         let edge = TEdge.at(index);
         let result = edge;
@@ -267,13 +271,14 @@ export default class TEdgeController {
         }
 
         while (edge !== result) {
-            edge.nextLocalMinima = this.getBaseNeighboar(edge.current, isClockwise);
+            const localMinima = this.getBaseNeighboar(edge.current, isClockwise);
+            this.setNextLocalMinima(edge.current, localMinima);
 
             if (this.checkReverseHorizontal(edge.current, index, !isClockwise)) {
                 edge.reverseHorizontal();
             }
 
-            edge = TEdge.at(edge.nextLocalMinima);
+            edge = TEdge.at(localMinima);
         }
 
         if (this.checkReverseHorizontal(edge.current, index, !isClockwise)) {
@@ -284,6 +289,18 @@ export default class TEdgeController {
         //move to the edge just beyond current bound
     }
 
+    public getNextLocalMinima(index: number): number {
+        return this.hasNextLocalMinima(index) ? this._edgeData[index][2] : UNASSIGNED;
+    }
+
+    private setNextLocalMinima(edgeIndex: number, minimaIndex: number): void {
+        if (!this.getIndexValid(edgeIndex)) {
+            return;
+        }
+
+        this._edgeData[edgeIndex][2] = minimaIndex;
+    }
+
     private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
         const edge = this.at(edgeIndex);
         const neighboarIndex = this.getBaseNeighboar(edge.current, isNext);
@@ -292,8 +309,12 @@ export default class TEdgeController {
         return edge.isDxHorizontal && edge.current !== index && edge.bot.x !== neighboar.top.x;
     }
 
+    private getIndexValid(index: number): boolean {
+        return index !== UNASSIGNED && index < this._edgeData.length;
+    }
+
     private getBaseNeighboar(index: number, isNext: boolean): number {
-        if (index === UNASSIGNED || index >= this._edgeData.length) {
+        if (!this.getIndexValid(index)) {
             return UNASSIGNED;
         }
 
@@ -318,8 +339,38 @@ export default class TEdgeController {
         const index = this.getBaseNeighboar(edgeIndex, isNext);
         const edge = this.at(index);
 
-        return index !== UNASSIGNED && edge.top.almostEqual(currEdge.top) && edge.nextLocalMinima === UNASSIGNED;
+        return index !== UNASSIGNED && edge.top.almostEqual(currEdge.top) && !this.hasNextLocalMinima(index);
     }  
+
+    public getStop(index: number, point: Point<Int32Array>, isProtect: boolean): boolean {
+        if(isProtect || this.hasNextLocalMinima(index)) {
+            return false;
+        }
+
+        const edge = this.at(index);
+
+        return edge.top.almostEqual(point);
+    }
+
+    public getIntermediate(index: number, y: number): boolean {
+        if(!this.hasNextLocalMinima(index)) {
+            return false;
+        }
+
+        const edge = this.at(index);
+
+        return edge.top.y === y;
+    }
+
+    public getMaxima(index: number, y: number): boolean {
+        if (this.hasNextLocalMinima(index)) {
+            return false;
+        }
+
+        const edge = this.at(index);
+
+        return edge.top.y === y;
+    }
 
     public get isUseFullRange(): boolean {
         return this._isUseFullRange;
