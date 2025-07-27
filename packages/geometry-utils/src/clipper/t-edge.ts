@@ -17,8 +17,6 @@ export default class TEdge {
     public windCount2: number;
     public index: number;
     public current: number;
-    public nextActive: number;
-    public prevActive: number;
 
     constructor(curr: Point<Int32Array>, polyType: POLY_TYPE, current: number) {
         this.bot = PointI32.create();
@@ -32,8 +30,6 @@ export default class TEdge {
         this.windCount1 = 0;
         this.windCount2 = 0;
         this.index = UNASSIGNED;
-        this.nextActive = UNASSIGNED;
-        this.prevActive = UNASSIGNED;
         this.current = current;
     }
 

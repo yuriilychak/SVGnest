@@ -125,7 +125,8 @@ export default class OutRecManager {
         secondEdge.side = DIRECTION.RIGHT;
         firstEdge.side = DIRECTION.LEFT;
 
-        const prevIndex = firstEdge.prevActive === secondEdge.current ? secondEdge.prevActive : firstEdge.prevActive;
+        const prevIndex = this.tEdgeController.prevActive(firstEdge.current) === secondEdge.current 
+            ? this.tEdgeController.prevActive(secondEdge.current) : this.tEdgeController.prevActive(firstEdge.current);
         const condition = this.tEdgeController.checkMinJoin(firstEdge.current, prevIndex, point, isUseFullRange);
 
         this.insertJoin(condition, result, prevIndex, point, firstEdge.top);

@@ -220,7 +220,7 @@ export default class TEdgeController {
 
         const edge = this.at(result);
 
-        return edge.nextActive === edge.prevActive && !edge.isHorizontal ? UNASSIGNED : result;
+        return this.nextActive(result) === this.prevActive(result) && !edge.isHorizontal ? UNASSIGNED : result;
     }
 
     public hasNextLocalMinima(index: number): boolean {
@@ -405,7 +405,7 @@ export default class TEdgeController {
                 break;
             }
 
-            currentIndex = edge.nextActive;
+            currentIndex = this.nextActive(currentIndex);
         }
     }
 
@@ -424,7 +424,7 @@ export default class TEdgeController {
                 }
             }
 
-            currentIndex = edge.prevActive;
+            currentIndex = this.prevActive(currentIndex);
         }
 
         return { isHole, index };
@@ -541,37 +541,53 @@ export default class TEdgeController {
     public canJoinLeft(index: number): boolean {
         const edge = this.at(index);
 
-        if (!edge.isFilled || edge.prevActive === UNASSIGNED) {
+        if (!edge.isFilled || this.prevActive(index) === UNASSIGNED) {
             return false;
         }
 
-        const prevEdge = this.at(edge.prevActive);
+        const prevEdge = this.at(this.prevActive(index));
 
         return prevEdge.curr.x === edge.bot.x && prevEdge.isFilled &&
-            this.slopesEqual(edge.prevActive, index, this._isUseFullRange);
+            this.slopesEqual(this.prevActive(index), index, this._isUseFullRange);
     }
 
     public canJoinRight(index: number): boolean {
         const edge = this.at(index);
 
-        if (!edge.isFilled || edge.prevActive === UNASSIGNED) {
+        if (!edge.isFilled || this.prevActive(index) === UNASSIGNED) {
             return false;
         }
 
-        const prevEdge = this.at(edge.prevActive);
+        const prevEdge = this.at(this.prevActive(index));
 
-        return prevEdge.isFilled && this.slopesEqual(edge.prevActive, index, this._isUseFullRange);
+        return prevEdge.isFilled && this.slopesEqual(this.prevActive(index), index, this._isUseFullRange);
     }
 
     public canAddScanbeam(index: number): boolean {
         const edge = this.at(index);
-        if (!edge.isFilled || edge.prevActive === UNASSIGNED) {
+        if (!edge.isFilled || this.prevActive(index) === UNASSIGNED) {
             return false;
         }
 
-        const prevEdge = this.at(edge.prevActive);
+        const prevEdge = this.at(this.prevActive(index));
 
         return prevEdge.isFilled && prevEdge.curr.x === edge.curr.x
+    }
+
+    public nextActive(index: number): number {
+        return this.getNeighboar(index, true, true);
+    }
+
+    public prevActive(index: number): number {
+        return this.getNeighboar(index, false, true);
+    }
+
+    public setNextActive(index: number, value: number): void {
+        this.setNeighboar(index, true, true, value);
+    }
+
+    public setPrevActive(index: number, value: number): void {
+        this.setNeighboar(index, false, true, value);
     }
 
     public getNeighboar(index: number, isNext: boolean, isAel: boolean): number {
@@ -579,14 +595,11 @@ export default class TEdgeController {
             return UNASSIGNED;
         }
         
+        let dataIndex: number = isNext ? 3 : 4; 
 
         if(isAel) {
-            const edge = this.at(index);
-
-            return isNext ? edge.nextActive : edge.prevActive;
+            dataIndex += 2;
         }
-
-        const dataIndex: number = isNext ? 3 : 4; 
 
         return this._edgeData[index][dataIndex];
     }
@@ -596,21 +609,11 @@ export default class TEdgeController {
             return;
         }
 
-        const edge = this.at(index);
+        let dataIndex: number = isNext ? 3 : 4; 
 
-        if(isAel) {
-            if (isNext) {
-                edge.nextActive = value;
-
-                return;
-            }
-
-            edge.prevActive = value;
-
-            return;
+        if (isAel) {
+            dataIndex += 2;
         }
-
-        const dataIndex: number = isNext ? 3 : 4;
 
         this._edgeData[index][dataIndex] = value;
     }
@@ -691,18 +694,16 @@ export default class TEdgeController {
     }
 
     public insertEdgeIntoAEL(index: number, activeEdgeIndex: number, startEdgeIndex: number = UNASSIGNED): number {
-        const edge = this.at(index);
-
         if (activeEdgeIndex === UNASSIGNED) {
-            edge.prevActive = UNASSIGNED;
-            edge.nextActive = UNASSIGNED;
+            this.setPrevActive(index, UNASSIGNED);
+            this.setNextActive(index, UNASSIGNED);
 
             return index;
         }
 
         if (startEdgeIndex === UNASSIGNED && this.insertsBefore(index, activeEdgeIndex)) {
-            edge.prevActive = UNASSIGNED;
-            edge.nextActive = activeEdgeIndex;
+            this.setPrevActive(index, UNASSIGNED);
+            this.setNextActive(index, activeEdgeIndex);
 
             this.setNeighboar(activeEdgeIndex, false, true, index);
 
@@ -717,13 +718,13 @@ export default class TEdgeController {
             nextIndex = this.getNeighboar(edgeIndex, true, true);
         }
 
-        edge.nextActive = nextIndex;
+        this.setNextActive(index, nextIndex);
 
         if (nextIndex !== UNASSIGNED) {
             this.setNeighboar(nextIndex, false, true, index);
         }
 
-        edge.prevActive = edgeIndex;
+        this.setPrevActive(index, edgeIndex);
         this.setNeighboar(edgeIndex, true, true, index);
 
         return activeEdgeIndex;
@@ -744,7 +745,7 @@ export default class TEdgeController {
 
     public setWindingCount(index: number, activeEdgeIndex: number, clipType: CLIP_TYPE): void {
         const inputEdge = this.at(index);
-        let edgeIndex: number = inputEdge.prevActive;
+        let edgeIndex: number = this.prevActive(index);
         let edge = this.at(edgeIndex);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
         while (edgeIndex !== UNASSIGNED && (edge.polyTyp !== inputEdge.polyTyp || edge.isWindDeletaEmpty)) {
@@ -786,7 +787,7 @@ export default class TEdgeController {
             }
 
             inputEdge.windCount2 = edge.windCount2;
-            edgeIndex = edge.nextActive;
+            edgeIndex = this.nextActive(edge.current);
             //ie get ready to calc WindCnt2
         }
         //nonZero, Positive or Negative filling ...
@@ -859,8 +860,8 @@ export default class TEdgeController {
         currEdge.windDelta = edge.windDelta;
         currEdge.windCount1 = edge.windCount1;
         currEdge.windCount2 = edge.windCount2;
-        currEdge.prevActive = edge.prevActive;
-        currEdge.nextActive = edge.nextActive;
+        this.setPrevActive(index, this.prevActive(edgeIndex));
+        this.setNextActive(index, this.nextActive(edgeIndex));
         currEdge.curr.update(currEdge.bot);
     }
 
