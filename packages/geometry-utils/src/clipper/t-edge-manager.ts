@@ -1,6 +1,6 @@
 import { cycle_index_wasm as cycle_index } from "wasm-nesting";
 import { PointI32 } from "../geometry";
-import { UNASSIGNED } from "./constants";
+import { HORIZONTAL, UNASSIGNED } from "./constants";
 import { showError } from "./helpers";
 import IntersectNode from "./intersect-node";
 import LocalMinima from "./local-minima";
@@ -99,131 +99,94 @@ export default class TEdgeManager {
         if (lastIndex < 2) {
             return UNASSIGNED;
         }
-        //create a new edge array ...
+
+        // Create edges array without any linking
         const edges: TEdge[] = [];
-        const path: number[] = [];
         let i: number = 0;
 
         for (i = 0; i <= lastIndex; ++i) {
-            const edge = new TEdge();
+            const edge = new TEdge(polygon[i], polyType);
+            
+            this.isUseFullRange = edge.curr.rangeTest(this.isUseFullRange);
             edges.push(edge);
-            path.push(edge.current);
         }
 
-        //1. Basic (first) edge initialization ...
-        for (i = lastIndex; i >= 0; --i) {
-            this.isUseFullRange = polygon[i].rangeTest(this.isUseFullRange);
+        // 2. Remove duplicate vertices and collinear edges by mutating the edges array
+        let changed = true;
+        while (changed && edges.length > 2) {
+            changed = false;
 
-            const edge = edges[i];
-            edge.next = edges[cycle_index(i, edges.length, 1)].current;
-            edge.prev = edges[cycle_index(i, edges.length, -1)].current;
-            edge.curr.update(polygon[i]);
-        }
+            for (i = 0; i < edges.length; ++i) {
+                const currEdge = edges[i];
+                const nextEdge = edges[cycle_index(i, edges.length, 1)];
+                const prevEdge = edges[cycle_index(i, edges.length, -1)];
 
-        let startIndex: number = edges[0].current;
-        let stopIndex: number = edges[0].current;
-        let currIndex: number = edges[0].current;
-        //2. Remove duplicate vertices, and (when closed) collinear edges ...
+                // Check for duplicate vertices
+                if (currEdge.curr.almostEqual(nextEdge.curr)) {
+                    if (edges.length <= 3) {
+                        break;
+                    }
 
-        while (true) {
-            const currEdge = TEdge.at(currIndex);
-            const nextEdge = TEdge.at(currEdge.next);
-            const prevEdge = TEdge.at(currEdge.prev);
-
-            if (currEdge.curr.almostEqual(nextEdge.curr)) {
-                if (currIndex === nextEdge.next) {
+                    // Remove current edge from array
+                    edges.splice(i, 1);
+                    changed = true;
                     break;
                 }
 
-                if (currEdge.current === startIndex) {
-                    startIndex = nextEdge.current;
+                // Check for collinear edges
+                if (PointI32.slopesEqual(prevEdge.curr, currEdge.curr, nextEdge.curr, this.isUseFullRange)) {
+                    if (edges.length <= 3) {
+                        break;
+                    }
+
+                    // Remove current edge from array
+                    edges.splice(i, 1);
+                    changed = true;
+                    break;
                 }
-
-                const next = TEdge.at(currEdge.next);
-                const prev = TEdge.at(currEdge.prev);
-                //removes e from double_linked_list (but without removing from memory)
-                prev.next = next.current;
-                next.prev = prev.current;
-                currEdge.prev = UNASSIGNED;
-                currEdge.next = UNASSIGNED;
-                currIndex = nextEdge.current;
-                stopIndex = currIndex;
-
-                continue;
-            }
-
-            if (currEdge.prev === currEdge.next) {
-                break;
-            }
-
-            if (PointI32.slopesEqual(prevEdge.curr, currEdge.curr, nextEdge.curr, this.isUseFullRange)) {
-                //Collinear edges are allowed for open paths but in closed paths
-                //the default is to merge adjacent collinear edges into a single edge.
-                //However, if the PreserveCollinear property is enabled, only overlapping
-                //collinear edges (ie spikes) will be removed from closed paths.
-                if (currEdge.current === startIndex) {
-                    startIndex = currEdge.next;
-                }
-
-                const next = TEdge.at(currEdge.next);
-                const prev = TEdge.at(currEdge.prev);
-                //removes e from double_linked_list (but without removing from memory)
-                prev.next = next.current;
-                next.prev = prev.current;
-                currEdge.prev = UNASSIGNED;
-                currEdge.next = UNASSIGNED;
-                currIndex = prevEdge.current;
-                stopIndex = currIndex;
-
-                continue;
-            }
-
-            currIndex = nextEdge.current;
-
-            if (currIndex === stopIndex) {
-                break;
             }
         }
 
-        const edge = TEdge.at(currIndex);
-
-        if (edge.prev === edge.next) {
+        if (edges.length < 3) {
             return UNASSIGNED;
         }
 
-        //3. Do second stage of edge initialization ...
-        const startEdge = TEdge.at(startIndex);
+        // 3. Second stage of edge initialization
         let isFlat: boolean = true;
+        const startY = edges[0].curr.y;
 
-        currIndex = startIndex;
+        for (i = 0; i < edges.length; ++i) {
+            const currEdge = edges[i];
+            const nextEdge = edges[cycle_index(i, edges.length, 1)];
 
-        do {
-            const edge1 = TEdge.at(currIndex);
-            const next = TEdge.at(edge1.next);
-
-            if (edge1.curr.y >= next.curr.y) {
-                edge1.bot.update(edge1.curr);
-                edge1.top.update(next.curr);
+            if (currEdge.curr.y >= nextEdge.curr.y) {
+                currEdge.bot.update(currEdge.curr);
+                currEdge.top.update(nextEdge.curr);
             } else {
-                edge1.top.update(edge1.curr);
-                edge1.bot.update(next.curr);
+                currEdge.top.update(currEdge.curr);
+                currEdge.bot.update(nextEdge.curr);
             }
 
-            edge1.setDx();
-            edge1.polyTyp = polyType;
+            currEdge.delta.update(currEdge.top).sub(currEdge.bot);
+            currEdge.dx = currEdge.delta.y === 0 ? HORIZONTAL : currEdge.delta.x / currEdge.delta.y;
 
-            currIndex = edge1.next;
-
-            const edge2 = TEdge.at(currIndex);
-
-            if (isFlat && edge2.curr.y !== startEdge.curr.y) {
+            if (isFlat && currEdge.curr.y !== startY) {
                 isFlat = false;
             }
-        } while (currIndex !== startIndex);
-        //4. Finally, add edge bounds to LocalMinima list ...
-        //Totally flat paths must be handled differently when adding them
-        //to LocalMinima list to avoid endless loops etc ...
-        return isFlat ? UNASSIGNED : currIndex;
+        }
+
+        // 4. Finally, set up the next/prev links for remaining edges
+        for (i = 0; i < edges.length; ++i) {
+            const currEdge = edges[i];
+            const nextEdge = edges[cycle_index(i, edges.length, 1)];
+            const prevEdge = edges[cycle_index(i, edges.length, -1)];
+
+            currEdge.next = nextEdge.current;
+            currEdge.prev = prevEdge.current;
+        }
+
+        // Return the starting edge index if path is valid
+        return isFlat ? UNASSIGNED : edges[0].current;
     }
 
     public findNextLocMin(index: number): number {

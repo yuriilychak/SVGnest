@@ -26,13 +26,13 @@ export default class TEdge {
     public prevSorted: number;
     public nextLocalMinima: number;
 
-    constructor() {
+    constructor(curr: PointI32, polyType: POLY_TYPE) {
         this.bot = PointI32.create();
-        this.curr = PointI32.create();
+        this.curr = PointI32.from(curr);
         this.top = PointI32.create();
         this.delta = PointI32.create();
         this.dx = 0;
-        this.polyTyp = POLY_TYPE.SUBJECT;
+        this.polyTyp = polyType;
         this.side = DIRECTION.LEFT;
         this.windDelta = 0;
         this.windCount1 = 0;
@@ -122,11 +122,6 @@ export default class TEdge {
             edgePrev.topX(point.y) === this.topX(point.y) &&
             TEdge.slopesEqual(this.current, edgePrevIndex, isUseFullRange) &&
             !this.isWindDeletaEmpty;
-    }
-
-    public setDx(): void {
-        this.delta.update(this.top).sub(this.bot);
-        this.dx = this.delta.y === 0 ? HORIZONTAL : this.delta.x / this.delta.y;
     }
 
     public reset(side: DIRECTION): void {
