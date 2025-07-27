@@ -748,7 +748,7 @@ export default class TEdgeController {
         this.sorted = index;
     }
 
-    public setWindingCount(index: number, activeEdgeIndex: number, clipType: CLIP_TYPE): void {
+    public setWindingCount(index: number, clipType: CLIP_TYPE): void {
         const inputEdge = this.at(index);
         let edgeIndex: number = this.prevActive(index);
         let edge = this.at(edgeIndex);
@@ -761,7 +761,7 @@ export default class TEdgeController {
         if (edgeIndex === UNASSIGNED) {
             inputEdge.windCount1 = inputEdge.isWindDeletaEmpty ? 1 : inputEdge.windDelta;
             inputEdge.windCount2 = 0;
-            edgeIndex = activeEdgeIndex;
+            edgeIndex = this.active;
             //ie get ready to calc WindCnt2
         } else if (inputEdge.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
             inputEdge.windCount1 = 1;
