@@ -126,8 +126,7 @@ export default class TEdgeManager {
             this.scanbeam.insert(y);
         }
 
-        this.tEdgeController.activeEdges = UNASSIGNED;
-        this.tEdgeController.sortedEdges = UNASSIGNED;
+        this.tEdgeController.reset();
     }
 
     public buildIntersectList(botY: number, topY: number): void {
@@ -145,7 +144,7 @@ export default class TEdgeManager {
 
             edge.curr.x = edge.topX(topY);
             edgeIndex = this.tEdgeController.copyActiveToSorted(edgeIndex);
-            
+
         }
 
         //bubblesort ...
@@ -255,11 +254,11 @@ export default class TEdgeManager {
         }
         //finally, delete any non-contributing maxima edges  ...
         if (edge1Stops) {
-            this.deleteFromActive(edge1.current);
+            this.tEdgeController.deleteFromList(edge1.current, true);
         }
 
         if (edge2Stops) {
-            this.deleteFromActive(edge2.current);
+            this.tEdgeController.deleteFromList(edge2.current, true);
         }
     }
 
@@ -366,7 +365,7 @@ export default class TEdgeManager {
 
         if (edge1Stops) {
             if (!edge1.isAssigned) {
-                this.deleteFromActive(edge1.current);
+                this.tEdgeController.deleteFromList(edge1.current, true);
             } else {
                 showError('Error intersecting polylines');
             }
@@ -374,7 +373,7 @@ export default class TEdgeManager {
 
         if (edge2Stops) {
             if (!edge2.isAssigned) {
-                this.deleteFromActive(edge2.current);
+                this.tEdgeController.deleteFromList(edge2.current, true);
             } else {
                 showError('Error intersecting polylines');
             }
@@ -509,15 +508,15 @@ export default class TEdgeManager {
                     showError('ProcessHorizontal error');
                 }
             } else {
-                this.deleteFromActive(horzEdge.current);
-                this.deleteFromActive(eMaxPair.current);
+                this.tEdgeController.deleteFromList(horzEdge.current, true);
+                this.tEdgeController.deleteFromList(eMaxPair.current, true);
             }
         } else {
             if (horzEdge.isAssigned) {
                 this.outRecManager.addOutPt(horzEdge.current, horzEdge.top);
             }
 
-            this.deleteFromActive(horzEdge.current);
+            this.tEdgeController.deleteFromList(horzEdge.current, true);
         }
     }
 
@@ -525,7 +524,7 @@ export default class TEdgeManager {
         let horzEdgeIndex = this.tEdgeController.sortedEdges;
 
         while (horzEdgeIndex !== UNASSIGNED) {
-            this.deleteFromSorted(horzEdgeIndex);
+            this.tEdgeController.deleteFromList(horzEdgeIndex, false);
 
             this.processHorizontal(horzEdgeIndex, isTopOfScanbeam);
 
@@ -601,57 +600,6 @@ export default class TEdgeManager {
         }
     }
 
-    private deleteFromActive(edgeIndex: number): void {
-        const nextIndex = this.tEdgeController.getNeighboar(edgeIndex, true, true);
-        const prevIndex = this.tEdgeController.getNeighboar(edgeIndex, false, true);
-        const hasNext = nextIndex !== UNASSIGNED;
-        const hasPrev = prevIndex !== UNASSIGNED;
-
-        if (!hasPrev && !hasNext && edgeIndex !== this.tEdgeController.activeEdges) {
-            return;
-        }
-
-        //already deleted
-        if (hasPrev) {
-            this.tEdgeController.setNeighboar(prevIndex, true, true, nextIndex);
-        } else {
-            this.tEdgeController.activeEdges = nextIndex;
-        }
-
-        if (hasNext) {
-            this.tEdgeController.setNeighboar(nextIndex, false, true, prevIndex);
-        }
-
-        this.tEdgeController.setNeighboar(edgeIndex, true, true, UNASSIGNED);
-        this.tEdgeController.setNeighboar(edgeIndex, false, true, UNASSIGNED);
-    }
-
-
-    private deleteFromSorted(edgeIndex: number): void {
-        const nextIndex = this.tEdgeController.getNeighboar(edgeIndex, true, false);
-        const prevIndex = this.tEdgeController.getNeighboar(edgeIndex, false, false);
-        const hasNext = nextIndex !== UNASSIGNED;
-        const hasPrev = prevIndex !== UNASSIGNED;
-
-        if (!hasPrev && !hasNext && edgeIndex !== this.tEdgeController.sortedEdges) {
-            return;
-        }
-
-        //already deleted
-        if (hasPrev) {
-            this.tEdgeController.setNeighboar(prevIndex, true, false, nextIndex);
-        } else {
-            this.tEdgeController.sortedEdges = nextIndex;
-        }
-
-        if (hasNext) {
-            this.tEdgeController.setNeighboar(nextIndex, false, false, prevIndex);
-        }
-
-        this.tEdgeController.setNeighboar(edgeIndex, true, false, UNASSIGNED);
-        this.tEdgeController.setNeighboar(edgeIndex, false, false, UNASSIGNED);
-    }
-
     private doMaxima(edgeIndex: number): void {
         const edge = this.tEdgeController.at(edgeIndex);
 
@@ -660,7 +608,7 @@ export default class TEdgeManager {
                 this.outRecManager.addOutPt(edgeIndex, edge.top);
             }
 
-            this.deleteFromActive(edgeIndex);
+            this.tEdgeController.deleteFromList(edgeIndex, true);
 
             return;
         }
@@ -676,8 +624,8 @@ export default class TEdgeManager {
         const maxPairEdge = this.tEdgeController.at(this.tEdgeController.maximaPair(edge.current));
 
         if (!edge.isAssigned && !maxPairEdge.isAssigned) {
-            this.deleteFromActive(edgeIndex);
-            this.deleteFromActive(maxPairEdge.current);
+            this.tEdgeController.deleteFromList(edgeIndex, true);
+            this.tEdgeController.deleteFromList(maxPairEdge.current, true);
         } else if (edge.isAssigned && maxPairEdge.isAssigned) {
             this.intersectEdges(edge.current, maxPairEdge.current, edge.top, false);
         } else if (edge.isWindDeletaEmpty) {
@@ -686,14 +634,14 @@ export default class TEdgeManager {
                 edge.unassign();
             }
 
-            this.deleteFromActive(edge.current);
+            this.tEdgeController.deleteFromList(edge.current, true);
 
             if (maxPairEdge.isAssigned) {
                 this.outRecManager.addOutPt(maxPairEdge.current, edge.top);
                 maxPairEdge.unassign();
             }
 
-            this.deleteFromActive(maxPairEdge.current);
+            this.tEdgeController.deleteFromList(maxPairEdge.current, true);
         } else {
             showError('DoMaxima error');
         }

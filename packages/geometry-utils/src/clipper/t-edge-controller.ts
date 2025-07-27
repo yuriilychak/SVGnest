@@ -605,8 +605,8 @@ export default class TEdgeController {
         if (!this.getIndexValid(index)) {
             return UNASSIGNED;
         }
-        
-        const dataIndex: number = this.getNeighboarIndex(isNext, isAel); 
+
+        const dataIndex: number = this.getNeighboarIndex(isNext, isAel);
 
         return this._edgeData[index][dataIndex];
     }
@@ -616,7 +616,7 @@ export default class TEdgeController {
             return;
         }
 
-        const dataIndex: number = this.getNeighboarIndex(isNext, isAel); 
+        const dataIndex: number = this.getNeighboarIndex(isNext, isAel);
 
         this._edgeData[index][dataIndex] = value;
     }
@@ -931,7 +931,7 @@ export default class TEdgeController {
         const hasNext = nextIndex !== UNASSIGNED;
         const hasPrev = prevIndex !== UNASSIGNED;
 
-        if (!hasPrev && !hasNext && edgeIndex !== this.sortedEdges) {
+        if (!hasPrev && !hasNext && edgeIndex !== this.getCurrentEdge(isAel)) {
             return;
         }
 
@@ -956,5 +956,10 @@ export default class TEdgeController {
 
     public checkReverse(p1: Point<Int32Array>, p2: Point<Int32Array>, p3: Point<Int32Array>): boolean {
         return p2.y > p1.y || !PointI32.slopesEqual(p1, p2, p3, this._isUseFullRange);
+    }
+
+    public reset(): void {
+        this.activeEdges = UNASSIGNED;
+        this.sortedEdges = UNASSIGNED;
     }
 }
