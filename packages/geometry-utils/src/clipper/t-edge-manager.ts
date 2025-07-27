@@ -598,26 +598,26 @@ export default class TEdgeManager {
 
         let nextEdgeIndex: number = this.tEdgeController.nextActive(edge.current);
 
-        while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== this.tEdgeController.maximaPair(edge.current)) {
+        while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== this.tEdgeController.maximaPair(edgeIndex)) {
             this.intersectEdges(edgeIndex, nextEdgeIndex, edge.top, true);
             this.tEdgeController.swapPositionsInList(edgeIndex, nextEdgeIndex, true);
-            nextEdgeIndex = this.tEdgeController.nextActive(edge.current);
+            nextEdgeIndex = this.tEdgeController.nextActive(edgeIndex);
         }
 
-        const maxPairEdge = this.tEdgeController.at(this.tEdgeController.maximaPair(edge.current));
+        const maxPairEdge = this.tEdgeController.at(this.tEdgeController.maximaPair(edgeIndex));
 
         if (!edge.isAssigned && !maxPairEdge.isAssigned) {
             this.tEdgeController.deleteFromList(edgeIndex, true);
             this.tEdgeController.deleteFromList(maxPairEdge.current, true);
         } else if (edge.isAssigned && maxPairEdge.isAssigned) {
-            this.intersectEdges(edge.current, maxPairEdge.current, edge.top, false);
+            this.intersectEdges(edgeIndex, maxPairEdge.current, edge.top, false);
         } else if (edge.isWindDeletaEmpty) {
             if (edge.isAssigned) {
-                this.outRecManager.addOutPt(edge.current, edge.top);
+                this.outRecManager.addOutPt(edgeIndex, edge.top);
                 edge.unassign();
             }
 
-            this.tEdgeController.deleteFromList(edge.current, true);
+            this.tEdgeController.deleteFromList(edgeIndex, true);
 
             if (maxPairEdge.isAssigned) {
                 this.outRecManager.addOutPt(maxPairEdge.current, edge.top);
@@ -731,12 +731,12 @@ export default class TEdgeManager {
                 this.outRecManager.addOutputJoins(outPt, rightBoundIndex);
             }
 
-            const condition = this.tEdgeController.canJoinLeft(leftBound.current);
+            const condition = this.tEdgeController.canJoinLeft(leftBoundIndex);
 
             this.outRecManager.insertJoin(condition, outPt, this.tEdgeController.prevActive(leftBoundIndex), leftBound.bot, leftBound.top);
 
             if (this.tEdgeController.nextActive(leftBoundIndex) !== rightBoundIndex) {
-                const condition = this.tEdgeController.canJoinRight(rightBound.current);
+                const condition = this.tEdgeController.canJoinRight(rightBoundIndex);
 
                 this.outRecManager.insertJoin(condition, outPt, this.tEdgeController.prevActive(rightBoundIndex), rightBound.bot, rightBound.top);
 
