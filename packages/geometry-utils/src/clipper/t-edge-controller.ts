@@ -735,17 +735,17 @@ export default class TEdgeController {
         return;
     }
 
-    public addEdgeToSEL(index: number, sortedEdgeIndex: number): number {
+    public addEdgeToSEL(index: number): void {
         //SEL pointers in PEdge are reused to build a list of horizontal edges.
         //However, we don't need to worry about order with horizontal edge processing.
         this.setNeighboar(index, false, false, UNASSIGNED);
-        this.setNeighboar(index, true, false, sortedEdgeIndex);
+        this.setNeighboar(index, true, false, this.sorted);
 
-        if (sortedEdgeIndex !== UNASSIGNED) {
-            this.setNeighboar(sortedEdgeIndex, false, false, index);
+        if (this.sorted !== UNASSIGNED) {
+            this.setNeighboar(this.sorted, false, false, index);
         }
 
-        return index;
+        this.sorted = index;
     }
 
     public setWindingCount(index: number, activeEdgeIndex: number, clipType: CLIP_TYPE): void {

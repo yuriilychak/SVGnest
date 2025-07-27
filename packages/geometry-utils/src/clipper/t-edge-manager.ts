@@ -547,7 +547,7 @@ export default class TEdgeManager {
                     this.outRecManager.addOutPt(edge.current, edge.bot);
                 }
 
-                this.tEdgeController.sorted = this.tEdgeController.addEdgeToSEL(edge.current, this.tEdgeController.sorted);
+                this.tEdgeController.addEdgeToSEL(edge.current);
             } else {
                 edge.curr.set(edge.topX(topY), topY);
             }
@@ -717,7 +717,7 @@ export default class TEdgeManager {
 
             if (rightBoundIndex !== UNASSIGNED) {
                 if (rightBound.isHorizontal) {
-                    this.tEdgeController.sorted = this.tEdgeController.addEdgeToSEL(rightBoundIndex, this.tEdgeController.sorted);
+                    this.tEdgeController.addEdgeToSEL(rightBoundIndex);
                 } else {
                     this.scanbeam.insert(rightBound.top.y);
                 }
