@@ -980,4 +980,14 @@ export default class TEdgeController {
 
         return true;
     }
+
+    public getLastHorizontal(index: number): number {
+        let result = index;
+
+        while (this.hasNextLocalMinima(result) && this.at(this.getNextLocalMinima(result)).isHorizontal) {
+            result = this.getNextLocalMinima(result);
+        }
+
+        return result;
+    }
 }

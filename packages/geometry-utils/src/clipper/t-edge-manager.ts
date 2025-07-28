@@ -375,17 +375,12 @@ export default class TEdgeManager {
         let dir: DIRECTION = dirValue[0] as DIRECTION;
         let horzLeft: number = dirValue[1];
         let horzRight: number = dirValue[2];
+        const lastHorzIndex = this.tEdgeController.getLastHorizontal(horzEdgeIndex);
 
-        let eLastHorz = horzEdge;
-
-        while (this.tEdgeController.hasNextLocalMinima(eLastHorz.current) && this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(eLastHorz.current)).isHorizontal) {
-            eLastHorz = this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(eLastHorz.current));
-        }
-
-        const eMaxPairIndex = !this.tEdgeController.hasNextLocalMinima(eLastHorz.current) ? this.tEdgeController.maximaPair(eLastHorz.current) : UNASSIGNED;
+        const eMaxPairIndex = !this.tEdgeController.hasNextLocalMinima(lastHorzIndex) ? this.tEdgeController.maximaPair(lastHorzIndex) : UNASSIGNED;
 
         while (true) {
-            const isLastHorz: boolean = horzEdge === eLastHorz;
+            const isLastHorz: boolean = horzEdge.current === lastHorzIndex;
             let currIndex = this.tEdgeController.getNeighboar(horzEdge.current, dir === DIRECTION.RIGHT, true);
             let nextIndex = UNASSIGNED;
 
