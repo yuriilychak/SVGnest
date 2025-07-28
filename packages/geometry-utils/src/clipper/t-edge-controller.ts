@@ -83,9 +83,11 @@ export default class TEdgeController {
         // 3. Second stage of edge initialization
         let isFlat: boolean = true;
         const startY = edges[0].curr.y;
+        const edgeCount = edges.length;
 
-        for (i = 0; i < edges.length; ++i) {
+        for (i = 0; i < edgeCount; ++i) {
             const currEdge = edges[i];
+            const prevEdge = edges[cycle_index(i, edges.length, -1)];
             const nextEdge = edges[cycle_index(i, edges.length, 1)];
 
             if (currEdge.curr.y >= nextEdge.curr.y) {
@@ -104,8 +106,8 @@ export default class TEdgeController {
             }
 
             const index = currEdge.current;
-            this.setDataIndex(index, 0, edges[cycle_index(i, edges.length, -1)].current);
-            this.setDataIndex(index, 1, edges[cycle_index(i, edges.length, 1)].current);
+            this.setDataIndex(index, 0, prevEdge.current);
+            this.setDataIndex(index, 1, nextEdge.current);
         }
 
         // Return the starting edge index if path is valid
@@ -259,21 +261,26 @@ export default class TEdgeController {
 
             if ((horzNeighboar.top.x === currNeighboar.top.x && !isClockwise) || horzNeighboar.top.x > currNeighboar.top.x) {
                 result = horzNeighboar;
+                resultIndex = horzNeighboarIndex;
             }
         }
+        
+        let edgeIndex = index;
 
-        while (edge !== result) {
-            const localMinima = this.baseNeighboar(edge.current, isClockwise);
-            this.setNextLocalMinima(edge.current, localMinima);
+        while (edgeIndex !== resultIndex) {
+            const localMinima = this.baseNeighboar(edgeIndex, isClockwise);
+            this.setNextLocalMinima(edgeIndex, localMinima);
 
-            if (this.checkReverseHorizontal(edge.current, index, !isClockwise)) {
+            if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
+                const edge = this.at(edgeIndex);
                 edge.reverseHorizontal();
             }
 
-            edge = this.at(localMinima);
+            edgeIndex = localMinima;
         }
 
-        if (this.checkReverseHorizontal(edge.current, index, !isClockwise)) {
+        if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
+            const edge = this.at(edgeIndex);
             edge.reverseHorizontal();
         }
 
