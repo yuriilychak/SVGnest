@@ -5,6 +5,7 @@ import TEdge from "./t-edge";
 import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from "./types";
 import { PointI32 } from "../geometry";
 import { clipperRound, slopesEqual } from "../helpers";
+import { showError } from "./helpers";
 
 export default class TEdgeController {
     private _edges: TEdge[] = [];
@@ -997,5 +998,41 @@ export default class TEdgeController {
 
     public getMaxPair(index: number): number {
         return this.hasNextLocalMinima(index) ? UNASSIGNED : this.maximaPair(index);
+    }
+
+    public processBounds(index: number, leftBound: number, rightBound: number): number {
+        const isClockwise = this.getClockwise(index);
+        const currIndex = this.processBound(leftBound, isClockwise);
+        const nextIndex = this.processBound(rightBound, !isClockwise);
+
+        return isClockwise ? currIndex : nextIndex;
+    }
+
+    public updateEdgeIntoAEL(edgeIndex: number): number {
+        if (!this.hasNextLocalMinima(edgeIndex)) {
+            showError('UpdateEdgeIntoAEL: invalid call');
+        }
+
+        const edge = this.at(edgeIndex);
+        const result = this.getNextLocalMinima(edgeIndex);
+        const nextEdge = this.at(result);
+        const prevIndex = this.prevActive(edgeIndex);
+        const nextIndex = this.nextActive(edgeIndex);
+
+        nextEdge.index = edge.index;
+
+        if (prevIndex !== UNASSIGNED) {
+            this.setNextActive(prevIndex, result);
+        } else {
+            this.active = result;
+        }
+
+        if (nextIndex !== UNASSIGNED) {
+            this.setPrevActive(nextIndex, result);
+        }
+
+        this.updateCurrent(result, edgeIndex);
+
+        return result;
     }
 }
