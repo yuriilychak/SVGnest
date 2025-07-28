@@ -7,18 +7,11 @@ import { PointI32 } from "../geometry";
 import { clipperRound, slopesEqual } from "../helpers";
 
 export default class TEdgeController {
-    private _edges: TEdge[];
+    private _edges: TEdge[] = [];
     private _isUseFullRange: boolean = true;
-    private _paths: number[][];
-    private _edgeData: number[][];
+    private _edgeData: number[][] = [];
     public active: number = UNASSIGNED;
     public sorted: number = UNASSIGNED;
-
-    public constructor() {
-        this._edges = [];
-        this._paths = [];
-        this._edgeData = [];
-    }
 
     public createPath(polygon: Point<Int32Array>[], polyType: POLY_TYPE): number {
         let lastIndex = polygon.length - 1;
@@ -34,8 +27,6 @@ export default class TEdgeController {
             return UNASSIGNED;
         }
 
-        const pathIndex = this._paths.length;
-
         // Create edges array without any linking
         const edges: TEdge[] = [];
         let i: number = 0;
@@ -45,7 +36,7 @@ export default class TEdgeController {
 
             this._isUseFullRange = edge.curr.rangeTest(this._isUseFullRange);
             this._edges.push(edge);
-            this._edgeData.push([pathIndex, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED]);
+            this._edgeData.push([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED]);
             edges.push(edge);
         }
 
@@ -114,11 +105,10 @@ export default class TEdgeController {
                 isFlat = false;
             }
 
-            indices[i] = currEdge.current;
-            this._edgeData[currEdge.current][1] = i;
+            const index = currEdge.current;
+            this.setDataIndex(index, 0, edges[cycle_index(i, edges.length, -1)].current);
+            this.setDataIndex(index, 1, edges[cycle_index(i, edges.length, 1)].current);
         }
-
-        this._paths.push(indices);
 
         // Return the starting edge index if path is valid
         return isFlat ? UNASSIGNED : edges[0].current;
@@ -130,7 +120,6 @@ export default class TEdgeController {
 
     public dispose(): void {
         this._edges.length = 0;
-        this._paths.length = 0;
         this._edgeData.length = 0;
     }
 
@@ -226,7 +215,7 @@ export default class TEdgeController {
     }
 
     public hasNextLocalMinima(index: number): boolean {
-        return this.getIndexValid(index) && this._edgeData[index][2] !== UNASSIGNED;
+        return this.getNextLocalMinima(index) !== UNASSIGNED;
     }
 
     public processBound(index: number, isClockwise: boolean): number {
@@ -292,18 +281,6 @@ export default class TEdgeController {
         //move to the edge just beyond current bound
     }
 
-    public getNextLocalMinima(index: number): number {
-        return this.hasNextLocalMinima(index) ? this._edgeData[index][2] : UNASSIGNED;
-    }
-
-    private setNextLocalMinima(edgeIndex: number, minimaIndex: number): void {
-        if (!this.getIndexValid(edgeIndex)) {
-            return;
-        }
-
-        this._edgeData[edgeIndex][2] = minimaIndex;
-    }
-
     private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
         const edge = this.at(edgeIndex);
         const neighboarIndex = this.baseNeighboar(edge.current, isNext);
@@ -313,20 +290,7 @@ export default class TEdgeController {
     }
 
     private getIndexValid(index: number): boolean {
-        return index !== UNASSIGNED && index < this._edgeData.length;
-    }
-
-    private baseNeighboar(index: number, isNext: boolean): number {
-        if (!this.getIndexValid(index)) {
-            return UNASSIGNED;
-        }
-
-        const pathIndex = this._edgeData[index][0];
-        const edgeIndex = this._edgeData[index][1];
-        const pathLength = this._paths[pathIndex].length;
-        const offset = isNext ? 1 : -1;
-
-        return this._paths[pathIndex][cycle_index(edgeIndex, pathLength, offset)];
+        return index !== UNASSIGNED && index < this._edges.length;
     }
 
     private next(index: number): number {
@@ -595,30 +559,48 @@ export default class TEdgeController {
     }
 
     private getNeighboarIndex(isNext: boolean, isAel: boolean) {
-        const index = isNext ? 3 : 4;
+        const index = isNext ? 2 : 3;
         const offset = isAel ? 2 : 0;
 
         return index + offset;
     }
 
-    public getNeighboar(index: number, isNext: boolean, isAel: boolean): number {
-        if (!this.getIndexValid(index)) {
-            return UNASSIGNED;
-        }
-
-        const dataIndex: number = this.getNeighboarIndex(isNext, isAel);
-
-        return this._edgeData[index][dataIndex];
+    public getNextLocalMinima(index: number): number {
+        return this.getDataIndex(index, 6);
     }
 
-    public setNeighboar(index: number, isNext: boolean, isAel: boolean, value: number): void {
-        if (!this.getIndexValid(index)) {
+    private baseNeighboar(index: number, isNext: boolean): number {
+        const dataIndex = isNext ? 1 : 0;
+
+        return this.getDataIndex(index, dataIndex);
+    }
+
+    public getNeighboar(edgeIndex: number, isNext: boolean, isAel: boolean): number {
+        const dataIndex: number = this.getNeighboarIndex(isNext, isAel);
+
+        return this.getDataIndex(edgeIndex, dataIndex);
+    }
+
+    private getDataIndex(edgeIndex: number, dataIndex: number): number {
+        return this.getIndexValid(edgeIndex) ? this._edgeData[edgeIndex][dataIndex] : UNASSIGNED;
+    }
+
+    private setDataIndex(edgeIndex: number, dataIndex: number, value: number): void {
+        if (!this.getIndexValid(edgeIndex)) {
             return;
         }
 
+        this._edgeData[edgeIndex][dataIndex] = value;
+    }
+
+    private setNextLocalMinima(edgeIndex: number, minimaIndex: number): void {
+        this.setDataIndex(edgeIndex, 6, minimaIndex);
+    }
+
+    public setNeighboar(edgeIndex: number, isNext: boolean, isAel: boolean, value: number): void {
         const dataIndex: number = this.getNeighboarIndex(isNext, isAel);
 
-        this._edgeData[index][dataIndex] = value;
+        this.setDataIndex(edgeIndex, dataIndex, value);
     }
 
     private getSwapPositionInEL(edge1Index: number, edge2Index: number, isAel: boolean): boolean {
