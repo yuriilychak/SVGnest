@@ -233,10 +233,12 @@ export default class TEdgeController {
 
         let neighboarIndex = this.baseNeighboar(index, isClockwise);
         let neighboar = this.at(neighboarIndex);
+        let resultIndex = index;
 
         while (result.top.y === neighboar.bot.y) {
             result = neighboar;
-            neighboarIndex = this.baseNeighboar(neighboar.current, isClockwise);
+            resultIndex = neighboarIndex;
+            neighboarIndex = this.baseNeighboar(neighboarIndex, isClockwise);
             neighboar = this.at(neighboarIndex);
         }
 
@@ -244,15 +246,15 @@ export default class TEdgeController {
             //nb: at the top of a bound, horizontals are added to the bound
             //only when the preceding edge attaches to the horizontal's left vertex
             //unless a Skip edge is encountered when that becomes the top divide
-            let horzNeighboarIndex = this.baseNeighboar(result.current, !isClockwise);
+            let horzNeighboarIndex = this.baseNeighboar(resultIndex, !isClockwise);
             let horzNeighboar = this.at(horzNeighboarIndex);
 
             while (horzNeighboar.isDxHorizontal) {
-                horzNeighboarIndex = this.baseNeighboar(horzNeighboar.current, !isClockwise);
+                horzNeighboarIndex = this.baseNeighboar(horzNeighboarIndex, !isClockwise);
                 horzNeighboar = this.at(horzNeighboarIndex);
             }
 
-            const currNeighboarIndex = this.baseNeighboar(result.current, isClockwise);
+            const currNeighboarIndex = this.baseNeighboar(resultIndex, isClockwise);
             const currNeighboar = this.at(currNeighboarIndex);
 
             if ((horzNeighboar.top.x === currNeighboar.top.x && !isClockwise) || horzNeighboar.top.x > currNeighboar.top.x) {
@@ -275,7 +277,7 @@ export default class TEdgeController {
             edge.reverseHorizontal();
         }
 
-        return this.baseNeighboar(result.current, isClockwise);
+        return this.baseNeighboar(resultIndex, isClockwise);
         //move to the edge just beyond current bound
     }
 
