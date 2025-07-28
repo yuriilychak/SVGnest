@@ -140,17 +140,19 @@ export default class TEdgeManager {
 
         while (isModified && this.tEdgeController.sorted !== UNASSIGNED) {
             isModified = false;
-            let edge = this.tEdgeController.at(this.tEdgeController.sorted);
+            let currIndex = this.tEdgeController.sorted;
 
-            while (this.tEdgeController.getNeighboar(edge.current, true, false) !== UNASSIGNED) {
-                const nextIndex = this.tEdgeController.getNeighboar(edge.current, true, false);
-                const nextEdge = this.tEdgeController.at(nextIndex);
+            while (this.tEdgeController.nextSorted(currIndex) !== UNASSIGNED) {
+                const nextIndex = this.tEdgeController.nextSorted(currIndex);
+                
                 point.set(0, 0);
+                const currEdge = this.tEdgeController.at(currIndex);
+                const nextEdge = this.tEdgeController.at(nextIndex);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-                if (edge.curr.x > nextEdge.curr.x) {
+                if (currEdge.curr.x > nextEdge.curr.x) {
                     if (
-                        !this.tEdgeController.intersectPoint(edge.current, nextEdge.current, point) &&
-                        edge.curr.x > nextEdge.curr.x + 1
+                        !this.tEdgeController.intersectPoint(currIndex, nextIndex, point) &&
+                        currEdge.curr.x > nextEdge.curr.x + 1
                     ) {
                         //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
                         //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
@@ -158,24 +160,24 @@ export default class TEdgeManager {
                     }
 
                     if (point.y > botY) {
-                        point.set(Math.abs(edge.dx) > Math.abs(nextEdge.dx) ? nextEdge.topX(botY) : edge.topX(botY), botY);
+                        point.set(Math.abs(currEdge.dx) > Math.abs(nextEdge.dx) ? nextEdge.topX(botY) : currEdge.topX(botY), botY);
                     }
 
-                    this.intersections.add(edge.current, nextEdge.current, point);
-                    this.tEdgeController.swapPositionsInList(edge.current, nextEdge.current, false);
+                    this.intersections.add(currIndex, nextIndex, point);
+                    this.tEdgeController.swapPositionsInList(currIndex, nextIndex, false);
                     isModified = true;
                 } else {
-                    edge = nextEdge;
+                    currIndex = nextIndex;
                 }
             }
 
-            const prevIndex = this.tEdgeController.getNeighboar(edge.current, false, false);
+            const prevIndex = this.tEdgeController.prevSorted(currIndex);
 
-            if (prevIndex !== UNASSIGNED) {
-                this.tEdgeController.setNeighboar(prevIndex, true, false, UNASSIGNED);
-            } else {
+            if (prevIndex === UNASSIGNED) {
                 break;
             }
+
+            this.tEdgeController.setNeighboar(prevIndex, true, false, UNASSIGNED);
         }
 
         this.tEdgeController.sorted = UNASSIGNED;
