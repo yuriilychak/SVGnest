@@ -564,21 +564,21 @@ export default class TEdgeManager {
         edgeIndex = this.tEdgeController.active;
 
         while (edgeIndex !== UNASSIGNED) {
-            let edge = this.tEdgeController.at(edgeIndex);
-
             if (this.tEdgeController.getIntermediate(edgeIndex, topY)) {
-                outPt1 = edge.isAssigned ? this.outRecManager.addOutPt(edgeIndex, edge.top) : UNASSIGNED;
-                edge = this.tEdgeController.at(this.updateEdgeIntoAEL(edge.current));
+                const edge1 = this.tEdgeController.at(edgeIndex);
+                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edgeIndex, edge1.top) : UNASSIGNED;
+                edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
+                const edge2 = this.tEdgeController.at(edgeIndex);
                 //if output polygons share an edge, they'll need joining later...
-                const condition1 = this.tEdgeController.checkSharedCondition(edge.current, outPt1, false);
+                const condition1 = this.tEdgeController.checkSharedCondition(edgeIndex, outPt1, false);
 
-                if (!this.outRecManager.insertJoin(condition1, outPt1, this.tEdgeController.prevActive(edge.current), edge.bot, edge.top)) {
-                    const condition2 = this.tEdgeController.checkSharedCondition(edge.current, outPt1, true);;
-                    this.outRecManager.insertJoin(condition2, outPt1, this.tEdgeController.nextActive(edge.current), edge.bot, edge.top);
+                if (!this.outRecManager.insertJoin(condition1, outPt1, this.tEdgeController.prevActive(edgeIndex), edge2.bot, edge2.top)) {
+                    const condition2 = this.tEdgeController.checkSharedCondition(edgeIndex, outPt1, true);;
+                    this.outRecManager.insertJoin(condition2, outPt1, this.tEdgeController.nextActive(edgeIndex), edge2.bot, edge2.top);
                 }
             }
 
-            edgeIndex = this.tEdgeController.nextActive(edge.current);
+            edgeIndex = this.tEdgeController.nextActive(edgeIndex);
         }
     }
 
