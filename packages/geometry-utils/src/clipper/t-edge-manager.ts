@@ -391,7 +391,7 @@ export default class TEdgeManager {
                     break;
                 }
 
-                nextIndex = this.tEdgeController.getNeighboar(edge.current, dir === DIRECTION.RIGHT, true);
+                nextIndex = this.tEdgeController.getNeighboar(currIndex, dir === DIRECTION.RIGHT, true);
                 //saves eNext for later
                 if ((dir === DIRECTION.RIGHT && edge.curr.x <= horzRight) || (dir === DIRECTION.LEFT && edge.curr.x >= horzLeft)) {
                     if (horzEdge.isFilled && isTopOfScanbeam) {
@@ -400,9 +400,9 @@ export default class TEdgeManager {
 
                     //so far we're still in range of the horizontal Edge  but make sure
                     //we're at the last of consec. horizontals when matching with eMaxPair
-                    if (edge.current === maxPairIndex && isLastHorz) {
-                        const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : edge.current;
-                        const index2 = dir === DIRECTION.RIGHT ? edge.current : horzEdge.current;
+                    if (currIndex === maxPairIndex && isLastHorz) {
+                        const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : currIndex;
+                        const index2 = dir === DIRECTION.RIGHT ? currIndex : horzEdge.current;
 
                         this.intersectEdges(index1, index2, edge.top, false);
 
@@ -416,12 +416,12 @@ export default class TEdgeManager {
                     }
 
                     const point = PointI32.create(edge.curr.x, horzEdge.curr.y);
-                    const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : edge.current;
-                    const index2 = dir === DIRECTION.RIGHT ? edge.current : horzEdge.current;
+                    const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : currIndex;
+                    const index2 = dir === DIRECTION.RIGHT ? currIndex : horzEdge.current;
 
                     this.intersectEdges(index1, index2, point, true);
 
-                    this.tEdgeController.swapPositionsInList(horzEdge.current, edge.current, true);
+                    this.tEdgeController.swapPositionsInList(horzEdge.current, currIndex, true);
                 } else if (
                     (dir === DIRECTION.RIGHT && edge.curr.x >= horzRight) ||
                     (dir === DIRECTION.LEFT && edge.curr.x <= horzLeft)
