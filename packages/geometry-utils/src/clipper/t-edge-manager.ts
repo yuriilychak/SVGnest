@@ -144,7 +144,7 @@ export default class TEdgeManager {
 
             while (this.tEdgeController.nextSorted(currIndex) !== UNASSIGNED) {
                 const nextIndex = this.tEdgeController.nextSorted(currIndex);
-                
+
                 point.set(0, 0);
                 const currEdge = this.tEdgeController.at(currIndex);
                 const nextEdge = this.tEdgeController.at(nextIndex);
@@ -415,7 +415,7 @@ export default class TEdgeManager {
                         return;
                     }
 
-                    const point = PointI32.create(edge.curr.x, horzEdge.curr.y);
+                    const point = PointI32.from(edge.curr);
                     const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : currIndex;
                     const index2 = dir === DIRECTION.RIGHT ? currIndex : horzEdge.current;
 
@@ -451,52 +451,67 @@ export default class TEdgeManager {
                 break;
             }
         }
+
+
+        let horzIndex = horzEdge.current;
+
         //end for (;;)
-        if (this.tEdgeController.hasNextLocalMinima(horzEdge.current)) {
+        if (this.tEdgeController.hasNextLocalMinima(horzIndex)) {
             if (horzEdge.isAssigned) {
-                const op1 = this.outRecManager.addOutPt(horzEdge.current, horzEdge.top);
-                horzEdge = this.tEdgeController.at(this.updateEdgeIntoAEL(horzEdge.current));
+                const op1 = this.outRecManager.addOutPt(horzIndex, horzEdge.top);
+                horzIndex = this.updateEdgeIntoAEL(horzIndex);
+                horzEdge = this.tEdgeController.at(horzIndex);
 
                 if (horzEdge.isWindDeletaEmpty) {
                     return;
                 }
 
                 //nb: HorzEdge is no longer horizontal here
-                const condition1 = this.tEdgeController.checkHorizontalCondition(horzEdge.current, false);
+                const condition1 = this.tEdgeController.checkHorizontalCondition(horzIndex, false);
 
-                this.outRecManager.insertJoin(condition1, op1, this.tEdgeController.prevActive(horzEdge.current), horzEdge.bot);
+                this.outRecManager.insertJoin(condition1, op1, this.tEdgeController.prevActive(horzIndex), horzEdge.bot);
 
                 if (!condition1) {
-                    const condition2 = this.tEdgeController.checkHorizontalCondition(horzEdge.current, true);
+                    const condition2 = this.tEdgeController.checkHorizontalCondition(horzIndex, true);
 
-                    this.outRecManager.insertJoin(condition2, op1, this.tEdgeController.nextActive(horzEdge.current), horzEdge.bot);
+                    this.outRecManager.insertJoin(condition2, op1, this.tEdgeController.nextActive(horzIndex), horzEdge.bot);
                 }
-            } else {
-                horzEdge = this.tEdgeController.at(this.updateEdgeIntoAEL(horzEdge.current));
-            }
-        } else if (maxPairIndex !== UNASSIGNED) {
+
+                return;
+            } 
+            
+            this.updateEdgeIntoAEL(horzIndex);
+
+            return;
+        }
+
+        if (maxPairIndex !== UNASSIGNED) {
             const eMaxPair = this.tEdgeController.at(maxPairIndex);
 
             if (eMaxPair.isAssigned) {
-                const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : maxPairIndex;
-                const index2 = dir === DIRECTION.RIGHT ? maxPairIndex : horzEdge.current;
+                const index1 = dir === DIRECTION.RIGHT ? horzIndex : maxPairIndex;
+                const index2 = dir === DIRECTION.RIGHT ? maxPairIndex : horzIndex;
 
                 this.intersectEdges(index1, index2, horzEdge.top, false);
 
                 if (eMaxPair.isAssigned) {
                     showError('ProcessHorizontal error');
                 }
-            } else {
-                this.tEdgeController.deleteFromList(horzEdge.current, true);
-                this.tEdgeController.deleteFromList(eMaxPair.current, true);
-            }
-        } else {
-            if (horzEdge.isAssigned) {
-                this.outRecManager.addOutPt(horzEdge.current, horzEdge.top);
-            }
 
-            this.tEdgeController.deleteFromList(horzEdge.current, true);
+                return;
+            } 
+
+            this.tEdgeController.deleteFromList(horzIndex, true);
+            this.tEdgeController.deleteFromList(maxPairIndex, true);
+
+            return;
         }
+
+        if (horzEdge.isAssigned) {
+            this.outRecManager.addOutPt(horzIndex, horzEdge.top);
+        }
+
+        this.tEdgeController.deleteFromList(horzIndex, true);
     }
 
     public processHorizontals(isTopOfScanbeam: boolean): void {
