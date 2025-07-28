@@ -84,8 +84,6 @@ export default class TEdgeController {
         let isFlat: boolean = true;
         const startY = edges[0].curr.y;
 
-        const indices: number[] = new Array(edges.length);
-
         for (i = 0; i < edges.length; ++i) {
             const currEdge = edges[i];
             const nextEdge = edges[cycle_index(i, edges.length, 1)];
