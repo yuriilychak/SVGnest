@@ -388,7 +388,7 @@ export default class OutRecManager {
                 return result;
             }
 
-            result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1.current, outPt2.current, reverse1));
+            result.outHash2 = join_u16_to_u32(index2, OutPt.applyJoin(outPt1Index, outPt2Index, reverse1));
             result.result = true;
 
             return result;
