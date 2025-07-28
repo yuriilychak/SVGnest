@@ -111,6 +111,8 @@ export default class OutRecManager {
     public addLocalMinPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>): number {
         const edge1 = this.tEdgeController.at(edge1Index);
         const edge2 = this.tEdgeController.at(edge2Index);
+        let firstIndex = edge2Index;
+        let secondIndex = edge1Index;
         let firstEdge = edge2;
         let secondEdge = edge1;
         let result: number = UNASSIGNED;
@@ -118,16 +120,18 @@ export default class OutRecManager {
         if (edge2.isHorizontal || edge1.dx > edge2.dx) {
             firstEdge = edge1;
             secondEdge = edge2;
+            firstIndex = edge1Index;
+            secondIndex = edge2Index;
         }
 
-        result = this.addOutPt(firstEdge.current, point);
+        result = this.addOutPt(firstIndex, point);
         secondEdge.index = firstEdge.index;
         secondEdge.side = DIRECTION.RIGHT;
         firstEdge.side = DIRECTION.LEFT;
 
-        const prevIndex = this.tEdgeController.prevActive(firstEdge.current) === secondEdge.current 
-            ? this.tEdgeController.prevActive(secondEdge.current) : this.tEdgeController.prevActive(firstEdge.current);
-        const condition = this.tEdgeController.checkMinJoin(firstEdge.current, prevIndex, point);
+        const prevIndex = this.tEdgeController.prevActive(firstIndex) === secondIndex 
+            ? this.tEdgeController.prevActive(secondIndex) : this.tEdgeController.prevActive(firstIndex);
+        const condition = this.tEdgeController.checkMinJoin(firstIndex, prevIndex, point);
 
         this.insertJoin(condition, result, prevIndex, point, firstEdge.top);
 

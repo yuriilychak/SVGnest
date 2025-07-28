@@ -9,7 +9,7 @@ import { clipperRound, slopesEqual } from "../helpers";
 export default class TEdgeController {
     private _edges: TEdge[] = [];
     private _isUseFullRange: boolean = true;
-    private _edgeData: number[][] = [];
+    private _edgeData: Int16Array[] = [];
     public active: number = UNASSIGNED;
     public sorted: number = UNASSIGNED;
 
@@ -29,15 +29,18 @@ export default class TEdgeController {
 
         // Create edges array without any linking
         const edges: TEdge[] = [];
+        const indices: number[] = [];
         let i: number = 0;
 
         for (i = 0; i <= lastIndex; ++i) {
-            const edge = new TEdge(polygon[i], polyType, this._edges.length);
+            const edge = new TEdge(polygon[i], polyType);
+
+            edges.push(edge);
+            indices.push(this._edges.length);
 
             this._isUseFullRange = edge.curr.rangeTest(this._isUseFullRange);
             this._edges.push(edge);
-            this._edgeData.push([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED]);
-            edges.push(edge);
+            this._edgeData.push(new Int16Array([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED]));
         }
 
         // 2. Remove duplicate vertices and collinear edges by mutating the edges array
@@ -58,6 +61,7 @@ export default class TEdgeController {
 
                     // Remove current edge from array
                     edges.splice(i, 1);
+                    indices.splice(i, 1);
                     changed = true;
                     break;
                 }
@@ -70,6 +74,7 @@ export default class TEdgeController {
 
                     // Remove current edge from array
                     edges.splice(i, 1);
+                    indices.splice(i, 1);
                     changed = true;
                     break;
                 }
@@ -87,7 +92,6 @@ export default class TEdgeController {
 
         for (i = 0; i < edgeCount; ++i) {
             const currEdge = edges[i];
-            const prevEdge = edges[cycle_index(i, edges.length, -1)];
             const nextEdge = edges[cycle_index(i, edges.length, 1)];
 
             if (currEdge.curr.y >= nextEdge.curr.y) {
@@ -105,13 +109,13 @@ export default class TEdgeController {
                 isFlat = false;
             }
 
-            const index = currEdge.current;
-            this.setDataIndex(index, 0, prevEdge.current);
-            this.setDataIndex(index, 1, nextEdge.current);
+            const index = indices[i];
+            this.setDataIndex(index, 0, indices[cycle_index(i, edges.length, -1)]);
+            this.setDataIndex(index, 1, indices[cycle_index(i, edges.length, 1)]);
         }
 
         // Return the starting edge index if path is valid
-        return isFlat ? UNASSIGNED : edges[0].current;
+        return isFlat ? UNASSIGNED : indices[0];
     }
 
     public at(index: number): TEdge | null {

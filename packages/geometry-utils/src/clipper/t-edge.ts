@@ -16,9 +16,8 @@ export default class TEdge {
     public windCount1: number;
     public windCount2: number;
     public index: number;
-    public current: number;
 
-    constructor(curr: Point<Int32Array>, polyType: POLY_TYPE, current: number) {
+    constructor(curr: Point<Int32Array>, polyType: POLY_TYPE) {
         this.bot = PointI32.create();
         this.curr = PointI32.from(curr);
         this.top = PointI32.create();
@@ -30,7 +29,6 @@ export default class TEdge {
         this.windCount1 = 0;
         this.windCount2 = 0;
         this.index = UNASSIGNED;
-        this.current = current;
     }
 
     public reverseHorizontal(): void {

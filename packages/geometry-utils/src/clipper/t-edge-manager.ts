@@ -377,17 +377,18 @@ export default class TEdgeManager {
         let horzRight: number = dirValue[2];
         const lastHorzIndex = this.tEdgeController.getLastHorizontal(horzEdgeIndex);
         const maxPairIndex = this.tEdgeController.getMaxPair(lastHorzIndex);
+        let horzIndex = horzEdgeIndex;
 
         while (true) {
-            const isLastHorz: boolean = horzEdge.current === lastHorzIndex;
-            let currIndex = this.tEdgeController.getNeighboar(horzEdge.current, dir === DIRECTION.RIGHT, true);
+            const isLastHorz: boolean = horzIndex === lastHorzIndex;
+            let currIndex = this.tEdgeController.getNeighboar(horzIndex, dir === DIRECTION.RIGHT, true);
             let nextIndex = UNASSIGNED;
 
             while (currIndex !== UNASSIGNED) {
                 const edge = this.tEdgeController.at(currIndex);
                 //Break if we've got to the end of an intermediate horizontal edge ...
                 //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
-                if (edge.curr.x === horzEdge.top.x && this.tEdgeController.hasNextLocalMinima(horzEdge.current) && edge.dx < this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(horzEdge.current)).dx) {
+                if (edge.curr.x === horzEdge.top.x && this.tEdgeController.hasNextLocalMinima(horzIndex) && edge.dx < this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(horzIndex)).dx) {
                     break;
                 }
 
@@ -395,14 +396,14 @@ export default class TEdgeManager {
                 //saves eNext for later
                 if ((dir === DIRECTION.RIGHT && edge.curr.x <= horzRight) || (dir === DIRECTION.LEFT && edge.curr.x >= horzLeft)) {
                     if (horzEdge.isFilled && isTopOfScanbeam) {
-                        this.outRecManager.prepareHorzJoins(horzEdge.current);
+                        this.outRecManager.prepareHorzJoins(horzIndex);
                     }
 
                     //so far we're still in range of the horizontal Edge  but make sure
                     //we're at the last of consec. horizontals when matching with eMaxPair
                     if (currIndex === maxPairIndex && isLastHorz) {
-                        const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : currIndex;
-                        const index2 = dir === DIRECTION.RIGHT ? currIndex : horzEdge.current;
+                        const index1 = dir === DIRECTION.RIGHT ? horzIndex : currIndex;
+                        const index2 = dir === DIRECTION.RIGHT ? currIndex : horzIndex;
 
                         this.intersectEdges(index1, index2, edge.top, false);
 
@@ -416,12 +417,12 @@ export default class TEdgeManager {
                     }
 
                     const point = PointI32.from(edge.curr);
-                    const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : currIndex;
-                    const index2 = dir === DIRECTION.RIGHT ? currIndex : horzEdge.current;
+                    const index1 = dir === DIRECTION.RIGHT ? horzIndex : currIndex;
+                    const index2 = dir === DIRECTION.RIGHT ? currIndex : horzIndex;
 
                     this.intersectEdges(index1, index2, point, true);
 
-                    this.tEdgeController.swapPositionsInList(horzEdge.current, currIndex, true);
+                    this.tEdgeController.swapPositionsInList(horzIndex, currIndex, true);
                 } else if (
                     (dir === DIRECTION.RIGHT && edge.curr.x >= horzRight) ||
                     (dir === DIRECTION.LEFT && edge.curr.x <= horzLeft)
@@ -433,14 +434,15 @@ export default class TEdgeManager {
             }
             //end while
             if (horzEdge.isFilled && isTopOfScanbeam) {
-                this.outRecManager.prepareHorzJoins(horzEdge.current);
+                this.outRecManager.prepareHorzJoins(horzIndex);
             }
 
-            if (this.tEdgeController.hasNextLocalMinima(horzEdge.current) && this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(horzEdge.current)).isHorizontal) {
-                horzEdge = this.tEdgeController.at(this.updateEdgeIntoAEL(horzEdge.current));
+            if (this.tEdgeController.hasNextLocalMinima(horzIndex) && this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(horzIndex)).isHorizontal) {
+                horzIndex = this.updateEdgeIntoAEL(horzIndex);
+                horzEdge = this.tEdgeController.at(horzIndex);
 
                 if (horzEdge.isAssigned) {
-                    this.outRecManager.addOutPt(horzEdge.current, horzEdge.bot);
+                    this.outRecManager.addOutPt(horzIndex, horzEdge.bot);
                 }
 
                 dirValue = horzEdge.horzDirection;
@@ -451,9 +453,6 @@ export default class TEdgeManager {
                 break;
             }
         }
-
-
-        let horzIndex = horzEdge.current;
 
         //end for (;;)
         if (this.tEdgeController.hasNextLocalMinima(horzIndex)) {
