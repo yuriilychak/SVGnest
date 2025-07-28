@@ -243,11 +243,11 @@ export default class TEdgeManager {
         }
         //finally, delete any non-contributing maxima edges  ...
         if (edge1Stops) {
-            this.tEdgeController.deleteFromList(edge1.current, true);
+            this.tEdgeController.deleteFromList(edge1Index, true);
         }
 
         if (edge2Stops) {
-            this.tEdgeController.deleteFromList(edge2.current, true);
+            this.tEdgeController.deleteFromList(edge2Index, true);
         }
     }
 
@@ -302,7 +302,7 @@ export default class TEdgeManager {
         //are both open paths, AND they are both 'contributing maximas' ...
         if (edge1.isWindDeletaEmpty && edge2.isWindDeletaEmpty) {
             if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
-                this.outRecManager.addLocalMaxPoly(edge1.current, edge2.current, point);
+                this.outRecManager.addLocalMaxPoly(edge1Index, edge2Index, point);
             }
         }
         //if intersecting a subj line with a subj poly ...
@@ -313,7 +313,7 @@ export default class TEdgeManager {
         ) {
             if (edge1.isWindDeletaEmpty) {
                 if (edge2Contributing) {
-                    this.outRecManager.addOutPt(edge1.current, point);
+                    this.outRecManager.addOutPt(edge1Index, point);
 
                     if (edge1Contributing) {
                         edge1.unassign();
@@ -321,7 +321,7 @@ export default class TEdgeManager {
                 }
             } else {
                 if (edge1Contributing) {
-                    this.outRecManager.addOutPt(edge2.current, point);
+                    this.outRecManager.addOutPt(edge2Index, point);
 
                     if (edge2Contributing) {
                         edge2.unassign();
@@ -334,7 +334,7 @@ export default class TEdgeManager {
                 Math.abs(edge2.windCount1) === 1 &&
                 (this.clipType !== CLIP_TYPE.UNION || edge2.windCount2 === 0)
             ) {
-                this.outRecManager.addOutPt(edge1.current, point);
+                this.outRecManager.addOutPt(edge1Index, point);
 
                 if (edge1Contributing) {
                     edge1.unassign();
@@ -344,7 +344,7 @@ export default class TEdgeManager {
                 Math.abs(edge1.windCount1) === 1 &&
                 (this.clipType !== CLIP_TYPE.UNION || edge1.windCount2 === 0)
             ) {
-                this.outRecManager.addOutPt(edge2.current, point);
+                this.outRecManager.addOutPt(edge2Index, point);
 
                 if (edge2Contributing) {
                     edge2.unassign();
@@ -354,7 +354,7 @@ export default class TEdgeManager {
 
         if (edge1Stops) {
             if (!edge1.isAssigned) {
-                this.tEdgeController.deleteFromList(edge1.current, true);
+                this.tEdgeController.deleteFromList(edge1Index, true);
             } else {
                 showError('Error intersecting polylines');
             }
@@ -362,7 +362,7 @@ export default class TEdgeManager {
 
         if (edge2Stops) {
             if (!edge2.isAssigned) {
-                this.tEdgeController.deleteFromList(edge2.current, true);
+                this.tEdgeController.deleteFromList(edge2Index, true);
             } else {
                 showError('Error intersecting polylines');
             }
