@@ -376,8 +376,7 @@ export default class TEdgeManager {
         let horzLeft: number = dirValue[1];
         let horzRight: number = dirValue[2];
         const lastHorzIndex = this.tEdgeController.getLastHorizontal(horzEdgeIndex);
-
-        const eMaxPairIndex = !this.tEdgeController.hasNextLocalMinima(lastHorzIndex) ? this.tEdgeController.maximaPair(lastHorzIndex) : UNASSIGNED;
+        const maxPairIndex = this.tEdgeController.getMaxPair(lastHorzIndex);
 
         while (true) {
             const isLastHorz: boolean = horzEdge.current === lastHorzIndex;
@@ -401,13 +400,13 @@ export default class TEdgeManager {
 
                     //so far we're still in range of the horizontal Edge  but make sure
                     //we're at the last of consec. horizontals when matching with eMaxPair
-                    if (edge.current === eMaxPairIndex && isLastHorz) {
+                    if (edge.current === maxPairIndex && isLastHorz) {
                         const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : edge.current;
                         const index2 = dir === DIRECTION.RIGHT ? edge.current : horzEdge.current;
 
                         this.intersectEdges(index1, index2, edge.top, false);
 
-                        const eMaxPair = this.tEdgeController.at(eMaxPairIndex);
+                        const eMaxPair = this.tEdgeController.at(maxPairIndex);
 
                         if (eMaxPair.isAssigned) {
                             showError('ProcessHorizontal error');
@@ -475,12 +474,12 @@ export default class TEdgeManager {
             } else {
                 horzEdge = this.tEdgeController.at(this.updateEdgeIntoAEL(horzEdge.current));
             }
-        } else if (eMaxPairIndex !== UNASSIGNED) {
-            const eMaxPair = this.tEdgeController.at(eMaxPairIndex);
+        } else if (maxPairIndex !== UNASSIGNED) {
+            const eMaxPair = this.tEdgeController.at(maxPairIndex);
 
             if (eMaxPair.isAssigned) {
-                const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : eMaxPairIndex;
-                const index2 = dir === DIRECTION.RIGHT ? eMaxPairIndex : horzEdge.current;
+                const index1 = dir === DIRECTION.RIGHT ? horzEdge.current : maxPairIndex;
+                const index2 = dir === DIRECTION.RIGHT ? maxPairIndex : horzEdge.current;
 
                 this.intersectEdges(index1, index2, horzEdge.top, false);
 
@@ -535,26 +534,29 @@ export default class TEdgeManager {
                 continue;
             }
 
-            let edge = this.tEdgeController.at(edgeIndex);
             //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
             if (this.tEdgeController.getIntermediate(edgeIndex, topY) && this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(edgeIndex)).isHorizontal) {
-                edge = this.tEdgeController.at(this.updateEdgeIntoAEL(edgeIndex));
+                edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
+                const edge = this.tEdgeController.at(edgeIndex);
 
                 if (edge.isAssigned) {
-                    this.outRecManager.addOutPt(edge.current, edge.bot);
+                    this.outRecManager.addOutPt(edgeIndex, edge.bot);
                 }
 
-                this.tEdgeController.addEdgeToSEL(edge.current);
+                this.tEdgeController.addEdgeToSEL(edgeIndex);
             } else {
+                const edge = this.tEdgeController.at(edgeIndex);
                 edge.curr.set(edge.topX(topY), topY);
             }
 
-            if (strictlySimple && this.tEdgeController.canAddScanbeam(edge.current)) {
-                this.outRecManager.addScanbeamJoin(edge.current, this.tEdgeController.prevActive(edge.current), edge.curr);
+            const edge = this.tEdgeController.at(edgeIndex);
+
+            if (strictlySimple && this.tEdgeController.canAddScanbeam(edgeIndex)) {
+                this.outRecManager.addScanbeamJoin(edgeIndex, this.tEdgeController.prevActive(edgeIndex), edge.curr);
                 //StrictlySimple (type-3) join
             }
 
-            edgeIndex = this.tEdgeController.nextActive(edge.current);
+            edgeIndex = this.tEdgeController.nextActive(edgeIndex);
         }
         //3. Process horizontals at the Top of the scanbeam ...
         this.processHorizontals(true);

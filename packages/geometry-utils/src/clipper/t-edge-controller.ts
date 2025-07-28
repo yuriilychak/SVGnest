@@ -990,4 +990,8 @@ export default class TEdgeController {
 
         return result;
     }
+
+    public getMaxPair(index: number): number {
+        return this.hasNextLocalMinima(index) ? UNASSIGNED : this.maximaPair(index);
+    }
 }
