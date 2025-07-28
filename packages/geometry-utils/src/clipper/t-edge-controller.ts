@@ -280,11 +280,15 @@ export default class TEdgeController {
     }
 
     private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
+        if (edgeIndex === index) {
+            return false;
+        }
+
         const edge = this.at(edgeIndex);
-        const neighboarIndex = this.baseNeighboar(edge.current, isNext);
+        const neighboarIndex = this.baseNeighboar(edgeIndex, isNext);
         const neighboar = this.at(neighboarIndex);
 
-        return edge.isDxHorizontal && edge.current !== index && edge.bot.x !== neighboar.top.x;
+        return edge.isDxHorizontal && edge.bot.x !== neighboar.top.x;
     }
 
     private getIndexValid(index: number): boolean {
@@ -300,11 +304,16 @@ export default class TEdgeController {
     }
 
     private checkMaxPair(edgeIndex: number, isNext: boolean): boolean {
-        const currEdge = this.at(edgeIndex);
         const index = this.baseNeighboar(edgeIndex, isNext);
+
+        if (index === UNASSIGNED || this.hasNextLocalMinima(index)) {
+            return false;
+        }   
+
+        const currEdge = this.at(edgeIndex);
         const edge = this.at(index);
 
-        return index !== UNASSIGNED && edge.top.almostEqual(currEdge.top) && !this.hasNextLocalMinima(index);
+        return edge.top.almostEqual(currEdge.top);
     }
 
     public getStop(index: number, point: Point<Int32Array>, isProtect: boolean): boolean {
@@ -772,11 +781,11 @@ export default class TEdgeController {
             }
 
             inputEdge.windCount2 = edge.windCount2;
-            edgeIndex = this.nextActive(edge.current);
+            edgeIndex = this.nextActive(edgeIndex);
             //ie get ready to calc WindCnt2
         }
         //nonZero, Positive or Negative filling ...
-        while (edgeIndex !== inputEdge.current) {
+        while (edgeIndex !== index) {
             edge = this.at(edgeIndex);
             inputEdge.windCount2 += edge.windDelta;
             edgeIndex = this.nextActive(edgeIndex);
@@ -867,11 +876,9 @@ export default class TEdgeController {
         this.sorted = this.active;
 
         let currentIndex = this.active;
-        let edge = this.at(currentIndex);
 
         while (currentIndex !== UNASSIGNED) {
-            currentIndex = this.copyActiveToSorted(edge.current);
-            edge = this.at(currentIndex);
+            currentIndex = this.copyActiveToSorted(currentIndex);
         }
     }
 
