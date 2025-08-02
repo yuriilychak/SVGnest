@@ -13,6 +13,8 @@ export default class TEdgeController {
     private _edgeData: Int16Array[] = [];
     private _wind: Int32Array[] = [];
     private _dx: number[] = [];
+    private _polyType: POLY_TYPE[] = [];
+    private _side: DIRECTION[] = [];
     public active: number = UNASSIGNED;
     public sorted: number = UNASSIGNED;
 
@@ -36,7 +38,7 @@ export default class TEdgeController {
         let i: number = 0;
 
         for (i = 0; i <= lastIndex; ++i) {
-            const edge = new TEdge(polygon[i], polyType);
+            const edge = new TEdge(polygon[i]);
 
             edges.push(edge);
             indices.push(this._edges.length);
@@ -48,6 +50,8 @@ export default class TEdgeController {
             );
             this._dx.push(0);
             this._wind.push(new Int32Array([0, 0, 0]));
+            this._polyType.push(polyType);
+            this._side.push(DIRECTION.LEFT);
         }
 
         // 2. Remove duplicate vertices and collinear edges by mutating the edges array
@@ -133,6 +137,21 @@ export default class TEdgeController {
         this._edges.length = 0;
         this._edgeData.length = 0;
         this._wind.length = 0;
+        this._dx.length = 0;
+        this._polyType.length = 0;
+        this._side.length = 0;
+    }
+
+    public side(index: number): DIRECTION {
+        return this._side[index];
+    }
+
+    public setSide(index: number, value: DIRECTION): void {
+        if (this.getIndexValid(index)) {
+            this._side[index] = value;
+        } else {
+            showError(`TEdgeController.setSide: index ${index} is out of bounds`);
+        }
     }
 
     public getClockwise(index: number): boolean {
@@ -142,16 +161,13 @@ export default class TEdgeController {
     public createLocalMinima(edgeIndex: number): number[] {
         const prevIndex = this.prev(edgeIndex);
         const currEdge = this.at(edgeIndex);
-        const prevEdge = this.at(prevIndex);
         const isClockwise = this.getClockwise(edgeIndex);
         const y = currEdge.bot.y;
         const leftBoundIndex = isClockwise ? edgeIndex : prevIndex;
         const rightBoundIndex = isClockwise ? prevIndex : edgeIndex;
-        const leftBound = isClockwise ? currEdge : prevEdge;
-        const rightBound = isClockwise ? prevEdge : currEdge;
 
-        leftBound.side = DIRECTION.LEFT;
-        rightBound.side = DIRECTION.RIGHT;
+        this.setSide(leftBoundIndex, DIRECTION.LEFT);
+        this.setSide(rightBoundIndex, DIRECTION.RIGHT);
         const windDelta = this.next(leftBoundIndex) === rightBoundIndex ? -1 : 1;
         this.setWindDelta(leftBoundIndex, windDelta);
         this.setWindDelta(rightBoundIndex, -windDelta);
@@ -410,35 +426,27 @@ export default class TEdgeController {
     }
 
     public swapSides(edge1Index: number, edge2Index: number): void {
-        const edge1 = this.at(edge1Index);
-        const edge2 = this.at(edge2Index);
-        const side: DIRECTION = edge1.side;
-        edge1.side = edge2.side;
-        edge2.side = side;
+        const side1: DIRECTION = this.side(edge1Index);
+        const side2: DIRECTION = this.side(edge2Index);
+        this.setSide(edge1Index, side2);
+        this.setSide(edge2Index, side1);
     }
 
     public swapSidesAndIndeces(edge1Index: number, edge2Index: number): void {
-        const edge1 = this.at(edge1Index);
-        const edge2 = this.at(edge2Index);
-        const side1: DIRECTION = edge1.side;
-        const side2: DIRECTION = edge2.side;
         const rec1Index: number = this.getRecIndex(edge1Index);
         const rec2Index: number = this.getRecIndex(edge2Index);
-        edge1.side = side2;
-        edge2.side = side1;
         this.setRecIndex(edge1Index, rec2Index);
         this.setRecIndex(edge2Index, rec1Index);
+        this.swapSides(edge1Index, edge2Index);
     }
 
     public updateIndexAEL(side: DIRECTION, oldIndex: number, newIndex: number): void {
         let currentIndex: number = this.active;
 
         while (currentIndex !== UNASSIGNED) {
-            const edge = this.at(currentIndex);
-
             if (this.getRecIndex(currentIndex) === oldIndex) {
                 this.setRecIndex(currentIndex, newIndex);
-                edge.side = side;
+                this.setSide(currentIndex, side);
                 break;
             }
 
@@ -474,8 +482,6 @@ export default class TEdgeController {
         edge1Index: number,
         edge2Index: number
     ): boolean {
-        const edge1 = this.at(edge1Index);
-        const edge2 = this.at(edge2Index);
         let e1Wc2: number = 0;
         let e2Wc2: number = 0;
 
@@ -494,7 +500,7 @@ export default class TEdgeController {
                 break;
         }
 
-        if (edge1.polyTyp !== edge2.polyTyp) {
+        if (!this.isSamePolyType(edge1Index, edge2Index)) {
             return true;
         }
 
@@ -504,8 +510,8 @@ export default class TEdgeController {
                     return e1Wc2 <= 0 && e2Wc2 <= 0;
                 case CLIP_TYPE.DIFFERENCE:
                     return (
-                        (edge1.polyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
-                        (edge1.polyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
+                        (this._polyType[edge1Index] === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
+                        (this._polyType[edge1Index] === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
                     );
                 default:
                     return false;
@@ -544,7 +550,7 @@ export default class TEdgeController {
                 this.isHorizontal(edge1Index) ? edge1.bot.y : clipperRound((edge2.bot.x - edge1.bot.x) / dx1 + edge1.bot.y)
             );
         } else {
-            
+
             const b1 = edge1.bot.x - edge1.bot.y * dx1;
             const b2 = edge2.bot.x - edge2.bot.y * dx2;
             const q: number = (b2 - b1) / (dx1 - dx2);
@@ -821,14 +827,15 @@ export default class TEdgeController {
         this.sorted = index;
     }
 
+    public isSamePolyType(index1: number, index2: number): boolean {
+        return this._polyType[index1] === this._polyType[index2];
+    }
+
     public setWindingCount(index: number, clipType: CLIP_TYPE): void {
-        const inputEdge = this.at(index);
         let edgeIndex: number = this.prevActive(index);
-        let edge = this.at(edgeIndex);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
-        while (edgeIndex !== UNASSIGNED && (edge.polyTyp !== inputEdge.polyTyp || this.isWindDeletaEmpty(edgeIndex))) {
+        while (edgeIndex !== UNASSIGNED && (!this.isSamePolyType(edgeIndex, index) || this.isWindDeletaEmpty(edgeIndex))) {
             edgeIndex = this.prevActive(edgeIndex);
-            edge = this.at(edgeIndex);
         }
 
         if (edgeIndex === UNASSIGNED) {
@@ -842,7 +849,6 @@ export default class TEdgeController {
             edgeIndex = this.nextActive(edgeIndex);
             //ie get ready to calc WindCnt2
         } else {
-            edge = this.at(edgeIndex);
             const edgeDelta = this.windDelta(edgeIndex);
             const inputDelta = this.windDelta(index);
             const edgeWindCount1 = this.windCount1(edgeIndex);
@@ -878,7 +884,6 @@ export default class TEdgeController {
         }
         //nonZero, Positive or Negative filling ...
         while (edgeIndex !== index) {
-            edge = this.at(edgeIndex);
             this.setWindCount2(index, this.windCount2(index) + this.windDelta(edgeIndex));
             edgeIndex = this.nextActive(edgeIndex);
         }
@@ -898,12 +903,10 @@ export default class TEdgeController {
     }
 
     public alignWndCount(index1: number, index2: number): void {
-        const edge1 = this.at(index1);
-        const edge2 = this.at(index2);
         const edge1WindDelta = this.windDelta(index1);
         const edge2WindDelta = this.windDelta(index2);
 
-        if (edge1.polyTyp === edge2.polyTyp) {
+        if (this.isSamePolyType(index1, index2)) {
             const edge1WindCount1 = this.windCount1(index1);
             const edge2WindCount1 = this.windCount1(index2);
 
@@ -946,9 +949,8 @@ export default class TEdgeController {
 
     public updateCurrent(index: number, edgeIndex: number): void {
         const currEdge = this.at(index);
-        const edge = this.at(edgeIndex);
 
-        currEdge.side = edge.side;
+        this.setSide(index, this.side(edgeIndex));
         this.setWindDelta(index, this.windDelta(edgeIndex));
         this.setWindCount1(index, this.windCount1(edgeIndex));
         this.setWindCount2(index, this.windCount2(edgeIndex));
@@ -1129,8 +1131,7 @@ export default class TEdgeController {
     }
 
     public getContributing(index: number, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
-        const edge = this.at(index);
-        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && edge.polyTyp === POLY_TYPE.CLIP;
+        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && this._polyType[index] === POLY_TYPE.CLIP;
         const windCount1 = this.windCount1(index);
         const windCount2 = this.windCount2(index);
 
@@ -1151,7 +1152,7 @@ export default class TEdgeController {
 
         const edge = this.at(index);
         edge.curr.update(edge.bot);
-        edge.side = side;
+        this.setSide(index, side)
         this.setRecIndex(index, UNASSIGNED);
     }
 

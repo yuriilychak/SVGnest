@@ -158,8 +158,6 @@ export default class TEdgeManager {
     public intersectEdges(edge1Index: number, edge2Index: number, point: Point<Int32Array>, isProtect: boolean): void {
         //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
         //e2 in AEL except when e1 is being inserted at the intersection point ...
-        const edge1 = this.tEdgeController.at(edge1Index);
-        const edge2 = this.tEdgeController.at(edge2Index);
         const edge1Stops: boolean = this.tEdgeController.getStop(edge1Index, point, isProtect);
         const edge2Stops: boolean = this.tEdgeController.getStop(edge2Index, point, isProtect);
         const edge1Contributing: boolean = this.tEdgeController.isAssigned(edge1Index);
@@ -186,7 +184,7 @@ export default class TEdgeManager {
                 edge2Stops ||
                 (e1Wc !== 0 && e1Wc !== 1) ||
                 (e2Wc !== 0 && e2Wc !== 1) ||
-                edge1.polyTyp !== edge2.polyTyp
+                !this.tEdgeController.isSamePolyType(edge1Index, edge2Index)
             ) {
                 this.outRecManager.addLocalMaxPoly(edge1Index, edge2Index, point);
             } else {
@@ -287,7 +285,7 @@ export default class TEdgeManager {
             }
         }
         //if intersecting a subj line with a subj poly ...
-        else if (edge1.polyTyp === edge2.polyTyp && this.tEdgeController.windDelta(edge1Index) !== this.tEdgeController.windDelta(edge2Index) && this.clipType === CLIP_TYPE.UNION) {
+        else if (this.tEdgeController.isSamePolyType(edge1Index, edge2Index) && this.tEdgeController.windDelta(edge1Index) !== this.tEdgeController.windDelta(edge2Index) && this.clipType === CLIP_TYPE.UNION) {
             if (this.tEdgeController.isWindDeletaEmpty(edge1Index)) {
                 if (edge2Contributing) {
                     this.outRecManager.addOutPt(edge1Index, point);
@@ -305,7 +303,7 @@ export default class TEdgeManager {
                     }
                 }
             }
-        } else if (edge1.polyTyp !== edge2.polyTyp) {
+        } else if (!this.tEdgeController.isSamePolyType(edge1Index, edge2Index)) {
             if (
                 this.tEdgeController.isWindDeletaEmpty(edge1Index) &&
                 Math.abs(this.tEdgeController.windCount1(edge2Index)) === 1 &&

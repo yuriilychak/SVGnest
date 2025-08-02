@@ -85,7 +85,6 @@ export default class OutRecManager {
     }
 
     public addOutPt(edgeIndex: number, point: Point<Int32Array>): number {
-        const edge = this.tEdgeController.at(edgeIndex);
         let outRec: OutRec;
         let pointIndex: number;
 
@@ -99,9 +98,9 @@ export default class OutRecManager {
             this.tEdgeController.setRecIndex(edgeIndex, outRec.currentIndex);
             //nb: do this after SetZ !
         } else {
-            const isToFront: boolean = edge.side === DIRECTION.LEFT;
-
-            outRec = this.getOutRec(this.tEdgeController.getRecIndex(edgeIndex));
+            const isToFront: boolean = this.tEdgeController.side(edgeIndex) === DIRECTION.LEFT;
+            const recIndex = this.tEdgeController.getRecIndex(edgeIndex);
+            outRec = this.getOutRec(recIndex);
 
             pointIndex = outRec.addOutPt(isToFront, point);
         }
@@ -115,20 +114,18 @@ export default class OutRecManager {
         let firstIndex = edge2Index;
         let secondIndex = edge1Index;
         let firstEdge = edge2;
-        let secondEdge = edge1;
         let result: number = UNASSIGNED;
 
         if (this.tEdgeController.isHorizontal(edge2Index) || this.tEdgeController.dx(edge1Index) > this.tEdgeController.dx(edge2Index)) {
             firstEdge = edge1;
-            secondEdge = edge2;
             firstIndex = edge1Index;
             secondIndex = edge2Index;
         }
 
         result = this.addOutPt(firstIndex, point);
         this.tEdgeController.setRecIndex(secondIndex, this.tEdgeController.getRecIndex(firstIndex));
-        secondEdge.side = DIRECTION.RIGHT;
-        firstEdge.side = DIRECTION.LEFT;
+        this.tEdgeController.setSide(secondIndex, DIRECTION.RIGHT);
+        this.tEdgeController.setSide(firstIndex, DIRECTION.LEFT);
 
         const prevIndex = this.tEdgeController.prevActive(firstIndex) === secondIndex 
             ? this.tEdgeController.prevActive(secondIndex) : this.tEdgeController.prevActive(firstIndex);
@@ -163,17 +160,17 @@ export default class OutRecManager {
         const secondIndex = condition ? edge2Index : edge1Index;
         const firstRecIndex = this.tEdgeController.getRecIndex(firstIndex);
         const secondRecIndex = this.tEdgeController.getRecIndex(secondIndex);
-        const firstEdge = condition ? edge1 : edge2;
-        const secondEdge = condition ? edge2 : edge1;
 
         //get the start and ends of both output polygons ...
         const outRec1: OutRec = this.polyOuts[firstRecIndex];
         const outRec2: OutRec = this.polyOuts[secondRecIndex];
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
+        const firstSide = this.tEdgeController.side(firstIndex);
+        const secondSide = this.tEdgeController.side(secondIndex);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
-        outRec1.join(outRec2, firstEdge.side, secondEdge.side);
+        outRec1.join(outRec2, firstSide, secondSide);
 
-        const side = firstEdge.side;
+        const side = firstSide;
 
         if (holeStateRec === outRec2) {
             if (outRec2.firstLeftIndex !== outRec1.index) {
@@ -276,8 +273,9 @@ export default class OutRecManager {
         //the point may be anywhere along the horizontal ...
         const edge = this.tEdgeController.at(horzEdgeIndex);
         const recIndex = this.tEdgeController.getRecIndex(horzEdgeIndex);
+        const side = this.tEdgeController.side(horzEdgeIndex);
         
-        return this.polyOuts[recIndex].getJoinData(edge.side, edge.top, edge.bot);
+        return this.polyOuts[recIndex].getJoinData(side, edge.top, edge.bot);
     }
 
     private setHoleState(outRec: OutRec, edgeIndex: number): void {
