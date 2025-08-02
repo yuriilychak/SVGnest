@@ -7,6 +7,7 @@ import { DIRECTION } from "./types";
 import { PointI32 } from "../geometry";
 import { UNASSIGNED } from "./constants";
 import TEdgeController from "./t-edge-controller";
+import { t } from "i18next";
 
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
@@ -95,12 +96,12 @@ export default class OutRecManager {
  
             this.setHoleState(outRec, edgeIndex);
 
-            edge.index = outRec.currentIndex;
+            this.tEdgeController.setRecIndex(edgeIndex, outRec.currentIndex);
             //nb: do this after SetZ !
         } else {
             const isToFront: boolean = edge.side === DIRECTION.LEFT;
 
-            outRec = this.getOutRec(edge.index);
+            outRec = this.getOutRec(this.tEdgeController.getRecIndex(edgeIndex));
 
             pointIndex = outRec.addOutPt(isToFront, point);
         }
@@ -125,7 +126,7 @@ export default class OutRecManager {
         }
 
         result = this.addOutPt(firstIndex, point);
-        secondEdge.index = firstEdge.index;
+        this.tEdgeController.setRecIndex(secondIndex, this.tEdgeController.getRecIndex(firstIndex));
         secondEdge.side = DIRECTION.RIGHT;
         firstEdge.side = DIRECTION.LEFT;
 
@@ -148,20 +149,26 @@ export default class OutRecManager {
             this.addOutPt(edge2Index, point);
         }
 
-        if (edge1.index === edge2.index) {
+        const recIndex1 = this.tEdgeController.getRecIndex(edge1Index);
+        const recIndex2 = this.tEdgeController.getRecIndex(edge2Index);
+
+        if (recIndex1 === recIndex2) {
             this.tEdgeController.unassign(edge1Index);
             this.tEdgeController.unassign(edge2Index);
             return;
         }
 
-        const firstIndex = edge1.index < edge2.index ? edge1Index : edge2Index;
-        const secondIndex = edge1.index < edge2.index ? edge2Index : edge1Index;
-        const firstEdge = edge1.index < edge2.index ? edge1 : edge2;
-        const secondEdge = edge1.index < edge2.index ? edge2 : edge1;
+        const condition = recIndex1 < recIndex2;
+        const firstIndex = condition ? edge1Index : edge2Index;
+        const secondIndex = condition ? edge2Index : edge1Index;
+        const firstRecIndex = this.tEdgeController.getRecIndex(firstIndex);
+        const secondRecIndex = this.tEdgeController.getRecIndex(secondIndex);
+        const firstEdge = condition ? edge1 : edge2;
+        const secondEdge = condition ? edge2 : edge1;
 
         //get the start and ends of both output polygons ...
-        const outRec1: OutRec = this.polyOuts[firstEdge.index];
-        const outRec2: OutRec = this.polyOuts[secondEdge.index];
+        const outRec1: OutRec = this.polyOuts[firstRecIndex];
+        const outRec2: OutRec = this.polyOuts[secondRecIndex];
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
         outRec1.join(outRec2, firstEdge.side, secondEdge.side);
@@ -178,8 +185,8 @@ export default class OutRecManager {
 
         outRec2.clean();
         outRec2.firstLeftIndex = outRec1.index;
-        const OKIdx: number = firstEdge.index;
-        const ObsoleteIdx: number = secondEdge.index;
+        const OKIdx: number = this.tEdgeController.getRecIndex(firstIndex);
+        const ObsoleteIdx: number = this.tEdgeController.getRecIndex(secondIndex);
         this.tEdgeController.unassign(firstIndex);
         //nb: safe because we only get here via AddLocalMaxPoly
         this.tEdgeController.unassign(secondIndex);
@@ -268,8 +275,9 @@ export default class OutRecManager {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
         const edge = this.tEdgeController.at(horzEdgeIndex);
+        const recIndex = this.tEdgeController.getRecIndex(horzEdgeIndex);
         
-        return this.polyOuts[edge.index].getJoinData(edge.side, edge.top, edge.bot);
+        return this.polyOuts[recIndex].getJoinData(edge.side, edge.top, edge.bot);
     }
 
     private setHoleState(outRec: OutRec, edgeIndex: number): void {

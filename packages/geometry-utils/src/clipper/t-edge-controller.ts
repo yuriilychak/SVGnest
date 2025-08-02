@@ -6,7 +6,6 @@ import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './types';
 import { PointI32 } from '../geometry';
 import { clipperRound, slopesEqual } from '../helpers';
 import { showError } from './helpers';
-import { t } from 'i18next';
 
 export default class TEdgeController {
     private _edges: TEdge[] = [];
@@ -43,7 +42,7 @@ export default class TEdgeController {
             this._isUseFullRange = edge.curr.rangeTest(this._isUseFullRange);
             this._edges.push(edge);
             this._edgeData.push(
-                new Int16Array([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED])
+                new Int16Array([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED])
             );
         }
 
@@ -386,12 +385,14 @@ export default class TEdgeController {
     public swapSidesAndIndeces(edge1Index: number, edge2Index: number): void {
         const edge1 = this.at(edge1Index);
         const edge2 = this.at(edge2Index);
-        const side: DIRECTION = edge1.side;
-        const outIdx: number = edge1.index;
-        edge1.side = edge2.side;
-        edge2.side = side;
-        edge1.index = edge2.index;
-        edge2.index = outIdx;
+        const side1: DIRECTION = edge1.side;
+        const side2: DIRECTION = edge2.side;
+        const rec1Index: number = this.getRecIndex(edge1Index);
+        const rec2Index: number = this.getRecIndex(edge2Index);
+        edge1.side = side2;
+        edge2.side = side1;
+        this.setRecIndex(edge1Index, rec2Index);
+        this.setRecIndex(edge2Index, rec1Index);
     }
 
     public updateIndexAEL(side: DIRECTION, oldIndex: number, newIndex: number): void {
@@ -400,8 +401,8 @@ export default class TEdgeController {
         while (currentIndex !== UNASSIGNED) {
             const edge = this.at(currentIndex);
 
-            if (edge.index === oldIndex) {
-                edge.index = newIndex;
+            if (this.getRecIndex(currentIndex) === oldIndex) {
+                this.setRecIndex(currentIndex, newIndex);
                 edge.side = side;
                 break;
             }
@@ -416,12 +417,11 @@ export default class TEdgeController {
         let index: number = UNASSIGNED;
 
         while (currentIndex !== UNASSIGNED) {
-            const edge = this.at(currentIndex);
             if (this.isAssigned(currentIndex) && !this.isWindDeletaEmpty(currentIndex)) {
                 isHole = !isHole;
 
                 if (firstLeftIndex === UNASSIGNED) {
-                    index = edge.index;
+                    index = this.getRecIndex(currentIndex);
                 }
             }
 
@@ -610,6 +610,14 @@ export default class TEdgeController {
 
     public getNextLocalMinima(index: number): number {
         return this.getDataIndex(index, 6);
+    }
+
+    public getRecIndex(index: number): number {
+        return this.getDataIndex(index, 7);
+    }
+
+    public setRecIndex(index: number, value: number): void {
+        return this.setDataIndex(index, 7, value);
     }
 
     private baseNeighboar(index: number, isNext: boolean): number {
@@ -1037,27 +1045,25 @@ export default class TEdgeController {
             showError('UpdateEdgeIntoAEL: invalid call');
         }
 
-        const edge = this.at(edgeIndex);
-        const result = this.getNextLocalMinima(edgeIndex);
-        const nextEdge = this.at(result);
+        const currIndex = this.getNextLocalMinima(edgeIndex);
         const prevIndex = this.prevActive(edgeIndex);
         const nextIndex = this.nextActive(edgeIndex);
 
-        nextEdge.index = edge.index;
+        this.setRecIndex(currIndex, this.getRecIndex(edgeIndex));
 
         if (prevIndex !== UNASSIGNED) {
-            this.setNextActive(prevIndex, result);
+            this.setNextActive(prevIndex, currIndex);
         } else {
-            this.active = result;
+            this.active = currIndex;
         }
 
         if (nextIndex !== UNASSIGNED) {
-            this.setPrevActive(nextIndex, result);
+            this.setPrevActive(nextIndex, currIndex);
         }
 
-        this.updateCurrent(result, edgeIndex);
+        this.updateCurrent(currIndex, edgeIndex);
 
-        return result;
+        return currIndex;
     }
 
     private reverseHorizontal(index: number): void {
@@ -1092,7 +1098,7 @@ export default class TEdgeController {
         const edge = this.at(index);
         edge.curr.update(edge.bot);
         edge.side = side;
-        edge.index = UNASSIGNED;
+        this.setRecIndex(index, UNASSIGNED);
     }
 
     public resetBounds(leftIndex: number, rightIndex: number): void {
@@ -1125,9 +1131,7 @@ export default class TEdgeController {
     }
 
     public isAssigned(index: number): boolean {
-        const edge = this.at(index);
-
-        return edge.index !== UNASSIGNED;
+        return this.getRecIndex(index) !== UNASSIGNED;
     }
 
     public isHorizontal(index: number): boolean {
@@ -1143,8 +1147,6 @@ export default class TEdgeController {
     }
 
     public unassign(index: number): void {
-        const edge = this.at(index);
-        
-        edge.index = UNASSIGNED;
+        this.setRecIndex(index, UNASSIGNED);
     }
 }

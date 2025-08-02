@@ -1,5 +1,4 @@
 import { PointI32 } from '../geometry';
-import { UNASSIGNED } from './constants';
 import { POLY_TYPE, DIRECTION } from './types';
 import { Point } from '../types';
 
@@ -14,7 +13,6 @@ export default class TEdge {
     public windDelta: number;
     public windCount1: number;
     public windCount2: number;
-    public index: number;
 
     constructor(curr: Point<Int32Array>, polyType: POLY_TYPE) {
         this.bot = PointI32.create();
@@ -27,6 +25,5 @@ export default class TEdge {
         this.windDelta = 0;
         this.windCount1 = 0;
         this.windCount2 = 0;
-        this.index = UNASSIGNED;
     }
 }
