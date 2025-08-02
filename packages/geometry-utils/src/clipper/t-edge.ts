@@ -10,9 +10,6 @@ export default class TEdge {
     public dx: number;
     public polyTyp: POLY_TYPE;
     public side: DIRECTION;
-    public windDelta: number;
-    public windCount1: number;
-    public windCount2: number;
 
     constructor(curr: Point<Int32Array>, polyType: POLY_TYPE) {
         this.bot = PointI32.create();
@@ -22,8 +19,5 @@ export default class TEdge {
         this.dx = 0;
         this.polyTyp = polyType;
         this.side = DIRECTION.LEFT;
-        this.windDelta = 0;
-        this.windCount1 = 0;
-        this.windCount2 = 0;
     }
 }

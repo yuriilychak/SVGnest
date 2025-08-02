@@ -70,7 +70,7 @@ export default class TEdgeManager {
 
     public updateEdgeIntoAEL(edgeIndex: number): number {
         const result = this.tEdgeController.updateEdgeIntoAEL(edgeIndex);
-        
+
 
         if (!this.tEdgeController.isHorizontal(result)) {
             const edge = this.tEdgeController.at(result);
@@ -287,7 +287,7 @@ export default class TEdgeManager {
             }
         }
         //if intersecting a subj line with a subj poly ...
-        else if (edge1.polyTyp === edge2.polyTyp && edge1.windDelta !== edge2.windDelta && this.clipType === CLIP_TYPE.UNION) {
+        else if (edge1.polyTyp === edge2.polyTyp && this.tEdgeController.windDelta(edge1Index) !== this.tEdgeController.windDelta(edge2Index) && this.clipType === CLIP_TYPE.UNION) {
             if (this.tEdgeController.isWindDeletaEmpty(edge1Index)) {
                 if (edge2Contributing) {
                     this.outRecManager.addOutPt(edge1Index, point);
@@ -308,8 +308,8 @@ export default class TEdgeManager {
         } else if (edge1.polyTyp !== edge2.polyTyp) {
             if (
                 this.tEdgeController.isWindDeletaEmpty(edge1Index) &&
-                Math.abs(edge2.windCount1) === 1 &&
-                (this.clipType !== CLIP_TYPE.UNION || edge2.windCount2 === 0)
+                Math.abs(this.tEdgeController.windCount1(edge2Index)) === 1 &&
+                (this.clipType !== CLIP_TYPE.UNION || this.tEdgeController.windCount2(edge2Index) === 0)
             ) {
                 this.outRecManager.addOutPt(edge1Index, point);
 
@@ -318,8 +318,8 @@ export default class TEdgeManager {
                 }
             } else if (
                 this.tEdgeController.isWindDeletaEmpty(edge2Index) &&
-                Math.abs(edge1.windCount1) === 1 &&
-                (this.clipType !== CLIP_TYPE.UNION || edge1.windCount2 === 0)
+                Math.abs(this.tEdgeController.windCount1(edge1Index)) === 1 &&
+                (this.clipType !== CLIP_TYPE.UNION || this.tEdgeController.windCount2(edge1Index) === 0)
             ) {
                 this.outRecManager.addOutPt(edge2Index, point);
 
@@ -721,8 +721,8 @@ export default class TEdgeManager {
                 this.tEdgeController.insertEdgeIntoAEL(leftBoundIndex);
                 this.tEdgeController.insertEdgeIntoAEL(rightBoundIndex, leftBoundIndex);
                 this.tEdgeController.setWindingCount(leftBoundIndex, this.clipType);
-                rightBound.windCount1 = leftBound.windCount1;
-                rightBound.windCount2 = leftBound.windCount2;
+                this.tEdgeController.setWindCount1(rightBoundIndex, this.tEdgeController.windCount1(leftBoundIndex));
+                this.tEdgeController.setWindCount2(rightBoundIndex, this.tEdgeController.windCount2(leftBoundIndex));
 
                 if (this.tEdgeController.getContributing(leftBoundIndex, this.clipType, this.fillType)) {
                     outPt = this.outRecManager.addLocalMinPoly(leftBoundIndex, rightBoundIndex, leftBound.bot);

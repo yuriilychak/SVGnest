@@ -11,6 +11,7 @@ export default class TEdgeController {
     private _edges: TEdge[] = [];
     private _isUseFullRange: boolean = true;
     private _edgeData: Int16Array[] = [];
+    private _wind: Int32Array[] = [];
     public active: number = UNASSIGNED;
     public sorted: number = UNASSIGNED;
 
@@ -44,6 +45,7 @@ export default class TEdgeController {
             this._edgeData.push(
                 new Int16Array([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED])
             );
+            this._wind.push(new Int32Array([0, 0, 0]));
         }
 
         // 2. Remove duplicate vertices and collinear edges by mutating the edges array
@@ -128,6 +130,7 @@ export default class TEdgeController {
     public dispose(): void {
         this._edges.length = 0;
         this._edgeData.length = 0;
+        this._wind.length = 0;
     }
 
     public getClockwise(index: number): boolean {
@@ -150,8 +153,9 @@ export default class TEdgeController {
 
         leftBound.side = DIRECTION.LEFT;
         rightBound.side = DIRECTION.RIGHT;
-        leftBound.windDelta = this.next(leftBoundIndex) === rightBoundIndex ? -1 : 1;
-        rightBound.windDelta = -leftBound.windDelta;
+        const windDelta = this.next(leftBoundIndex) === rightBoundIndex ? -1 : 1;
+        this.setWindDelta(leftBoundIndex, windDelta);
+        this.setWindDelta(rightBoundIndex, -windDelta);
 
         return [y, leftBoundIndex, rightBoundIndex];
     }
@@ -307,6 +311,36 @@ export default class TEdgeController {
         );
     }
 
+    public windDelta(index: number): number {
+        return this._wind[index][0];
+    }
+
+    public setWindDelta(index: number, value: number): void {
+        if (this.getIndexValid(index)) {
+            this._wind[index][0] = value;
+        }
+    }
+
+    public windCount1(index: number): number {
+        return this._wind[index][1];
+    }
+
+    public setWindCount1(index: number, value: number): void {
+        if (this.getIndexValid(index)) {
+            this._wind[index][1] = value;
+        }
+    }
+
+    public windCount2(index: number): number {
+        return this._wind[index][2];
+    }
+
+    public setWindCount2(index: number, value: number): void {
+        if (this.getIndexValid(index)) {
+            this._wind[index][2] = value;
+        }
+    }
+
     private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
         if (edgeIndex === index) {
             return false;
@@ -446,16 +480,16 @@ export default class TEdgeController {
 
         switch (fillType) {
             case POLY_FILL_TYPE.POSITIVE:
-                e1Wc2 = edge1.windCount2;
-                e2Wc2 = edge2.windCount2;
+                e1Wc2 = this.windCount2(edge1Index);
+                e2Wc2 = this.windCount2(edge2Index);
                 break;
             case POLY_FILL_TYPE.NEGATIVE:
-                e1Wc2 = -edge1.windCount2;
-                e2Wc2 = -edge2.windCount2;
+                e1Wc2 = -this.windCount2(edge1Index);
+                e2Wc2 = -this.windCount2(edge2Index);
                 break;
             default:
-                e1Wc2 = Math.abs(edge1.windCount2);
-                e2Wc2 = Math.abs(edge2.windCount2);
+                e1Wc2 = Math.abs(this.windCount2(edge1Index));
+                e2Wc2 = Math.abs(this.windCount2(edge2Index));
                 break;
         }
 
@@ -663,7 +697,7 @@ export default class TEdgeController {
         const isRemoved: boolean = isAel
             ? nextIndex1 === prevIndex1 || nextIndex2 === prevIndex2
             : (nextIndex1 === UNASSIGNED && prevIndex1 === UNASSIGNED) ||
-              (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
+            (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
 
         if (isRemoved) {
             return false;
@@ -793,48 +827,54 @@ export default class TEdgeController {
         }
 
         if (edgeIndex === UNASSIGNED) {
-            inputEdge.windCount1 = this.isWindDeletaEmpty(index) ? 1 : inputEdge.windDelta;
-            inputEdge.windCount2 = 0;
+            this.setWindCount1(index, this.isWindDeletaEmpty(index) ? 1 : this.windDelta(index));
+            this.setWindCount2(index, 0);
             edgeIndex = this.active;
             //ie get ready to calc WindCnt2
         } else if (this.isWindDeletaEmpty(index) && clipType !== CLIP_TYPE.UNION) {
-            inputEdge.windCount1 = 1;
-            inputEdge.windCount2 = edge.windCount2;
+            this.setWindCount1(index, 1);
+            this.setWindCount2(index, this.windCount2(edgeIndex));
             edgeIndex = this.nextActive(edgeIndex);
             //ie get ready to calc WindCnt2
         } else {
             edge = this.at(edgeIndex);
+            const edgeDelta = this.windDelta(edgeIndex);
+            const inputDelta = this.windDelta(index);
+            const edgeWindCount1 = this.windCount1(edgeIndex);
+            let nextWindCount1 = 0;
             //nonZero, Positive or Negative filling ...
-            if (edge.windCount1 * edge.windDelta < 0) {
+            if (edgeWindCount1 * edgeDelta < 0) {
                 //prev edge is 'decreasing' WindCount (WC) toward zero
                 //so we're outside the previous polygon ...
-                if (Math.abs(edge.windCount1) > 1) {
+
+                if (Math.abs(edgeWindCount1) > 1) {
                     //outside prev poly but still inside another.
                     //when reversing direction of prev poly use the same WC
-                    inputEdge.windCount1 =
-                        edge.windDelta * inputEdge.windDelta < 0 ? edge.windCount1 : edge.windCount1 + inputEdge.windDelta;
+                    nextWindCount1 = edgeDelta * inputDelta < 0 ? edgeWindCount1 : edgeWindCount1 + inputDelta;
                 } else {
-                    inputEdge.windCount1 = this.isWindDeletaEmpty(index) ? 1 : inputEdge.windDelta;
+                    nextWindCount1 = this.isWindDeletaEmpty(index) ? 1 : inputDelta;
                 }
+
+
             } else {
                 //prev edge is 'increasing' WindCount (WC) away from zero
                 //so we're inside the previous polygon ...
                 if (this.isWindDeletaEmpty(index)) {
-                    inputEdge.windCount1 = edge.windCount1 < 0 ? edge.windCount1 - 1 : edge.windCount1 + 1;
+                    nextWindCount1 = edgeWindCount1 < 0 ? edgeWindCount1 - 1 : edgeWindCount1 + 1;
                 } else {
-                    inputEdge.windCount1 =
-                        edge.windDelta * inputEdge.windDelta < 0 ? edge.windCount1 : edge.windCount1 + inputEdge.windDelta;
+                    nextWindCount1 = edgeDelta * inputDelta < 0 ? edgeWindCount1 : edgeWindCount1 + inputDelta;
                 }
             }
 
-            inputEdge.windCount2 = edge.windCount2;
+            this.setWindCount1(index, nextWindCount1);
+            this.setWindCount2(index, this.windCount2(edgeIndex));
             edgeIndex = this.nextActive(edgeIndex);
             //ie get ready to calc WindCnt2
         }
         //nonZero, Positive or Negative filling ...
         while (edgeIndex !== index) {
             edge = this.at(edgeIndex);
-            inputEdge.windCount2 += edge.windDelta;
+            this.setWindCount2(index, this.windCount2(index) + this.windDelta(edgeIndex));
             edgeIndex = this.nextActive(edgeIndex);
         }
     }
@@ -855,13 +895,20 @@ export default class TEdgeController {
     public alignWndCount(index1: number, index2: number): void {
         const edge1 = this.at(index1);
         const edge2 = this.at(index2);
+        const edge1WindDelta = this.windDelta(index1);
+        const edge2WindDelta = this.windDelta(index2);
 
         if (edge1.polyTyp === edge2.polyTyp) {
-            edge1.windCount1 = edge1.windCount1 === -edge2.windDelta ? -edge1.windCount1 : edge1.windCount1 + edge2.windDelta;
-            edge2.windCount1 = edge2.windCount1 === edge1.windDelta ? -edge2.windCount1 : edge2.windCount1 - edge1.windDelta;
+            const edge1WindCount1 = this.windCount1(index1);
+            const edge2WindCount1 = this.windCount1(index2);
+
+            this.setWindCount1(index1, edge1WindCount1 === -edge2WindDelta ? -edge1WindCount1 : edge1WindCount1 + edge2WindDelta);
+            this.setWindCount1(index2, edge2WindCount1 === edge1WindDelta ? -edge2WindCount1 : edge2WindCount1 - edge1WindDelta)
         } else {
-            edge1.windCount2 += edge2.windDelta;
-            edge2.windCount2 -= edge1.windDelta;
+            const edge1WindCount2 = this.windCount2(index1);
+            const edge2WindCount2 = this.windCount2(index2);
+            this.setWindCount2(index1, edge1WindCount2 + edge2WindDelta);
+            this.setWindCount2(index2, edge2WindCount2 - edge1WindDelta);
         }
     }
 
@@ -897,9 +944,9 @@ export default class TEdgeController {
         const edge = this.at(edgeIndex);
 
         currEdge.side = edge.side;
-        currEdge.windDelta = edge.windDelta;
-        currEdge.windCount1 = edge.windCount1;
-        currEdge.windCount2 = edge.windCount2;
+        this.setWindDelta(index, this.windDelta(edgeIndex));
+        this.setWindCount1(index, this.windCount1(edgeIndex));
+        this.setWindCount2(index, this.windCount2(edgeIndex));
         this.setPrevActive(index, this.prevActive(edgeIndex));
         this.setNextActive(index, this.nextActive(edgeIndex));
         currEdge.curr.update(currEdge.bot);
@@ -1079,14 +1126,16 @@ export default class TEdgeController {
     public getContributing(index: number, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
         const edge = this.at(index);
         const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && edge.polyTyp === POLY_TYPE.CLIP;
+        const windCount1 = this.windCount1(index);
+        const windCount2 = this.windCount2(index);
 
         switch (fillType) {
             case POLY_FILL_TYPE.NON_ZERO:
-                return Math.abs(edge.windCount1) === 1 && isReverse !== (edge.windCount2 === 0);
+                return Math.abs(windCount1) === 1 && isReverse !== (windCount2 === 0);
             case POLY_FILL_TYPE.POSITIVE:
-                return edge.windCount1 === 1 && isReverse !== edge.windCount2 <= 0;
+                return windCount1 === 1 && isReverse !== (windCount2 <= 0);
             default:
-                return edge.windCount1 === UNASSIGNED && isReverse !== edge.windCount2 >= 0;
+                return windCount1 === UNASSIGNED && isReverse !== (windCount2 >= 0);
         }
     }
 
@@ -1107,15 +1156,15 @@ export default class TEdgeController {
     }
 
     public getWndTypeFilled(index: number, fillType: POLY_FILL_TYPE): number {
-        const edge = this.at(index);
+        const windCount1 = this.windCount1(index);
 
         switch (fillType) {
             case POLY_FILL_TYPE.POSITIVE:
-                return edge.windCount1;
+                return windCount1;
             case POLY_FILL_TYPE.NEGATIVE:
-                return -edge.windCount1;
+                return -windCount1;
             default:
-                return Math.abs(edge.windCount1);
+                return Math.abs(windCount1);
         }
     }
 
@@ -1141,9 +1190,7 @@ export default class TEdgeController {
     }
 
     public isWindDeletaEmpty(index: number): boolean {
-        const edge = this.at(index);
-
-        return edge.windDelta === 0;
+        return this.windDelta(index) === 0;
     }
 
     public unassign(index: number): void {
