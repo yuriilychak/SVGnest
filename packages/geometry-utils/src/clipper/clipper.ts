@@ -1,22 +1,22 @@
 import { PointI32 } from '../geometry';
 import OutRecManager from './out-rec-manager';
 import Scanbeam from './scanbeam';
-import TEdgeController from './t-edge-controller';
+import TEdge from './t-edge';
 import TEdgeManager from './t-edge-manager';
 import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './types';
 
 export default class Clipper {
     private scanbeam: Scanbeam;
-    private tEdgeController: TEdgeController;
+    private tEdge: TEdge;
     private tEdgeManager: TEdgeManager;
     private outRecManager: OutRecManager;
     private isExecuteLocked: boolean = false;
-    
+
     constructor(reverseSolution: boolean, strictlySimple: boolean) {
         this.scanbeam = new Scanbeam();
-        this.tEdgeController = new TEdgeController();
-        this.outRecManager = new OutRecManager(this.tEdgeController, reverseSolution, strictlySimple);
-        this.tEdgeManager = new TEdgeManager(this.scanbeam, this.outRecManager, this.tEdgeController);
+        this.tEdge = new TEdge();
+        this.outRecManager = new OutRecManager(this.tEdge, reverseSolution, strictlySimple);
+        this.tEdgeManager = new TEdgeManager(this.scanbeam, this.outRecManager, this.tEdge);
     }
 
     public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
@@ -59,7 +59,7 @@ export default class Clipper {
             }
         } finally {
             this.outRecManager.dispose();
-            this.tEdgeController.dispose();
+            this.tEdge.dispose();
             this.isExecuteLocked = false;
         }
 

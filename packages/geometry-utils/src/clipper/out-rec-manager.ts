@@ -6,20 +6,19 @@ import Join from "./join";
 import { DIRECTION } from "./types";
 import { PointI32 } from "../geometry";
 import { UNASSIGNED } from "./constants";
-import TEdgeController from "./t-edge-controller";
-import { t } from "i18next";
+import TEdge from "./t-edge";
 
 export default class OutRecManager {
     private polyOuts: OutRec[] = [];
     private join: Join = new Join();
     private isReverseSolution: boolean = false;
     private isStrictlySimple: boolean = false;
-    private tEdgeController: TEdgeController;
+    private tEdge: TEdge;
 
-    constructor(tEdgeController: TEdgeController, reverseSolution: boolean, strictlySimple: boolean) {
+    constructor(tEdgeController: TEdge, reverseSolution: boolean, strictlySimple: boolean) {
         this.isReverseSolution = reverseSolution;
         this.isStrictlySimple = strictlySimple;
-        this.tEdgeController = tEdgeController;
+        this.tEdge = tEdgeController;
     }
 
     public get strictlySimple(): boolean {
@@ -30,7 +29,7 @@ export default class OutRecManager {
         if (condition) {
             const outHash2 = this.addOutPt(edgeIndex, point1);
             this.join.add(outHash1, outHash2, point2);
-        }  
+        }
 
         return condition;
     }
@@ -53,7 +52,7 @@ export default class OutRecManager {
                 //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
                 //the 'ghost' join to a real join ready for later ...
                 point.set(
-                    this.join.getX(i, true), 
+                    this.join.getX(i, true),
                     this.join.getY(i, true)
                 )
 
@@ -88,18 +87,18 @@ export default class OutRecManager {
         let outRec: OutRec;
         let pointIndex: number;
 
-        if (!this.tEdgeController.isAssigned(edgeIndex)) {
+        if (!this.tEdge.isAssigned(edgeIndex)) {
             pointIndex = OutPt.fromPoint(point);
 
             outRec = this.createRec(pointIndex);
- 
+
             this.setHoleState(outRec, edgeIndex);
 
-            this.tEdgeController.setRecIndex(edgeIndex, outRec.currentIndex);
+            this.tEdge.setRecIndex(edgeIndex, outRec.currentIndex);
             //nb: do this after SetZ !
         } else {
-            const isToFront: boolean = this.tEdgeController.side(edgeIndex) === DIRECTION.LEFT;
-            const recIndex = this.tEdgeController.getRecIndex(edgeIndex);
+            const isToFront: boolean = this.tEdge.side(edgeIndex) === DIRECTION.LEFT;
+            const recIndex = this.tEdge.getRecIndex(edgeIndex);
             outRec = this.getOutRec(recIndex);
 
             pointIndex = outRec.addOutPt(isToFront, point);
@@ -109,29 +108,25 @@ export default class OutRecManager {
     }
 
     public addLocalMinPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>): number {
-        const edge1 = this.tEdgeController.at(edge1Index);
-        const edge2 = this.tEdgeController.at(edge2Index);
         let firstIndex = edge2Index;
         let secondIndex = edge1Index;
-        let firstEdge = edge2;
         let result: number = UNASSIGNED;
 
-        if (this.tEdgeController.isHorizontal(edge2Index) || this.tEdgeController.dx(edge1Index) > this.tEdgeController.dx(edge2Index)) {
-            firstEdge = edge1;
+        if (this.tEdge.isHorizontal(edge2Index) || this.tEdge.dx(edge1Index) > this.tEdge.dx(edge2Index)) {
             firstIndex = edge1Index;
             secondIndex = edge2Index;
         }
 
         result = this.addOutPt(firstIndex, point);
-        this.tEdgeController.setRecIndex(secondIndex, this.tEdgeController.getRecIndex(firstIndex));
-        this.tEdgeController.setSide(secondIndex, DIRECTION.RIGHT);
-        this.tEdgeController.setSide(firstIndex, DIRECTION.LEFT);
+        this.tEdge.setRecIndex(secondIndex, this.tEdge.getRecIndex(firstIndex));
+        this.tEdge.setSide(secondIndex, DIRECTION.RIGHT);
+        this.tEdge.setSide(firstIndex, DIRECTION.LEFT);
 
-        const prevIndex = this.tEdgeController.prevActive(firstIndex) === secondIndex 
-            ? this.tEdgeController.prevActive(secondIndex) : this.tEdgeController.prevActive(firstIndex);
-        const condition = this.tEdgeController.checkMinJoin(firstIndex, prevIndex, point);
+        const prevIndex = this.tEdge.prevActive(firstIndex) === secondIndex
+            ? this.tEdge.prevActive(secondIndex) : this.tEdge.prevActive(firstIndex);
+        const condition = this.tEdge.checkMinJoin(firstIndex, prevIndex, point);
 
-        this.insertJoin(condition, result, prevIndex, point, firstEdge.top);
+        this.insertJoin(condition, result, prevIndex, point, this.tEdge.top(firstIndex));
 
         return result;
     }
@@ -139,34 +134,31 @@ export default class OutRecManager {
     public addLocalMaxPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>): void {
         this.addOutPt(edge1Index, point);
 
-        const edge1 = this.tEdgeController.at(edge1Index);
-        const edge2 = this.tEdgeController.at(edge2Index);
-
-        if (this.tEdgeController.isWindDeletaEmpty(edge2Index)) {
+        if (this.tEdge.isWindDeletaEmpty(edge2Index)) {
             this.addOutPt(edge2Index, point);
         }
 
-        const recIndex1 = this.tEdgeController.getRecIndex(edge1Index);
-        const recIndex2 = this.tEdgeController.getRecIndex(edge2Index);
+        const recIndex1 = this.tEdge.getRecIndex(edge1Index);
+        const recIndex2 = this.tEdge.getRecIndex(edge2Index);
 
         if (recIndex1 === recIndex2) {
-            this.tEdgeController.unassign(edge1Index);
-            this.tEdgeController.unassign(edge2Index);
+            this.tEdge.unassign(edge1Index);
+            this.tEdge.unassign(edge2Index);
             return;
         }
 
         const condition = recIndex1 < recIndex2;
         const firstIndex = condition ? edge1Index : edge2Index;
         const secondIndex = condition ? edge2Index : edge1Index;
-        const firstRecIndex = this.tEdgeController.getRecIndex(firstIndex);
-        const secondRecIndex = this.tEdgeController.getRecIndex(secondIndex);
+        const firstRecIndex = this.tEdge.getRecIndex(firstIndex);
+        const secondRecIndex = this.tEdge.getRecIndex(secondIndex);
 
         //get the start and ends of both output polygons ...
         const outRec1: OutRec = this.polyOuts[firstRecIndex];
         const outRec2: OutRec = this.polyOuts[secondRecIndex];
         const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
-        const firstSide = this.tEdgeController.side(firstIndex);
-        const secondSide = this.tEdgeController.side(secondIndex);
+        const firstSide = this.tEdge.side(firstIndex);
+        const secondSide = this.tEdge.side(secondIndex);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
         outRec1.join(outRec2, firstSide, secondSide);
 
@@ -182,13 +174,13 @@ export default class OutRecManager {
 
         outRec2.clean();
         outRec2.firstLeftIndex = outRec1.index;
-        const OKIdx: number = this.tEdgeController.getRecIndex(firstIndex);
-        const ObsoleteIdx: number = this.tEdgeController.getRecIndex(secondIndex);
-        this.tEdgeController.unassign(firstIndex);
+        const OKIdx: number = this.tEdge.getRecIndex(firstIndex);
+        const ObsoleteIdx: number = this.tEdge.getRecIndex(secondIndex);
+        this.tEdge.unassign(firstIndex);
         //nb: safe because we only get here via AddLocalMaxPoly
-        this.tEdgeController.unassign(secondIndex);
+        this.tEdge.unassign(secondIndex);
 
-        this.tEdgeController.updateIndexAEL(side, ObsoleteIdx, OKIdx);
+        this.tEdge.updateIndexAEL(side, ObsoleteIdx, OKIdx);
 
         outRec2.currentIndex = outRec1.currentIndex;
     }
@@ -213,7 +205,7 @@ export default class OutRecManager {
 
         for (i = 0; i < joinCount; ++i) {
             point.set(
-                this.join.getX(i, false), 
+                this.join.getX(i, false),
                 this.join.getY(i, false)
             );
             this.joinCommonEdge(i, point);
@@ -223,7 +215,7 @@ export default class OutRecManager {
             const outRec = this.polyOuts[i];
 
             if (!outRec.isEmpty) {
-                outRec.fixupOutPolygon(false, this.tEdgeController.isUseFullRange);
+                outRec.fixupOutPolygon(false, this.tEdge.isUseFullRange);
             }
         }
 
@@ -268,18 +260,19 @@ export default class OutRecManager {
         return result;
     }
 
-    private getJoinData(horzEdgeIndex: number) {
+    private getJoinData(index: number) {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        const edge = this.tEdgeController.at(horzEdgeIndex);
-        const recIndex = this.tEdgeController.getRecIndex(horzEdgeIndex);
-        const side = this.tEdgeController.side(horzEdgeIndex);
-        
-        return this.polyOuts[recIndex].getJoinData(side, edge.top, edge.bot);
+        const recIndex = this.tEdge.getRecIndex(index);
+        const side = this.tEdge.side(index);
+        const top = this.tEdge.top(index);
+        const bot = this.tEdge.bot(index);
+
+        return this.polyOuts[recIndex].getJoinData(side, top, bot);
     }
 
     private setHoleState(outRec: OutRec, edgeIndex: number): void {
-        const { isHole, index } = this.tEdgeController.getHoleState(outRec.firstLeftIndex, edgeIndex);
+        const { isHole, index } = this.tEdge.getHoleState(outRec.firstLeftIndex, edgeIndex);
 
         if (outRec.firstLeftIndex === UNASSIGNED && index !== UNASSIGNED) {
             outRec.firstLeftIndex = this.polyOuts[index].index;
@@ -366,13 +359,13 @@ export default class OutRecManager {
         }
     }
 
-    private joinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>): { outHash1: number, outHash2: number, result: boolean  } {
+    private joinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>): { outHash1: number, outHash2: number, result: boolean } {
         const index1: number = get_u16_from_u32(outHash1, 0);
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outRec1 = this.getOutRec(index1);
         const outRec2 = this.getOutRec(index2);
         const result = { outHash1, outHash2, result: false };
-        
+
         if (outRec1.isEmpty || outRec2.isEmpty) {
             return result;
         }
@@ -405,7 +398,7 @@ export default class OutRecManager {
 
             return result;
         }
-        
+
         if (isHorizontal) {
             //treat horizontal joins differently to non-horizontal joins since with
             //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
@@ -477,22 +470,22 @@ export default class OutRecManager {
         //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
         //make sure the polygons are correctly oriented ...
 
-        const reverse1: boolean = this.tEdgeController.checkReverse(op1.point, op1b.point, offPoint);
+        const reverse1: boolean = this.tEdge.checkReverse(op1.point, op1b.point, offPoint);
 
         if (reverse1) {
             op1b = OutPt.at(op1.getUniquePt(false));
 
-            if (this.tEdgeController.checkReverse(op1.point, op1b.point, offPoint)) {
+            if (this.tEdge.checkReverse(op1.point, op1b.point, offPoint)) {
                 return result;
             }
         }
 
-        const reverse2: boolean = this.tEdgeController.checkReverse(op2.point, op2b.point, offPoint);
+        const reverse2: boolean = this.tEdge.checkReverse(op2.point, op2b.point, offPoint);
 
         if (reverse2) {
             op2b = OutPt.at(op2.getUniquePt(false));
 
-            if (this.tEdgeController.checkReverse(op2.point, op2b.point, offPoint)) {
+            if (this.tEdge.checkReverse(op2.point, op2b.point, offPoint)) {
                 return result;
             }
         }
@@ -508,11 +501,12 @@ export default class OutRecManager {
         return result;
     }
 
-    private horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, rightBoundIndex: number): boolean {
-        const rightBound = this.tEdgeController.at(rightBoundIndex);
+    private horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, edgeIndex: number): boolean {
         const outPtIndex = get_u16_from_u32(outHash, 1);
         const outPt = OutPt.at(outPtIndex);
-        
-        return PointI32.horzSegmentsOverlap(outPt.point, offPoint, rightBound.bot, rightBound.top);
+        const top = this.tEdge.top(edgeIndex);
+        const bot = this.tEdge.bot(edgeIndex);
+
+        return PointI32.horzSegmentsOverlap(outPt.point, offPoint, bot, top);
     }
 }
