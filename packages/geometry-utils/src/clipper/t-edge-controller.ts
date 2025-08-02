@@ -417,7 +417,7 @@ export default class TEdgeController {
 
         while (currentIndex !== UNASSIGNED) {
             const edge = this.at(currentIndex);
-            if (this.isAssigned(currentIndex) && !edge.isWindDeletaEmpty) {
+            if (this.isAssigned(currentIndex) && !this.isWindDeletaEmpty(currentIndex)) {
                 isHole = !isHole;
 
                 if (firstLeftIndex === UNASSIGNED) {
@@ -779,17 +779,17 @@ export default class TEdgeController {
         let edgeIndex: number = this.prevActive(index);
         let edge = this.at(edgeIndex);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
-        while (edgeIndex !== UNASSIGNED && (edge.polyTyp !== inputEdge.polyTyp || edge.isWindDeletaEmpty)) {
+        while (edgeIndex !== UNASSIGNED && (edge.polyTyp !== inputEdge.polyTyp || this.isWindDeletaEmpty(edgeIndex))) {
             edgeIndex = this.prevActive(edgeIndex);
             edge = this.at(edgeIndex);
         }
 
         if (edgeIndex === UNASSIGNED) {
-            inputEdge.windCount1 = inputEdge.isWindDeletaEmpty ? 1 : inputEdge.windDelta;
+            inputEdge.windCount1 = this.isWindDeletaEmpty(index) ? 1 : inputEdge.windDelta;
             inputEdge.windCount2 = 0;
             edgeIndex = this.active;
             //ie get ready to calc WindCnt2
-        } else if (inputEdge.isWindDeletaEmpty && clipType !== CLIP_TYPE.UNION) {
+        } else if (this.isWindDeletaEmpty(index) && clipType !== CLIP_TYPE.UNION) {
             inputEdge.windCount1 = 1;
             inputEdge.windCount2 = edge.windCount2;
             edgeIndex = this.nextActive(edgeIndex);
@@ -806,12 +806,12 @@ export default class TEdgeController {
                     inputEdge.windCount1 =
                         edge.windDelta * inputEdge.windDelta < 0 ? edge.windCount1 : edge.windCount1 + inputEdge.windDelta;
                 } else {
-                    inputEdge.windCount1 = inputEdge.isWindDeletaEmpty ? 1 : inputEdge.windDelta;
+                    inputEdge.windCount1 = this.isWindDeletaEmpty(index) ? 1 : inputEdge.windDelta;
                 }
             } else {
                 //prev edge is 'increasing' WindCount (WC) away from zero
                 //so we're inside the previous polygon ...
-                if (inputEdge.isWindDeletaEmpty) {
+                if (this.isWindDeletaEmpty(index)) {
                     inputEdge.windCount1 = edge.windCount1 < 0 ? edge.windCount1 - 1 : edge.windCount1 + 1;
                 } else {
                     inputEdge.windCount1 =
@@ -858,14 +858,12 @@ export default class TEdgeController {
     }
 
     public checkMinJoin(currIndex: number, prevIndex: number, point: Point<Int32Array>): boolean {
-        const edge = this.at(currIndex);
-
         return (
             prevIndex !== UNASSIGNED &&
             this.isFilled(prevIndex) &&
             this.topX(prevIndex, point.y) === this.topX(currIndex, point.y) &&
             this.slopesEqual(currIndex, prevIndex) &&
-            !edge.isWindDeletaEmpty
+            !this.isWindDeletaEmpty(currIndex)
         );
     }
 
@@ -883,9 +881,7 @@ export default class TEdgeController {
     }
 
     public checkSharedCondition(index: number, outHash: number, isNext: boolean): boolean {
-        const edge = this.at(index);
-
-        return outHash !== UNASSIGNED && this.checkHorizontalCondition(index, isNext) && !edge.isWindDeletaEmpty;
+        return outHash !== UNASSIGNED && this.checkHorizontalCondition(index, isNext) && !this.isWindDeletaEmpty(index);
     }
 
     public updateCurrent(index: number, edgeIndex: number): void {
@@ -1118,9 +1114,7 @@ export default class TEdgeController {
     }
 
     public isFilled(index: number): boolean {
-        const edge = this.at(index);
-
-        return this.isAssigned(index) && !edge.isWindDeletaEmpty;
+        return this.isAssigned(index) && !this.isWindDeletaEmpty(index);
     }
 
     public topX(index: number, y: number): number {
@@ -1140,5 +1134,11 @@ export default class TEdgeController {
         const edge = this.at(index);
 
         return edge.delta.y === 0;
+    }
+
+    public isWindDeletaEmpty(index: number): boolean {
+        const edge = this.at(index);
+
+        return edge.windDelta === 0;
     }
 }

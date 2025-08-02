@@ -166,7 +166,7 @@ export default class TEdgeManager {
         const edge2Contributing: boolean = this.tEdgeController.isAssigned(edge2Index);
 
         //if either edge is on an OPEN path ...
-        if (edge1.isWindDeletaEmpty || edge2.isWindDeletaEmpty) {
+        if (this.tEdgeController.isWindDeletaEmpty(edge1Index) || this.tEdgeController.isWindDeletaEmpty(edge2Index)) {
             //ignore subject-subject open path intersections UNLESS they
             //are both open paths, AND they are both 'contributing maximas' ...
             this.intersectOpenEdges(edge1Index, edge2Index, isProtect, point);
@@ -281,14 +281,14 @@ export default class TEdgeManager {
         const edge2Contributing: boolean = this.tEdgeController.isAssigned(edge2Index);
         //ignore subject-subject open path intersections UNLESS they
         //are both open paths, AND they are both 'contributing maximas' ...
-        if (edge1.isWindDeletaEmpty && edge2.isWindDeletaEmpty) {
+        if (this.tEdgeController.isWindDeletaEmpty(edge1Index) && this.tEdgeController.isWindDeletaEmpty(edge2Index)) {
             if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
                 this.outRecManager.addLocalMaxPoly(edge1Index, edge2Index, point);
             }
         }
         //if intersecting a subj line with a subj poly ...
         else if (edge1.polyTyp === edge2.polyTyp && edge1.windDelta !== edge2.windDelta && this.clipType === CLIP_TYPE.UNION) {
-            if (edge1.isWindDeletaEmpty) {
+            if (this.tEdgeController.isWindDeletaEmpty(edge1Index)) {
                 if (edge2Contributing) {
                     this.outRecManager.addOutPt(edge1Index, point);
 
@@ -307,7 +307,7 @@ export default class TEdgeManager {
             }
         } else if (edge1.polyTyp !== edge2.polyTyp) {
             if (
-                edge1.isWindDeletaEmpty &&
+                this.tEdgeController.isWindDeletaEmpty(edge1Index) &&
                 Math.abs(edge2.windCount1) === 1 &&
                 (this.clipType !== CLIP_TYPE.UNION || edge2.windCount2 === 0)
             ) {
@@ -317,7 +317,7 @@ export default class TEdgeManager {
                     edge1.unassign();
                 }
             } else if (
-                edge2.isWindDeletaEmpty &&
+                this.tEdgeController.isWindDeletaEmpty(edge2Index) &&
                 Math.abs(edge1.windCount1) === 1 &&
                 (this.clipType !== CLIP_TYPE.UNION || edge1.windCount2 === 0)
             ) {
@@ -446,7 +446,7 @@ export default class TEdgeManager {
                 horzIndex = this.updateEdgeIntoAEL(horzIndex);
                 horzEdge = this.tEdgeController.at(horzIndex);
 
-                if (horzEdge.isWindDeletaEmpty) {
+                if (this.tEdgeController.isWindDeletaEmpty(horzIndex)) {
                     return;
                 }
 
@@ -628,7 +628,7 @@ export default class TEdgeManager {
             this.tEdgeController.deleteFromList(maxIndex, true);
         } else if (this.tEdgeController.isAssigned(edgeIndex) && this.tEdgeController.isAssigned(maxIndex)) {
             this.intersectEdges(edgeIndex, maxIndex, edge.top, false);
-        } else if (edge.isWindDeletaEmpty) {
+        } else if (this.tEdgeController.isWindDeletaEmpty(edgeIndex)) {
             if (this.tEdgeController.isAssigned(edgeIndex)) {
                 this.outRecManager.addOutPt(edgeIndex, edge.top);
                 edge.unassign();
@@ -744,7 +744,7 @@ export default class TEdgeManager {
                 continue;
             }
             //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            if (outPt !== UNASSIGNED && this.tEdgeController.isHorizontal(rightBoundIndex) && !rightBound.isWindDeletaEmpty) {
+            if (outPt !== UNASSIGNED && this.tEdgeController.isHorizontal(rightBoundIndex) && !this.tEdgeController.isWindDeletaEmpty(rightBoundIndex)) {
                 this.outRecManager.addOutputJoins(outPt, rightBoundIndex);
             }
 

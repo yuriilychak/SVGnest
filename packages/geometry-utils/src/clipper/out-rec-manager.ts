@@ -144,7 +144,7 @@ export default class OutRecManager {
         const edge1 = this.tEdgeController.at(edge1Index);
         const edge2 = this.tEdgeController.at(edge2Index);
 
-        if (edge2.isWindDeletaEmpty) {
+        if (this.tEdgeController.isWindDeletaEmpty(edge2Index)) {
             this.addOutPt(edge2Index, point);
         }
 

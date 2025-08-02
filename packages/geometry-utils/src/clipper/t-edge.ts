@@ -30,10 +30,6 @@ export default class TEdge {
         this.index = UNASSIGNED;
     }
 
-    public get isWindDeletaEmpty(): boolean {
-        return this.windDelta === 0;
-    }
-
     public unassign(): void {
         this.index = UNASSIGNED;
     }
