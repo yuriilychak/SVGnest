@@ -89,12 +89,7 @@ export default class TEdgeManager {
             const rightBound = this.localMinima.getRightBound(i);
             const y = this.localMinima.getY(i);
 
-            if (leftBound !== UNASSIGNED) {
-                this.tEdgeController.at(leftBound).reset(DIRECTION.LEFT);
-            }
-            if (rightBound !== UNASSIGNED) {
-                this.tEdgeController.at(rightBound).reset(DIRECTION.RIGHT);
-            }
+            this.tEdgeController.resetBounds(leftBound, rightBound);
 
             this.scanbeam.insert(y);
         }
@@ -181,8 +176,8 @@ export default class TEdgeManager {
         //assumes that e1 will be to the Right of e2 ABOVE the intersection
         this.tEdgeController.alignWndCount(edge1Index, edge2Index);
 
-        const e1Wc: number = edge1.getWndTypeFilled(this.fillType);
-        const e2Wc: number = edge2.getWndTypeFilled(this.fillType);
+        const e1Wc: number = this.tEdgeController.getWndTypeFilled(edge1Index, this.fillType);
+        const e2Wc: number = this.tEdgeController.getWndTypeFilled(edge2Index, this.fillType);
 
         if (edge1Contributing && edge2Contributing) {
             if (

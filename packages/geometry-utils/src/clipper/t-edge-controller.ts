@@ -6,6 +6,7 @@ import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from "./types";
 import { PointI32 } from "../geometry";
 import { clipperRound, slopesEqual } from "../helpers";
 import { showError } from "./helpers";
+import { t } from "i18next";
 
 export default class TEdgeController {
     private _edges: TEdge[] = [];
@@ -154,36 +155,46 @@ export default class TEdgeController {
         return [y, leftBoundIndex, rightBoundIndex];
     }
 
+    public isDxHorizontal(index: number): boolean {
+        const edge = this.at(index);
+
+        return edge.dx === HORIZONTAL;
+    }
+
     public findNextLocMin(index: number): number {
         let result: number = index;
 
         while (true) {
+            let prevIndex = this.prev(result);
             let currEdge = this.at(result);
-            let prevEdge = this.at(this.prev(result));
-
+            let prevEdge = this.at(prevIndex);
+            
             while (!currEdge.bot.almostEqual(prevEdge.bot) || currEdge.curr.almostEqual(currEdge.top)) {
                 result = this.next(result);
                 currEdge = this.at(result);
-                prevEdge = this.at(this.prev(result));
+                prevIndex = this.prev(result);
+                prevEdge = this.at(prevIndex);
             }
 
-            if (!currEdge.isDxHorizontal && !prevEdge.isDxHorizontal) {
+            if (!this.isDxHorizontal(result) && !this.isDxHorizontal(prevIndex)) {
                 break;
             }
 
-            while (prevEdge.isDxHorizontal) {
+            while (this.isDxHorizontal(prevIndex)) {
                 result = this.prev(result);
                 currEdge = this.at(result);
-                prevEdge = this.at(this.prev(result));
+                prevIndex = this.prev(result);
             }
 
             const edgeIndex = result
 
-            while (currEdge.isDxHorizontal) {
+            while (this.isDxHorizontal(result)) {
                 result = this.next(result);
                 currEdge = this.at(result);
-                prevEdge = this.at(this.prev(result));
+                prevIndex = this.prev(result);
             }
+
+            prevEdge = this.at(prevIndex);
 
             if (currEdge.top.y === prevEdge.bot.y) {
                 continue;
@@ -227,7 +238,7 @@ export default class TEdgeController {
         let edge = this.at(index);
         let result = edge;
 
-        if (edge.isDxHorizontal) {
+        if (this.isDxHorizontal(index)) {
             //it's possible for adjacent overlapping horz edges to start heading left
             //before finishing right, so ...
             const neighboarIndex = this.baseNeighboar(index, !isClockwise);
@@ -249,14 +260,14 @@ export default class TEdgeController {
             neighboar = this.at(neighboarIndex);
         }
 
-        if (result.isDxHorizontal) {
+        if (this.isDxHorizontal(resultIndex)) {
             //nb: at the top of a bound, horizontals are added to the bound
             //only when the preceding edge attaches to the horizontal's left vertex
             //unless a Skip edge is encountered when that becomes the top divide
             let horzNeighboarIndex = this.baseNeighboar(resultIndex, !isClockwise);
             let horzNeighboar = this.at(horzNeighboarIndex);
 
-            while (horzNeighboar.isDxHorizontal) {
+            while (this.isDxHorizontal(horzNeighboarIndex)) {
                 horzNeighboarIndex = this.baseNeighboar(horzNeighboarIndex, !isClockwise);
                 horzNeighboar = this.at(horzNeighboarIndex);
             }
@@ -308,7 +319,7 @@ export default class TEdgeController {
         const neighboarIndex = this.baseNeighboar(edgeIndex, isNext);
         const neighboar = this.at(neighboarIndex);
 
-        return edge.isDxHorizontal && edge.bot.x !== neighboar.top.x;
+        return this.isDxHorizontal(edgeIndex) && edge.bot.x !== neighboar.top.x;
     }
 
     private getIndexValid(index: number): boolean {
@@ -1063,6 +1074,35 @@ export default class TEdgeController {
                 return edge.windCount1 === 1 && isReverse !== edge.windCount2 <= 0;
             default:
                 return edge.windCount1 === UNASSIGNED && isReverse !== edge.windCount2 >= 0;
+        }
+    }
+
+    private resetBound(index: number, side: DIRECTION): void {
+        if (index === UNASSIGNED) {
+            return;
+        }
+
+        const edge = this.at(index);
+        edge.curr.update(edge.bot);
+        edge.side = side;
+        edge.index = UNASSIGNED;
+    }
+
+    public resetBounds(leftIndex: number, rightIndex: number): void {
+        this.resetBound(leftIndex, DIRECTION.LEFT);
+        this.resetBound(rightIndex, DIRECTION.RIGHT);
+    }
+
+    public getWndTypeFilled(index: number, fillType: POLY_FILL_TYPE): number {
+        const edge = this.at(index);
+
+        switch (fillType) {
+            case POLY_FILL_TYPE.POSITIVE:
+                return edge.windCount1;
+            case POLY_FILL_TYPE.NEGATIVE:
+                return -edge.windCount1;
+            default:
+                return Math.abs(edge.windCount1);
         }
     }
 }

@@ -32,28 +32,10 @@ export default class TEdge {
     }
 
 
-
-    public reset(side: DIRECTION): void {
-        this.curr.update(this.bot);
-        this.side = side;
-        this.index = UNASSIGNED;
-    }
-
     public topX(y: number): number {
         //if (edge.Bot === edge.Curr) alert ("edge.Bot = edge.Curr");
         //if (edge.Bot === edge.Top) alert ("edge.Bot = edge.Top");
         return y === this.top.y ? this.top.x : this.bot.x + clipperRound(this.dx * (y - this.bot.y));
-    }
-
-    public getWndTypeFilled(fillType: POLY_FILL_TYPE): number {
-        switch (fillType) {
-            case POLY_FILL_TYPE.POSITIVE:
-                return this.windCount1;
-            case POLY_FILL_TYPE.NEGATIVE:
-                return -this.windCount1;
-            default:
-                return Math.abs(this.windCount1);
-        }
     }
 
     public get isFilled(): boolean {
@@ -66,10 +48,6 @@ export default class TEdge {
 
     public get isWindDeletaEmpty(): boolean {
         return this.windDelta === 0;
-    }
-
-    public get isDxHorizontal(): boolean {
-        return this.dx === HORIZONTAL;
     }
 
     public unassign(): void {
