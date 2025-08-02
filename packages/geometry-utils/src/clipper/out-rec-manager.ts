@@ -149,11 +149,13 @@ export default class OutRecManager {
         }
 
         if (edge1.index === edge2.index) {
-            edge1.unassign();
-            edge2.unassign();
+            this.tEdgeController.unassign(edge1Index);
+            this.tEdgeController.unassign(edge2Index);
             return;
         }
 
+        const firstIndex = edge1.index < edge2.index ? edge1Index : edge2Index;
+        const secondIndex = edge1.index < edge2.index ? edge2Index : edge1Index;
         const firstEdge = edge1.index < edge2.index ? edge1 : edge2;
         const secondEdge = edge1.index < edge2.index ? edge2 : edge1;
 
@@ -178,9 +180,9 @@ export default class OutRecManager {
         outRec2.firstLeftIndex = outRec1.index;
         const OKIdx: number = firstEdge.index;
         const ObsoleteIdx: number = secondEdge.index;
-        firstEdge.unassign();
+        this.tEdgeController.unassign(firstIndex);
         //nb: safe because we only get here via AddLocalMaxPoly
-        secondEdge.unassign();
+        this.tEdgeController.unassign(secondIndex);
 
         this.tEdgeController.updateIndexAEL(side, ObsoleteIdx, OKIdx);
 

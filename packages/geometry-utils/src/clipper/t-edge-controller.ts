@@ -1141,4 +1141,10 @@ export default class TEdgeController {
 
         return edge.windDelta === 0;
     }
+
+    public unassign(index: number): void {
+        const edge = this.at(index);
+        
+        edge.index = UNASSIGNED;
+    }
 }

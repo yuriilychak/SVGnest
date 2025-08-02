@@ -29,8 +29,4 @@ export default class TEdge {
         this.windCount2 = 0;
         this.index = UNASSIGNED;
     }
-
-    public unassign(): void {
-        this.index = UNASSIGNED;
-    }
 }

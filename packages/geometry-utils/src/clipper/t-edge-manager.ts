@@ -293,7 +293,7 @@ export default class TEdgeManager {
                     this.outRecManager.addOutPt(edge1Index, point);
 
                     if (edge1Contributing) {
-                        edge1.unassign();
+                        this.tEdgeController.unassign(edge1Index);
                     }
                 }
             } else {
@@ -301,7 +301,7 @@ export default class TEdgeManager {
                     this.outRecManager.addOutPt(edge2Index, point);
 
                     if (edge2Contributing) {
-                        edge2.unassign();
+                        this.tEdgeController.unassign(edge2Index);
                     }
                 }
             }
@@ -314,7 +314,7 @@ export default class TEdgeManager {
                 this.outRecManager.addOutPt(edge1Index, point);
 
                 if (edge1Contributing) {
-                    edge1.unassign();
+                    this.tEdgeController.unassign(edge1Index);
                 }
             } else if (
                 this.tEdgeController.isWindDeletaEmpty(edge2Index) &&
@@ -324,7 +324,7 @@ export default class TEdgeManager {
                 this.outRecManager.addOutPt(edge2Index, point);
 
                 if (edge2Contributing) {
-                    edge2.unassign();
+                    this.tEdgeController.unassign(edge2Index);
                 }
             }
         }
@@ -621,7 +621,6 @@ export default class TEdgeManager {
         }
 
         const maxIndex = this.tEdgeController.maximaPair(edgeIndex);
-        const maxPairEdge = this.tEdgeController.at(maxIndex);
 
         if (!this.tEdgeController.isAssigned(edgeIndex) && !this.tEdgeController.isAssigned(maxIndex)) {
             this.tEdgeController.deleteFromList(edgeIndex, true);
@@ -631,14 +630,14 @@ export default class TEdgeManager {
         } else if (this.tEdgeController.isWindDeletaEmpty(edgeIndex)) {
             if (this.tEdgeController.isAssigned(edgeIndex)) {
                 this.outRecManager.addOutPt(edgeIndex, edge.top);
-                edge.unassign();
+                this.tEdgeController.unassign(edgeIndex);
             }
 
             this.tEdgeController.deleteFromList(edgeIndex, true);
 
             if (this.tEdgeController.isAssigned(maxIndex)) {
                 this.outRecManager.addOutPt(maxIndex, edge.top);
-                maxPairEdge.unassign();
+                this.tEdgeController.unassign(maxIndex);
             }
 
             this.tEdgeController.deleteFromList(maxIndex, true);
