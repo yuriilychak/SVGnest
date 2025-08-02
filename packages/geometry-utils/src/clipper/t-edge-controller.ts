@@ -12,6 +12,7 @@ export default class TEdgeController {
     private _isUseFullRange: boolean = true;
     private _edgeData: Int16Array[] = [];
     private _wind: Int32Array[] = [];
+    private _dx: number[] = [];
     public active: number = UNASSIGNED;
     public sorted: number = UNASSIGNED;
 
@@ -45,6 +46,7 @@ export default class TEdgeController {
             this._edgeData.push(
                 new Int16Array([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED])
             );
+            this._dx.push(0);
             this._wind.push(new Int32Array([0, 0, 0]));
         }
 
@@ -107,14 +109,14 @@ export default class TEdgeController {
                 currEdge.bot.update(nextEdge.curr);
             }
 
+            const index = indices[i];
             currEdge.delta.update(currEdge.top).sub(currEdge.bot);
-            currEdge.dx = currEdge.delta.y === 0 ? HORIZONTAL : currEdge.delta.x / currEdge.delta.y;
+            this._dx[index] = currEdge.delta.y === 0 ? HORIZONTAL : currEdge.delta.x / currEdge.delta.y;
 
             if (isFlat && currEdge.curr.y !== startY) {
                 isFlat = false;
             }
 
-            const index = indices[i];
             this.setDataIndex(index, 0, indices[cycle_index(i, edges.length, -1)]);
             this.setDataIndex(index, 1, indices[cycle_index(i, edges.length, 1)]);
         }
@@ -134,10 +136,7 @@ export default class TEdgeController {
     }
 
     public getClockwise(index: number): boolean {
-        const currEdge = this.at(index);
-        const prevEdge = this.at(this.prev(index));
-
-        return currEdge.dx >= prevEdge.dx;
+        return this.dx(index) >= this.dx(this.prev(index));
     }
 
     public createLocalMinima(edgeIndex: number): number[] {
@@ -160,10 +159,12 @@ export default class TEdgeController {
         return [y, leftBoundIndex, rightBoundIndex];
     }
 
-    public isDxHorizontal(index: number): boolean {
-        const edge = this.at(index);
+    public dx(index: number): number {
+        return this._dx[index];
+    }
 
-        return edge.dx === HORIZONTAL;
+    public isDxHorizontal(index: number): boolean {
+        return this.dx(index) === HORIZONTAL;
     }
 
     public findNextLocMin(index: number): number {
@@ -521,7 +522,10 @@ export default class TEdgeController {
         //return false but for the edge.Dx value be equal due to double precision rounding.
         const edge1 = this.at(edge1Index);
         const edge2 = this.at(edge2Index);
-        if (this.slopesEqual(edge1Index, edge2Index) || edge1.dx === edge2.dx) {
+        const dx1 = this.dx(edge1Index);
+        const dx2 = this.dx(edge2Index);
+
+        if (this.slopesEqual(edge1Index, edge2Index) || dx1 === dx2) {
             const point: Point<Int32Array> = edge2.bot.y > edge1.bot.y ? edge2.bot : edge1.bot;
 
             intersectPoint.update(point);
@@ -532,20 +536,21 @@ export default class TEdgeController {
         if (edge1.delta.x === 0) {
             intersectPoint.set(
                 edge1.bot.x,
-                this.isHorizontal(edge2Index) ? edge2.bot.y : clipperRound((edge1.bot.x - edge2.bot.x) / edge2.dx + edge2.bot.y)
+                this.isHorizontal(edge2Index) ? edge2.bot.y : clipperRound((edge1.bot.x - edge2.bot.x) / dx2 + edge2.bot.y)
             );
         } else if (edge2.delta.x === 0) {
             intersectPoint.set(
                 edge2.bot.x,
-                this.isHorizontal(edge1Index) ? edge1.bot.y : clipperRound((edge2.bot.x - edge1.bot.x) / edge1.dx + edge1.bot.y)
+                this.isHorizontal(edge1Index) ? edge1.bot.y : clipperRound((edge2.bot.x - edge1.bot.x) / dx1 + edge1.bot.y)
             );
         } else {
-            const b1 = edge1.bot.x - edge1.bot.y * edge1.dx;
-            const b2 = edge2.bot.x - edge2.bot.y * edge2.dx;
-            const q: number = (b2 - b1) / (edge1.dx - edge2.dx);
+            
+            const b1 = edge1.bot.x - edge1.bot.y * dx1;
+            const b2 = edge2.bot.x - edge2.bot.y * dx2;
+            const q: number = (b2 - b1) / (dx1 - dx2);
 
             intersectPoint.set(
-                Math.abs(edge1.dx) < Math.abs(edge2.dx) ? clipperRound(edge1.dx * q + b1) : clipperRound(edge2.dx * q + b2),
+                Math.abs(dx1) < Math.abs(dx2) ? clipperRound(dx1 * q + b1) : clipperRound(dx2 * q + b2),
                 clipperRound(q)
             );
         }
@@ -558,7 +563,7 @@ export default class TEdgeController {
             }
 
             intersectPoint.set(
-                Math.abs(edge1.dx) < Math.abs(edge2.dx)
+                Math.abs(this.dx(edge1Index)) < Math.abs(this.dx(edge2Index))
                     ? this.topX(edge1Index, intersectPoint.y)
                     : this.topX(edge2Index, intersectPoint.y),
                 edge2.top.y
@@ -1176,7 +1181,7 @@ export default class TEdgeController {
         const edge = this.at(index);
         //if (edge.Bot === edge.Curr) alert ("edge.Bot = edge.Curr");
         //if (edge.Bot === edge.Top) alert ("edge.Bot = edge.Top");
-        return y === edge.top.y ? edge.top.x : edge.bot.x + clipperRound(edge.dx * (y - edge.bot.y));
+        return y === edge.top.y ? edge.top.x : edge.bot.x + clipperRound(this.dx(index) * (y - edge.bot.y));
     }
 
     public isAssigned(index: number): boolean {

@@ -130,7 +130,7 @@ export default class TEdgeManager {
 
                     if (point.y > botY) {
                         point.set(
-                            Math.abs(currEdge.dx) > Math.abs(nextEdge.dx) ? this.tEdgeController.topX(nextIndex, botY) : this.tEdgeController.topX(currIndex, botY),
+                            Math.abs(this.tEdgeController.dx(currIndex)) > Math.abs(this.tEdgeController.dx(nextIndex)) ? this.tEdgeController.topX(nextIndex, botY) : this.tEdgeController.topX(currIndex, botY),
                             botY
                         );
                     }
@@ -368,7 +368,7 @@ export default class TEdgeManager {
                 if (
                     edge.curr.x === horzEdge.top.x &&
                     this.tEdgeController.hasNextLocalMinima(horzIndex) &&
-                    edge.dx < this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(horzIndex)).dx
+                    this.tEdgeController.dx(currIndex) < this.tEdgeController.dx(this.tEdgeController.getNextLocalMinima(horzIndex))
                 ) {
                     break;
                 }

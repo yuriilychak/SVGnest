@@ -7,7 +7,6 @@ export default class TEdge {
     public curr: Point<Int32Array>;
     public top: Point<Int32Array>;
     public delta: Point<Int32Array>;
-    public dx: number;
     public polyTyp: POLY_TYPE;
     public side: DIRECTION;
 
@@ -16,7 +15,6 @@ export default class TEdge {
         this.curr = PointI32.from(curr);
         this.top = PointI32.create();
         this.delta = PointI32.create();
-        this.dx = 0;
         this.polyTyp = polyType;
         this.side = DIRECTION.LEFT;
     }

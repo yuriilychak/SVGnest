@@ -118,7 +118,7 @@ export default class OutRecManager {
         let secondEdge = edge1;
         let result: number = UNASSIGNED;
 
-        if (this.tEdgeController.isHorizontal(edge2Index) || edge1.dx > edge2.dx) {
+        if (this.tEdgeController.isHorizontal(edge2Index) || this.tEdgeController.dx(edge1Index) > this.tEdgeController.dx(edge2Index)) {
             firstEdge = edge1;
             secondEdge = edge2;
             firstIndex = edge1Index;
