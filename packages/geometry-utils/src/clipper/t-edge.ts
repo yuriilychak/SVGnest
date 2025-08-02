@@ -14,8 +14,15 @@ export default class TEdge {
     private _polyType: POLY_TYPE[] = [];
     private _side: DIRECTION[] = [];
     private _points: Point<Int32Array>[][] = [];
+    private _clipType: CLIP_TYPE = CLIP_TYPE.UNION;
+    private _fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
     public active: number = UNASSIGNED;
     public sorted: number = UNASSIGNED;
+
+    public init(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
+        this._clipType = clipType;
+        this._fillType = fillType;
+    }
 
     public createPath(polygon: Point<Int32Array>[], polyType: POLY_TYPE): number {
         let lastIndex = polygon.length - 1;
@@ -111,7 +118,7 @@ export default class TEdge {
                 this.bot(currIndex).update(this.curr(nextIndex));
             }
 
-            
+
             this.delta(currIndex).update(this.top(currIndex)).sub(this.bot(currIndex));
             this._dx[currIndex] = this.delta(currIndex).y === 0 ? HORIZONTAL : this.delta(currIndex).x / this.delta(currIndex).y;
 
@@ -137,7 +144,7 @@ export default class TEdge {
 
     public top(index: number): Point<Int32Array> {
         return this._points[index][2];
-    }   
+    }
 
     public delta(index: number): Point<Int32Array> {
         return this._points[index][3];
@@ -452,8 +459,6 @@ export default class TEdge {
     }
 
     public swapEdges(
-        clipType: CLIP_TYPE,
-        fillType: POLY_FILL_TYPE,
         e1Wc: number,
         e2Wc: number,
         edge1Index: number,
@@ -462,7 +467,7 @@ export default class TEdge {
         let e1Wc2: number = 0;
         let e2Wc2: number = 0;
 
-        switch (fillType) {
+        switch (this._fillType) {
             case POLY_FILL_TYPE.POSITIVE:
                 e1Wc2 = this.windCount2(edge1Index);
                 e2Wc2 = this.windCount2(edge2Index);
@@ -482,7 +487,7 @@ export default class TEdge {
         }
 
         if (e1Wc === 1 && e2Wc === 1) {
-            switch (clipType) {
+            switch (this._clipType) {
                 case CLIP_TYPE.UNION:
                     return e1Wc2 <= 0 && e2Wc2 <= 0;
                 case CLIP_TYPE.DIFFERENCE:
@@ -500,7 +505,7 @@ export default class TEdge {
         return false;
     }
 
-    public intersectPoint(edge1Index: number, edge2Index: number, intersectPoint: PointI32): boolean {
+    public intersectPoint(edge1Index: number, edge2Index: number, intersectPoint: Point<Int32Array>): boolean {
         //nb: with very large coordinate values, it's possible for SlopesEqual() to
         //return false but for the edge.Dx value be equal due to double precision rounding.
         const dx1 = this.dx(edge1Index);
@@ -801,7 +806,7 @@ export default class TEdge {
         return this._polyType[index1] === this._polyType[index2];
     }
 
-    public setWindingCount(index: number, clipType: CLIP_TYPE): void {
+    public setWindingCount(index: number): void {
         let edgeIndex: number = this.prevActive(index);
         //find the edge of the same polytype that immediately preceeds 'edge' in AEL
         while (edgeIndex !== UNASSIGNED && (!this.isSamePolyType(edgeIndex, index) || this.isWindDeletaEmpty(edgeIndex))) {
@@ -813,7 +818,7 @@ export default class TEdge {
             this.setWindCount2(index, 0);
             edgeIndex = this.active;
             //ie get ready to calc WindCnt2
-        } else if (this.isWindDeletaEmpty(index) && clipType !== CLIP_TYPE.UNION) {
+        } else if (this.isWindDeletaEmpty(index) && this._clipType !== CLIP_TYPE.UNION) {
             this.setWindCount1(index, 1);
             this.setWindCount2(index, this.windCount2(edgeIndex));
             edgeIndex = this.nextActive(edgeIndex);
@@ -1087,12 +1092,12 @@ export default class TEdge {
         this.bot(index).x = tmp;
     }
 
-    public getContributing(index: number, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
-        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && this._polyType[index] === POLY_TYPE.CLIP;
+    public getContributing(index: number): boolean {
+        const isReverse: boolean = this._clipType === CLIP_TYPE.DIFFERENCE && this._polyType[index] === POLY_TYPE.CLIP;
         const windCount1 = this.windCount1(index);
         const windCount2 = this.windCount2(index);
 
-        switch (fillType) {
+        switch (this._fillType) {
             case POLY_FILL_TYPE.NON_ZERO:
                 return Math.abs(windCount1) === 1 && isReverse !== (windCount2 === 0);
             case POLY_FILL_TYPE.POSITIVE:
@@ -1117,10 +1122,10 @@ export default class TEdge {
         this.resetBound(rightIndex, DIRECTION.RIGHT);
     }
 
-    public getWndTypeFilled(index: number, fillType: POLY_FILL_TYPE): number {
+    public getWndTypeFilled(index: number): number {
         const windCount1 = this.windCount1(index);
 
-        switch (fillType) {
+        switch (this._fillType) {
             case POLY_FILL_TYPE.POSITIVE:
                 return windCount1;
             case POLY_FILL_TYPE.NEGATIVE:
@@ -1154,5 +1159,26 @@ export default class TEdge {
 
     public unassign(index: number): void {
         this.setRecIndex(index, UNASSIGNED);
+    }
+
+    public getIntersectX(currIndex: number, nextIndex: number, botY: number): number {
+        const index = Math.abs(this.dx(currIndex)) > Math.abs(this.dx(nextIndex)) ? nextIndex : currIndex;
+
+        return this.topX(index, botY);
+    }
+
+    public getIntersectError(currIndex: number, nextIndex: number, point: Point<Int32Array>): boolean {
+        return !this.intersectPoint(currIndex, nextIndex, point) &&
+            this.curr(currIndex).x > this.curr(nextIndex).x + 1;
+    }
+
+    public intersectLineWithPoly(edge1Index: number, edge2Index: number): boolean {
+        return this.isSamePolyType(edge1Index, edge2Index) && this.windDelta(edge1Index) !== this.windDelta(edge2Index) && this._clipType === CLIP_TYPE.UNION;
+    }
+
+    public intersectLine(edge1Index: number, edge2Index: number): boolean {
+        return this.isWindDeletaEmpty(edge1Index) &&
+            Math.abs(this.windCount1(edge2Index)) === 1 &&
+            (this._clipType !== CLIP_TYPE.UNION || this.windCount2(edge2Index) === 0);
     }
 }

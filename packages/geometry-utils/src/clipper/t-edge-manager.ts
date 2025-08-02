@@ -5,15 +5,13 @@ import IntersectNode from './intersect-node';
 import LocalMinima from './local-minima';
 import OutRecManager from './out-rec-manager';
 import Scanbeam from './scanbeam';
-import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './types';
+import { DIRECTION, POLY_TYPE } from './types';
 import { Point } from 'src/types';
 import TEdge from './t-edge';
 
 export default class TEdgeManager {
     private localMinima: LocalMinima;
     private intersections: IntersectNode;
-    private clipType: CLIP_TYPE = CLIP_TYPE.UNION;
-    private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
     private scanbeam: Scanbeam;
     private outRecManager: OutRecManager;
     private tEdge: TEdge;
@@ -61,11 +59,6 @@ export default class TEdgeManager {
 
     public get isMinimaEmpty(): boolean {
         return this.localMinima.isEmpty;
-    }
-
-    public init(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): void {
-        this.clipType = clipType;
-        this.fillType = fillType;
     }
 
     public updateEdgeIntoAEL(edgeIndex: number): number {
@@ -116,20 +109,14 @@ export default class TEdgeManager {
                 point.set(0, 0);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
                 if (this.tEdge.curr(currIndex).x > this.tEdge.curr(nextIndex).x) {
-                    if (
-                        !this.tEdge.intersectPoint(currIndex, nextIndex, point) &&
-                        this.tEdge.curr(currIndex).x > this.tEdge.curr(nextIndex).x + 1
-                    ) {
+                    if (this.tEdge.getIntersectError(currIndex, nextIndex, point)) {
                         //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
                         //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
                         showError('Intersection error');
                     }
 
                     if (point.y > botY) {
-                        point.set(
-                            Math.abs(this.tEdge.dx(currIndex)) > Math.abs(this.tEdge.dx(nextIndex)) ? this.tEdge.topX(nextIndex, botY) : this.tEdge.topX(currIndex, botY),
-                            botY
-                        );
+                        point.set(this.tEdge.getIntersectX(currIndex, nextIndex, botY), botY);
                     }
 
                     this.intersections.add(currIndex, nextIndex, point);
@@ -172,8 +159,8 @@ export default class TEdgeManager {
         //assumes that e1 will be to the Right of e2 ABOVE the intersection
         this.tEdge.alignWndCount(edge1Index, edge2Index);
 
-        const e1Wc: number = this.tEdge.getWndTypeFilled(edge1Index, this.fillType);
-        const e2Wc: number = this.tEdge.getWndTypeFilled(edge2Index, this.fillType);
+        const e1Wc: number = this.tEdge.getWndTypeFilled(edge1Index);
+        const e2Wc: number = this.tEdge.getWndTypeFilled(edge2Index);
 
         if (edge1Contributing && edge2Contributing) {
             if (
@@ -201,7 +188,7 @@ export default class TEdgeManager {
             }
         } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
             //neither edge is currently contributing ...
-            if (this.tEdge.swapEdges(this.clipType, this.fillType, e1Wc, e2Wc, edge1Index, edge2Index)) {
+            if (this.tEdge.swapEdges(e1Wc, e2Wc, edge1Index, edge2Index)) {
                 this.outRecManager.addLocalMinPoly(edge1Index, edge2Index, point);
             }
         }
@@ -280,7 +267,7 @@ export default class TEdgeManager {
             }
         }
         //if intersecting a subj line with a subj poly ...
-        else if (this.tEdge.isSamePolyType(edge1Index, edge2Index) && this.tEdge.windDelta(edge1Index) !== this.tEdge.windDelta(edge2Index) && this.clipType === CLIP_TYPE.UNION) {
+        else if (this.tEdge.intersectLineWithPoly(edge1Index, edge2Index)) {
             if (this.tEdge.isWindDeletaEmpty(edge1Index)) {
                 if (edge2Contributing) {
                     this.outRecManager.addOutPt(edge1Index, point);
@@ -299,21 +286,13 @@ export default class TEdgeManager {
                 }
             }
         } else if (!this.tEdge.isSamePolyType(edge1Index, edge2Index)) {
-            if (
-                this.tEdge.isWindDeletaEmpty(edge1Index) &&
-                Math.abs(this.tEdge.windCount1(edge2Index)) === 1 &&
-                (this.clipType !== CLIP_TYPE.UNION || this.tEdge.windCount2(edge2Index) === 0)
-            ) {
+            if (this.tEdge.intersectLine(edge1Index, edge2Index)) {
                 this.outRecManager.addOutPt(edge1Index, point);
 
                 if (edge1Contributing) {
                     this.tEdge.unassign(edge1Index);
                 }
-            } else if (
-                this.tEdge.isWindDeletaEmpty(edge2Index) &&
-                Math.abs(this.tEdge.windCount1(edge1Index)) === 1 &&
-                (this.clipType !== CLIP_TYPE.UNION || this.tEdge.windCount2(edge1Index) === 0)
-            ) {
+            } else if (this.tEdge.intersectLine(edge2Index, edge1Index)) {
                 this.outRecManager.addOutPt(edge2Index, point);
 
                 if (edge2Contributing) {
@@ -683,16 +662,16 @@ export default class TEdgeManager {
 
             if (leftBoundIndex === UNASSIGNED) {
                 this.tEdge.insertEdgeIntoAEL(rightBoundIndex);
-                this.tEdge.setWindingCount(rightBoundIndex, this.clipType);
+                this.tEdge.setWindingCount(rightBoundIndex);
 
-                if (this.tEdge.getContributing(rightBoundIndex, this.clipType, this.fillType)) {
+                if (this.tEdge.getContributing(rightBoundIndex)) {
                     outPt = this.outRecManager.addOutPt(rightBoundIndex, this.tEdge.bot(rightBoundIndex));
                 }
             } else if (rightBoundIndex === UNASSIGNED) {
                 this.tEdge.insertEdgeIntoAEL(leftBoundIndex);
-                this.tEdge.setWindingCount(leftBoundIndex, this.clipType);
+                this.tEdge.setWindingCount(leftBoundIndex);
 
-                if (this.tEdge.getContributing(leftBoundIndex, this.clipType, this.fillType)) {
+                if (this.tEdge.getContributing(leftBoundIndex)) {
                     outPt = this.outRecManager.addOutPt(leftBoundIndex, this.tEdge.bot(leftBoundIndex));
                 }
 
@@ -700,11 +679,11 @@ export default class TEdgeManager {
             } else {
                 this.tEdge.insertEdgeIntoAEL(leftBoundIndex);
                 this.tEdge.insertEdgeIntoAEL(rightBoundIndex, leftBoundIndex);
-                this.tEdge.setWindingCount(leftBoundIndex, this.clipType);
+                this.tEdge.setWindingCount(leftBoundIndex);
                 this.tEdge.setWindCount1(rightBoundIndex, this.tEdge.windCount1(leftBoundIndex));
                 this.tEdge.setWindCount2(rightBoundIndex, this.tEdge.windCount2(leftBoundIndex));
 
-                if (this.tEdge.getContributing(leftBoundIndex, this.clipType, this.fillType)) {
+                if (this.tEdge.getContributing(leftBoundIndex)) {
                     outPt = this.outRecManager.addLocalMinPoly(leftBoundIndex, rightBoundIndex, this.tEdge.bot(leftBoundIndex));
                 }
 

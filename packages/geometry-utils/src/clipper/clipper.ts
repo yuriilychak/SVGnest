@@ -45,7 +45,7 @@ export default class Clipper {
         }
 
         this.isExecuteLocked = true;
-        this.tEdgeManager.init(clipType, fillType);
+        this.tEdge.init(clipType, fillType);
 
         solution.length = 0;
 
