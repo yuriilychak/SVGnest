@@ -31,19 +31,12 @@ export default class TEdge {
         this.index = UNASSIGNED;
     }
 
-    public reverseHorizontal(): void {
-        //swap horizontal edges' top and bottom x's so they follow the natural
-        //progression of the bounds - ie so their xbots will align with the
-        //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
-        const tmp: number = this.top.x;
-        this.top.x = this.bot.x;
-        this.bot.x = tmp;
-    }
+
 
     public reset(side: DIRECTION): void {
         this.curr.update(this.bot);
         this.side = side;
-        this.unassign();
+        this.index = UNASSIGNED;
     }
 
     public topX(y: number): number {
@@ -79,27 +72,8 @@ export default class TEdge {
         return this.dx === HORIZONTAL;
     }
 
-    public getContributing(clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
-        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && this.polyTyp === POLY_TYPE.CLIP;
-
-        switch (fillType) {
-            case POLY_FILL_TYPE.NON_ZERO:
-                return Math.abs(this.windCount1) === 1 && isReverse !== (this.windCount2 === 0);
-            case POLY_FILL_TYPE.POSITIVE:
-                return this.windCount1 === 1 && isReverse !== this.windCount2 <= 0;
-            default:
-                return this.windCount1 === UNASSIGNED && isReverse !== this.windCount2 >= 0;
-        }
-    }
-
     public unassign(): void {
         this.index = UNASSIGNED;
-    }
-
-    public get horzDirection(): Float64Array {
-        return new Float64Array(
-            this.bot.x < this.top.x ? [DIRECTION.RIGHT, this.bot.x, this.top.x] : [DIRECTION.LEFT, this.top.x, this.bot.x]
-        );
     }
 
     public get isAssigned(): boolean {

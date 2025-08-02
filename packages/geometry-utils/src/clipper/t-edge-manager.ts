@@ -352,7 +352,7 @@ export default class TEdgeManager {
 
     public processHorizontal(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
         let horzEdge = this.tEdgeController.at(horzEdgeIndex);
-        let dirValue: Float64Array = horzEdge.horzDirection;
+        let dirValue: Float64Array = this.tEdgeController.horzDirection(horzEdgeIndex);
         let dir: DIRECTION = dirValue[0] as DIRECTION;
         let horzLeft: number = dirValue[1];
         let horzRight: number = dirValue[2];
@@ -436,7 +436,7 @@ export default class TEdgeManager {
                     this.outRecManager.addOutPt(horzIndex, horzEdge.bot);
                 }
 
-                dirValue = horzEdge.horzDirection;
+                dirValue = this.tEdgeController.horzDirection(horzIndex);
                 dir = dirValue[0] as DIRECTION;
                 horzLeft = dirValue[1];
                 horzRight = dirValue[2];
@@ -714,14 +714,14 @@ export default class TEdgeManager {
                 this.tEdgeController.insertEdgeIntoAEL(rightBoundIndex);
                 this.tEdgeController.setWindingCount(rightBoundIndex, this.clipType);
 
-                if (rightBound.getContributing(this.clipType, this.fillType)) {
+                if (this.tEdgeController.getContributing(rightBoundIndex, this.clipType, this.fillType)) {
                     outPt = this.outRecManager.addOutPt(rightBoundIndex, rightBound.bot);
                 }
             } else if (rightBoundIndex === UNASSIGNED) {
                 this.tEdgeController.insertEdgeIntoAEL(leftBoundIndex);
                 this.tEdgeController.setWindingCount(leftBoundIndex, this.clipType);
 
-                if (leftBound.getContributing(this.clipType, this.fillType)) {
+                if (this.tEdgeController.getContributing(leftBoundIndex, this.clipType, this.fillType)) {
                     outPt = this.outRecManager.addOutPt(leftBoundIndex, leftBound.bot);
                 }
 
@@ -733,7 +733,7 @@ export default class TEdgeManager {
                 rightBound.windCount1 = leftBound.windCount1;
                 rightBound.windCount2 = leftBound.windCount2;
 
-                if (leftBound.getContributing(this.clipType, this.fillType)) {
+                if (this.tEdgeController.getContributing(leftBoundIndex, this.clipType, this.fillType)) {
                     outPt = this.outRecManager.addLocalMinPoly(leftBoundIndex, rightBoundIndex, leftBound.bot);
                 }
 

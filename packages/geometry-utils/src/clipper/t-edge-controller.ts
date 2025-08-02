@@ -234,7 +234,7 @@ export default class TEdgeController {
             const neighboar = this.at(neighboarIndex);
 
             if (edge.bot.x !== neighboar.bot.x) {
-                edge.reverseHorizontal();
+                this.reverseHorizontal(index);
             }
         }
 
@@ -277,20 +277,26 @@ export default class TEdgeController {
             this.setNextLocalMinima(edgeIndex, localMinima);
 
             if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
-                const edge = this.at(edgeIndex);
-                edge.reverseHorizontal();
+                this.reverseHorizontal(edgeIndex);
             }
 
             edgeIndex = localMinima;
         }
 
         if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
-            const edge = this.at(edgeIndex);
-            edge.reverseHorizontal();
+            this.reverseHorizontal(edgeIndex);
         }
 
         return this.baseNeighboar(resultIndex, isClockwise);
         //move to the edge just beyond current bound
+    }
+
+    public horzDirection(index: number): Float64Array {
+        const edge = this.at(index);
+
+        return new Float64Array(
+            edge.bot.x < edge.top.x ? [DIRECTION.RIGHT, edge.bot.x, edge.top.x] : [DIRECTION.LEFT, edge.top.x, edge.bot.x]
+        );
     }
 
     private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
@@ -1034,5 +1040,29 @@ export default class TEdgeController {
         this.updateCurrent(result, edgeIndex);
 
         return result;
+    }
+
+    private reverseHorizontal(index: number): void {
+        const edge = this.at(index);
+        //swap horizontal edges' top and bottom x's so they follow the natural
+        //progression of the bounds - ie so their xbots will align with the
+        //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
+        const tmp: number = edge.top.x;
+        edge.top.x = edge.bot.x;
+        edge.bot.x = tmp;
+    }
+
+    public getContributing(index: number, clipType: CLIP_TYPE, fillType: POLY_FILL_TYPE): boolean {
+        const edge = this.at(index);
+        const isReverse: boolean = clipType === CLIP_TYPE.DIFFERENCE && edge.polyTyp === POLY_TYPE.CLIP;
+
+        switch (fillType) {
+            case POLY_FILL_TYPE.NON_ZERO:
+                return Math.abs(edge.windCount1) === 1 && isReverse !== (edge.windCount2 === 0);
+            case POLY_FILL_TYPE.POSITIVE:
+                return edge.windCount1 === 1 && isReverse !== edge.windCount2 <= 0;
+            default:
+                return edge.windCount1 === UNASSIGNED && isReverse !== edge.windCount2 >= 0;
+        }
     }
 }
