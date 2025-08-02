@@ -70,9 +70,10 @@ export default class TEdgeManager {
 
     public updateEdgeIntoAEL(edgeIndex: number): number {
         const result = this.tEdgeController.updateEdgeIntoAEL(edgeIndex);
-        const edge = this.tEdgeController.at(result);
+        
 
-        if (!edge.isHorizontal) {
+        if (!this.tEdgeController.isHorizontal(result)) {
+            const edge = this.tEdgeController.at(result);
             this.scanbeam.insert(edge.top.y);
         }
 
@@ -129,7 +130,7 @@ export default class TEdgeManager {
 
                     if (point.y > botY) {
                         point.set(
-                            Math.abs(currEdge.dx) > Math.abs(nextEdge.dx) ? nextEdge.topX(botY) : currEdge.topX(botY),
+                            Math.abs(currEdge.dx) > Math.abs(nextEdge.dx) ? this.tEdgeController.topX(nextIndex, botY) : this.tEdgeController.topX(currIndex, botY),
                             botY
                         );
                     }
@@ -161,8 +162,8 @@ export default class TEdgeManager {
         const edge2 = this.tEdgeController.at(edge2Index);
         const edge1Stops: boolean = this.tEdgeController.getStop(edge1Index, point, isProtect);
         const edge2Stops: boolean = this.tEdgeController.getStop(edge2Index, point, isProtect);
-        const edge1Contributing: boolean = edge1.isAssigned;
-        const edge2Contributing: boolean = edge2.isAssigned;
+        const edge1Contributing: boolean = this.tEdgeController.isAssigned(edge1Index);
+        const edge2Contributing: boolean = this.tEdgeController.isAssigned(edge2Index);
 
         //if either edge is on an OPEN path ...
         if (edge1.isWindDeletaEmpty || edge2.isWindDeletaEmpty) {
@@ -209,7 +210,7 @@ export default class TEdgeManager {
                 this.outRecManager.addLocalMinPoly(edge1Index, edge2Index, point);
             }
         }
-        if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
+        if (edge1Stops !== edge2Stops && ((edge1Stops && this.tEdgeController.isAssigned(edge1Index)) || (edge2Stops && this.tEdgeController.isAssigned(edge2Index)))) {
             this.tEdgeController.swapSidesAndIndeces(edge1Index, edge2Index);
         }
         //finally, delete any non-contributing maxima edges  ...
@@ -276,8 +277,8 @@ export default class TEdgeManager {
             !isProtect && !this.tEdgeController.hasNextLocalMinima(edge1Index) && edge1.top.almostEqual(point);
         const edge2Stops: boolean =
             !isProtect && !this.tEdgeController.hasNextLocalMinima(edge2Index) && edge2.top.almostEqual(point);
-        const edge1Contributing: boolean = edge1.isAssigned;
-        const edge2Contributing: boolean = edge2.isAssigned;
+        const edge1Contributing: boolean = this.tEdgeController.isAssigned(edge1Index);
+        const edge2Contributing: boolean = this.tEdgeController.isAssigned(edge2Index);
         //ignore subject-subject open path intersections UNLESS they
         //are both open paths, AND they are both 'contributing maximas' ...
         if (edge1.isWindDeletaEmpty && edge2.isWindDeletaEmpty) {
@@ -329,7 +330,7 @@ export default class TEdgeManager {
         }
 
         if (edge1Stops) {
-            if (!edge1.isAssigned) {
+            if (!this.tEdgeController.isAssigned(edge1Index)) {
                 this.tEdgeController.deleteFromList(edge1Index, true);
             } else {
                 showError('Error intersecting polylines');
@@ -337,7 +338,7 @@ export default class TEdgeManager {
         }
 
         if (edge2Stops) {
-            if (!edge2.isAssigned) {
+            if (!this.tEdgeController.isAssigned(edge2Index)) {
                 this.tEdgeController.deleteFromList(edge2Index, true);
             } else {
                 showError('Error intersecting polylines');
@@ -378,7 +379,7 @@ export default class TEdgeManager {
                     (dir === DIRECTION.RIGHT && edge.curr.x <= horzRight) ||
                     (dir === DIRECTION.LEFT && edge.curr.x >= horzLeft)
                 ) {
-                    if (horzEdge.isFilled && isTopOfScanbeam) {
+                    if (this.tEdgeController.isFilled(horzIndex) && isTopOfScanbeam) {
                         this.outRecManager.prepareHorzJoins(horzIndex);
                     }
 
@@ -390,9 +391,7 @@ export default class TEdgeManager {
 
                         this.intersectEdges(index1, index2, edge.top, false);
 
-                        const eMaxPair = this.tEdgeController.at(maxPairIndex);
-
-                        if (eMaxPair.isAssigned) {
+                        if (this.tEdgeController.isAssigned(maxPairIndex)) {
                             showError('ProcessHorizontal error');
                         }
 
@@ -416,18 +415,18 @@ export default class TEdgeManager {
                 currIndex = nextIndex;
             }
             //end while
-            if (horzEdge.isFilled && isTopOfScanbeam) {
+            if (this.tEdgeController.isFilled(horzEdgeIndex) && isTopOfScanbeam) {
                 this.outRecManager.prepareHorzJoins(horzIndex);
             }
 
             if (
                 this.tEdgeController.hasNextLocalMinima(horzIndex) &&
-                this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(horzIndex)).isHorizontal
+                this.tEdgeController.isHorizontal(this.tEdgeController.getNextLocalMinima(horzIndex))
             ) {
                 horzIndex = this.updateEdgeIntoAEL(horzIndex);
                 horzEdge = this.tEdgeController.at(horzIndex);
 
-                if (horzEdge.isAssigned) {
+                if (this.tEdgeController.isAssigned(horzIndex)) {
                     this.outRecManager.addOutPt(horzIndex, horzEdge.bot);
                 }
 
@@ -442,7 +441,7 @@ export default class TEdgeManager {
 
         //end for (;;)
         if (this.tEdgeController.hasNextLocalMinima(horzIndex)) {
-            if (horzEdge.isAssigned) {
+            if (this.tEdgeController.isAssigned(horzIndex)) {
                 const op1 = this.outRecManager.addOutPt(horzIndex, horzEdge.top);
                 horzIndex = this.updateEdgeIntoAEL(horzIndex);
                 horzEdge = this.tEdgeController.at(horzIndex);
@@ -471,15 +470,13 @@ export default class TEdgeManager {
         }
 
         if (maxPairIndex !== UNASSIGNED) {
-            const eMaxPair = this.tEdgeController.at(maxPairIndex);
-
-            if (eMaxPair.isAssigned) {
+            if (this.tEdgeController.isAssigned(maxPairIndex)) {
                 const index1 = dir === DIRECTION.RIGHT ? horzIndex : maxPairIndex;
                 const index2 = dir === DIRECTION.RIGHT ? maxPairIndex : horzIndex;
 
                 this.intersectEdges(index1, index2, horzEdge.top, false);
 
-                if (eMaxPair.isAssigned) {
+                if (this.tEdgeController.isAssigned(maxPairIndex)) {
                     showError('ProcessHorizontal error');
                 }
 
@@ -492,7 +489,7 @@ export default class TEdgeManager {
             return;
         }
 
-        if (horzEdge.isAssigned) {
+        if (this.tEdgeController.isAssigned(horzIndex)) {
             this.outRecManager.addOutPt(horzIndex, horzEdge.top);
         }
 
@@ -522,8 +519,8 @@ export default class TEdgeManager {
             isMaximaEdge = this.tEdgeController.getMaxima(edgeIndex, topY);
 
             if (isMaximaEdge) {
-                const tempEdge = this.tEdgeController.at(this.tEdgeController.maximaPair(edgeIndex));
-                isMaximaEdge = this.tEdgeController.maximaPair(edgeIndex) === UNASSIGNED || !tempEdge.isHorizontal;
+                const tempEdgeIndex = this.tEdgeController.maximaPair(edgeIndex);
+                isMaximaEdge = tempEdgeIndex === UNASSIGNED || !this.tEdgeController.isHorizontal(tempEdgeIndex);
             }
 
             if (isMaximaEdge) {
@@ -540,19 +537,19 @@ export default class TEdgeManager {
             //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
             if (
                 this.tEdgeController.getIntermediate(edgeIndex, topY) &&
-                this.tEdgeController.at(this.tEdgeController.getNextLocalMinima(edgeIndex)).isHorizontal
+                this.tEdgeController.isHorizontal(this.tEdgeController.getNextLocalMinima(edgeIndex))
             ) {
                 edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
                 const edge = this.tEdgeController.at(edgeIndex);
 
-                if (edge.isAssigned) {
+                if (this.tEdgeController.isAssigned(edgeIndex)) {
                     this.outRecManager.addOutPt(edgeIndex, edge.bot);
                 }
 
                 this.tEdgeController.addEdgeToSEL(edgeIndex);
             } else {
                 const edge = this.tEdgeController.at(edgeIndex);
-                edge.curr.set(edge.topX(topY), topY);
+                edge.curr.set(this.tEdgeController.topX(edgeIndex, topY), topY);
             }
 
             const edge = this.tEdgeController.at(edgeIndex);
@@ -572,7 +569,7 @@ export default class TEdgeManager {
         while (edgeIndex !== UNASSIGNED) {
             if (this.tEdgeController.getIntermediate(edgeIndex, topY)) {
                 const edge1 = this.tEdgeController.at(edgeIndex);
-                outPt1 = edge1.isAssigned ? this.outRecManager.addOutPt(edgeIndex, edge1.top) : UNASSIGNED;
+                outPt1 = this.tEdgeController.isAssigned(edgeIndex) ? this.outRecManager.addOutPt(edgeIndex, edge1.top) : UNASSIGNED;
                 edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
                 const edge2 = this.tEdgeController.at(edgeIndex);
                 //if output polygons share an edge, they'll need joining later...
@@ -606,7 +603,7 @@ export default class TEdgeManager {
         const edge = this.tEdgeController.at(edgeIndex);
 
         if (this.tEdgeController.maximaPair(edgeIndex) === UNASSIGNED) {
-            if (edge.isAssigned) {
+            if (this.tEdgeController.isAssigned(edgeIndex)) {
                 this.outRecManager.addOutPt(edgeIndex, edge.top);
             }
 
@@ -626,20 +623,20 @@ export default class TEdgeManager {
         const maxIndex = this.tEdgeController.maximaPair(edgeIndex);
         const maxPairEdge = this.tEdgeController.at(maxIndex);
 
-        if (!edge.isAssigned && !maxPairEdge.isAssigned) {
+        if (!this.tEdgeController.isAssigned(edgeIndex) && !this.tEdgeController.isAssigned(maxIndex)) {
             this.tEdgeController.deleteFromList(edgeIndex, true);
             this.tEdgeController.deleteFromList(maxIndex, true);
-        } else if (edge.isAssigned && maxPairEdge.isAssigned) {
+        } else if (this.tEdgeController.isAssigned(edgeIndex) && this.tEdgeController.isAssigned(maxIndex)) {
             this.intersectEdges(edgeIndex, maxIndex, edge.top, false);
         } else if (edge.isWindDeletaEmpty) {
-            if (edge.isAssigned) {
+            if (this.tEdgeController.isAssigned(edgeIndex)) {
                 this.outRecManager.addOutPt(edgeIndex, edge.top);
                 edge.unassign();
             }
 
             this.tEdgeController.deleteFromList(edgeIndex, true);
 
-            if (maxPairEdge.isAssigned) {
+            if (this.tEdgeController.isAssigned(maxIndex)) {
                 this.outRecManager.addOutPt(maxIndex, edge.top);
                 maxPairEdge.unassign();
             }
@@ -736,7 +733,7 @@ export default class TEdgeManager {
             }
 
             if (rightBoundIndex !== UNASSIGNED) {
-                if (rightBound.isHorizontal) {
+                if (this.tEdgeController.isHorizontal(rightBoundIndex)) {
                     this.tEdgeController.addEdgeToSEL(rightBoundIndex);
                 } else {
                     this.scanbeam.insert(rightBound.top.y);
@@ -747,7 +744,7 @@ export default class TEdgeManager {
                 continue;
             }
             //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            if (outPt !== UNASSIGNED && rightBound.isHorizontal && !rightBound.isWindDeletaEmpty) {
+            if (outPt !== UNASSIGNED && this.tEdgeController.isHorizontal(rightBoundIndex) && !rightBound.isWindDeletaEmpty) {
                 this.outRecManager.addOutputJoins(outPt, rightBoundIndex);
             }
 

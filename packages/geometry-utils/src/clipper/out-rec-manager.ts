@@ -88,7 +88,7 @@ export default class OutRecManager {
         let outRec: OutRec;
         let pointIndex: number;
 
-        if (!edge.isAssigned) {
+        if (!this.tEdgeController.isAssigned(edgeIndex)) {
             pointIndex = OutPt.fromPoint(point);
 
             outRec = this.createRec(pointIndex);
@@ -117,7 +117,7 @@ export default class OutRecManager {
         let secondEdge = edge1;
         let result: number = UNASSIGNED;
 
-        if (edge2.isHorizontal || edge1.dx > edge2.dx) {
+        if (this.tEdgeController.isHorizontal(edge2Index) || edge1.dx > edge2.dx) {
             firstEdge = edge1;
             secondEdge = edge2;
             firstIndex = edge1Index;

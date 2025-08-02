@@ -1,7 +1,6 @@
 import { PointI32 } from '../geometry';
-import { HORIZONTAL, UNASSIGNED } from './constants';
-import { clipperRound } from '../helpers';
-import { POLY_TYPE, POLY_FILL_TYPE, CLIP_TYPE, DIRECTION } from './types';
+import { UNASSIGNED } from './constants';
+import { POLY_TYPE, DIRECTION } from './types';
 import { Point } from '../types';
 
 export default class TEdge {
@@ -31,30 +30,11 @@ export default class TEdge {
         this.index = UNASSIGNED;
     }
 
-
-    public topX(y: number): number {
-        //if (edge.Bot === edge.Curr) alert ("edge.Bot = edge.Curr");
-        //if (edge.Bot === edge.Top) alert ("edge.Bot = edge.Top");
-        return y === this.top.y ? this.top.x : this.bot.x + clipperRound(this.dx * (y - this.bot.y));
-    }
-
-    public get isFilled(): boolean {
-        return this.isAssigned && !this.isWindDeletaEmpty;
-    }
-
-    public get isHorizontal(): boolean {
-        return this.delta.y === 0;
-    }
-
     public get isWindDeletaEmpty(): boolean {
         return this.windDelta === 0;
     }
 
     public unassign(): void {
         this.index = UNASSIGNED;
-    }
-
-    public get isAssigned(): boolean {
-        return this.index !== UNASSIGNED;
     }
 }
