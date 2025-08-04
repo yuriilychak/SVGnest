@@ -7,13 +7,14 @@ import { DIRECTION } from "./types";
 import { PointI32 } from "../geometry";
 import { UNASSIGNED } from "./constants";
 import TEdge from "./t-edge";
+import OutRecController from "./out-rec-controller";
 
 export default class OutRecManager {
-    private polyOuts: OutRec[] = [];
     private join: Join = new Join();
     private isReverseSolution: boolean = false;
     private isStrictlySimple: boolean = false;
     private tEdge: TEdge;
+    private outRecController = new OutRecController();
 
     constructor(tEdgeController: TEdge, reverseSolution: boolean, strictlySimple: boolean) {
         this.isReverseSolution = reverseSolution;
@@ -90,7 +91,7 @@ export default class OutRecManager {
         if (!this.tEdge.isAssigned(edgeIndex)) {
             pointIndex = OutPt.fromPoint(point);
 
-            outRec = this.createRec(pointIndex);
+            outRec = this.outRecController.createRec(pointIndex);
 
             this.setHoleState(outRec, edgeIndex);
 
@@ -99,7 +100,7 @@ export default class OutRecManager {
         } else {
             const isToFront: boolean = this.tEdge.side(edgeIndex) === DIRECTION.LEFT;
             const recIndex = this.tEdge.getRecIndex(edgeIndex);
-            outRec = this.getOutRec(recIndex);
+            outRec = this.outRecController.getOutRec(recIndex);
 
             pointIndex = outRec.addOutPt(isToFront, point);
         }
@@ -154,9 +155,9 @@ export default class OutRecManager {
         const secondRecIndex = this.tEdge.getRecIndex(secondIndex);
 
         //get the start and ends of both output polygons ...
-        const outRec1: OutRec = this.polyOuts[firstRecIndex];
-        const outRec2: OutRec = this.polyOuts[secondRecIndex];
-        const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
+        const outRec1: OutRec = this.outRecController.at(firstRecIndex);
+        const outRec2: OutRec = this.outRecController.at(secondRecIndex);
+        const holeStateRec: OutRec = this.outRecController.getHoleStateRec(outRec1, outRec2);
         const firstSide = this.tEdge.side(firstIndex);
         const secondSide = this.tEdge.side(secondIndex);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
@@ -188,17 +189,7 @@ export default class OutRecManager {
     public fixupOutPolygon(): void {
         let i: number = 0;
 
-        for (i = 0; i < this.polyOuts.length; ++i) {
-            const outRec = this.polyOuts[i];
-
-            if (outRec.isEmpty) {
-                continue;
-            }
-
-            if ((outRec.isHole !== this.isReverseSolution) === outRec.area > 0) {
-                outRec.reverse();
-            }
-        }
+        this.outRecController.fixDirections(this.isReverseSolution);
 
         const joinCount: number = this.join.getLength(false);
         const point = PointI32.create();
@@ -211,53 +202,16 @@ export default class OutRecManager {
             this.joinCommonEdge(i, point);
         }
 
-        for (i = 0; i < this.polyOuts.length; ++i) {
-            const outRec = this.polyOuts[i];
-
-            if (!outRec.isEmpty) {
-                outRec.fixupOutPolygon(false, this.tEdge.isUseFullRange);
-            }
-        }
-
-        if (this.isStrictlySimple) {
-            for (i = 0; i < this.polyOuts.length; ++i) {
-                this.polyOuts.concat(this.polyOuts[i].simplify(this.polyOuts.length));
-            }
-        }
+        this.outRecController.fixOutPolygon(this.isStrictlySimple, this.tEdge.isUseFullRange);
     }
 
     public buildResult(polygons: Point<Int32Array>[][]): void {
-        for (let i = 0; i < this.polyOuts.length; ++i) {
-            const outRec = this.polyOuts[i];
-            const polygon = outRec.export();
-
-            if (polygon.length !== 0) {
-                polygons.push(polygon);
-            }
-        }
+        return this.outRecController.buildResult(polygons);
     }
 
     public dispose(): void {
-        this.polyOuts = [];
+        this.outRecController.dispose();
         OutPt.cleanup();
-    }
-
-    private createRec(pointIndex: number) {
-        const result: OutRec = new OutRec(this.polyOuts.length, pointIndex);
-
-        this.polyOuts.push(result);
-
-        return result;
-    }
-
-    private getOutRec(idx: number): OutRec {
-        let result: OutRec = this.polyOuts[idx];
-
-        while (result.index !== this.polyOuts[result.currentIndex].index) {
-            result = this.polyOuts[result.currentIndex];
-        }
-
-        return result;
     }
 
     private getJoinData(index: number) {
@@ -268,19 +222,13 @@ export default class OutRecManager {
         const top = this.tEdge.top(index);
         const bot = this.tEdge.bot(index);
 
-        return this.polyOuts[recIndex].getJoinData(side, top, bot);
+        return this.outRecController.getJoinData(recIndex, side, top, bot);
     }
 
     private setHoleState(outRec: OutRec, edgeIndex: number): void {
         const { isHole, index } = this.tEdge.getHoleState(outRec.firstLeftIndex, edgeIndex);
 
-        if (outRec.firstLeftIndex === UNASSIGNED && index !== UNASSIGNED) {
-            outRec.firstLeftIndex = this.polyOuts[index].index;
-        }
-
-        if (isHole) {
-            outRec.isHole = true;
-        }
+        this.outRecController.setHoleState(outRec.index, isHole, index);
     }
 
     private joinCommonEdge(index: number, offPoint: Point<Int32Array>): void {
@@ -300,21 +248,21 @@ export default class OutRecManager {
         const index2: number = get_u16_from_u32(outHash2, 0);
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
         const outPt2Index: number = get_u16_from_u32(outHash2, 1);
-        const outRec1: OutRec = this.getOutRec(index1);
-        let outRec2: OutRec = this.getOutRec(index2);
+        const outRec1: OutRec = this.outRecController.getOutRec(index1);
+        let outRec2: OutRec = this.outRecController.getOutRec(index2);
 
         if (index1 === index2) {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
             outRec1.pointIndex = outPt1Index;
-            outRec2 = this.createRec(outPt2Index);
+            outRec2 = this.outRecController.createRec(outPt2Index);
             outRec2.postInit(this.isReverseSolution);
 
             this.join.updateHash(index, outHash1, outHash2);
             return;
         }
 
-        const holeStateRec: OutRec = this.getHoleStateRec(outRec1, outRec2);
+        const holeStateRec: OutRec = this.outRecController.getHoleStateRec(outRec1, outRec2);
         //joined 2 polygons together ...
         outRec2.clean();
         outRec2.currentIndex = outRec1.currentIndex;
@@ -329,41 +277,12 @@ export default class OutRecManager {
         this.join.updateHash(index, outHash1, outHash2);
     }
 
-    private param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {
-        let outRec1Index = outRec1.index;
-        let outRec2Index = outRec2.index;
-
-        do {
-            outRec1Index = this.getFirstLeftIndex(outRec1Index);
-
-            if (outRec1Index == outRec2Index) {
-                return true;
-            }
-        } while (outRec1Index !== UNASSIGNED);
-
-        return false;
-    }
-
-    private getFirstLeftIndex(index: number): number {
-        return index !== UNASSIGNED ? this.polyOuts[index].firstLeftIndex : UNASSIGNED;
-    }
-
-    private getHoleStateRec(outRec1: OutRec, outRec2: OutRec): OutRec {
-        switch (true) {
-            case this.param1RightOfParam2(outRec1, outRec2):
-                return outRec2;
-            case this.param1RightOfParam2(outRec2, outRec1):
-                return outRec1;
-            default:
-                return OutRec.getLowermostRec(outRec1, outRec2);
-        }
-    }
 
     private joinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>): { outHash1: number, outHash2: number, result: boolean } {
         const index1: number = get_u16_from_u32(outHash1, 0);
         const index2: number = get_u16_from_u32(outHash2, 0);
-        const outRec1 = this.getOutRec(index1);
-        const outRec2 = this.getOutRec(index2);
+        const outRec1 = this.outRecController.getOutRec(index1);
+        const outRec2 = this.outRecController.getOutRec(index2);
         const result = { outHash1, outHash2, result: false };
 
         if (outRec1.isEmpty || outRec2.isEmpty) {
