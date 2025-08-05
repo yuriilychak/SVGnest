@@ -170,7 +170,7 @@ export default class OutRecManager {
                 outRec1.firstLeftIndex = outRec2.firstLeftIndex;
             }
 
-            outRec1.isHole = outRec2.isHole;
+            this.outRecController.setHole(outRec1.index, this.outRecController.isHole(outRec2.index));
         }
 
         outRec2.pointIndex = UNASSIGNED;
@@ -266,7 +266,7 @@ export default class OutRecManager {
         //joined 2 polygons together ...
         outRec2.pointIndex = UNASSIGNED;
         outRec2.currentIndex = outRec1.currentIndex;
-        outRec1.isHole = holeStateRec.isHole;
+        this.outRecController.setHole(outRec1.index, this.outRecController.isHole(holeStateRec.index));
 
         if (holeStateRec === outRec2) {
             outRec1.firstLeftIndex = outRec2.firstLeftIndex;

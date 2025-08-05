@@ -7,9 +7,18 @@ import OutPt from './out-pt';
 
 export default class OutRecController {
     private polyOuts: OutRec[] = [];
+    private recData: Int16Array[] = [];
 
     public at(index: number): OutRec {
         return this.polyOuts[index];
+    }
+
+    public isHole(index: number): boolean {
+        return this.recData[index][3] === 1;
+    }
+
+    public setHole(index: number, isHole: boolean): void {
+        this.recData[index][3] = isHole ? 1 : 0;
     }
 
     private param1RightOfParam2(outRec1Index: number, outRec2Index: number): boolean {
@@ -49,7 +58,7 @@ export default class OutRecController {
         }
 
         if (isHole) {
-            outRec.isHole = true;
+            this.setHole(recIndex, true);
         }
     }
 
@@ -81,6 +90,8 @@ export default class OutRecController {
 
         this.polyOuts.push(result);
 
+        this.create(pointIndex)
+
         return result;
     }
 
@@ -103,7 +114,7 @@ export default class OutRecController {
                 continue;
             }
 
-            if ((outRec.isHole !== isReverseSolution) === this.area(i) > 0) {
+            if ((this.isHole(i) !== isReverseSolution) === this.area(i) > 0) {
                 this.reverse(i);
             }
         }
@@ -111,6 +122,7 @@ export default class OutRecController {
 
     public dispose(): void {
         this.polyOuts.length = 0;
+        this.recData.length = 0;
     }
 
     public fixOutPolygon(isStrictlySimple: boolean, isUseFullRange: boolean) {
@@ -124,7 +136,7 @@ export default class OutRecController {
 
         if (isStrictlySimple) {
             for (let i = 0; i < this.polyOuts.length; ++i) {
-                this.polyOuts.concat(this.simplify(i));
+                this.simplify(i);
             }
         }
     }
@@ -157,16 +169,14 @@ export default class OutRecController {
         }
     }
 
-    public simplify(recIndex: number): OutRec[] {
+    public simplify(recIndex: number): void {
         const inputRec: OutRec = this.polyOuts[recIndex];
-        const result: OutRec[] = [];
 
         if (inputRec.pointIndex === UNASSIGNED) {
-            return result;
+            return;
         }
 
         const inputIndex = inputRec.pointIndex;
-        let innerIndex = this.polyOuts.length;
         let currIndex = inputRec.pointIndex;
         let splitIndex = UNASSIGNED;
 
@@ -179,15 +189,11 @@ export default class OutRecController {
                     //split the polygon into two ...
                     OutPt.split(currIndex, splitIndex);
                     inputRec.pointIndex = currIndex;
-                    const outRec = new OutRec(innerIndex, splitIndex);
+                    const outRec = this.createRec(splitIndex);
 
                     this.updateSplit(inputRec.index, outRec.index);
 
-                    result.push(outRec);
-
                     splitIndex = currIndex;
-
-                    ++innerIndex;
                     //ie get ready for the next iteration
                 }
 
@@ -196,8 +202,6 @@ export default class OutRecController {
 
             currIndex = OutPt.getNeighboarIndex(currIndex, true);
         } while (currIndex != inputIndex);
-
-        return result;
     }
 
     private updateSplit(index1: number, index2: number): void {
@@ -205,27 +209,27 @@ export default class OutRecController {
         const outRec2: OutRec = this.polyOuts[index2];
         if (this.containsPoly(index1, index2)) {
             //OutRec2 is contained by OutRec1 ...
-            outRec2.isHole = !outRec1.isHole;
+            this.setHole(index2, !this.isHole(index1));
             outRec2.firstLeftIndex = outRec1.index;
         } else if (this.containsPoly(index2, index1)) {
             //OutRec1 is contained by OutRec2 ...
-            outRec2.isHole = outRec1.isHole;
-            outRec1.isHole = !outRec2.isHole;
+            this.setHole(index2, this.isHole(index1));
+            this.setHole(index1, !this.isHole(index2));
             outRec2.firstLeftIndex = outRec1.firstLeftIndex;
             outRec1.firstLeftIndex = outRec2.index;
         } else {
             //the 2 polygons are separate ...
-            outRec2.isHole = outRec1.isHole;
+            this.setHole(index2, this.isHole(index1));
             outRec2.firstLeftIndex = outRec1.firstLeftIndex;
         }
     }
 
     public postInit(recIndex: number, isReverseSolution: boolean): void {
         const outRec: OutRec = this.polyOuts[recIndex];
-        outRec.isHole = !outRec.isHole;
+        this.setHole(recIndex, !this.isHole(recIndex));
         outRec.firstLeftIndex = outRec.index;
 
-        if ((outRec.isHole !== isReverseSolution) === this.area(recIndex) > 0) {
+        if ((this.isHole(recIndex) !== isReverseSolution) === this.area(recIndex) > 0) {
             this.reverse(recIndex);
         }
     }
@@ -284,5 +288,13 @@ export default class OutRecController {
         const outRec: OutRec = this.polyOuts[index];
 
         return outRec.pointIndex === UNASSIGNED ? 0 : OutPt.getArea(outRec.pointIndex);
+    }
+
+    private create(pointIndex: number): number {
+        const index = this.polyOuts.length;
+
+        this.recData.push(new Int16Array([pointIndex, index, UNASSIGNED, 0]));
+
+        return index;
     }
 }
