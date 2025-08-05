@@ -29,97 +29,6 @@ export default class OutPt {
     public static cleanup(): void {
         OutPt.points.length = 0;
     }
-    
-    public static containsPoly(index1: number, index2: number): boolean {
-        let currIndex: number = index2;
-        let res: number = 0;
-
-        do {
-            res = OutPt.pointIn(index1, currIndex);
-
-            if (res >= 0) {
-                return res !== 0;
-            }
-
-            currIndex = OutPt.getNeighboarIndex(currIndex, true);
-        } while (currIndex !== index2);
-
-        return true;
-    }
-
-    public static canSplit(index1: number, index2: number): boolean {
-        return OutPt.almostEqual(index2, index1) && 
-            OutPt.getNeighboarIndex(index2, true) != index1 && 
-            OutPt.getNeighboarIndex(index2, false) != index1;
-    }
-
-    public static split(op1Index: number, op2Index: number): void {
-        const op1Prev = OutPt.getNeighboarIndex(op1Index, false);
-        const op2Prev = OutPt.getNeighboarIndex(op2Index, false);
-
-        OutPt.push(op2Prev, op1Index, true);
-        OutPt.push(op1Prev, op2Index, true);
-    }
-
-    public static export(index: number): Point<Int32Array>[] {
-        const pointCount = OutPt.getLength(index);
-
-        if (pointCount < 2) {
-            return [];
-        }
-
-        const result: Point<Int32Array>[] = new Array(pointCount);
-        const prevIndex = OutPt.getNeighboarIndex(index, false);
-        let outPt: OutPt = OutPt.at(prevIndex);
-        let i: number = 0;
-
-        for (i = 0; i < pointCount; ++i) {
-            result[i] = outPt.point.clone();
-            outPt = OutPt.at(outPt.prev);
-        }
-
-        return result;
-    }
-
-    public static fixupOutPolygon(index: number, preserveCollinear: boolean, useFullRange: boolean): number {
-        //FixupOutPolygon() - removes duplicate points and simplifies consecutive
-        //parallel edges by removing the middle vertex.
-        let lastOutIndex: number = UNASSIGNED;
-        let outPt = OutPt.at(index);
-
-        while (true) {
-            if (outPt.prev === outPt.current || outPt.prev === outPt.next) {
-                return UNASSIGNED;
-            }
-
-            const nextPt = OutPt.at(outPt.next);
-            const prevPt = OutPt.at(outPt.prev);
-            //test for duplicate points and collinear edges ...
-            if (
-                OutPt.almostEqual(outPt.current, prevPt.current) ||
-                OutPt.almostEqual(outPt.current, nextPt.current)  ||
-                (PointI32.slopesEqual(prevPt.point, outPt.point, nextPt.point, useFullRange) &&
-                    (!preserveCollinear || !outPt.point.getBetween(prevPt.point, nextPt.point)))
-            ) {
-                lastOutIndex = UNASSIGNED;
-                outPt = outPt.remove();
-
-                continue;
-            }
-
-            if (outPt.current === lastOutIndex) {
-                break;
-            }
-
-            if (lastOutIndex === UNASSIGNED) {
-                lastOutIndex = outPt.current;
-            }
-
-            outPt = OutPt.at(outPt.next);
-        }
-
-        return outPt.current;
-    }
 
     public remove(): OutPt {
         const result = OutPt.at(this.prev);
@@ -143,32 +52,6 @@ export default class OutPt {
         }
 
         return result.current;
-    }
-
-    public insertBefore(point: Point<Int32Array>): number {
-        const outPt = new OutPt(point);
-        OutPt.push(this.prev, outPt.current, true);
-        OutPt.push(outPt.current, this.current, true);
-
-        return outPt.current;
-    }
-
-    public static getLength(index: number): number {
-        const prevIndex = OutPt.getNeighboarIndex(index, false);
-
-        if(prevIndex === UNASSIGNED) {
-            return 0;
-        }
-
-        let result: number = 0;
-        let outPt: OutPt = OutPt.at(prevIndex);
-
-        do {
-            ++result;
-            outPt = OutPt.at(outPt.next);
-        } while (outPt.current !== prevIndex);
-
-        return result;
     }
 
     public get sameAsNext(): boolean {
@@ -245,7 +128,7 @@ export default class OutPt {
         return op1b;
     }
 
-    private static pointIn(inputIndex: number, outIndex: number): number {
+    public static pointIn(inputIndex: number, outIndex: number): number {
         let inputPt = OutPt.at(outIndex);
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
@@ -451,19 +334,6 @@ export default class OutPt {
             : nextX >= pt.x && nextX <= currX && nextY === pt.y;
     } 
 
-    public static getArea(index: number): number {
-        let outPt: OutPt = OutPt.at(index);
-        let result: number = 0;
-
-        do {
-            let prevPt: OutPt = OutPt.at(outPt.prev);
-            result = result + (prevPt.point.x + outPt.point.x) * (prevPt.point.y - outPt.point.y);
-            outPt = OutPt.at(outPt.next);
-        } while (outPt.current != index);
-
-        return result * 0.5;
-    }
-
     public static joinHorzInt(index1: number, index2: number, point: Point<Int32Array>, isDiscardLeft: boolean): { op: number, opB: number, isRightOrder: boolean } {
         let op: OutPt = OutPt.at(index1);
         let opB: OutPt = OutPt.at(index2);
@@ -513,7 +383,7 @@ export default class OutPt {
         return true;
     }
 
-    private static push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
+    public static push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
         const outPt1 = OutPt.at(outPt1Index);
         const outPt2 = OutPt.at(outPt2Index);
 

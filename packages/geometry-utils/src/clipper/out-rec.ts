@@ -1,8 +1,9 @@
 import { join_u16_to_u32 } from 'wasm-nesting';
-import { Point } from 'src/types';
+import { Point } from '../types';
 import { UNASSIGNED } from './constants';
 import { DIRECTION } from './types';
 import OutPt from './out-pt';
+import { PointI32 } from '../geometry';
 
 export default class OutRec {
     private recData: Int16Array[] = [];
@@ -100,9 +101,29 @@ export default class OutRec {
         return result;
     }
 
+    private export(index: number): Point<Int32Array>[] {
+        const pointCount = this.getLength(index);
+
+        if (pointCount < 2) {
+            return [];
+        }
+
+        const result: Point<Int32Array>[] = new Array(pointCount);
+        const prevIndex = OutPt.getNeighboarIndex(index, false);
+        let outPt: OutPt = OutPt.at(prevIndex);
+        let i: number = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            result[i] = outPt.point.clone();
+            outPt = OutPt.at(outPt.prev);
+        }
+
+        return result;
+    }
+
     public buildResult(polygons: Point<Int32Array>[][]): void {
         for (let i = 0; i < this.recData.length; ++i) {
-            const polygon = this.isUnassigned(i) ? [] : OutPt.export(this.pointIndex(i));
+            const polygon = this.isUnassigned(i) ? [] : this.export(this.pointIndex(i));
 
             if (polygon.length !== 0) {
                 polygons.push(polygon);
@@ -121,10 +142,50 @@ export default class OutRec {
         this.recData.length = 0;
     }
 
+    private fixupOutPolygonInner(index: number, preserveCollinear: boolean, useFullRange: boolean): number {
+        //FixupOutPolygon() - removes duplicate points and simplifies consecutive
+        //parallel edges by removing the middle vertex.
+        let lastOutIndex: number = UNASSIGNED;
+        let outPt = OutPt.at(index);
+
+        while (true) {
+            if (outPt.prev === outPt.current || outPt.prev === outPt.next) {
+                return UNASSIGNED;
+            }
+
+            const nextPt = OutPt.at(outPt.next);
+            const prevPt = OutPt.at(outPt.prev);
+            //test for duplicate points and collinear edges ...
+            if (
+                OutPt.almostEqual(outPt.current, prevPt.current) ||
+                OutPt.almostEqual(outPt.current, nextPt.current) ||
+                (PointI32.slopesEqual(prevPt.point, outPt.point, nextPt.point, useFullRange) &&
+                    (!preserveCollinear || !outPt.point.getBetween(prevPt.point, nextPt.point)))
+            ) {
+                lastOutIndex = UNASSIGNED;
+                outPt = outPt.remove();
+
+                continue;
+            }
+
+            if (outPt.current === lastOutIndex) {
+                break;
+            }
+
+            if (lastOutIndex === UNASSIGNED) {
+                lastOutIndex = outPt.current;
+            }
+
+            outPt = OutPt.at(outPt.next);
+        }
+
+        return outPt.current;
+    }
+
     public fixOutPolygon(isStrictlySimple: boolean, isUseFullRange: boolean) {
         for (let i = 0; i < this.recData.length; ++i) {
             if (!this.isUnassigned(i)) {
-                this.setPointIndex(i, OutPt.fixupOutPolygon(this.pointIndex(i), false, isUseFullRange));
+                this.setPointIndex(i, this.fixupOutPolygonInner(this.pointIndex(i), false, isUseFullRange));
             }
         }
 
@@ -161,6 +222,21 @@ export default class OutRec {
         }
     }
 
+    private split(op1Index: number, op2Index: number): void {
+        const op1Prev = OutPt.getNeighboarIndex(op1Index, false);
+        const op2Prev = OutPt.getNeighboarIndex(op2Index, false);
+
+        OutPt.push(op2Prev, op1Index, true);
+        OutPt.push(op1Prev, op2Index, true);
+    }
+
+
+    private canSplit(index1: number, index2: number): boolean {
+        return OutPt.almostEqual(index2, index1) &&
+            OutPt.getNeighboarIndex(index2, true) != index1 &&
+            OutPt.getNeighboarIndex(index2, false) != index1;
+    }
+
     public simplify(recIndex: number): void {
         if (this.isUnassigned(recIndex)) {
             return;
@@ -175,9 +251,9 @@ export default class OutRec {
             splitIndex = OutPt.getNeighboarIndex(currIndex, true);
 
             while (splitIndex !== this.pointIndex(recIndex)) {
-                if (OutPt.canSplit(currIndex, splitIndex)) {
+                if (this.canSplit(currIndex, splitIndex)) {
                     //split the polygon into two ...
-                    OutPt.split(currIndex, splitIndex);
+                    this.split(currIndex, splitIndex);
                     this.setPointIndex(recIndex, currIndex);
                     const outRecIndex = this.create(splitIndex);
 
@@ -219,6 +295,24 @@ export default class OutRec {
         this.reverse(recIndex, isReverseSolution);
     }
 
+    private getLength(index: number): number {
+        const prevIndex = OutPt.getNeighboarIndex(index, false);
+
+        if (prevIndex === UNASSIGNED) {
+            return 0;
+        }
+
+        let result: number = 0;
+        let outPt: OutPt = OutPt.at(prevIndex);
+
+        do {
+            ++result;
+            outPt = OutPt.at(outPt.next);
+        } while (outPt.current !== prevIndex);
+
+        return result;
+    }
+
 
     public join(index1: number, index2: number, side1: DIRECTION, side2: DIRECTION): void {
         const pointIndex = OutPt.join(this.pointIndex(index1), this.pointIndex(index2), side1, side2);
@@ -228,6 +322,14 @@ export default class OutRec {
 
     public getHash(recIndex: number, pointIndex: number): number {
         return join_u16_to_u32(recIndex, pointIndex);
+    }
+
+    private insertBefore(inputPt: OutPt, point: Point<Int32Array>): number {
+        const outPt = new OutPt(point);
+        OutPt.push(inputPt.prev, outPt.current, true);
+        OutPt.push(outPt.current, inputPt.current, true);
+
+        return outPt.current;
     }
 
     public addOutPt(recIndex: number, isToFront: boolean, point: Point<Int32Array>): number {
@@ -245,7 +347,7 @@ export default class OutRec {
             return prev.current;
         }
 
-        const newIndex = op.insertBefore(point);
+        const newIndex = this.insertBefore(op, point);
 
         if (isToFront) {
             this.setPointIndex(outRec, newIndex);
@@ -254,14 +356,44 @@ export default class OutRec {
         return newIndex;
     }
 
-    private containsPoly(index1: number, index2: number): boolean {
-        return OutPt.containsPoly(this.pointIndex(index1), this.pointIndex(index2));
+    private containsPoly(recIndex1: number, recIndex2: number): boolean {
+        const index1 = this.pointIndex(recIndex1);
+        const index2 = this.pointIndex(recIndex2);
+
+        let currIndex: number = index2;
+        let res: number = 0;
+
+        do {
+            res = OutPt.pointIn(index1, currIndex);
+
+            if (res >= 0) {
+                return res !== 0;
+            }
+
+            currIndex = OutPt.getNeighboarIndex(currIndex, true);
+        } while (currIndex !== index2);
+
+        return true;
     }
 
     private reverse(index: number, isReverseSolution: boolean): void {
-        if (!this.isUnassigned(index) && (this.isHole(index) !== isReverseSolution) === OutPt.getArea(this.pointIndex(index)) > 0) {
+        if (!this.isUnassigned(index) && (this.isHole(index) !== isReverseSolution) === this.getArea(index) > 0) {
             OutPt.reverse(this.pointIndex(index));
         }
+    }
+
+    private getArea(recIndex: number): number {
+        const index = this.pointIndex(recIndex);
+        let outPt: OutPt = OutPt.at(index);
+        let result: number = 0;
+
+        do {
+            let prevPt: OutPt = OutPt.at(outPt.prev);
+            result = result + (prevPt.point.x + outPt.point.x) * (prevPt.point.y - outPt.point.y);
+            outPt = OutPt.at(outPt.next);
+        } while (outPt.current != index);
+
+        return result * 0.5;
     }
 
     public create(pointIndex: number): number {
