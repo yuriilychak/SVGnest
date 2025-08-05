@@ -173,7 +173,7 @@ export default class OutRecManager {
             this.outRecController.setHole(outRec1.index, this.outRecController.isHole(outRec2.index));
         }
 
-        outRec2.pointIndex = UNASSIGNED;
+        this.outRecController.setPointIndex(outRec2.index, UNASSIGNED);
         outRec2.firstLeftIndex = outRec1.index;
         const OKIdx: number = this.tEdge.getRecIndex(firstIndex);
         const ObsoleteIdx: number = this.tEdge.getRecIndex(secondIndex);
@@ -254,7 +254,7 @@ export default class OutRecManager {
         if (index1 === index2) {
             //instead of joining two polygons, we've just created a new one by
             //splitting one polygon into two.
-            outRec1.pointIndex = outPt1Index;
+            this.outRecController.setPointIndex(outRec1.index, outPt1Index);
             outRec2 = this.outRecController.createRec(outPt2Index);
             this.outRecController.postInit(outRec2.index, this.isReverseSolution);
 
@@ -264,7 +264,7 @@ export default class OutRecManager {
 
         const holeStateRec: OutRec = this.outRecController.getHoleStateRec(outRec1.index, outRec2.index);
         //joined 2 polygons together ...
-        outRec2.pointIndex = UNASSIGNED;
+        this.outRecController.setPointIndex(outRec2.index, UNASSIGNED);
         outRec2.currentIndex = outRec1.currentIndex;
         this.outRecController.setHole(outRec1.index, this.outRecController.isHole(holeStateRec.index));
 
@@ -285,7 +285,7 @@ export default class OutRecManager {
         const outRec2 = this.outRecController.getOutRec(index2);
         const result = { outHash1, outHash2, result: false };
 
-        if (outRec1.pointIndex === UNASSIGNED || outRec2.pointIndex === UNASSIGNED) {
+        if (this.outRecController.isUnassigned(outRec1.index)|| this.outRecController.isUnassigned(outRec2.index)) {
             return result;
         }
 

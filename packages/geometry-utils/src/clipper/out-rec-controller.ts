@@ -13,12 +13,24 @@ export default class OutRecController {
         return this.polyOuts[index];
     }
 
+    public pointIndex(index: number): number {
+        return this.recData[index][0];
+    }
+
+    public setPointIndex(index: number, value: number): void {
+        this.recData[index][0] = value;
+    }
+
+    public isUnassigned(index: number): boolean {
+        return this.recData[index][0] === UNASSIGNED;
+    }       
+
     public isHole(index: number): boolean {
         return this.recData[index][3] === 1;
     }
 
-    public setHole(index: number, isHole: boolean): void {
-        this.recData[index][3] = isHole ? 1 : 0;
+    public setHole(index: number, value: boolean): void {
+        this.recData[index][3] = value ? 1 : 0;
     }
 
     private param1RightOfParam2(outRec1Index: number, outRec2Index: number): boolean {
@@ -63,12 +75,11 @@ export default class OutRecController {
     }
 
     public getJoinData(recIndex: number, direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
-        const outRec: OutRec = this.polyOuts[recIndex];
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
         const index: number = direction === DIRECTION.RIGHT
-            ? OutPt.getNeighboarIndex(outRec.pointIndex, false)
-            : outRec.pointIndex;
+            ? OutPt.getNeighboarIndex(this.pointIndex(recIndex), false)
+            : this.pointIndex(recIndex);
         const outPt = OutPt.at(index);
         const offPoint = outPt.point.almostEqual(top) ? bottom : top;
 
@@ -86,7 +97,7 @@ export default class OutRecController {
     }
 
     public createRec(pointIndex: number) {
-        const result: OutRec = new OutRec(this.polyOuts.length, pointIndex);
+        const result: OutRec = new OutRec(this.polyOuts.length);
 
         this.polyOuts.push(result);
 
@@ -97,8 +108,7 @@ export default class OutRecController {
 
     public buildResult(polygons: Point<Int32Array>[][]): void {
         for (let i = 0; i < this.polyOuts.length; ++i) {
-            const outRec = this.polyOuts[i];
-            const polygon = outRec.pointIndex === UNASSIGNED ? [] : OutPt.export(outRec.pointIndex);
+            const polygon = this.isUnassigned(i) ? [] : OutPt.export(this.pointIndex(i));
 
             if (polygon.length !== 0) {
                 polygons.push(polygon);
@@ -108,15 +118,7 @@ export default class OutRecController {
 
     public fixDirections(isReverseSolution: boolean): void {
         for (let i = 0; i < this.polyOuts.length; ++i) {
-            const outRec = this.polyOuts[i];
-
-            if (outRec.pointIndex === UNASSIGNED) {
-                continue;
-            }
-
-            if ((this.isHole(i) !== isReverseSolution) === this.area(i) > 0) {
-                this.reverse(i);
-            }
+            this.reverse(i, isReverseSolution);
         }
     }
 
@@ -127,10 +129,8 @@ export default class OutRecController {
 
     public fixOutPolygon(isStrictlySimple: boolean, isUseFullRange: boolean) {
         for (let i = 0; i < this.polyOuts.length; ++i) {
-            const outRec = this.polyOuts[i];
-
-            if (outRec.pointIndex !== UNASSIGNED) {
-                outRec.pointIndex = OutPt.fixupOutPolygon(outRec.pointIndex, false, isUseFullRange);
+            if (!this.isUnassigned(i)) {
+                this.setPointIndex(i, OutPt.fixupOutPolygon(this.pointIndex(i), false, isUseFullRange));
             }
         }
 
@@ -144,8 +144,8 @@ export default class OutRecController {
     private getLowermostRec(outRec1Index: number, outRec2Index: number): OutRec {
         const outRec1: OutRec = this.polyOuts[outRec1Index];
         const outRec2: OutRec = this.polyOuts[outRec2Index];
-        const bIndex1: number = OutPt.getBottomPt(outRec1.pointIndex);
-        const bIndex2: number = OutPt.getBottomPt(outRec2.pointIndex);
+        const bIndex1: number = OutPt.getBottomPt(this.pointIndex(outRec1Index));
+        const bIndex2: number = OutPt.getBottomPt(this.pointIndex(outRec2Index));
         const bPt1: OutPt = OutPt.at(bIndex1);
         const bPt2: OutPt = OutPt.at(bIndex2);
 
@@ -170,25 +170,24 @@ export default class OutRecController {
     }
 
     public simplify(recIndex: number): void {
-        const inputRec: OutRec = this.polyOuts[recIndex];
-
-        if (inputRec.pointIndex === UNASSIGNED) {
+        if (this.isUnassigned(recIndex)) {
             return;
         }
 
-        const inputIndex = inputRec.pointIndex;
-        let currIndex = inputRec.pointIndex;
+        const inputRec: OutRec = this.polyOuts[recIndex];
+        const inputIndex = this.pointIndex(recIndex);
+        let currIndex = this.pointIndex(recIndex);
         let splitIndex = UNASSIGNED;
 
         do //for each Pt in Polygon until duplicate found do ...
         {
             splitIndex = OutPt.getNeighboarIndex(currIndex, true);
 
-            while (splitIndex !== inputRec.pointIndex) {
+            while (splitIndex !== this.pointIndex(recIndex)) {
                 if (OutPt.canSplit(currIndex, splitIndex)) {
                     //split the polygon into two ...
                     OutPt.split(currIndex, splitIndex);
-                    inputRec.pointIndex = currIndex;
+                    this.setPointIndex(recIndex, currIndex);
                     const outRec = this.createRec(splitIndex);
 
                     this.updateSplit(inputRec.index, outRec.index);
@@ -229,17 +228,14 @@ export default class OutRecController {
         this.setHole(recIndex, !this.isHole(recIndex));
         outRec.firstLeftIndex = outRec.index;
 
-        if ((this.isHole(recIndex) !== isReverseSolution) === this.area(recIndex) > 0) {
-            this.reverse(recIndex);
-        }
+        this.reverse(recIndex, isReverseSolution);
     }
 
 
     public join(index1: number, index2: number, side1: DIRECTION, side2: DIRECTION): void {
-        const outRec1: OutRec = this.polyOuts[index1];
-        const outRec2: OutRec = this.polyOuts[index2];
+        const pointIndex = OutPt.join(this.pointIndex(index1), this.pointIndex(index2), side1, side2);
 
-        outRec1.pointIndex = OutPt.join(outRec1.pointIndex, outRec2.pointIndex, side1, side2);
+        this.setPointIndex(index1, pointIndex);
     }
 
     public getHash(recIndex: number, pointIndex: number): number {
@@ -249,7 +245,7 @@ export default class OutRecController {
     public addOutPt(recIndex: number, isToFront: boolean, point: Point<Int32Array>): number {
         const outRec: OutRec = this.getOutRec(recIndex)
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-        const op: OutPt = OutPt.at(outRec.pointIndex);
+        const op: OutPt = OutPt.at(this.pointIndex(outRec.index));
 
         if (isToFront && point.almostEqual(op.point)) {
             return op.current;
@@ -264,30 +260,20 @@ export default class OutRecController {
         const newIndex = op.insertBefore(point);
 
         if (isToFront) {
-            outRec.pointIndex = newIndex;
+            this.setPointIndex(outRec.index, newIndex);
         }
 
         return newIndex;
     }
 
     private containsPoly(index1: number, index2: number): boolean {
-        const outRec1: OutRec = this.polyOuts[index1];
-        const outRec2: OutRec = this.polyOuts[index2];
-        return OutPt.containsPoly(outRec1.pointIndex, outRec2.pointIndex);
+        return OutPt.containsPoly(this.pointIndex(index1), this.pointIndex(index2));
     }
 
-    private reverse(index: number): void {
-        const outRec: OutRec = this.polyOuts[index];
-
-        if (outRec.pointIndex !== UNASSIGNED) {
-            OutPt.reverse(outRec.pointIndex);
+    private reverse(index: number, isReverseSolution: boolean): void {
+        if (!this.isUnassigned(index) && (this.isHole(index) !== isReverseSolution) === OutPt.getArea(this.pointIndex(index)) > 0) {
+            OutPt.reverse(this.pointIndex(index));
         }
-    }
-
-    private area(index: number): number {
-        const outRec: OutRec = this.polyOuts[index];
-
-        return outRec.pointIndex === UNASSIGNED ? 0 : OutPt.getArea(outRec.pointIndex);
     }
 
     private create(pointIndex: number): number {

@@ -4,12 +4,10 @@ export default class OutRec {
     public readonly index: number;
     public currentIndex: number;
     public firstLeftIndex: number;
-    public pointIndex: number;
 
-    constructor(index: number, pointIndex: number) {
+    constructor(index: number) {
         this.index = index;
         this.currentIndex = index;
         this.firstLeftIndex = UNASSIGNED;
-        this.pointIndex = pointIndex;
     }
 }
