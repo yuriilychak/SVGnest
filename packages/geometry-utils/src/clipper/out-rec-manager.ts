@@ -88,7 +88,7 @@ export default class OutRecManager {
         let pointIndex: number;
 
         if (!this.tEdge.isAssigned(edgeIndex)) {
-            pointIndex = OutPt.fromPoint(point);
+            pointIndex = this.outRec.fromPoint(point);
 
             outRecIndex = this.outRec.create(pointIndex);
 
@@ -209,7 +209,6 @@ export default class OutRecManager {
 
     public dispose(): void {
         this.outRec.dispose();
-        OutPt.cleanup();
     }
 
     private getJoinData(index: number) {
@@ -289,8 +288,8 @@ export default class OutRecManager {
 
         const outPt1Index: number = get_u16_from_u32(outHash1, 1);
         const outPt2Index: number = get_u16_from_u32(outHash2, 1);
-        const outPt1: OutPt = OutPt.at(outPt1Index);
-        const outPt2: OutPt = OutPt.at(outPt2Index);
+        const outPt1: OutPt = this.outRec.at(outPt1Index);
+        const outPt2: OutPt = this.outRec.at(outPt2Index);
         const isRecordsSame = outRec1 === outRec2;
         //There are 3 kinds of joins for output polygons ...
         //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
@@ -327,8 +326,8 @@ export default class OutRecManager {
             }
 
             const [op1Index, op1bIndex] = outPt1Res;
-            const op1: OutPt = OutPt.at(op1Index);
-            const op1b: OutPt = OutPt.at(op1bIndex);
+            const op1: OutPt = this.outRec.at(op1Index);
+            const op1b: OutPt = this.outRec.at(op1bIndex);
             //a flat 'polygon'
             const outPt2Res = this.outRec.flatHorizontal(outPt2Index, op1Index, op1bIndex);
 
@@ -337,8 +336,8 @@ export default class OutRecManager {
             }
 
             const [op2Index, op2bIndex] = outPt2Res;
-            const op2: OutPt = OutPt.at(op2Index);
-            const op2b: OutPt = OutPt.at(op2bIndex);
+            const op2: OutPt = this.outRec.at(op2Index);
+            const op2b: OutPt = this.outRec.at(op2bIndex);
             //a flat 'polygon'
             //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
@@ -380,8 +379,8 @@ export default class OutRecManager {
 
         let op1 = outPt1;
         let op2 = outPt2;
-        let op1b: OutPt = OutPt.at(this.outRec.getUniquePt(op1.current, true));
-        let op2b: OutPt = OutPt.at(this.outRec.getUniquePt(op2.current, true));
+        let op1b: OutPt = this.outRec.at(this.outRec.getUniquePt(op1.current, true));
+        let op2b: OutPt = this.outRec.at(this.outRec.getUniquePt(op2.current, true));
         //nb: For non-horizontal joins ...
         //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
         //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
@@ -390,7 +389,7 @@ export default class OutRecManager {
         const reverse1: boolean = this.tEdge.checkReverse(op1.point, op1b.point, offPoint);
 
         if (reverse1) {
-            op1b = OutPt.at(this.outRec.getUniquePt(op1.current, false));
+            op1b = this.outRec.at(this.outRec.getUniquePt(op1.current, false));
 
             if (this.tEdge.checkReverse(op1.point, op1b.point, offPoint)) {
                 return result;
@@ -400,7 +399,7 @@ export default class OutRecManager {
         const reverse2: boolean = this.tEdge.checkReverse(op2.point, op2b.point, offPoint);
 
         if (reverse2) {
-            op2b = OutPt.at(this.outRec.getUniquePt(op2.current, false));
+            op2b = this.outRec.at(this.outRec.getUniquePt(op2.current, false));
 
             if (this.tEdge.checkReverse(op2.point, op2b.point, offPoint)) {
                 return result;
@@ -420,7 +419,7 @@ export default class OutRecManager {
 
     private horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, edgeIndex: number): boolean {
         const outPtIndex = get_u16_from_u32(outHash, 1);
-        const outPt = OutPt.at(outPtIndex);
+        const outPt = this.outRec.at(outPtIndex);
         const top = this.tEdge.top(edgeIndex);
         const bot = this.tEdge.bot(edgeIndex);
 
