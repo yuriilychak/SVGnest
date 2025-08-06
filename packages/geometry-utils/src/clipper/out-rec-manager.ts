@@ -161,29 +161,15 @@ export default class OutRecManager {
         const firstSide = this.tEdge.side(firstIndex);
         const secondSide = this.tEdge.side(secondIndex);
 
-        const holeStateRec = this.outRec.getHoleStateRec(firstRecIndex, secondRecIndex);
-        //join e2 poly onto e1 poly and delete pointers to e2 ...
-        this.outRec.join(firstRecIndex, secondRecIndex, firstSide, secondSide);
-
-        const side = firstSide;
-
-        if (holeStateRec === secondRecIndex) {
-            if (this.outRec.firstLeftIndex(secondRecIndex) !== firstRecIndex) {
-                this.outRec.setFirstLeftIndex(firstRecIndex, this.outRec.firstLeftIndex(secondRecIndex));
-            }
-
-            this.outRec.setHole(firstRecIndex, this.outRec.isHole(secondRecIndex));
-        }
-
-        this.outRec.setPointIndex(secondRecIndex, UNASSIGNED);
-        this.outRec.setFirstLeftIndex(secondRecIndex, firstRecIndex);
+        this.outRec.joinPolys(firstRecIndex, secondRecIndex, firstSide, secondSide);
+        
         const OKIdx: number = this.tEdge.getRecIndex(firstIndex);
         const ObsoleteIdx: number = this.tEdge.getRecIndex(secondIndex);
         this.tEdge.unassign(firstIndex);
         //nb: safe because we only get here via AddLocalMaxPoly
         this.tEdge.unassign(secondIndex);
 
-        this.tEdge.updateIndexAEL(side, ObsoleteIdx, OKIdx);
+        this.tEdge.updateIndexAEL(firstSide, ObsoleteIdx, OKIdx);
 
         this.outRec.setCurrentIndex(secondRecIndex, firstRecIndex);
     }
@@ -344,10 +330,10 @@ export default class OutRecManager {
             //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
             const value = PointI32.getOverlap(
-                this.outRec.point(op1Index).x,
-                this.outRec.point(op1bIndex).x,
-                this.outRec.point(op2Index).x,
-                this.outRec.point(op2bIndex).x
+                this.outRec.pointX(op1Index),
+                this.outRec.pointX(op1bIndex),
+                this.outRec.pointX(op2Index),
+                this.outRec.pointX(op2bIndex)
             );
             const isOverlapped = value.x < value.y;
 
@@ -358,28 +344,9 @@ export default class OutRecManager {
             //DiscardLeftSide: when overlapping edges are joined, a spike will created
             //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
             //on the discard Side as either may still be needed for other joins ...
-            const point = PointI32.create();
-            let discardLeftSide: boolean = false;
-            if (this.outRec.point(op1Index).x >= value.x && this.outRec.point(op1Index).x <= value.y) {
-                //Pt = op1.Pt;
-                point.update(this.outRec.point(op1Index));
-                discardLeftSide = this.outRec.point(op1Index).x > this.outRec.point(op1bIndex).x;
-            } else if (this.outRec.point(op2Index).x >= value.x && this.outRec.point(op2Index).x <= value.y) {
-                //Pt = op2.Pt;
-                point.update(this.outRec.point(op2Index));
-                discardLeftSide = this.outRec.point(op2Index).x > this.outRec.point(op2bIndex).x;
-            } else if (this.outRec.point(op1bIndex).x >= value.x && this.outRec.point(op1bIndex).x <= value.y) {
-                //Pt = op1b.Pt;
-                point.update(this.outRec.point(op1bIndex));
-                discardLeftSide = this.outRec.point(op1bIndex).x > this.outRec.point(op1Index).x;
-            } else {
-                //Pt = op2b.Pt;
-                point.update(this.outRec.point(op2bIndex));
-                discardLeftSide = this.outRec.point(op2bIndex).x > this.outRec.point(op2Index).x;
-            }
             result.outHash1 = join_u16_to_u32(index1, op1Index);
             result.outHash2 = join_u16_to_u32(index2, op2Index);
-            result.result = this.outRec.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, point, discardLeftSide);
+            result.result = this.outRec.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, value);
 
             return result;
         }
