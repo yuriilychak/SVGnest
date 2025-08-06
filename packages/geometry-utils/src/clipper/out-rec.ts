@@ -8,6 +8,7 @@ import { PointI32 } from '../geometry';
 export default class OutRec {
     private recData: Int16Array[] = [];
     private points: OutPt[] = [];
+    private pointNeighboars: Int16Array[] = [];
 
     public at(index: number): OutPt | null {
         return index >= 0 && index < this.points.length ? this.points[index] : null;
@@ -729,6 +730,7 @@ export default class OutRec {
     private createOutPt(point: Point<Int32Array>): OutPt {
         const outPt = new OutPt(this.points.length, point);
         this.points.push(outPt);
+        this.pointNeighboars.push(new Int16Array([UNASSIGNED, UNASSIGNED]));
 
         return outPt;
     }
@@ -748,14 +750,40 @@ export default class OutRec {
         return result.current;
     }
 
-    private getNeighboarIndex(index: number, isNext: boolean): number {
-        const outPt = this.at(index);
+    public next(index: number): number {
+        return this.getNeighboarIndex(index, true);
+    }
 
+    public setNext(index: number, value: number): void {
+        this.setNeighboarIndex(index, true, value);
+    }
+
+    public prev(index: number): number {
+        return this.getNeighboarIndex(index, false);
+    }
+
+    public setPrev(index: number, value: number): void {
+        this.setNeighboarIndex(index, false, value);
+    }
+
+    private setNeighboarIndex(index: number, isNext: boolean, value: number): void {
+        if (index === UNASSIGNED) {
+            return;
+        }
+
+        const neighboarIndex = isNext ? 1 : 0;
+
+        this.pointNeighboars[index][neighboarIndex] = value;
+    }
+
+    private getNeighboarIndex(index: number, isNext: boolean): number {
         if (index == UNASSIGNED) {
             return UNASSIGNED;
         }
 
-        return isNext ? outPt.next : outPt.prev;
+        const neighboarIndex = isNext ? 1 : 0;
+
+        return this.pointNeighboars[index][neighboarIndex];
     }
 
     private almostEqual(index1: number, index2: number): boolean {
