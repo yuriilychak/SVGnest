@@ -122,7 +122,7 @@ export default class OutRec {
 
         for (i = 0; i < pointCount; ++i) {
             result[i] = outPt.point.clone();
-            outPt = this.at(outPt.prev);
+            outPt = this.at(this.prev(outPt.current));
         }
 
         return result;
@@ -157,12 +157,12 @@ export default class OutRec {
         let outPt = this.at(index);
 
         while (true) {
-            if (outPt.prev === outPt.current || outPt.prev === outPt.next) {
+            if (this.prev(outPt.current) === outPt.current || this.prev(outPt.current) === this.next(outPt.current)) {
                 return UNASSIGNED;
             }
 
-            const nextPt = this.at(outPt.next);
-            const prevPt = this.at(outPt.prev);
+            const nextPt = this.at(this.next(outPt.current));
+            const prevPt = this.at(this.prev(outPt.current));
             //test for duplicate points and collinear edges ...
             if (
                 this.almostEqual(outPt.current, prevPt.current) ||
@@ -184,7 +184,7 @@ export default class OutRec {
                 lastOutIndex = outPt.current;
             }
 
-            outPt = this.at(outPt.next);
+            outPt = this.at(this.next(outPt.current));
         }
 
         return outPt.current;
@@ -219,9 +219,9 @@ export default class OutRec {
                 return outRec1Index;
             case bPt1.point.x > bPt2.point.x:
                 return outRec2Index;
-            case bPt1.current === bPt1.next:
+            case bIndex1 === this.next(bIndex1):
                 return outRec2Index;
-            case bPt2.current === bPt2.next:
+            case bIndex2 === this.next(bIndex2):
                 return outRec1Index;
             case this.firstIsBottomPt(bIndex1, bIndex2):
                 return outRec1Index;
@@ -315,7 +315,7 @@ export default class OutRec {
 
         do {
             ++result;
-            outPt = this.at(outPt.next);
+            outPt = this.at(this.next(outPt.current));
         } while (outPt.current !== prevIndex);
 
         return result;
@@ -351,7 +351,7 @@ export default class OutRec {
 
     private insertBefore(inputPt: OutPt, point: Point<Int32Array>): number {
         const outPt = this.createOutPt(point);
-        this.push(inputPt.prev, outPt.current, true);
+        this.push(this.prev(inputPt.current), outPt.current, true);
         this.push(outPt.current, inputPt.current, true);
 
         return outPt.current;
@@ -366,7 +366,7 @@ export default class OutRec {
             return op.current;
         }
 
-        const prev = this.at(op.prev);
+        const prev = this.at(this.prev(op.current));
 
         if (!isToFront && point.almostEqual(prev.point)) {
             return prev.current;
@@ -395,7 +395,7 @@ export default class OutRec {
         let d: number = 0;
 
         while (true) {
-            const nextPt = this.at(outPt.next);
+            const nextPt = this.at(this.next(outPt.current));
             poly0x = outPt.point.x;
             poly0y = outPt.point.y;
             poly1x = nextPt.point.x;
@@ -437,7 +437,7 @@ export default class OutRec {
                 }
             }
 
-            outPt = this.at(outPt.next);
+            outPt = this.at(this.next(outPt.current));
 
             if (startOutPt.current === outPt.current) {
                 break;
@@ -479,9 +479,9 @@ export default class OutRec {
         let result: number = 0;
 
         do {
-            let prevPt: OutPt = this.at(outPt.prev);
+            let prevPt: OutPt = this.at(this.prev(outPt.current));
             result = result + (prevPt.point.x + outPt.point.x) * (prevPt.point.y - outPt.point.y);
-            outPt = this.at(outPt.next);
+            outPt = this.at(this.next(outPt.current));
         } while (outPt.current != index);
 
         return result * 0.5;
@@ -512,12 +512,12 @@ export default class OutRec {
                 if (outPt2.point.x < outPt1.point.x) {
                     dupsIndex = UNASSIGNED;
                     outIndex1 = outIndex2;
-                } else if (outPt2.next !== outIndex1 && outPt2.prev !== outIndex1) {
+                } else if (this.next(outPt2.current) !== outIndex1 && this.prev(outPt2.current) !== outIndex1) {
                     dupsIndex = outIndex2;
                 }
             }
 
-            outIndex2 = outPt2.next;
+            outIndex2 = this.next(outPt2.current);
         }
 
         if (dupsIndex !== UNASSIGNED) {
@@ -564,10 +564,10 @@ export default class OutRec {
 
     public strictlySimpleJoin(index: number, point: Point<Int32Array>): boolean {
         const outPt = this.at(index);
-        let result = this.at(outPt.next);
+        let result = this.at(this.next(index));
 
         while (result.current !== outPt.current && result.point.almostEqual(point)) {
-            result = this.at(result.next);
+            result = this.at(this.next(result.current));
         }
 
         return result.point.y > point.y;
@@ -602,19 +602,18 @@ export default class OutRec {
         let pp1: OutPt = this.at(index);
 
         do {
-            const pp2 = this.at(pp1.next);
-            pp1.next = pp1.prev;
-            pp1.prev = pp2.current;
+            const pp2 = this.at(this.next(pp1.current));
+            this.setNext(pp1.current, this.prev(pp1.current));
+            this.setPrev(pp1.current, pp2.current);
             pp1 = pp2;
         } while (pp1.current !== index);
     }
 
     private remove(index: number): OutPt {
-        const outPt = this.at(index);
-        const result = this.at(outPt.prev);
-        this.push(outPt.prev, outPt.next, true);
-        outPt.prev = UNASSIGNED;
-        outPt.next = UNASSIGNED;
+        const result = this.at(this.prev(index));
+        this.push(this.prev(index), this.next(index), true);
+        this.setPrev(index, UNASSIGNED);
+        this.setNext(index, UNASSIGNED);
 
         return result;
     }
@@ -660,11 +659,11 @@ export default class OutRec {
         const isRightOrder = isDiscardLeft !== isRight;
 
         while (this.getDiscarded(op.current, isRight, point)) {
-            op = this.at(op.next);
+            op = this.at(this.next(op.current));
         }
 
         if (!isRightOrder && op.point.x !== point.x) {
-            op = this.at(op.next);
+            op = this.at(this.next(op.current));
         }
 
         opB = this.at(this.duplicate(op.current, isRightOrder));
@@ -680,13 +679,12 @@ export default class OutRec {
     }
 
     public getDiscarded(index: number, isRight: boolean, pt: Point<Int32Array>): boolean {
-        const outPt = this.at(index);
-
-        if (outPt.next === UNASSIGNED) {
+        if (this.next(index) === UNASSIGNED) {
             return false;
         }
 
-        const next = this.at(outPt.next);
+        const outPt = this.at(index);
+        const next = this.at(this.next(index));
         const nextX = next.point.x;
         const currX = outPt.point.x;
         const nextY = next.point.y;
@@ -740,10 +738,10 @@ export default class OutRec {
         const result: OutPt = this.createOutPt(outPt.point);
 
         if (isInsertAfter) {
-            this.push(result.current, outPt.next, true);
+            this.push(result.current, this.next(index), true);
             this.push(index, result.current, true);
         } else {
-            this.push(outPt.prev, result.current, true);
+            this.push(this.prev(index), result.current, true);
             this.push(result.current, index, true);
         }
 
@@ -798,15 +796,12 @@ export default class OutRec {
     }
 
     public push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
-        const outPt1 = this.at(outPt1Index);
-        const outPt2 = this.at(outPt2Index);
-
         if (isReverse) {
-            outPt1.next = outPt2Index;
-            outPt2.prev = outPt1Index;
+            this.setNext(outPt1Index, outPt2Index);
+            this.setPrev(outPt2Index, outPt1Index);
         } else {
-            outPt1.prev = outPt2Index;
-            outPt2.next = outPt1Index;
+            this.setPrev(outPt1Index, outPt2Index);
+            this.setNext(outPt2Index, outPt1Index);
         }
     }
 
