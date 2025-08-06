@@ -476,7 +476,7 @@ export default class TEdgeManager {
         }
     }
 
-    public processEdgesAtTopOfScanbeam(topY: number, strictlySimple: boolean): void {
+    public processEdgesAtTopOfScanbeam(topY: number): void {
         let isMaximaEdge: boolean = false;
         let outPt1: number = UNASSIGNED;
         let edgeIndex: number = this.tEdge.active;
@@ -519,7 +519,7 @@ export default class TEdgeManager {
             }
 
 
-            if (strictlySimple && this.tEdge.canAddScanbeam(edgeIndex)) {
+            if (this.outRecManager.strictlySimple && this.tEdge.canAddScanbeam(edgeIndex)) {
                 this.outRecManager.addScanbeamJoin(edgeIndex, this.tEdge.prevActive(edgeIndex), this.tEdge.curr(edgeIndex));
                 //StrictlySimple (type-3) join
             }

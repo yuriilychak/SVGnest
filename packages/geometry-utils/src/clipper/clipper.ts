@@ -92,7 +92,7 @@ export default class Clipper {
                     return false;
                 }
 
-                this.tEdgeManager.processEdgesAtTopOfScanbeam(topY, this.outRecManager.strictlySimple);
+                this.tEdgeManager.processEdgesAtTopOfScanbeam(topY);
 
                 botY = topY;
             } while (!this.scanbeam.isEmpty || !this.tEdgeManager.isMinimaEmpty);

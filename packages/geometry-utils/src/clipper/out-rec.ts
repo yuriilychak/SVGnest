@@ -1,4 +1,4 @@
-import { join_u16_to_u32, get_u16_from_u32 } from 'wasm-nesting';
+import { join_u16_to_u32 } from 'wasm-nesting';
 import { Point } from '../types';
 import { HORIZONTAL, UNASSIGNED } from './constants';
 import { DIRECTION } from './types';
@@ -7,12 +7,23 @@ export default class OutRec {
     private recData: Int16Array[] = [];
     private pointNeighboars: Int16Array[] = [];
     private points: Point<Int32Array>[] = [];
+    private isReverseSolution: boolean = false;
+    private isStrictlySimple: boolean = false;
 
-    public pointIndex(index: number): number {
+    constructor(isReverseSolution: boolean, isStrictlySimple: boolean) {
+        this.isReverseSolution = isReverseSolution;
+        this.isStrictlySimple = isStrictlySimple;
+    }
+
+    public get strictlySimple(): boolean {
+        return this.isStrictlySimple;
+    }
+
+    private pointIndex(index: number): number {
         return this.recData[index][0];
     }
 
-    public setPointIndex(index: number, value: number): void {
+    private setPointIndex(index: number, value: number): void {
         this.recData[index][0] = value;
     }
 
@@ -36,11 +47,11 @@ export default class OutRec {
         this.recData[index][2] = value;
     }
 
-    public isHole(index: number): boolean {
+    private isHole(index: number): boolean {
         return this.recData[index][3] === 1;
     }
 
-    public setHole(index: number, value: boolean): void {
+    private setHole(index: number, value: boolean): void {
         this.recData[index][3] = value ? 1 : 0;
     }
 
@@ -131,9 +142,9 @@ export default class OutRec {
         }
     }
 
-    public fixDirections(isReverseSolution: boolean): void {
+    public fixDirections(): void {
         for (let i = 0; i < this.recData.length; ++i) {
-            this.reverse(i, isReverseSolution);
+            this.reverse(i);
         }
     }
 
@@ -184,14 +195,14 @@ export default class OutRec {
         return outPt;
     }
 
-    public fixOutPolygon(isStrictlySimple: boolean, isUseFullRange: boolean) {
+    public fixOutPolygon(isUseFullRange: boolean) {
         for (let i = 0; i < this.recData.length; ++i) {
             if (!this.isUnassigned(i)) {
                 this.setPointIndex(i, this.fixupOutPolygonInner(i, false, isUseFullRange));
             }
         }
 
-        if (isStrictlySimple) {
+        if (this.isStrictlySimple) {
             for (let i = 0; i < this.recData.length; ++i) {
                 this.simplify(i);
             }
@@ -288,11 +299,11 @@ export default class OutRec {
         }
     }
 
-    public postInit(recIndex: number, isReverseSolution: boolean): void {
+    public postInit(recIndex: number): void {
         this.setHole(recIndex, !this.isHole(recIndex));
         this.setFirstLeftIndex(recIndex, recIndex);
 
-        this.reverse(recIndex, isReverseSolution);
+        this.reverse(recIndex);
     }
 
     private getLength(index: number): number {
@@ -460,8 +471,8 @@ export default class OutRec {
         return true;
     }
 
-    private reverse(index: number, isReverseSolution: boolean): void {
-        if (!this.isUnassigned(index) && (this.isHole(index) !== isReverseSolution) === this.getArea(index) > 0) {
+    private reverse(index: number): void {
+        if (!this.isUnassigned(index) && (this.isHole(index) !== this.isReverseSolution) === this.getArea(index) > 0) {
             this.reverseInner(this.pointIndex(index));
         }
     }
@@ -832,5 +843,29 @@ export default class OutRec {
 
         this.setPointIndex(secondRecIndex, UNASSIGNED);
         this.setFirstLeftIndex(secondRecIndex, firstRecIndex);
+    }
+
+    public joinPolys2(outRec1: number, outRec2: number): void {
+        const holeStateRec = this.getHoleStateRec(outRec1, outRec2);
+        //joined 2 polygons together ...
+        this.setPointIndex(outRec2, UNASSIGNED);
+        this.setCurrentIndex(outRec2, outRec1);
+        this.setHole(outRec1, this.isHole(holeStateRec));
+
+        if (holeStateRec === outRec2) {
+            this.setFirstLeftIndex(outRec1, this.firstLeftIndex(outRec2));
+        }
+
+        this.setFirstLeftIndex(outRec2, outRec1);
+    }
+
+    public splitPolys(outRec1: number, outPt1Index: number, outPt2Index: number): number {
+        //instead of joining two polygons, we've just created a new one by
+        //splitting one polygon into two.
+        this.setPointIndex(outRec1, outPt1Index);
+        const outRec2 = this.create(outPt2Index);
+        this.postInit(outRec2);
+
+        return outRec2;
     }
 }
