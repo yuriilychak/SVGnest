@@ -94,10 +94,10 @@ export default class Clipper {
             succeeded = this.executeInternal();
             //build the return polygons ...
             if (succeeded) {
-                this.buildResult(solution);
+                this.outRec.buildResult(solution);
             }
         } finally {
-            this.dispose();
+            this.outRec.dispose();
             this.tEdge.dispose();
             this.isExecuteLocked = false;
         }
@@ -118,7 +118,7 @@ export default class Clipper {
 
             do {
                 this.insertLocalMinimaIntoAEL(botY);
-                this.clearGhostJoins();
+                this.join.clearGhosts()
                 this.processHorizontals(false);
 
                 if (this.scanbeam.isEmpty) {
@@ -871,13 +871,16 @@ export default class Clipper {
         //we can compare with horizontals at the bottom of the next SB.
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        const [outPtHash, x, y] = this.getJoinData(horzEdgeIndex);
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        const recIndex = this.tEdge.getRecIndex(horzEdgeIndex);
+        const side = this.tEdge.side(horzEdgeIndex);
+        const top = this.tEdge.top(horzEdgeIndex);
+        const bot = this.tEdge.bot(horzEdgeIndex);
+
+        const [outPtHash, x, y] = this.outRec.getJoinData(recIndex, side, top, bot);
 
         this.join.addGhost(outPtHash, x, y);
-    }
-
-    public clearGhostJoins() {
-        this.join.clearGhosts();
     }
 
     public addOutPt(edgeIndex: number, point: Point<Int32Array>): number {
@@ -886,7 +889,6 @@ export default class Clipper {
 
         if (!this.tEdge.isAssigned(edgeIndex)) {
             pointIndex = this.outRec.fromPoint(point);
-
             outRecIndex = this.outRec.create(pointIndex);
 
             this.setHoleState(outRecIndex, edgeIndex);
@@ -896,8 +898,8 @@ export default class Clipper {
         } else {
             const isToFront: boolean = this.tEdge.side(edgeIndex) === DIRECTION.LEFT;
             const recIndex = this.tEdge.getRecIndex(edgeIndex);
-            outRecIndex = this.outRec.getOutRec(recIndex);
 
+            outRecIndex = this.outRec.getOutRec(recIndex);
             pointIndex = this.outRec.addOutPt(recIndex, isToFront, point);
         }
 
@@ -983,25 +985,6 @@ export default class Clipper {
         }
 
         this.outRec.fixOutPolygon(this.tEdge.isUseFullRange);
-    }
-
-    public buildResult(polygons: Point<Int32Array>[][]): void {
-        return this.outRec.buildResult(polygons);
-    }
-
-    public dispose(): void {
-        this.outRec.dispose();
-    }
-
-    private getJoinData(index: number) {
-        //get the last Op for this horizontal edge
-        //the point may be anywhere along the horizontal ...
-        const recIndex = this.tEdge.getRecIndex(index);
-        const side = this.tEdge.side(index);
-        const top = this.tEdge.top(index);
-        const bot = this.tEdge.bot(index);
-
-        return this.outRec.getJoinData(recIndex, side, top, bot);
     }
 
     private setHoleState(recIndex: number, edgeIndex: number): void {
