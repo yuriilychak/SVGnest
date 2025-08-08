@@ -843,6 +843,7 @@ export default class OutRec {
 
         this.setPointIndex(secondRecIndex, UNASSIGNED);
         this.setFirstLeftIndex(secondRecIndex, firstRecIndex);
+        this.setCurrentIndex(secondRecIndex, firstRecIndex);
     }
 
     public joinPolys2(outRec1: number, outRec2: number): void {

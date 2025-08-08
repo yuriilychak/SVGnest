@@ -416,11 +416,7 @@ export default class Clipper {
             while (currIndex !== UNASSIGNED) {
                 //Break if we've got to the end of an intermediate horizontal edge ...
                 //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
-                if (
-                    this.tEdge.curr(currIndex).x === this.tEdge.top(horzIndex).x &&
-                    this.tEdge.hasNextLocalMinima(horzIndex) &&
-                    this.tEdge.dx(currIndex) < this.tEdge.dx(this.tEdge.getNextLocalMinima(horzIndex))
-                ) {
+                if (this.tEdge.isIntermediateHorizontalEnd(currIndex, horzIndex)) {
                     break;
                 }
 
@@ -730,40 +726,23 @@ export default class Clipper {
         return true;
     }
 
+    private insertLocalMinimaPt(leftBoundIndex: number, rightBoundIndex: number): number {
+        const index = leftBoundIndex !== UNASSIGNED ? leftBoundIndex : rightBoundIndex;
+        const bot = this.tEdge.bot(index);
+
+        return leftBoundIndex !== UNASSIGNED && rightBoundIndex !== UNASSIGNED 
+            ? this.addLocalMinPoly(leftBoundIndex, rightBoundIndex, bot)  
+            : this.addOutPt(index, bot);
+    }
+
     public insertLocalMinimaIntoAEL(botY: number): void {
-        let outPt: number = UNASSIGNED;
-
         while (!Number.isNaN(this.localMinima.minY) && this.localMinima.minY === botY) {
-            let [leftBoundIndex, rightBoundIndex] = this.localMinima.pop();
-            outPt = UNASSIGNED;
+            const [leftBoundIndex, rightBoundIndex] = this.localMinima.pop();
+            const outPt = this.tEdge.insertLocalMinimaIntoAEL(leftBoundIndex, rightBoundIndex)  
+                ? this.insertLocalMinimaPt(leftBoundIndex, rightBoundIndex)
+                : UNASSIGNED;
 
-            if (leftBoundIndex === UNASSIGNED) {
-                this.tEdge.insertEdgeIntoAEL(rightBoundIndex);
-                this.tEdge.setWindingCount(rightBoundIndex);
-
-                if (this.tEdge.getContributing(rightBoundIndex)) {
-                    outPt = this.addOutPt(rightBoundIndex, this.tEdge.bot(rightBoundIndex));
-                }
-            } else if (rightBoundIndex === UNASSIGNED) {
-                this.tEdge.insertEdgeIntoAEL(leftBoundIndex);
-                this.tEdge.setWindingCount(leftBoundIndex);
-
-                if (this.tEdge.getContributing(leftBoundIndex)) {
-                    outPt = this.addOutPt(leftBoundIndex, this.tEdge.bot(leftBoundIndex));
-                }
-
-                this.scanbeam.insert(this.tEdge.top(leftBoundIndex).y);
-            } else {
-                this.tEdge.insertEdgeIntoAEL(leftBoundIndex);
-                this.tEdge.insertEdgeIntoAEL(rightBoundIndex, leftBoundIndex);
-                this.tEdge.setWindingCount(leftBoundIndex);
-                this.tEdge.setWindCount1(rightBoundIndex, this.tEdge.windCount1(leftBoundIndex));
-                this.tEdge.setWindCount2(rightBoundIndex, this.tEdge.windCount2(leftBoundIndex));
-
-                if (this.tEdge.getContributing(leftBoundIndex)) {
-                    outPt = this.addLocalMinPoly(leftBoundIndex, rightBoundIndex, this.tEdge.bot(leftBoundIndex));
-                }
-
+            if (leftBoundIndex !== UNASSIGNED) {
                 this.scanbeam.insert(this.tEdge.top(leftBoundIndex).y);
             }
 
@@ -917,17 +896,9 @@ export default class Clipper {
         }
 
         result = this.addOutPt(firstIndex, point);
-        this.tEdge.setRecIndex(secondIndex, this.tEdge.getRecIndex(firstIndex));
-        this.tEdge.setSide(secondIndex, DIRECTION.RIGHT);
-        this.tEdge.setSide(firstIndex, DIRECTION.LEFT);
+        const { condition, prevIndex, top } = this.tEdge.addLocalMinPoly(firstIndex, secondIndex, point);
 
-        const prevIndex =
-            this.tEdge.prevActive(firstIndex) === secondIndex
-                ? this.tEdge.prevActive(secondIndex)
-                : this.tEdge.prevActive(firstIndex);
-        const condition = this.tEdge.checkMinJoin(firstIndex, prevIndex, point);
-
-        this.insertJoin(condition, result, prevIndex, point, this.tEdge.top(firstIndex));
+        this.insertJoin(condition, result, prevIndex, point, top);
 
         return result;
     }
@@ -958,17 +929,8 @@ export default class Clipper {
         const firstSide = this.tEdge.side(firstIndex);
         const secondSide = this.tEdge.side(secondIndex);
 
+        this.tEdge.addLocalMaxPoly(firstIndex, secondIndex);
         this.outRec.joinPolys(firstRecIndex, secondRecIndex, firstSide, secondSide);
-
-        const OKIdx: number = this.tEdge.getRecIndex(firstIndex);
-        const ObsoleteIdx: number = this.tEdge.getRecIndex(secondIndex);
-        this.tEdge.unassign(firstIndex);
-        //nb: safe because we only get here via AddLocalMaxPoly
-        this.tEdge.unassign(secondIndex);
-
-        this.tEdge.updateIndexAEL(firstSide, ObsoleteIdx, OKIdx);
-
-        this.outRec.setCurrentIndex(secondRecIndex, firstRecIndex);
     }
 
     public fixupOutPolygon(): void {
