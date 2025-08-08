@@ -93,9 +93,10 @@ export default class OutRec {
     public getJoinData(recIndex: number, direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        const index: number = direction === DIRECTION.RIGHT
-            ? this.getNeighboarIndex(this.pointIndex(recIndex), false)
-            : this.pointIndex(recIndex);
+        const index: number =
+            direction === DIRECTION.RIGHT
+                ? this.getNeighboarIndex(this.pointIndex(recIndex), false)
+                : this.pointIndex(recIndex);
         const offPoint = this.point(index).almostEqual(top) ? bottom : top;
 
         return [this.getHash(recIndex, index), offPoint.x, offPoint.y];
@@ -241,11 +242,12 @@ export default class OutRec {
         this.push(op1Prev, op2Index, true);
     }
 
-
     private canSplit(index1: number, index2: number): boolean {
-        return this.almostEqual(index2, index1) &&
+        return (
+            this.almostEqual(index2, index1) &&
             this.getNeighboarIndex(index2, true) != index1 &&
-            this.getNeighboarIndex(index2, false) != index1;
+            this.getNeighboarIndex(index2, false) != index1
+        );
     }
 
     public simplify(recIndex: number): void {
@@ -361,7 +363,7 @@ export default class OutRec {
     }
 
     public addOutPt(recIndex: number, isToFront: boolean, point: Point<Int32Array>): number {
-        const outRec: number = this.getOutRec(recIndex)
+        const outRec: number = this.getOutRec(recIndex);
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
         const op: number = this.pointIndex(outRec);
 
@@ -625,7 +627,13 @@ export default class OutRec {
         return dx1p >= maxDx || dx1n >= maxDx;
     }
 
-    public joinHorz(op1Index: number, op1bIndex: number, op2Index: number, op2bIndex: number, value: Point<Int32Array>): boolean {
+    public joinHorz(
+        op1Index: number,
+        op1bIndex: number,
+        op2Index: number,
+        op2bIndex: number,
+        value: Point<Int32Array>
+    ): boolean {
         const point = PointI32.create();
         let isDiscardLeft: boolean = false;
 
@@ -667,7 +675,12 @@ export default class OutRec {
         return true;
     }
 
-    private joinHorzInt(index1: number, index2: number, point: Point<Int32Array>, isDiscardLeft: boolean): { op: number, opB: number, isRightOrder: boolean } {
+    private joinHorzInt(
+        index1: number,
+        index2: number,
+        point: Point<Int32Array>,
+        isDiscardLeft: boolean
+    ): { op: number; opB: number; isRightOrder: boolean } {
         let op: number = index1;
         let opB: number = index2;
 
@@ -705,13 +718,11 @@ export default class OutRec {
         const currX = this.pointX(index);
         const nextY = this.pointY(next);
 
-        return isRight
-            ? nextX <= pt.x && nextX >= currX && nextY === pt.y
-            : nextX >= pt.x && nextX <= currX && nextY === pt.y;
+        return isRight ? nextX <= pt.x && nextX >= currX && nextY === pt.y : nextX >= pt.x && nextX <= currX && nextY === pt.y;
     }
 
     private getDirection(index1: number, index2: number): DIRECTION {
-        return this.pointX(index1) > this.pointX(index2) ? DIRECTION.LEFT : DIRECTION.RIGHT
+        return this.pointX(index1) > this.pointX(index2) ? DIRECTION.LEFT : DIRECTION.RIGHT;
     }
 
     private getDistance(inputIndex: number, isNext: boolean): number {
@@ -738,15 +749,15 @@ export default class OutRec {
 
     public point(index: number): Point<Int32Array> {
         return this.points[index];
-    }   
+    }
 
     public pointX(index: number): number {
         return this.points[index].x;
-    }   
+    }
 
     public pointY(index: number): number {
         return this.points[index].y;
-    }   
+    }
 
     private createOutPt(point: Point<Int32Array>): number {
         const index = this.points.length;
@@ -868,5 +879,14 @@ export default class OutRec {
         this.postInit(outRec2);
 
         return outRec2;
+    }
+
+    public getOverlap(op1Index: number, op1bIndex: number, op2Index: number, op2bIndex: number): Point<Int32Array> {
+        return PointI32.getOverlap(
+            this.pointX(op1Index),
+            this.pointX(op1bIndex),
+            this.pointX(op2Index),
+            this.pointX(op2bIndex)
+        );
     }
 }

@@ -143,10 +143,6 @@ export default class TEdge {
         return this._points[index][2];
     }
 
-    public delta(index: number): Point<Int32Array> {
-        return this._points[index][3];
-    }
-
     public dispose(): void {
         this._edgeData.length = 0;
         this._wind.length = 0;
@@ -158,18 +154,6 @@ export default class TEdge {
 
     public side(index: number): DIRECTION {
         return this._side[index];
-    }
-
-    public setSide(index: number, value: DIRECTION): void {
-        if (this.getIndexValid(index)) {
-            this._side[index] = value;
-        } else {
-            showError(`TEdgeController.setSide: index ${index} is out of bounds`);
-        }
-    }
-
-    public getClockwise(index: number): boolean {
-        return this.dx(index) >= this.dx(this.prev(index));
     }
 
     public createLocalMinima(edgeIndex: number): number[] {
@@ -190,10 +174,6 @@ export default class TEdge {
 
     public dx(index: number): number {
         return this._dx[index];
-    }
-
-    public isDxHorizontal(index: number): boolean {
-        return this.dx(index) === HORIZONTAL;
     }
 
     public findNextLocMin(index: number): number {
@@ -257,134 +237,12 @@ export default class TEdge {
         return this.getNextLocalMinima(index) !== UNASSIGNED;
     }
 
-    public processBound(index: number, isClockwise: boolean): number {
-        if (this.isDxHorizontal(index)) {
-            //it's possible for adjacent overlapping horz edges to start heading left
-            //before finishing right, so ...
-            const neighboarIndex = this.baseNeighboar(index, !isClockwise);
-
-            if (this.bot(index).x !== this.bot(neighboarIndex).x) {
-                this.reverseHorizontal(index);
-            }
-        }
-
-        let neighboarIndex = this.baseNeighboar(index, isClockwise);
-        let resultIndex = index;
-
-        while (this.top(resultIndex).y === this.bot(neighboarIndex).y) {
-            resultIndex = neighboarIndex;
-            neighboarIndex = this.baseNeighboar(neighboarIndex, isClockwise);
-        }
-
-        if (this.isDxHorizontal(resultIndex)) {
-            //nb: at the top of a bound, horizontals are added to the bound
-            //only when the preceding edge attaches to the horizontal's left vertex
-            //unless a Skip edge is encountered when that becomes the top divide
-            let horzNeighboarIndex = this.baseNeighboar(resultIndex, !isClockwise);
-
-            while (this.isDxHorizontal(horzNeighboarIndex)) {
-                horzNeighboarIndex = this.baseNeighboar(horzNeighboarIndex, !isClockwise);
-            }
-
-            const currNeighboarIndex = this.baseNeighboar(resultIndex, isClockwise);
-
-            if (
-                (this.top(horzNeighboarIndex).x === this.top(currNeighboarIndex).x && !isClockwise) ||
-                this.top(horzNeighboarIndex).x > this.top(currNeighboarIndex).x
-            ) {
-                resultIndex = horzNeighboarIndex;
-            }
-        }
-
-        let edgeIndex = index;
-
-        while (edgeIndex !== resultIndex) {
-            const localMinima = this.baseNeighboar(edgeIndex, isClockwise);
-            this.setNextLocalMinima(edgeIndex, localMinima);
-
-            if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
-                this.reverseHorizontal(edgeIndex);
-            }
-
-            edgeIndex = localMinima;
-        }
-
-        if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
-            this.reverseHorizontal(edgeIndex);
-        }
-
-        return this.baseNeighboar(resultIndex, isClockwise);
-        //move to the edge just beyond current bound
-    }
-
     public horzDirection(index: number): Float64Array {
         return new Float64Array(
             this.bot(index).x < this.top(index).x
                 ? [DIRECTION.RIGHT, this.bot(index).x, this.top(index).x]
                 : [DIRECTION.LEFT, this.top(index).x, this.bot(index).x]
         );
-    }
-
-    public windDelta(index: number): number {
-        return this._wind[index][0];
-    }
-
-    public setWindDelta(index: number, value: number): void {
-        if (this.getIndexValid(index)) {
-            this._wind[index][0] = value;
-        }
-    }
-
-    public windCount1(index: number): number {
-        return this._wind[index][1];
-    }
-
-    public setWindCount1(index: number, value: number): void {
-        if (this.getIndexValid(index)) {
-            this._wind[index][1] = value;
-        }
-    }
-
-    public windCount2(index: number): number {
-        return this._wind[index][2];
-    }
-
-    public setWindCount2(index: number, value: number): void {
-        if (this.getIndexValid(index)) {
-            this._wind[index][2] = value;
-        }
-    }
-
-    private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
-        if (edgeIndex === index) {
-            return false;
-        }
-
-        const neighboarIndex = this.baseNeighboar(edgeIndex, isNext);
-
-        return this.isDxHorizontal(edgeIndex) && this.bot(edgeIndex).x !== this.top(neighboarIndex).x;
-    }
-
-    private getIndexValid(index: number): boolean {
-        return index !== UNASSIGNED && index < this._dx.length;
-    }
-
-    private next(index: number): number {
-        return this.baseNeighboar(index, true);
-    }
-
-    private prev(index: number): number {
-        return this.baseNeighboar(index, false);
-    }
-
-    private checkMaxPair(edgeIndex: number, isNext: boolean): boolean {
-        const index = this.baseNeighboar(edgeIndex, isNext);
-
-        if (index === UNASSIGNED || this.hasNextLocalMinima(index)) {
-            return false;
-        }
-
-        return this.top(index).almostEqual(this.top(edgeIndex));
     }
 
     public getStop(index: number, point: Point<Int32Array>, isProtect: boolean): boolean {
@@ -411,33 +269,12 @@ export default class TEdge {
         return this.top(index).y === y;
     }
 
-    public swapSides(edge1Index: number, edge2Index: number): void {
-        const side1: DIRECTION = this.side(edge1Index);
-        const side2: DIRECTION = this.side(edge2Index);
-        this.setSide(edge1Index, side2);
-        this.setSide(edge2Index, side1);
-    }
-
     public swapSidesAndIndeces(edge1Index: number, edge2Index: number): void {
         const rec1Index: number = this.getRecIndex(edge1Index);
         const rec2Index: number = this.getRecIndex(edge2Index);
         this.setRecIndex(edge1Index, rec2Index);
         this.setRecIndex(edge2Index, rec1Index);
         this.swapSides(edge1Index, edge2Index);
-    }
-
-    public updateIndexAEL(side: DIRECTION, oldIndex: number, newIndex: number): void {
-        let currentIndex: number = this.active;
-
-        while (currentIndex !== UNASSIGNED) {
-            if (this.getRecIndex(currentIndex) === oldIndex) {
-                this.setRecIndex(currentIndex, newIndex);
-                this.setSide(currentIndex, side);
-                break;
-            }
-
-            currentIndex = this.nextActive(currentIndex);
-        }
     }
 
     public getHoleState(firstLeftIndex: number, edgeIndex: number): { isHole: boolean; index: number } {
@@ -502,64 +339,6 @@ export default class TEdge {
         return false;
     }
 
-    public intersectPoint(edge1Index: number, edge2Index: number, intersectPoint: Point<Int32Array>): boolean {
-        //nb: with very large coordinate values, it's possible for SlopesEqual() to
-        //return false but for the edge.Dx value be equal due to double precision rounding.
-        const dx1 = this.dx(edge1Index);
-        const dx2 = this.dx(edge2Index);
-
-        if (this.slopesEqual(edge1Index, edge2Index) || dx1 === dx2) {
-            const point: Point<Int32Array> =
-                this.bot(edge2Index).y > this.bot(edge1Index).y ? this.bot(edge2Index) : this.bot(edge1Index);
-
-            intersectPoint.update(point);
-
-            return false;
-        }
-
-        if (this.delta(edge1Index).x === 0) {
-            intersectPoint.set(
-                this.bot(edge1Index).x,
-                this.isHorizontal(edge2Index)
-                    ? this.bot(edge2Index).y
-                    : clipperRound((this.bot(edge1Index).x - this.bot(edge2Index).x) / dx2 + this.bot(edge2Index).y)
-            );
-        } else if (this.delta(edge2Index).x === 0) {
-            intersectPoint.set(
-                this.bot(edge2Index).x,
-                this.isHorizontal(edge1Index)
-                    ? this.bot(edge1Index).y
-                    : clipperRound((this.bot(edge2Index).x - this.bot(edge1Index).x) / dx1 + this.bot(edge1Index).y)
-            );
-        } else {
-            const b1 = this.bot(edge1Index).x - this.bot(edge1Index).y * dx1;
-            const b2 = this.bot(edge2Index).x - this.bot(edge2Index).y * dx2;
-            const q: number = (b2 - b1) / (dx1 - dx2);
-
-            intersectPoint.set(
-                Math.abs(dx1) < Math.abs(dx2) ? clipperRound(dx1 * q + b1) : clipperRound(dx2 * q + b2),
-                clipperRound(q)
-            );
-        }
-
-        if (intersectPoint.y < this.top(edge1Index).y || intersectPoint.y < this.top(edge2Index).y) {
-            if (this.top(edge1Index).y > this.top(edge2Index).y) {
-                intersectPoint.set(this.topX(edge2Index, this.top(edge1Index).y), this.top(edge1Index).y);
-
-                return intersectPoint.x < this.top(edge1Index).x;
-            }
-
-            intersectPoint.set(
-                Math.abs(this.dx(edge1Index)) < Math.abs(this.dx(edge2Index))
-                    ? this.topX(edge1Index, intersectPoint.y)
-                    : this.topX(edge2Index, intersectPoint.y),
-                this.top(edge2Index).y
-            );
-        }
-
-        return true;
-    }
-
     public canJoinLeft(index: number): boolean {
         if (!this.isFilled(index) || this.prevActive(index) === UNASSIGNED) {
             return false;
@@ -594,14 +373,6 @@ export default class TEdge {
         return this.isFilled(prevIndex) && this.curr(prevIndex).x === this.curr(index).x;
     }
 
-    public nextNeighboar(index: number, isAel: boolean): number {
-        return this.getNeighboar(index, true, isAel);
-    }
-
-    public prevNeighboar(index: number, isAel: boolean): number {
-        return this.getNeighboar(index, false, isAel);
-    }
-
     public nextActive(index: number): number {
         return this.nextNeighboar(index, true);
     }
@@ -622,17 +393,6 @@ export default class TEdge {
         this.setNeighboar(index, true, true, value);
     }
 
-    public setPrevActive(index: number, value: number): void {
-        this.setNeighboar(index, false, true, value);
-    }
-
-    private getNeighboarIndex(isNext: boolean, isAel: boolean) {
-        const index = isNext ? 2 : 3;
-        const offset = isAel ? 2 : 0;
-
-        return index + offset;
-    }
-
     public getNextLocalMinima(index: number): number {
         return this.getDataIndex(index, 6);
     }
@@ -645,32 +405,10 @@ export default class TEdge {
         return this.setDataIndex(index, 7, value);
     }
 
-    private baseNeighboar(index: number, isNext: boolean): number {
-        const dataIndex = isNext ? 1 : 0;
-
-        return this.getDataIndex(index, dataIndex);
-    }
-
     public getNeighboar(edgeIndex: number, isNext: boolean, isAel: boolean): number {
         const dataIndex: number = this.getNeighboarIndex(isNext, isAel);
 
         return this.getDataIndex(edgeIndex, dataIndex);
-    }
-
-    private getDataIndex(edgeIndex: number, dataIndex: number): number {
-        return this.getIndexValid(edgeIndex) ? this._edgeData[edgeIndex][dataIndex] : UNASSIGNED;
-    }
-
-    private setDataIndex(edgeIndex: number, dataIndex: number, value: number): void {
-        if (!this.getIndexValid(edgeIndex)) {
-            return;
-        }
-
-        this._edgeData[edgeIndex][dataIndex] = value;
-    }
-
-    private setNextLocalMinima(edgeIndex: number, minimaIndex: number): void {
-        this.setDataIndex(edgeIndex, 6, minimaIndex);
     }
 
     public setNeighboar(edgeIndex: number, isNext: boolean, isAel: boolean, value: number): void {
@@ -679,119 +417,9 @@ export default class TEdge {
         this.setDataIndex(edgeIndex, dataIndex, value);
     }
 
-    private getSwapPositionInEL(edge1Index: number, edge2Index: number, isAel: boolean): boolean {
-        //check that one or other edge hasn't already been removed from EL ...
-        const nextIndex1 = this.nextNeighboar(edge1Index, isAel);
-        const nextIndex2 = this.nextNeighboar(edge2Index, isAel);
-        const prevIndex1 = this.prevNeighboar(edge1Index, isAel);
-        const prevIndex2 = this.prevNeighboar(edge2Index, isAel);
-        const isRemoved: boolean = isAel
-            ? nextIndex1 === prevIndex1 || nextIndex2 === prevIndex2
-            : (nextIndex1 === UNASSIGNED && prevIndex1 === UNASSIGNED) ||
-              (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
-
-        if (isRemoved) {
-            return false;
-        }
-
-        if (nextIndex1 === edge2Index) {
-            if (nextIndex2 !== UNASSIGNED) {
-                this.setNeighboar(nextIndex2, false, isAel, edge1Index);
-            }
-
-            if (prevIndex1 !== UNASSIGNED) {
-                this.setNeighboar(prevIndex1, true, isAel, edge2Index);
-            }
-
-            this.setNeighboar(edge2Index, false, isAel, prevIndex1);
-            this.setNeighboar(edge2Index, true, isAel, edge1Index);
-            this.setNeighboar(edge1Index, false, isAel, edge2Index);
-            this.setNeighboar(edge1Index, true, isAel, nextIndex2);
-
-            return true;
-        }
-
-        if (nextIndex2 === edge1Index) {
-            if (nextIndex1 !== UNASSIGNED) {
-                this.setNeighboar(nextIndex1, false, isAel, edge2Index);
-            }
-
-            if (prevIndex2 !== UNASSIGNED) {
-                this.setNeighboar(prevIndex2, true, isAel, edge1Index);
-            }
-
-            this.setNeighboar(edge1Index, false, isAel, prevIndex2);
-            this.setNeighboar(edge1Index, true, isAel, edge2Index);
-            this.setNeighboar(edge2Index, false, isAel, edge1Index);
-            this.setNeighboar(edge2Index, true, isAel, nextIndex1);
-
-            return true;
-        }
-
-        this.setNeighboar(edge1Index, true, isAel, nextIndex2);
-
-        if (nextIndex2 !== UNASSIGNED) {
-            this.setNeighboar(nextIndex2, false, isAel, edge1Index);
-        }
-
-        this.setNeighboar(edge1Index, false, isAel, prevIndex2);
-
-        if (prevIndex2 !== UNASSIGNED) {
-            this.setNeighboar(prevIndex2, false, isAel, edge1Index);
-        }
-
-        this.setNeighboar(edge2Index, true, isAel, nextIndex1);
-
-        if (edge1Index !== UNASSIGNED) {
-            this.setNeighboar(nextIndex1, false, isAel, edge2Index);
-        }
-
-        this.setNeighboar(edge2Index, false, isAel, prevIndex1);
-
-        if (prevIndex1 !== UNASSIGNED) {
-            this.setNeighboar(prevIndex1, true, isAel, edge2Index);
-        }
-
-        return true;
-    }
-
-    public insertEdgeIntoAEL(index: number, startEdgeIndex: number = UNASSIGNED): void {
-        if (this.active === UNASSIGNED) {
-            this.setPrevActive(index, UNASSIGNED);
-            this.setNextActive(index, UNASSIGNED);
-
-            this.active = index;
-            return;
-        }
-
-        if (startEdgeIndex === UNASSIGNED && this.insertsBefore(index, this.active)) {
-            this.setPrevActive(index, UNASSIGNED);
-            this.setNextActive(index, this.active);
-
-            this.setNeighboar(this.active, false, true, index);
-
-            this.active = index;
-            return;
-        }
-
-        let edgeIndex: number = startEdgeIndex === UNASSIGNED ? this.active : startEdgeIndex;
-        let nextIndex: number = this.nextActive(edgeIndex);
-
-        while (nextIndex !== UNASSIGNED && !this.insertsBefore(index, nextIndex)) {
-            edgeIndex = nextIndex;
-            nextIndex = this.nextActive(edgeIndex);
-        }
-
-        this.setNextActive(index, nextIndex);
-
-        if (nextIndex !== UNASSIGNED) {
-            this.setNeighboar(nextIndex, false, true, index);
-        }
-
-        this.setPrevActive(index, edgeIndex);
-        this.setNeighboar(edgeIndex, true, true, index);
-
-        return;
+    public isNeighboar(index1: number, index2: number, isAel: boolean): boolean {
+        return this.getNeighboar(index1, true, isAel) === index2 ||
+            this.getNeighboar(index1, false, isAel) === index2
     }
 
     public addEdgeToSEL(index: number): void {
@@ -809,72 +437,6 @@ export default class TEdge {
 
     public isSamePolyType(index1: number, index2: number): boolean {
         return this._polyType[index1] === this._polyType[index2];
-    }
-
-    public setWindingCount(index: number): void {
-        let edgeIndex: number = this.prevActive(index);
-        //find the edge of the same polytype that immediately preceeds 'edge' in AEL
-        while (edgeIndex !== UNASSIGNED && (!this.isSamePolyType(edgeIndex, index) || this.isWindDeletaEmpty(edgeIndex))) {
-            edgeIndex = this.prevActive(edgeIndex);
-        }
-
-        if (edgeIndex === UNASSIGNED) {
-            this.setWindCount1(index, this.isWindDeletaEmpty(index) ? 1 : this.windDelta(index));
-            this.setWindCount2(index, 0);
-            edgeIndex = this.active;
-            //ie get ready to calc WindCnt2
-        } else if (this.isWindDeletaEmpty(index) && this._clipType !== CLIP_TYPE.UNION) {
-            this.setWindCount1(index, 1);
-            this.setWindCount2(index, this.windCount2(edgeIndex));
-            edgeIndex = this.nextActive(edgeIndex);
-            //ie get ready to calc WindCnt2
-        } else {
-            const edgeDelta = this.windDelta(edgeIndex);
-            const inputDelta = this.windDelta(index);
-            const edgeWindCount1 = this.windCount1(edgeIndex);
-            let nextWindCount1 = 0;
-            //nonZero, Positive or Negative filling ...
-            if (edgeWindCount1 * edgeDelta < 0) {
-                //prev edge is 'decreasing' WindCount (WC) toward zero
-                //so we're outside the previous polygon ...
-
-                if (Math.abs(edgeWindCount1) > 1) {
-                    //outside prev poly but still inside another.
-                    //when reversing direction of prev poly use the same WC
-                    nextWindCount1 = edgeDelta * inputDelta < 0 ? edgeWindCount1 : edgeWindCount1 + inputDelta;
-                } else {
-                    nextWindCount1 = this.isWindDeletaEmpty(index) ? 1 : inputDelta;
-                }
-            } else {
-                //prev edge is 'increasing' WindCount (WC) away from zero
-                //so we're inside the previous polygon ...
-                if (this.isWindDeletaEmpty(index)) {
-                    nextWindCount1 = edgeWindCount1 < 0 ? edgeWindCount1 - 1 : edgeWindCount1 + 1;
-                } else {
-                    nextWindCount1 = edgeDelta * inputDelta < 0 ? edgeWindCount1 : edgeWindCount1 + inputDelta;
-                }
-            }
-
-            this.setWindCount1(index, nextWindCount1);
-            this.setWindCount2(index, this.windCount2(edgeIndex));
-            edgeIndex = this.nextActive(edgeIndex);
-            //ie get ready to calc WindCnt2
-        }
-        //nonZero, Positive or Negative filling ...
-        while (edgeIndex !== index) {
-            this.setWindCount2(index, this.windCount2(index) + this.windDelta(edgeIndex));
-            edgeIndex = this.nextActive(edgeIndex);
-        }
-    }
-
-    public insertsBefore(index1: number, index2: number): boolean {
-        if (this.curr(index1).x === this.curr(index2).x) {
-            return this.top(index1).y > this.top(index2).y
-                ? this.top(index1).x < this.topX(index2, this.top(index1).y)
-                : this.top(index2).x > this.topX(index1, this.top(index2).y);
-        }
-
-        return this.curr(index1).x < this.curr(index2).x;
     }
 
     public alignWndCount(index1: number, index2: number): void {
@@ -901,16 +463,6 @@ export default class TEdge {
         }
     }
 
-    public checkMinJoin(currIndex: number, prevIndex: number, point: Point<Int32Array>): boolean {
-        return (
-            prevIndex !== UNASSIGNED &&
-            this.isFilled(prevIndex) &&
-            this.topX(prevIndex, point.y) === this.topX(currIndex, point.y) &&
-            this.slopesEqual(currIndex, prevIndex) &&
-            !this.isWindDeletaEmpty(currIndex)
-        );
-    }
-
     public checkHorizontalCondition(index: number, isNext: boolean): boolean {
         const neighboarIndex = this.getNeighboar(index, isNext, true);
 
@@ -929,33 +481,6 @@ export default class TEdge {
         return outHash !== UNASSIGNED && this.checkHorizontalCondition(index, isNext) && !this.isWindDeletaEmpty(index);
     }
 
-    public updateCurrent(index: number, edgeIndex: number): void {
-        this.setSide(index, this.side(edgeIndex));
-        this.setWindDelta(index, this.windDelta(edgeIndex));
-        this.setWindCount1(index, this.windCount1(edgeIndex));
-        this.setWindCount2(index, this.windCount2(edgeIndex));
-        this.setPrevActive(index, this.prevActive(edgeIndex));
-        this.setNextActive(index, this.nextActive(edgeIndex));
-        this.curr(index).update(this.bot(index));
-    }
-
-    public copyActiveToSorted(index: number): number {
-        this.setNeighboar(index, false, false, this.prevActive(index));
-        this.setNeighboar(index, true, false, this.nextActive(index));
-
-        return this.nextActive(index);
-    }
-
-    public slopesEqual(e1Index: number, e2Index: number): boolean {
-        return slopesEqual(
-            this.delta(e1Index).y,
-            this.delta(e2Index).x,
-            this.delta(e1Index).x,
-            this.delta(e2Index).y,
-            this._isUseFullRange
-        );
-    }
-
     public copyAELToSEL(): void {
         this.sorted = this.active;
 
@@ -964,14 +489,6 @@ export default class TEdge {
         while (currentIndex !== UNASSIGNED) {
             currentIndex = this.copyActiveToSorted(currentIndex);
         }
-    }
-
-    public edgesAdjacent(edge1Index: number, edge2Index: number): boolean {
-        return this.nextSorted(edge1Index) === edge2Index || this.prevSorted(edge1Index) === edge2Index;
-    }
-
-    private getCurrentEdge(isAel: boolean): number {
-        return isAel ? this.active : this.sorted;
     }
 
     public swapPositionsInList(edgeIndex1: number, edgeIndex2: number, isAel: boolean): void {
@@ -987,14 +504,6 @@ export default class TEdge {
 
         if (edgeIndex !== UNASSIGNED) {
             this.setCurrentEdge(edgeIndex, isAel);
-        }
-    }
-
-    private setCurrentEdge(value: number, isAel: boolean): void {
-        if (isAel) {
-            this.active = value;
-        } else {
-            this.sorted = value;
         }
     }
 
@@ -1102,40 +611,6 @@ export default class TEdge {
         return currIndex;
     }
 
-    private reverseHorizontal(index: number): void {
-        //swap horizontal edges' top and bottom x's so they follow the natural
-        //progression of the bounds - ie so their xbots will align with the
-        //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
-        const tmp: number = this.top(index).x;
-        this.top(index).x = this.bot(index).x;
-        this.bot(index).x = tmp;
-    }
-
-    public getContributing(index: number): boolean {
-        const isReverse: boolean = this._clipType === CLIP_TYPE.DIFFERENCE && this._polyType[index] === POLY_TYPE.CLIP;
-        const windCount1 = this.windCount1(index);
-        const windCount2 = this.windCount2(index);
-
-        switch (this._fillType) {
-            case POLY_FILL_TYPE.NON_ZERO:
-                return Math.abs(windCount1) === 1 && isReverse !== (windCount2 === 0);
-            case POLY_FILL_TYPE.POSITIVE:
-                return windCount1 === 1 && isReverse !== windCount2 <= 0;
-            default:
-                return windCount1 === UNASSIGNED && isReverse !== windCount2 >= 0;
-        }
-    }
-
-    private resetBound(index: number, side: DIRECTION): void {
-        if (index === UNASSIGNED) {
-            return;
-        }
-
-        this.curr(index).update(this.bot(index));
-        this.setSide(index, side);
-        this.setRecIndex(index, UNASSIGNED);
-    }
-
     public resetBounds(leftIndex: number, rightIndex: number): void {
         this.resetBound(leftIndex, DIRECTION.LEFT);
         this.resetBound(rightIndex, DIRECTION.RIGHT);
@@ -1158,12 +633,8 @@ export default class TEdge {
         return this.isAssigned(index) && !this.isWindDeletaEmpty(index);
     }
 
-    public topX(index: number, y: number): number {
-        //if (edge.Bot === edge.Curr) alert ("edge.Bot = edge.Curr");
-        //if (edge.Bot === edge.Top) alert ("edge.Bot = edge.Top");
-        return y === this.top(index).y
-            ? this.top(index).x
-            : this.bot(index).x + clipperRound(this.dx(index) * (y - this.bot(index).y));
+    public currFromTopX(index: number, y: number): void {
+        this.curr(index).set(this.topX(index, y), y);
     }
 
     public isAssigned(index: number): boolean {
@@ -1240,18 +711,15 @@ export default class TEdge {
         return this.getContributing(leftBoundIndex);
     }
 
-    public addLocalMinPoly(firstIndex: number, secondIndex: number, point: Point<Int32Array>): { condition: boolean; prevIndex: number; top: Point<Int32Array> }     {
-        this.setRecIndex(secondIndex, this.getRecIndex(firstIndex));
-        this.setSide(secondIndex, DIRECTION.RIGHT);
-        this.setSide(firstIndex, DIRECTION.LEFT);
+    public addLocalMinPoly(index1: number, index2: number, point: Point<Int32Array>): { condition: boolean; prevIndex: number; top: Point<Int32Array> }     {
+        this.setRecIndex(index2, this.getRecIndex(index1));
+        this.setSide(index2, DIRECTION.RIGHT);
+        this.setSide(index1, DIRECTION.LEFT);
 
-        const prevIndex =
-            this.prevActive(firstIndex) === secondIndex
-                ? this.prevActive(secondIndex)
-                : this.prevActive(firstIndex);
-        const condition = this.checkMinJoin(firstIndex, prevIndex, point);
-
-        const top = this.top(firstIndex);
+        const prevNeighboar = this.prevActive(index1) === index2 ? index2 : index1;
+        const prevIndex =this.prevActive(prevNeighboar);
+        const condition = this.checkMinJoin(index1, prevIndex, point);
+        const top = this.top(index1);
 
         return { condition, prevIndex, top };
     }
@@ -1266,5 +734,552 @@ export default class TEdge {
 
         this.updateIndexAEL(firstSide, ObsoleteIdx, OKIdx);
 
+    }
+
+    public deleteIntersectAsignment(index: number): void {
+        if (!this.isAssigned(index)) {
+            this.deleteFromList(index, true);
+        } else {
+            showError('Error intersecting polylines');
+        }
+    }
+
+    public getStopped(index: number, point: Point<Int32Array>, isProtect: boolean): boolean {
+        return !isProtect && !this.hasNextLocalMinima(index) && this.top(index).almostEqual(point)
+    }
+
+    private resetBound(index: number, side: DIRECTION): void {
+        if (index === UNASSIGNED) {
+            return;
+        }
+
+        this.curr(index).update(this.bot(index));
+        this.setSide(index, side);
+        this.setRecIndex(index, UNASSIGNED);
+    }
+
+    private topX(index: number, y: number): number {
+        //if (edge.Bot === edge.Curr) alert ("edge.Bot = edge.Curr");
+        //if (edge.Bot === edge.Top) alert ("edge.Bot = edge.Top");
+        return y === this.top(index).y
+            ? this.top(index).x
+            : this.bot(index).x + clipperRound(this.dx(index) * (y - this.bot(index).y));
+    }
+
+    private getContributing(index: number): boolean {
+        const isReverse: boolean = this._clipType === CLIP_TYPE.DIFFERENCE && this._polyType[index] === POLY_TYPE.CLIP;
+        const windCount1 = this.windCount1(index);
+        const windCount2 = this.windCount2(index);
+
+        switch (this._fillType) {
+            case POLY_FILL_TYPE.NON_ZERO:
+                return Math.abs(windCount1) === 1 && isReverse !== (windCount2 === 0);
+            case POLY_FILL_TYPE.POSITIVE:
+                return windCount1 === 1 && isReverse !== windCount2 <= 0;
+            default:
+                return windCount1 === UNASSIGNED && isReverse !== windCount2 >= 0;
+        }
+    }
+
+    private delta(index: number): Point<Int32Array> {
+        return this._points[index][3];
+    }
+
+    private setSide(index: number, value: DIRECTION): void {
+        if (this.getIndexValid(index)) {
+            this._side[index] = value;
+        } else {
+            showError(`TEdgeController.setSide: index ${index} is out of bounds`);
+        }
+    }
+
+    private getClockwise(index: number): boolean {
+        return this.dx(index) >= this.dx(this.prev(index));
+    }
+
+    private isDxHorizontal(index: number): boolean {
+        return this.dx(index) === HORIZONTAL;
+    }
+
+    private processBound(index: number, isClockwise: boolean): number {
+        if (this.isDxHorizontal(index)) {
+            //it's possible for adjacent overlapping horz edges to start heading left
+            //before finishing right, so ...
+            const neighboarIndex = this.baseNeighboar(index, !isClockwise);
+
+            if (this.bot(index).x !== this.bot(neighboarIndex).x) {
+                this.reverseHorizontal(index);
+            }
+        }
+
+        let neighboarIndex = this.baseNeighboar(index, isClockwise);
+        let resultIndex = index;
+
+        while (this.top(resultIndex).y === this.bot(neighboarIndex).y) {
+            resultIndex = neighboarIndex;
+            neighboarIndex = this.baseNeighboar(neighboarIndex, isClockwise);
+        }
+
+        if (this.isDxHorizontal(resultIndex)) {
+            //nb: at the top of a bound, horizontals are added to the bound
+            //only when the preceding edge attaches to the horizontal's left vertex
+            //unless a Skip edge is encountered when that becomes the top divide
+            let horzNeighboarIndex = this.baseNeighboar(resultIndex, !isClockwise);
+
+            while (this.isDxHorizontal(horzNeighboarIndex)) {
+                horzNeighboarIndex = this.baseNeighboar(horzNeighboarIndex, !isClockwise);
+            }
+
+            const currNeighboarIndex = this.baseNeighboar(resultIndex, isClockwise);
+
+            if (
+                (this.top(horzNeighboarIndex).x === this.top(currNeighboarIndex).x && !isClockwise) ||
+                this.top(horzNeighboarIndex).x > this.top(currNeighboarIndex).x
+            ) {
+                resultIndex = horzNeighboarIndex;
+            }
+        }
+
+        let edgeIndex = index;
+
+        while (edgeIndex !== resultIndex) {
+            const localMinima = this.baseNeighboar(edgeIndex, isClockwise);
+            this.setNextLocalMinima(edgeIndex, localMinima);
+
+            if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
+                this.reverseHorizontal(edgeIndex);
+            }
+
+            edgeIndex = localMinima;
+        }
+
+        if (this.checkReverseHorizontal(edgeIndex, index, !isClockwise)) {
+            this.reverseHorizontal(edgeIndex);
+        }
+
+        return this.baseNeighboar(resultIndex, isClockwise);
+        //move to the edge just beyond current bound
+    }
+
+
+    private windDelta(index: number): number {
+        return this._wind[index][0];
+    }
+
+    private setWindDelta(index: number, value: number): void {
+        if (this.getIndexValid(index)) {
+            this._wind[index][0] = value;
+        }
+    }
+
+    private windCount1(index: number): number {
+        return this._wind[index][1];
+    }
+
+    private setWindCount1(index: number, value: number): void {
+        if (this.getIndexValid(index)) {
+            this._wind[index][1] = value;
+        }
+    }
+
+    private windCount2(index: number): number {
+        return this._wind[index][2];
+    }
+
+    private setWindCount2(index: number, value: number): void {
+        if (this.getIndexValid(index)) {
+            this._wind[index][2] = value;
+        }
+    }
+
+    private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
+        if (edgeIndex === index) {
+            return false;
+        }
+
+        const neighboarIndex = this.baseNeighboar(edgeIndex, isNext);
+
+        return this.isDxHorizontal(edgeIndex) && this.bot(edgeIndex).x !== this.top(neighboarIndex).x;
+    }
+
+    private getIndexValid(index: number): boolean {
+        return index !== UNASSIGNED && index < this._dx.length;
+    }
+
+    private next(index: number): number {
+        return this.baseNeighboar(index, true);
+    }
+
+    private prev(index: number): number {
+        return this.baseNeighboar(index, false);
+    }
+
+    private checkMaxPair(edgeIndex: number, isNext: boolean): boolean {
+        const index = this.baseNeighboar(edgeIndex, isNext);
+
+        if (index === UNASSIGNED || this.hasNextLocalMinima(index)) {
+            return false;
+        }
+
+        return this.top(index).almostEqual(this.top(edgeIndex));
+    }
+
+    private swapSides(edge1Index: number, edge2Index: number): void {
+        const side1: DIRECTION = this.side(edge1Index);
+        const side2: DIRECTION = this.side(edge2Index);
+        this.setSide(edge1Index, side2);
+        this.setSide(edge2Index, side1);
+    }
+
+    private updateIndexAEL(side: DIRECTION, oldIndex: number, newIndex: number): void {
+        let currentIndex: number = this.active;
+
+        while (currentIndex !== UNASSIGNED) {
+            if (this.getRecIndex(currentIndex) === oldIndex) {
+                this.setRecIndex(currentIndex, newIndex);
+                this.setSide(currentIndex, side);
+                break;
+            }
+
+            currentIndex = this.nextActive(currentIndex);
+        }
+    }
+
+    private intersectPoint(edge1Index: number, edge2Index: number, intersectPoint: Point<Int32Array>): boolean {
+        //nb: with very large coordinate values, it's possible for SlopesEqual() to
+        //return false but for the edge.Dx value be equal due to double precision rounding.
+        const dx1 = this.dx(edge1Index);
+        const dx2 = this.dx(edge2Index);
+
+        if (this.slopesEqual(edge1Index, edge2Index) || dx1 === dx2) {
+            const point: Point<Int32Array> =
+                this.bot(edge2Index).y > this.bot(edge1Index).y ? this.bot(edge2Index) : this.bot(edge1Index);
+
+            intersectPoint.update(point);
+
+            return false;
+        }
+
+        if (this.delta(edge1Index).x === 0) {
+            intersectPoint.set(
+                this.bot(edge1Index).x,
+                this.isHorizontal(edge2Index)
+                    ? this.bot(edge2Index).y
+                    : clipperRound((this.bot(edge1Index).x - this.bot(edge2Index).x) / dx2 + this.bot(edge2Index).y)
+            );
+        } else if (this.delta(edge2Index).x === 0) {
+            intersectPoint.set(
+                this.bot(edge2Index).x,
+                this.isHorizontal(edge1Index)
+                    ? this.bot(edge1Index).y
+                    : clipperRound((this.bot(edge2Index).x - this.bot(edge1Index).x) / dx1 + this.bot(edge1Index).y)
+            );
+        } else {
+            const b1 = this.bot(edge1Index).x - this.bot(edge1Index).y * dx1;
+            const b2 = this.bot(edge2Index).x - this.bot(edge2Index).y * dx2;
+            const q: number = (b2 - b1) / (dx1 - dx2);
+
+            intersectPoint.set(
+                Math.abs(dx1) < Math.abs(dx2) ? clipperRound(dx1 * q + b1) : clipperRound(dx2 * q + b2),
+                clipperRound(q)
+            );
+        }
+
+        if (intersectPoint.y < this.top(edge1Index).y || intersectPoint.y < this.top(edge2Index).y) {
+            if (this.top(edge1Index).y > this.top(edge2Index).y) {
+                intersectPoint.set(this.topX(edge2Index, this.top(edge1Index).y), this.top(edge1Index).y);
+
+                return intersectPoint.x < this.top(edge1Index).x;
+            }
+
+            intersectPoint.set(
+                Math.abs(this.dx(edge1Index)) < Math.abs(this.dx(edge2Index))
+                    ? this.topX(edge1Index, intersectPoint.y)
+                    : this.topX(edge2Index, intersectPoint.y),
+                this.top(edge2Index).y
+            );
+        }
+
+        return true;
+    }
+
+    private nextNeighboar(index: number, isAel: boolean): number {
+        return this.getNeighboar(index, true, isAel);
+    }
+
+    private prevNeighboar(index: number, isAel: boolean): number {
+        return this.getNeighboar(index, false, isAel);
+    }
+
+    private reverseHorizontal(index: number): void {
+        //swap horizontal edges' top and bottom x's so they follow the natural
+        //progression of the bounds - ie so their xbots will align with the
+        //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
+        const tmp: number = this.top(index).x;
+        this.top(index).x = this.bot(index).x;
+        this.bot(index).x = tmp;
+    }
+
+    private setPrevActive(index: number, value: number): void {
+        this.setNeighboar(index, false, true, value);
+    }
+
+    private getNeighboarIndex(isNext: boolean, isAel: boolean) {
+        const index = isNext ? 2 : 3;
+        const offset = isAel ? 2 : 0;
+
+        return index + offset;
+    }
+
+    private baseNeighboar(index: number, isNext: boolean): number {
+        const dataIndex = isNext ? 1 : 0;
+
+        return this.getDataIndex(index, dataIndex);
+    }
+
+    private getDataIndex(edgeIndex: number, dataIndex: number): number {
+        return this.getIndexValid(edgeIndex) ? this._edgeData[edgeIndex][dataIndex] : UNASSIGNED;
+    }
+
+    private setDataIndex(edgeIndex: number, dataIndex: number, value: number): void {
+        if (!this.getIndexValid(edgeIndex)) {
+            return;
+        }
+
+        this._edgeData[edgeIndex][dataIndex] = value;
+    }
+
+    private setNextLocalMinima(edgeIndex: number, minimaIndex: number): void {
+        this.setDataIndex(edgeIndex, 6, minimaIndex);
+    }
+
+    private getSwapPositionInEL(edge1Index: number, edge2Index: number, isAel: boolean): boolean {
+        //check that one or other edge hasn't already been removed from EL ...
+        const nextIndex1 = this.nextNeighboar(edge1Index, isAel);
+        const nextIndex2 = this.nextNeighboar(edge2Index, isAel);
+        const prevIndex1 = this.prevNeighboar(edge1Index, isAel);
+        const prevIndex2 = this.prevNeighboar(edge2Index, isAel);
+        const isRemoved: boolean = isAel
+            ? nextIndex1 === prevIndex1 || nextIndex2 === prevIndex2
+            : (nextIndex1 === UNASSIGNED && prevIndex1 === UNASSIGNED) ||
+            (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
+
+        if (isRemoved) {
+            return false;
+        }
+
+        if (nextIndex1 === edge2Index) {
+            if (nextIndex2 !== UNASSIGNED) {
+                this.setNeighboar(nextIndex2, false, isAel, edge1Index);
+            }
+
+            if (prevIndex1 !== UNASSIGNED) {
+                this.setNeighboar(prevIndex1, true, isAel, edge2Index);
+            }
+
+            this.setNeighboar(edge2Index, false, isAel, prevIndex1);
+            this.setNeighboar(edge2Index, true, isAel, edge1Index);
+            this.setNeighboar(edge1Index, false, isAel, edge2Index);
+            this.setNeighboar(edge1Index, true, isAel, nextIndex2);
+
+            return true;
+        }
+
+        if (nextIndex2 === edge1Index) {
+            if (nextIndex1 !== UNASSIGNED) {
+                this.setNeighboar(nextIndex1, false, isAel, edge2Index);
+            }
+
+            if (prevIndex2 !== UNASSIGNED) {
+                this.setNeighboar(prevIndex2, true, isAel, edge1Index);
+            }
+
+            this.setNeighboar(edge1Index, false, isAel, prevIndex2);
+            this.setNeighboar(edge1Index, true, isAel, edge2Index);
+            this.setNeighboar(edge2Index, false, isAel, edge1Index);
+            this.setNeighboar(edge2Index, true, isAel, nextIndex1);
+
+            return true;
+        }
+
+        this.setNeighboar(edge1Index, true, isAel, nextIndex2);
+
+        if (nextIndex2 !== UNASSIGNED) {
+            this.setNeighboar(nextIndex2, false, isAel, edge1Index);
+        }
+
+        this.setNeighboar(edge1Index, false, isAel, prevIndex2);
+
+        if (prevIndex2 !== UNASSIGNED) {
+            this.setNeighboar(prevIndex2, false, isAel, edge1Index);
+        }
+
+        this.setNeighboar(edge2Index, true, isAel, nextIndex1);
+
+        if (edge1Index !== UNASSIGNED) {
+            this.setNeighboar(nextIndex1, false, isAel, edge2Index);
+        }
+
+        this.setNeighboar(edge2Index, false, isAel, prevIndex1);
+
+        if (prevIndex1 !== UNASSIGNED) {
+            this.setNeighboar(prevIndex1, true, isAel, edge2Index);
+        }
+
+        return true;
+    }
+
+    private insertEdgeIntoAEL(index: number, startEdgeIndex: number = UNASSIGNED): void {
+        if (this.active === UNASSIGNED) {
+            this.setPrevActive(index, UNASSIGNED);
+            this.setNextActive(index, UNASSIGNED);
+
+            this.active = index;
+            return;
+        }
+
+        if (startEdgeIndex === UNASSIGNED && this.insertsBefore(index, this.active)) {
+            this.setPrevActive(index, UNASSIGNED);
+            this.setNextActive(index, this.active);
+
+            this.setNeighboar(this.active, false, true, index);
+
+            this.active = index;
+            return;
+        }
+
+        let edgeIndex: number = startEdgeIndex === UNASSIGNED ? this.active : startEdgeIndex;
+        let nextIndex: number = this.nextActive(edgeIndex);
+
+        while (nextIndex !== UNASSIGNED && !this.insertsBefore(index, nextIndex)) {
+            edgeIndex = nextIndex;
+            nextIndex = this.nextActive(edgeIndex);
+        }
+
+        this.setNextActive(index, nextIndex);
+
+        if (nextIndex !== UNASSIGNED) {
+            this.setNeighboar(nextIndex, false, true, index);
+        }
+
+        this.setPrevActive(index, edgeIndex);
+        this.setNeighboar(edgeIndex, true, true, index);
+
+        return;
+    }
+
+    private setWindingCount(index: number): void {
+        let edgeIndex: number = this.prevActive(index);
+        //find the edge of the same polytype that immediately preceeds 'edge' in AEL
+        while (edgeIndex !== UNASSIGNED && (!this.isSamePolyType(edgeIndex, index) || this.isWindDeletaEmpty(edgeIndex))) {
+            edgeIndex = this.prevActive(edgeIndex);
+        }
+
+        if (edgeIndex === UNASSIGNED) {
+            this.setWindCount1(index, this.isWindDeletaEmpty(index) ? 1 : this.windDelta(index));
+            this.setWindCount2(index, 0);
+            edgeIndex = this.active;
+            //ie get ready to calc WindCnt2
+        } else if (this.isWindDeletaEmpty(index) && this._clipType !== CLIP_TYPE.UNION) {
+            this.setWindCount1(index, 1);
+            this.setWindCount2(index, this.windCount2(edgeIndex));
+            edgeIndex = this.nextActive(edgeIndex);
+            //ie get ready to calc WindCnt2
+        } else {
+            const edgeDelta = this.windDelta(edgeIndex);
+            const inputDelta = this.windDelta(index);
+            const edgeWindCount1 = this.windCount1(edgeIndex);
+            let nextWindCount1 = 0;
+            //nonZero, Positive or Negative filling ...
+            if (edgeWindCount1 * edgeDelta < 0) {
+                //prev edge is 'decreasing' WindCount (WC) toward zero
+                //so we're outside the previous polygon ...
+
+                if (Math.abs(edgeWindCount1) > 1) {
+                    //outside prev poly but still inside another.
+                    //when reversing direction of prev poly use the same WC
+                    nextWindCount1 = edgeDelta * inputDelta < 0 ? edgeWindCount1 : edgeWindCount1 + inputDelta;
+                } else {
+                    nextWindCount1 = this.isWindDeletaEmpty(index) ? 1 : inputDelta;
+                }
+            } else {
+                //prev edge is 'increasing' WindCount (WC) away from zero
+                //so we're inside the previous polygon ...
+                if (this.isWindDeletaEmpty(index)) {
+                    nextWindCount1 = edgeWindCount1 < 0 ? edgeWindCount1 - 1 : edgeWindCount1 + 1;
+                } else {
+                    nextWindCount1 = edgeDelta * inputDelta < 0 ? edgeWindCount1 : edgeWindCount1 + inputDelta;
+                }
+            }
+
+            this.setWindCount1(index, nextWindCount1);
+            this.setWindCount2(index, this.windCount2(edgeIndex));
+            edgeIndex = this.nextActive(edgeIndex);
+            //ie get ready to calc WindCnt2
+        }
+        //nonZero, Positive or Negative filling ...
+        while (edgeIndex !== index) {
+            this.setWindCount2(index, this.windCount2(index) + this.windDelta(edgeIndex));
+            edgeIndex = this.nextActive(edgeIndex);
+        }
+    }
+
+    private insertsBefore(index1: number, index2: number): boolean {
+        if (this.curr(index1).x === this.curr(index2).x) {
+            return this.top(index1).y > this.top(index2).y
+                ? this.top(index1).x < this.topX(index2, this.top(index1).y)
+                : this.top(index2).x > this.topX(index1, this.top(index2).y);
+        }
+
+        return this.curr(index1).x < this.curr(index2).x;
+    }
+
+    private checkMinJoin(currIndex: number, prevIndex: number, point: Point<Int32Array>): boolean {
+        return (
+            prevIndex !== UNASSIGNED &&
+            this.isFilled(prevIndex) &&
+            this.topX(prevIndex, point.y) === this.topX(currIndex, point.y) &&
+            this.slopesEqual(currIndex, prevIndex) &&
+            !this.isWindDeletaEmpty(currIndex)
+        );
+    }
+
+    private slopesEqual(e1Index: number, e2Index: number): boolean {
+        return slopesEqual(
+            this.delta(e1Index).y,
+            this.delta(e2Index).x,
+            this.delta(e1Index).x,
+            this.delta(e2Index).y,
+            this._isUseFullRange
+        );
+    }
+
+    private updateCurrent(index: number, edgeIndex: number): void {
+        this.setSide(index, this.side(edgeIndex));
+        this.setWindDelta(index, this.windDelta(edgeIndex));
+        this.setWindCount1(index, this.windCount1(edgeIndex));
+        this.setWindCount2(index, this.windCount2(edgeIndex));
+        this.setPrevActive(index, this.prevActive(edgeIndex));
+        this.setNextActive(index, this.nextActive(edgeIndex));
+        this.curr(index).update(this.bot(index));
+    }
+
+    private copyActiveToSorted(index: number): number {
+        this.setNeighboar(index, false, false, this.prevActive(index));
+        this.setNeighboar(index, true, false, this.nextActive(index));
+
+        return this.nextActive(index);
+    }
+
+    private getCurrentEdge(isAel: boolean): number {
+        return isAel ? this.active : this.sorted;
+    }
+
+    private setCurrentEdge(value: number, isAel: boolean): void {
+        if (isAel) {
+            this.active = value;
+        } else {
+            this.sorted = value;
+        }
     }
 }
