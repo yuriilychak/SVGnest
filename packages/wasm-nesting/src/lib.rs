@@ -8,9 +8,6 @@ pub mod nest_config;
 pub mod nesting;
 pub mod utils;
 
-use crate::clipper::clipper_pool_manager::get_pool;
-use crate::clipper::clipper_wrapper::ClipperWrapper;
-
 use crate::nesting::pair_flow::pair_data;
 
 use utils::almost_equal::AlmostEqual;
@@ -69,20 +66,6 @@ pub fn pair_data_f32(buff: &[f32]) -> Float32Array {
     let serialzed: Vec<f32> = unsafe { pair_data(buff) };
 
     let out = Float32Array::new_with_length(serialzed.len() as u32);
-
-    out.copy_from(&serialzed);
-
-    out
-}
-
-#[wasm_bindgen]
-pub fn clean_node_f32(buff: &[f32], config: u32) -> Float32Array {
-    let mut wrapper = ClipperWrapper::new(config);
-    let mut vec = buff.to_vec();
-    let serialzed: Vec<f32> = unsafe { wrapper.clean_node(&mut vec) };
-    let out = Float32Array::new_with_length(serialzed.len() as u32);
-
-    get_pool().drain();
 
     out.copy_from(&serialzed);
 

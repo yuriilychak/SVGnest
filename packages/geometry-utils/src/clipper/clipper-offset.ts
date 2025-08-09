@@ -1,7 +1,7 @@
 import { cycle_index_wasm } from 'wasm-nesting';
 import Clipper from './clipper';
 import { getArea } from './helpers';
-import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './types';
+import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './enums';
 import { PointF32, PointI32 } from '../geometry';
 
 export default class ClipperOffset {

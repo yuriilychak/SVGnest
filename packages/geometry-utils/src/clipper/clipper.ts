@@ -7,7 +7,7 @@ import IntersectNode from './intersect-node';
 import LocalMinima from './local-minima';
 import Scanbeam from './scanbeam';
 import TEdge from './t-edge';
-import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './types';
+import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './enums';
 import Join from './join';
 import OutRec from './out-rec';
 
@@ -1023,7 +1023,7 @@ export default class Clipper {
             //a flat 'polygon'
             //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
 
-            const value = this.outRec.getOverlap(op1Index,op1bIndex,op2Index,op2bIndex);
+            const value = this.outRec.getOverlap(op1Index, op1bIndex, op2Index, op2bIndex);
             const isOverlapped = value.x < value.y;
 
             if (!isOverlapped) {

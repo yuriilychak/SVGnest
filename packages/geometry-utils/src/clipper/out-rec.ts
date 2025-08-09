@@ -1,7 +1,7 @@
 import { join_u16_to_u32 } from 'wasm-nesting';
 import { Point } from '../types';
 import { HORIZONTAL, UNASSIGNED } from './constants';
-import { DIRECTION } from './types';
+import { DIRECTION } from './enums';
 import { PointI32 } from '../geometry';
 export default class OutRec {
     private recData: Int16Array[] = [];

@@ -1,7 +1,7 @@
 import { cycle_index_wasm as cycle_index } from 'wasm-nesting';
 import { Point } from '../types';
 import { HORIZONTAL, UNASSIGNED } from './constants';
-import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './types';
+import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './enums';
 import { PointI32 } from '../geometry';
 import { clipperRound, slopesEqual } from '../helpers';
 import { showError } from './helpers';
@@ -694,14 +694,14 @@ export default class TEdge {
 
             return this.getContributing(rightBoundIndex);
         }
-        
+
         if (rightBoundIndex === UNASSIGNED) {
             this.insertEdgeIntoAEL(leftBoundIndex);
             this.setWindingCount(leftBoundIndex);
 
             return this.getContributing(leftBoundIndex);
-        } 
-        
+        }
+
         this.insertEdgeIntoAEL(leftBoundIndex);
         this.insertEdgeIntoAEL(rightBoundIndex, leftBoundIndex);
         this.setWindingCount(leftBoundIndex);
@@ -711,13 +711,13 @@ export default class TEdge {
         return this.getContributing(leftBoundIndex);
     }
 
-    public addLocalMinPoly(index1: number, index2: number, point: Point<Int32Array>): { condition: boolean; prevIndex: number; top: Point<Int32Array> }     {
+    public addLocalMinPoly(index1: number, index2: number, point: Point<Int32Array>): { condition: boolean; prevIndex: number; top: Point<Int32Array> } {
         this.setRecIndex(index2, this.getRecIndex(index1));
         this.setSide(index2, DIRECTION.RIGHT);
         this.setSide(index1, DIRECTION.LEFT);
 
         const prevNeighboar = this.prevActive(index1) === index2 ? index2 : index1;
-        const prevIndex =this.prevActive(prevNeighboar);
+        const prevIndex = this.prevActive(prevNeighboar);
         const condition = this.checkMinJoin(index1, prevIndex, point);
         const top = this.top(index1);
 
