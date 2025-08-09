@@ -1,33 +1,38 @@
-import { NullPtr } from './types';
-
 export default class Scanbeam {
-    public Y: number;
-    public Next: Scanbeam;
+    private values: number[];
 
-    constructor(y: number = 0, next: NullPtr<Scanbeam> = null) {
-        this.Y = y;
-        this.Next = next;
+    constructor() {
+        this.values = [];
     }
 
-    public static insert(y: number, inputScanbeam: NullPtr<Scanbeam>): Scanbeam {
-        if (inputScanbeam === null) {
-            return new Scanbeam(y);
+    public insert(y: number): void {
+        for (let i = 0; i < this.values.length; ++i) {
+            if (y === this.values[i]) {
+                return;
+            }
+        
+            if (y > this.values[i]) {
+                this.values.splice(i, 0, y);
+                return;
+            } 
         }
-        if (y > inputScanbeam.Y) {
-            return new Scanbeam(y, inputScanbeam);
+        
+        this.values.push(y);
+    }
+
+    public pop(): number {
+        if (this.isEmpty) {
+            throw new Error('ScanbeamManager is empty');
         }
 
-        let scanbeam: Scanbeam = inputScanbeam;
+        return this.values.shift();
+    }
 
-        while (scanbeam.Next !== null && y <= scanbeam.Next.Y) {
-            scanbeam = scanbeam.Next;
-        }
+    public clean(): void {
+        this.values.length = 0;
+    }
 
-        if (y !== scanbeam.Y) {
-            //ie ignores duplicates
-            scanbeam.Next = new Scanbeam(y, scanbeam.Next);
-        }
-
-        return inputScanbeam;
+    public get isEmpty(): boolean {
+        return this.values.length === 0;
     }
 }

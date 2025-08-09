@@ -1,6 +1,6 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 import type { BoundRect, NestConfig, Point, PointPool, Polygon, PolygonNode } from './types';
-import { generateNFPCacheKey, getPolygonNode } from './helpers';
+import { generateNFPCacheKey, getPolygonNode, serializeConfig } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
@@ -190,9 +190,8 @@ export default class ClipperWrapper {
         const { curveTolerance } = this.configuration;
         const clipperPolygon = ClipperWrapper.fromMemSeg(node.memSeg);
         const simple: PointI32[][] = [];
-        const clipper = new Clipper();
+        const clipper = new Clipper(false, true);
 
-        clipper.StrictlySimple = true;
         clipper.addPath(clipperPolygon, PolyType.SUBJECT);
         clipper.execute(ClipType.UNION, simple, PolyFillType.NON_ZERO);
 
@@ -223,7 +222,9 @@ export default class ClipperWrapper {
             return;
         }
 
-        node.memSeg = ClipperWrapper.toMemSeg(clearedPolygon);
+        const res = ClipperWrapper.toMemSeg(clearedPolygon);
+
+        node.memSeg = res;
     }
 
     public static fromMemSeg(
@@ -315,7 +316,7 @@ export default class ClipperWrapper {
     ) {
         const pointIndices: number = pointPool.alloc(1);
         const tmpPoint: Point<Float32Array> = pointPool.get(pointIndices, 0);
-        let clipper = new Clipper();
+        let clipper = new Clipper(false, false);
         let i: number = 0;
         let key: number = 0;
 
@@ -343,7 +344,7 @@ export default class ClipperWrapper {
         let finalNfp: PointI32[][] = [];
         const clipperBinNfp: PointI32[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
 
-        clipper = new Clipper();
+        clipper = new Clipper(false, false);
         clipper.addPaths(combinedNfp, PolyType.CLIP);
         clipper.addPaths(clipperBinNfp, PolyType.SUBJECT);
 

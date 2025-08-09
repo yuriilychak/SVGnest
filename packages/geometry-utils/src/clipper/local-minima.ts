@@ -1,68 +1,58 @@
-import Scanbeam from './scanbeam';
-import TEdge from './t-edge';
-import { DIRECTION, NullPtr } from './types';
-
 export default class LocalMinima {
-    public y: number = 0;
-    public leftBound: NullPtr<TEdge>;
-    public rightBound: NullPtr<TEdge>;
-    public next: NullPtr<LocalMinima>;
+    private items: number[][];
 
-    constructor(y: number = 0, leftBound: NullPtr<TEdge> = null, rightBound: NullPtr<TEdge> = null, next: LocalMinima = null) {
-        this.y = y;
-        this.leftBound = leftBound;
-        this.rightBound = rightBound;
-        this.next = next;
+    constructor() {
+        this.items = [];
     }
 
-    public insert(currentLocalMinima: LocalMinima): LocalMinima {
-        if (currentLocalMinima === null) {
-            return this;
-        }
-
-        if (this.y >= currentLocalMinima.y) {
-            this.next = currentLocalMinima;
-
-            return this;
-        }
-
-        let localMinima: LocalMinima = currentLocalMinima;
-
-        while (localMinima.next !== null && this.y < localMinima.next.y) {
-            localMinima = localMinima.next;
-        }
-
-        this.next = localMinima.next;
-        localMinima.next = this;
-
-        return currentLocalMinima;
+    public getLeftBound(index: number): number {
+        return this.items[index][1];
     }
 
-    public reset(): void {
-        let localMinima: LocalMinima = this;
+    public getRightBound(index: number): number {
+        return this.items[index][2];
+    }
 
-        while (localMinima != null) {
-            if (localMinima.leftBound !== null) {
-                localMinima.leftBound.reset(DIRECTION.LEFT);
+    public getY(index: number): number {
+        return this.items[index][0];
+    }
+
+    public insert(y: number, left: number, right: number): number {
+        const localMinima = [y, left, right];
+
+        for (let i = 0; i < this.items.length; ++i) {
+            if (y >= this.getY(i)) {
+                this.items.splice(i, 0, localMinima);
+                return i;
             }
-
-            if (localMinima.rightBound !== null) {
-                localMinima.rightBound.reset(DIRECTION.RIGHT);
-            }
-
-            localMinima = localMinima.next;
         }
+            
+        this.items.push(localMinima);
+
+        return this.items.length -1;
     }
 
-    public getScanbeam(): Scanbeam {
-        let localMinima: LocalMinima = this;
-        let result: NullPtr<Scanbeam> = null;
-
-        while (localMinima !== null) {
-            result = Scanbeam.insert(localMinima.y, result);
-            localMinima = localMinima.next;
+    public pop(): number[] {
+        if (this.isEmpty) {
+            throw new Error("No minima to pop");
         }
+
+        const result = [this.getLeftBound(0), this.getRightBound(0)];
+        
+        this.items.shift();
 
         return result;
+    }
+
+    public get minY(): number {
+        return this.items.length === 0 ? NaN : this.getY(0);
+    }
+
+    public get isEmpty(): boolean {
+        return this.items.length === 0;
+    }
+
+    public get length(): number {
+        return this.items.length;
     }
 }

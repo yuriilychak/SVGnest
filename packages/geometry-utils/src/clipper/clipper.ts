@@ -1,27 +1,82 @@
+import { join_u16_to_u32, get_u16_from_u32 } from 'wasm-nesting';
+import { Point } from 'src/types';
 import { PointI32 } from '../geometry';
-import ClipperBase from './clipper-base';
+import { UNASSIGNED } from './constants';
 import { showError } from './helpers';
 import IntersectNode from './intersect-node';
-import Join from './join';
-import OutPt from './out-pt';
-import OutRec from './out-rec';
+import LocalMinima from './local-minima';
 import Scanbeam from './scanbeam';
 import TEdge from './t-edge';
-import { CLIP_TYPE, DIRECTION, NullPtr, POLY_FILL_TYPE, POLY_TYPE } from './types';
+import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './enums';
+import Join from './join';
+import OutRec from './out-rec';
 
-export default class Clipper extends ClipperBase {
-    private clipType: CLIP_TYPE = CLIP_TYPE.UNION;
-    private fillType: POLY_FILL_TYPE = POLY_FILL_TYPE.NON_ZERO;
-    private scanbeam: NullPtr<Scanbeam> = null;
-    private activeEdges: TEdge = null;
-    private sortedEdges: TEdge = null;
-    private intersections: IntersectNode[] = [];
+export default class Clipper {
+    private localMinima: LocalMinima;
+    private intersections: IntersectNode;
+    private scanbeam: Scanbeam;
+    private tEdge: TEdge;
+    private join: Join;
+    private outRec: OutRec;
     private isExecuteLocked: boolean = false;
-    private polyOuts: OutRec[] = [];
-    private joins: Join[] = [];
-    private ghostJoins: Join[] = [];
-    public ReverseSolution: boolean = false;
-    public StrictlySimple: boolean = false;
+
+    constructor(reverseSolution: boolean, strictlySimple: boolean) {
+        this.intersections = new IntersectNode();
+        this.localMinima = new LocalMinima();
+        this.scanbeam = new Scanbeam();
+        this.tEdge = new TEdge();
+        this.join = new Join();
+        this.outRec = new OutRec(reverseSolution, strictlySimple);
+    }
+
+    public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
+        let edgeIndex = this.tEdge.createPath(polygon, polyType);
+
+        if (edgeIndex === UNASSIGNED) {
+            return false;
+        }
+
+        let minIndex: number = UNASSIGNED;
+
+        while (true) {
+            edgeIndex = this.tEdge.findNextLocMin(edgeIndex);
+
+            if (edgeIndex === minIndex) {
+                break;
+            }
+
+            if (minIndex === UNASSIGNED) {
+                minIndex = edgeIndex;
+            }
+
+            const [y, leftBound, rightBound] = this.tEdge.createLocalMinima(edgeIndex);
+            const localMinima = this.localMinima.insert(y, leftBound, rightBound);
+
+            edgeIndex = this.tEdge.processBounds(
+                edgeIndex,
+                this.localMinima.getLeftBound(localMinima),
+                this.localMinima.getRightBound(localMinima)
+            );
+        }
+
+        return true;
+    }
+
+    public addPaths(polygons: PointI32[][], polyType: POLY_TYPE): boolean {
+        //  console.log("-------------------------------------------");
+        //  console.log(JSON.stringify(ppg));
+        const polygonCount: number = polygons.length;
+        let result: boolean = false;
+        let i: number = 0;
+
+        for (i = 0; i < polygonCount; ++i) {
+            if (this.addPath(polygons[i], polyType)) {
+                result = true;
+            }
+        }
+
+        return result;
+    }
 
     public execute(clipType: CLIP_TYPE, solution: PointI32[][], fillType: POLY_FILL_TYPE): boolean {
         if (this.isExecuteLocked) {
@@ -29,8 +84,7 @@ export default class Clipper extends ClipperBase {
         }
 
         this.isExecuteLocked = true;
-        this.fillType = fillType;
-        this.clipType = clipType;
+        this.tEdge.init(clipType, fillType);
 
         solution.length = 0;
 
@@ -40,10 +94,11 @@ export default class Clipper extends ClipperBase {
             succeeded = this.executeInternal();
             //build the return polygons ...
             if (succeeded) {
-                this.buildResult(solution);
+                this.outRec.buildResult(solution);
             }
         } finally {
-            this.disposeAllPolyPts();
+            this.outRec.dispose();
+            this.tEdge.dispose();
             this.isExecuteLocked = false;
         }
 
@@ -54,26 +109,23 @@ export default class Clipper extends ClipperBase {
         try {
             this.reset();
 
-            if (this.currentLM === null) {
+            if (this.localMinima.isEmpty) {
                 return false;
             }
 
-            let i: number = 0;
-            let outRec: OutRec = null;
-            let outRecCount: number = 0;
-            let botY: number = this.popScanbeam();
+            let botY: number = this.scanbeam.pop();
             let topY: number = 0;
 
             do {
                 this.insertLocalMinimaIntoAEL(botY);
-                this.ghostJoins = [];
+                this.join.clearGhosts();
                 this.processHorizontals(false);
 
-                if (this.scanbeam === null) {
+                if (this.scanbeam.isEmpty) {
                     break;
                 }
 
-                topY = this.popScanbeam();
+                topY = this.scanbeam.pop();
                 //console.log("botY:" + botY + ", topY:" + topY);
                 if (!this.processIntersections(botY, topY)) {
                     return false;
@@ -82,302 +134,540 @@ export default class Clipper extends ClipperBase {
                 this.processEdgesAtTopOfScanbeam(topY);
 
                 botY = topY;
-            } while (this.scanbeam !== null || this.currentLM !== null);
-            //fix orientations ...
-            outRecCount = this.polyOuts.length;
+            } while (!this.scanbeam.isEmpty || !this.localMinima.isEmpty);
 
-            for (i = 0; i < outRecCount; ++i) {
-                outRec = this.polyOuts[i];
-
-                if (outRec.isEmpty) {
-                    continue;
-                }
-
-                if ((outRec.IsHole !== this.ReverseSolution) === outRec.area > 0) {
-                    outRec.reversePts();
-                }
-            }
-
-            const joinCount: number = this.joins.length;
-
-            for (i = 0; i < joinCount; ++i) {
-                this.joins[i].joinCommonEdges(this.polyOuts, this.isUseFullRange, this.ReverseSolution);
-            }
-
-            outRecCount = this.polyOuts.length;
-
-            for (i = 0; i < outRecCount; ++i) {
-                outRec = this.polyOuts[i];
-
-                if (!outRec.isEmpty) {
-                    outRec.fixupOutPolygon(false, this.isUseFullRange);
-                }
-            }
-
-            if (this.StrictlySimple) {
-                this.doSimplePolygons();
-            }
+            this.fixupOutPolygon();
 
             return true;
         } finally {
-            this.joins = [];
-            this.ghostJoins = [];
+            this.join.reset();
         }
     }
 
-    private processEdgesAtTopOfScanbeam(topY: number): void {
-        let edge1: TEdge = this.activeEdges;
-        let edge2: NullPtr<TEdge> = null;
-        let isMaximaEdge: boolean = false;
-        let outPt1: OutPt = null;
-        let outPt2: OutPt = null;
+    private reset(): void {
+        this.scanbeam.clean();
 
-        while (edge1 !== null) {
-            //1. process maxima, treating them as if they're 'bent' horizontal edges,
-            //   but exclude maxima with horizontal edges. nb: e can't be a horizontal.
-            isMaximaEdge = edge1.getMaxima(topY);
+        const minimaCount = this.localMinima.length;
 
-            if (isMaximaEdge) {
-                edge2 = edge1.maximaPair;
-                isMaximaEdge = edge2 === null || !edge2.isHorizontal;
-            }
+        for (let i = 0; i < minimaCount; ++i) {
+            const leftBound = this.localMinima.getLeftBound(i);
+            const rightBound = this.localMinima.getRightBound(i);
+            const y = this.localMinima.getY(i);
 
-            if (isMaximaEdge) {
-                edge2 = edge1.PrevInAEL;
-                this.DoMaxima(edge1);
+            this.tEdge.resetBounds(leftBound, rightBound);
 
-                edge1 = edge2 === null ? this.activeEdges : edge2.NextInAEL;
-            } else {
-                //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
-                if (edge1.getIntermediate(topY) && edge1.NextInLML.isHorizontal) {
-                    edge1 = this.updateEdgeIntoAEL(edge1);
+            this.scanbeam.insert(y);
+        }
 
-                    if (edge1.isAssigned) {
-                        OutRec.addOutPt(this.polyOuts, edge1, edge1.Bot);
+        this.tEdge.reset();
+    }
+
+    private updateEdgeIntoAEL(edgeIndex: number): number {
+        const result = this.tEdge.updateEdgeIntoAEL(edgeIndex);
+
+        if (!this.tEdge.isHorizontal(result)) {
+            this.scanbeam.insert(this.tEdge.top(result).y);
+        }
+
+        return result;
+    }
+
+    private buildIntersectList(botY: number, topY: number): void {
+        if (!this.tEdge.prepareForIntersections(topY)) {
+            return;
+        }
+
+        //bubblesort ...
+        let isModified: boolean = true;
+        const point: PointI32 = PointI32.create();
+
+        while (isModified && this.tEdge.sorted !== UNASSIGNED) {
+            isModified = false;
+            let currIndex = this.tEdge.sorted;
+
+            while (this.tEdge.nextSorted(currIndex) !== UNASSIGNED) {
+                const nextIndex = this.tEdge.nextSorted(currIndex);
+
+                point.set(0, 0);
+                //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
+                if (this.tEdge.curr(currIndex).x > this.tEdge.curr(nextIndex).x) {
+                    if (this.tEdge.getIntersectError(currIndex, nextIndex, point)) {
+                        //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
+                        //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
+                        showError('Intersection error');
                     }
 
-                    this.sortedEdges = edge1.addEdgeToSEL(this.sortedEdges);
+                    if (point.y > botY) {
+                        point.set(this.tEdge.getIntersectX(currIndex, nextIndex, botY), botY);
+                    }
+
+                    this.intersections.add(currIndex, nextIndex, point);
+                    this.tEdge.swapPositionsInList(currIndex, nextIndex, false);
+                    isModified = true;
                 } else {
-                    edge1.Curr.set(edge1.topX(topY), topY);
+                    currIndex = nextIndex;
                 }
+            }
 
-                if (this.StrictlySimple) {
-                    edge2 = edge1.PrevInAEL;
+            const prevIndex = this.tEdge.prevSorted(currIndex);
 
-                    if (edge1.isFilled && edge2 !== null && edge2.isFilled && edge2.Curr.x === edge1.Curr.x) {
-                        outPt1 = OutRec.addOutPt(this.polyOuts, edge2, edge1.Curr);
-                        outPt2 = OutRec.addOutPt(this.polyOuts, edge1, edge1.Curr);
+            if (prevIndex === UNASSIGNED) {
+                break;
+            }
 
-                        this.joins.push(new Join(outPt1, outPt2, edge1.Curr));
-                        //StrictlySimple (type-3) join
-                    }
-                }
-                edge1 = edge1.NextInAEL;
+            this.tEdge.setNeighboar(prevIndex, true, false, UNASSIGNED);
+        }
+
+        this.tEdge.sorted = UNASSIGNED;
+    }
+
+    private intersectEdges(edge1Index: number, edge2Index: number, point: Point<Int32Array>, isProtect: boolean): void {
+        //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
+        //e2 in AEL except when e1 is being inserted at the intersection point ...
+        const edge1Stops: boolean = this.tEdge.getStop(edge1Index, point, isProtect);
+        const edge2Stops: boolean = this.tEdge.getStop(edge2Index, point, isProtect);
+        const edge1Contributing: boolean = this.tEdge.isAssigned(edge1Index);
+        const edge2Contributing: boolean = this.tEdge.isAssigned(edge2Index);
+
+        //if either edge is on an OPEN path ...
+        if (this.tEdge.isWindDeletaEmpty(edge1Index) || this.tEdge.isWindDeletaEmpty(edge2Index)) {
+            //ignore subject-subject open path intersections UNLESS they
+            //are both open paths, AND they are both 'contributing maximas' ...
+            this.intersectOpenEdges(edge1Index, edge2Index, isProtect, point);
+            return;
+        }
+
+        //update winding counts...
+        //assumes that e1 will be to the Right of e2 ABOVE the intersection
+        this.tEdge.alignWndCount(edge1Index, edge2Index);
+
+        const e1Wc: number = this.tEdge.getWndTypeFilled(edge1Index);
+        const e2Wc: number = this.tEdge.getWndTypeFilled(edge2Index);
+
+        if (edge1Contributing && edge2Contributing) {
+            if (
+                edge1Stops ||
+                edge2Stops ||
+                (e1Wc !== 0 && e1Wc !== 1) ||
+                (e2Wc !== 0 && e2Wc !== 1) ||
+                !this.tEdge.isSamePolyType(edge1Index, edge2Index)
+            ) {
+                this.addLocalMaxPoly(edge1Index, edge2Index, point);
+            } else {
+                this.addOutPt(edge1Index, point);
+                this.addOutPt(edge2Index, point);
+                this.tEdge.swapSidesAndIndeces(edge1Index, edge2Index);
+            }
+        } else if (edge1Contributing) {
+            if (e2Wc === 0 || e2Wc === 1) {
+                this.addOutPt(edge1Index, point);
+                this.tEdge.swapSidesAndIndeces(edge1Index, edge2Index);
+            }
+        } else if (edge2Contributing) {
+            if (e1Wc === 0 || e1Wc === 1) {
+                this.addOutPt(edge2Index, point);
+                this.tEdge.swapSidesAndIndeces(edge1Index, edge2Index);
+            }
+        } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
+            //neither edge is currently contributing ...
+            if (this.tEdge.swapEdges(e1Wc, e2Wc, edge1Index, edge2Index)) {
+                this.addLocalMinPoly(edge1Index, edge2Index, point);
             }
         }
-        //3. Process horizontals at the Top of the scanbeam ...
-        this.processHorizontals(true);
-        //4. Promote intermediate vertices ...
-        edge1 = this.activeEdges;
+        if (
+            edge1Stops !== edge2Stops &&
+            ((edge1Stops && this.tEdge.isAssigned(edge1Index)) || (edge2Stops && this.tEdge.isAssigned(edge2Index)))
+        ) {
+            this.tEdge.swapSidesAndIndeces(edge1Index, edge2Index);
+        }
+        //finally, delete any non-contributing maxima edges  ...
+        if (edge1Stops) {
+            this.tEdge.deleteFromList(edge1Index, true);
+        }
 
-        while (edge1 !== null) {
-            if (edge1.getIntermediate(topY)) {
-                outPt1 = edge1.isAssigned ? OutRec.addOutPt(this.polyOuts, edge1, edge1.Top) : null;
-                edge1 = this.updateEdgeIntoAEL(edge1);
-                //if output polygons share an edge, they'll need joining later ...
-                const ePrev: TEdge = edge1.PrevInAEL;
-                const eNext: TEdge = edge1.NextInAEL;
-
-                if (
-                    outPt1 !== null &&
-                    ePrev !== null &&
-                    ePrev.Curr.almostEqual(edge1.Bot) &&
-                    ePrev.isFilled &&
-                    ePrev.Curr.y > ePrev.Top.y &&
-                    TEdge.slopesEqual(edge1, ePrev, this.isUseFullRange) &&
-                    !edge1.isWindDeletaEmpty
-                ) {
-                    outPt2 = OutRec.addOutPt(this.polyOuts, ePrev, edge1.Bot);
-                    this.joins.push(new Join(outPt1, outPt2, edge1.Top));
-                } else if (
-                    outPt1 !== null &&
-                    eNext !== null &&
-                    eNext.Curr.almostEqual(edge1.Bot) &&
-                    eNext.isFilled &&
-                    eNext.Curr.y > eNext.Top.y &&
-                    TEdge.slopesEqual(edge1, eNext, this.isUseFullRange) &&
-                    !edge1.isWindDeletaEmpty
-                ) {
-                    outPt2 = OutRec.addOutPt(this.polyOuts, eNext, edge1.Bot);
-                    this.joins.push(new Join(outPt1, outPt2, edge1.Top));
-                }
-            }
-
-            edge1 = edge1.NextInAEL;
+        if (edge2Stops) {
+            this.tEdge.deleteFromList(edge2Index, true);
         }
     }
 
-    private DoMaxima(edge: TEdge): void {
-        const maxPairEdge: NullPtr<TEdge> = edge.maximaPair;
+    private edgesAdjacent(nodeIndex: number): boolean {
+        const edge1Index = this.intersections.getEdge1Index(nodeIndex);
+        const edge2Index = this.intersections.getEdge2Index(nodeIndex);
 
-        if (maxPairEdge === null) {
-            if (edge.isAssigned) {
-                OutRec.addOutPt(this.polyOuts, edge, edge.Top);
+        return this.tEdge.isNeighboar(edge1Index, edge2Index, false);
+    }
+
+    private fixupIntersectionOrder(): boolean {
+        //pre-condition: intersections are sorted bottom-most first.
+        //Now it's crucial that intersections are made only between adjacent edges,
+        //so to ensure this the order of intersections may need adjusting ...
+        this.intersections.sort();
+
+        this.tEdge.copyAELToSEL();
+
+        const intersectCount: number = this.intersections.length;
+        let i: number = 0;
+        let j: number = 0;
+
+        for (i = 0; i < intersectCount; ++i) {
+            if (!this.edgesAdjacent(i)) {
+                j = i + 1;
+
+                while (j < intersectCount && !this.edgesAdjacent(j)) {
+                    ++j;
+                }
+
+                if (j === intersectCount) {
+                    return false;
+                }
+
+                this.intersections.swap(i, j);
             }
 
-            this.activeEdges = edge.deleteFromAEL(this.activeEdges);
+            this.tEdge.swapPositionsInList(this.intersections.getEdge1Index(i), this.intersections.getEdge2Index(i), false);
+        }
+
+        return true;
+    }
+
+    private applyIntersection(index: number, point: Point<Int32Array>, isContributing: boolean): void {
+        this.addOutPt(index, point);
+
+        if (isContributing) {
+            this.tEdge.unassign(index);
+        }
+    }
+
+    private intersectOpenEdges(edge1Index: number, edge2Index: number, isProtect: boolean, point: Point<Int32Array>) {
+        const edge1Stops: boolean = this.tEdge.getStopped(edge1Index, point, isProtect);
+        const edge2Stops: boolean = this.tEdge.getStopped(edge2Index, point, isProtect);
+        const edge1Contributing: boolean = this.tEdge.isAssigned(edge1Index);
+        const edge2Contributing: boolean = this.tEdge.isAssigned(edge2Index);
+        //ignore subject-subject open path intersections UNLESS they
+        //are both open paths, AND they are both 'contributing maximas' ...
+        if (this.tEdge.isWindDeletaEmpty(edge1Index) && this.tEdge.isWindDeletaEmpty(edge2Index)) {
+            if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
+                this.addLocalMaxPoly(edge1Index, edge2Index, point);
+            }
+        }
+        //if intersecting a subj line with a subj poly ...
+        else if (this.tEdge.intersectLineWithPoly(edge1Index, edge2Index)) {
+            if (this.tEdge.isWindDeletaEmpty(edge1Index)) {
+                if (edge2Contributing) {
+                    this.applyIntersection(edge1Index, point, edge1Contributing);
+                }
+            } else {
+                if (edge1Contributing) {
+                    this.applyIntersection(edge2Index, point, edge2Contributing);
+                }
+            }
+        } else if (!this.tEdge.isSamePolyType(edge1Index, edge2Index)) {
+            if (this.tEdge.intersectLine(edge1Index, edge2Index)) {
+                this.applyIntersection(edge1Index, point, edge1Contributing);
+            } else if (this.tEdge.intersectLine(edge2Index, edge1Index)) {
+                this.applyIntersection(edge2Index, point, edge2Contributing);
+            }
+        }
+
+        if (edge1Stops) {
+            this.tEdge.deleteIntersectAsignment(edge1Index);
+        }
+
+        if (edge2Stops) {
+            this.tEdge.deleteIntersectAsignment(edge2Index);
+        }
+    }
+
+    private processHorizontal(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
+        let dirValue: Float64Array = this.tEdge.horzDirection(horzEdgeIndex);
+        let dir: DIRECTION = dirValue[0] as DIRECTION;
+        let horzLeft: number = dirValue[1];
+        let horzRight: number = dirValue[2];
+        const lastHorzIndex = this.tEdge.getLastHorizontal(horzEdgeIndex);
+        const maxPairIndex = this.tEdge.getMaxPair(lastHorzIndex);
+        let horzIndex = horzEdgeIndex;
+
+        while (true) {
+            const isLastHorz: boolean = horzIndex === lastHorzIndex;
+            let currIndex = this.tEdge.getNeighboar(horzIndex, dir === DIRECTION.RIGHT, true);
+            let nextIndex = UNASSIGNED;
+            const isRight: boolean = dir === DIRECTION.RIGHT;
+
+            while (currIndex !== UNASSIGNED) {
+                //Break if we've got to the end of an intermediate horizontal edge ...
+                //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
+                if (this.tEdge.isIntermediateHorizontalEnd(currIndex, horzIndex)) {
+                    break;
+                }
+
+                nextIndex = this.tEdge.getNeighboar(currIndex, isRight, true);
+                //saves eNext for later
+                if (
+                    (isRight && this.tEdge.curr(currIndex).x <= horzRight) ||
+                    (!isRight && this.tEdge.curr(currIndex).x >= horzLeft)
+                ) {
+                    if (this.tEdge.isFilled(horzIndex) && isTopOfScanbeam) {
+                        this.prepareHorzJoins(horzIndex);
+                    }
+
+                    const index1 = isRight ? horzIndex : currIndex;
+                    const index2 = isRight ? currIndex : horzIndex;
+
+                    //so far we're still in range of the horizontal Edge  but make sure
+                    //we're at the last of consec. horizontals when matching with eMaxPair
+                    if (currIndex === maxPairIndex && isLastHorz) {
+                        this.intersectEdges(index1, index2, this.tEdge.top(currIndex), false);
+
+                        if (this.tEdge.isAssigned(maxPairIndex)) {
+                            showError('ProcessHorizontal error');
+                        }
+
+                        return;
+                    }
+
+                    const point = PointI32.from(this.tEdge.curr(currIndex));
+
+                    this.intersectEdges(index1, index2, point, true);
+
+                    this.tEdge.swapPositionsInList(horzIndex, currIndex, true);
+                } else if (
+                    (isRight && this.tEdge.curr(currIndex).x >= horzRight) ||
+                    (!isRight && this.tEdge.curr(currIndex).x <= horzLeft)
+                ) {
+                    break;
+                }
+
+                currIndex = nextIndex;
+            }
+            //end while
+            if (this.tEdge.isFilled(horzEdgeIndex) && isTopOfScanbeam) {
+                this.prepareHorzJoins(horzIndex);
+            }
+
+            if (this.tEdge.hasNextLocalMinima(horzIndex) && this.tEdge.isHorizontal(this.tEdge.getNextLocalMinima(horzIndex))) {
+                horzIndex = this.updateEdgeIntoAEL(horzIndex);
+
+                if (this.tEdge.isAssigned(horzIndex)) {
+                    this.addOutPt(horzIndex, this.tEdge.bot(horzIndex));
+                }
+
+                dirValue = this.tEdge.horzDirection(horzIndex);
+                dir = dirValue[0] as DIRECTION;
+                horzLeft = dirValue[1];
+                horzRight = dirValue[2];
+            } else {
+                break;
+            }
+        }
+
+        //end for (;;)
+        if (this.tEdge.hasNextLocalMinima(horzIndex)) {
+            if (this.tEdge.isAssigned(horzIndex)) {
+                const op1 = this.addOutPt(horzIndex, this.tEdge.top(horzIndex));
+                horzIndex = this.updateEdgeIntoAEL(horzIndex);
+
+                if (this.tEdge.isWindDeletaEmpty(horzIndex)) {
+                    return;
+                }
+
+                //nb: HorzEdge is no longer horizontal here
+                const condition1 = this.tEdge.checkHorizontalCondition(horzIndex, false);
+
+                this.insertJoinFromEdge(condition1, op1, horzIndex, false, false);
+
+                if (!condition1) {
+                    const condition2 = this.tEdge.checkHorizontalCondition(horzIndex, true);
+
+                    this.insertJoinFromEdge(condition2, op1, horzIndex, true, false);
+                }
+
+                return;
+            }
+
+            this.updateEdgeIntoAEL(horzIndex);
 
             return;
         }
 
-        let nextEdge: NullPtr<TEdge> = edge.NextInAEL;
+        if (maxPairIndex !== UNASSIGNED) {
+            if (this.tEdge.isAssigned(maxPairIndex)) {
+                const index1 = dir === DIRECTION.RIGHT ? horzIndex : maxPairIndex;
+                const index2 = dir === DIRECTION.RIGHT ? maxPairIndex : horzIndex;
 
-        while (nextEdge !== null && nextEdge !== maxPairEdge) {
-            this.intersectEdges(edge, nextEdge, edge.Top, true);
-            this.SwapPositionsInAEL(edge, nextEdge);
-            nextEdge = edge.NextInAEL;
+                this.intersectEdges(index1, index2, this.tEdge.top(horzIndex), false);
+
+                if (this.tEdge.isAssigned(maxPairIndex)) {
+                    showError('ProcessHorizontal error');
+                }
+
+                return;
+            }
+
+            this.tEdge.deleteFromList(horzIndex, true);
+            this.tEdge.deleteFromList(maxPairIndex, true);
+
+            return;
         }
 
-        if (!edge.isAssigned && !maxPairEdge.isAssigned) {
-            this.activeEdges = edge.deleteFromAEL(this.activeEdges);
-            this.activeEdges = maxPairEdge.deleteFromAEL(this.activeEdges);
-        } else if (edge.isAssigned && maxPairEdge.isAssigned) {
-            this.intersectEdges(edge, maxPairEdge, edge.Top, false);
-        } else if (edge.isWindDeletaEmpty) {
-            if (edge.isAssigned) {
-                OutRec.addOutPt(this.polyOuts, edge, edge.Top);
-                edge.unassign();
+        if (this.tEdge.isAssigned(horzIndex)) {
+            this.addOutPt(horzIndex, this.tEdge.top(horzIndex));
+        }
+
+        this.tEdge.deleteFromList(horzIndex, true);
+    }
+
+    private processHorizontals(isTopOfScanbeam: boolean): void {
+        let horzEdgeIndex = this.tEdge.sorted;
+
+        while (horzEdgeIndex !== UNASSIGNED) {
+            this.tEdge.deleteFromList(horzEdgeIndex, false);
+
+            this.processHorizontal(horzEdgeIndex, isTopOfScanbeam);
+
+            horzEdgeIndex = this.tEdge.sorted;
+        }
+    }
+
+    private processEdgesAtTopOfScanbeam(topY: number): void {
+        let isMaximaEdge: boolean = false;
+        let outPt1: number = UNASSIGNED;
+        let edgeIndex: number = this.tEdge.active;
+
+        while (edgeIndex !== UNASSIGNED) {
+            //1. process maxima, treating them as if they're 'bent' horizontal edges,
+            //   but exclude maxima with horizontal edges. nb: e can't be a horizontal.
+            isMaximaEdge = this.tEdge.getMaxima(edgeIndex, topY);
+
+            if (isMaximaEdge) {
+                const tempEdgeIndex = this.tEdge.maximaPair(edgeIndex);
+                isMaximaEdge = tempEdgeIndex === UNASSIGNED || !this.tEdge.isHorizontal(tempEdgeIndex);
             }
 
-            this.activeEdges = edge.deleteFromAEL(this.activeEdges);
+            if (isMaximaEdge) {
+                const prevIndex = this.tEdge.prevActive(edgeIndex);
+                this.doMaxima(edgeIndex);
 
-            if (maxPairEdge.isAssigned) {
-                OutRec.addOutPt(this.polyOuts, maxPairEdge, edge.Top);
-                maxPairEdge.unassign();
+                edgeIndex =
+                    this.tEdge.prevActive(edgeIndex) === UNASSIGNED ? this.tEdge.active : this.tEdge.nextActive(prevIndex);
+                continue;
             }
 
-            this.activeEdges = maxPairEdge.deleteFromAEL(this.activeEdges);
+            //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
+            if (
+                this.tEdge.getIntermediate(edgeIndex, topY) &&
+                this.tEdge.isHorizontal(this.tEdge.getNextLocalMinima(edgeIndex))
+            ) {
+                edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
+
+                if (this.tEdge.isAssigned(edgeIndex)) {
+                    this.addOutPt(edgeIndex, this.tEdge.bot(edgeIndex));
+                }
+
+                this.tEdge.addEdgeToSEL(edgeIndex);
+            } else {
+                this.tEdge.currFromTopX(edgeIndex, topY);
+            }
+
+            if (this.outRec.strictlySimple && this.tEdge.canAddScanbeam(edgeIndex)) {
+                this.addScanbeamJoin(edgeIndex, this.tEdge.prevActive(edgeIndex), this.tEdge.curr(edgeIndex));
+                //StrictlySimple (type-3) join
+            }
+
+            edgeIndex = this.tEdge.nextActive(edgeIndex);
+        }
+        //3. Process horizontals at the Top of the scanbeam ...
+        this.processHorizontals(true);
+        //4. Promote intermediate vertices ...
+        edgeIndex = this.tEdge.active;
+
+        while (edgeIndex !== UNASSIGNED) {
+            if (this.tEdge.getIntermediate(edgeIndex, topY)) {
+                outPt1 = this.tEdge.isAssigned(edgeIndex) ? this.addOutPt(edgeIndex, this.tEdge.top(edgeIndex)) : UNASSIGNED;
+                edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
+                //if output polygons share an edge, they'll need joining later...
+                const condition1 = this.tEdge.checkSharedCondition(edgeIndex, outPt1, false);
+
+                if (!this.insertJoinFromEdge(condition1, outPt1, edgeIndex, false, true)) {
+                    const condition2 = this.tEdge.checkSharedCondition(edgeIndex, outPt1, true);
+                    this.insertJoinFromEdge(condition2, outPt1, edgeIndex, true, true);
+                }
+            }
+
+            edgeIndex = this.tEdge.nextActive(edgeIndex);
+        }
+    }
+
+    private doMaxima(edgeIndex: number): void {
+        if (this.tEdge.maximaPair(edgeIndex) === UNASSIGNED) {
+            if (this.tEdge.isAssigned(edgeIndex)) {
+                this.addOutPt(edgeIndex, this.tEdge.top(edgeIndex));
+            }
+
+            this.tEdge.deleteFromList(edgeIndex, true);
+
+            return;
+        }
+
+        let nextEdgeIndex: number = this.tEdge.nextActive(edgeIndex);
+
+        while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== this.tEdge.maximaPair(edgeIndex)) {
+            this.intersectEdges(edgeIndex, nextEdgeIndex, this.tEdge.top(edgeIndex), true);
+            this.tEdge.swapPositionsInList(edgeIndex, nextEdgeIndex, true);
+            nextEdgeIndex = this.tEdge.nextActive(edgeIndex);
+        }
+
+        const maxIndex = this.tEdge.maximaPair(edgeIndex);
+
+        if (!this.tEdge.isAssigned(edgeIndex) && !this.tEdge.isAssigned(maxIndex)) {
+            this.tEdge.deleteFromList(edgeIndex, true);
+            this.tEdge.deleteFromList(maxIndex, true);
+        } else if (this.tEdge.isAssigned(edgeIndex) && this.tEdge.isAssigned(maxIndex)) {
+            this.intersectEdges(edgeIndex, maxIndex, this.tEdge.top(edgeIndex), false);
+        } else if (this.tEdge.isWindDeletaEmpty(edgeIndex)) {
+            if (this.tEdge.isAssigned(edgeIndex)) {
+                this.addOutPt(edgeIndex, this.tEdge.top(edgeIndex));
+                this.tEdge.unassign(edgeIndex);
+            }
+
+            this.tEdge.deleteFromList(edgeIndex, true);
+
+            if (this.tEdge.isAssigned(maxIndex)) {
+                this.addOutPt(maxIndex, this.tEdge.top(edgeIndex));
+                this.tEdge.unassign(maxIndex);
+            }
+
+            this.tEdge.deleteFromList(maxIndex, true);
         } else {
             showError('DoMaxima error');
         }
     }
 
-    private insertLocalMinimaIntoAEL(botY: number): void {
-        let leftBound: TEdge = null;
-        let rightBound: TEdge = null;
-        let outPt: OutPt = null;
+    private processIntersectList(): void {
+        const intersectCount: number = this.intersections.length;
+        let i: number = 0;
+        const point = PointI32.create();
 
-        while (this.currentLM !== null && this.currentLM.y === botY) {
-            leftBound = this.currentLM.leftBound;
-            rightBound = this.currentLM.rightBound;
-            outPt = null;
+        for (i = 0; i < intersectCount; ++i) {
+            const edge1Index: number = this.intersections.getEdge1Index(i);
+            const edge2Index: number = this.intersections.getEdge2Index(i);
+            point.set(this.intersections.getX(i), this.intersections.getY(i));
 
-            if (this.currentLM !== null) {
-                this.currentLM = this.currentLM.next;
-            }
-
-            if (leftBound === null) {
-                this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges);
-                rightBound.setWindingCount(this.activeEdges, this.clipType);
-
-                if (rightBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = OutRec.addOutPt(this.polyOuts, rightBound, rightBound.Bot);
-                }
-            } else if (rightBound === null) {
-                this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
-                leftBound.setWindingCount(this.activeEdges, this.clipType);
-
-                if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = OutRec.addOutPt(this.polyOuts, leftBound, leftBound.Bot);
-                }
-
-                this.scanbeam = Scanbeam.insert(leftBound.Top.y, this.scanbeam);
-            } else {
-                this.activeEdges = leftBound.insertEdgeIntoAEL(this.activeEdges);
-                this.activeEdges = rightBound.insertEdgeIntoAEL(this.activeEdges, leftBound);
-                leftBound.setWindingCount(this.activeEdges, this.clipType);
-                rightBound.WindCnt = leftBound.WindCnt;
-                rightBound.WindCnt2 = leftBound.WindCnt2;
-
-                if (leftBound.getContributing(this.clipType, this.fillType)) {
-                    outPt = this.AddLocalMinPoly(leftBound, rightBound, leftBound.Bot);
-                }
-
-                this.scanbeam = Scanbeam.insert(leftBound.Top.y, this.scanbeam);
-            }
-
-            if (rightBound !== null) {
-                if (rightBound.isHorizontal) {
-                    this.sortedEdges = rightBound.addEdgeToSEL(this.sortedEdges);
-                } else {
-                    this.scanbeam = Scanbeam.insert(rightBound.Top.y, this.scanbeam);
-                }
-            }
-
-            if (leftBound === null || rightBound === null) {
-                continue;
-            }
-            //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
-            if (outPt !== null && rightBound.isHorizontal && this.ghostJoins.length > 0 && !rightBound.isWindDeletaEmpty) {
-                const joinCount: number = this.ghostJoins.length;
-                let i: number = 0;
-                let join: Join = null;
-
-                for (i = 0; i < joinCount; ++i) {
-                    //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
-                    //the 'ghost' join to a real join ready for later ...
-                    join = this.ghostJoins[i];
-
-                    if (PointI32.horzSegmentsOverlap(join.OutPt1.point, join.OffPt, rightBound.Bot, rightBound.Top)) {
-                        this.joins.push(new Join(join.OutPt1, outPt, join.OffPt));
-                    }
-                }
-            }
-
-            if (
-                leftBound.isFilled &&
-                leftBound.PrevInAEL !== null &&
-                leftBound.PrevInAEL.Curr.x === leftBound.Bot.x &&
-                leftBound.PrevInAEL.isFilled &&
-                TEdge.slopesEqual(leftBound.PrevInAEL, leftBound, this.isUseFullRange)
-            ) {
-                const Op2: NullPtr<OutPt> = OutRec.addOutPt(this.polyOuts, leftBound.PrevInAEL, leftBound.Bot);
-                this.joins.push(new Join(outPt, Op2, leftBound.Top));
-            }
-
-            if (leftBound.NextInAEL !== rightBound) {
-                if (
-                    rightBound.isFilled &&
-                    rightBound.PrevInAEL.isFilled &&
-                    TEdge.slopesEqual(rightBound.PrevInAEL, rightBound, this.isUseFullRange)
-                ) {
-                    const Op2: NullPtr<OutPt> = OutRec.addOutPt(this.polyOuts, rightBound.PrevInAEL, rightBound.Bot);
-                    this.joins.push(new Join(outPt, Op2, rightBound.Top));
-                }
-
-                let edge: NullPtr<TEdge> = leftBound.NextInAEL;
-
-                if (edge !== null)
-                    while (edge !== rightBound) {
-                        //nb: For calculating winding counts etc, IntersectEdges() assumes
-                        //that param1 will be to the right of param2 ABOVE the intersection ...
-                        this.intersectEdges(rightBound, edge, leftBound.Curr, false);
-                        //order important here
-                        edge = edge.NextInAEL;
-                    }
-            }
+            this.intersectEdges(edge1Index, edge2Index, point, true);
+            this.tEdge.swapPositionsInList(edge1Index, edge2Index, true);
         }
+
+        this.intersections.clean();
     }
 
     private processIntersections(botY: number, topY: number): boolean {
-        if (this.activeEdges === null) {
+        if (this.tEdge.active === UNASSIGNED) {
             return true;
         }
 
         try {
             this.buildIntersectList(botY, topY);
 
-            if (this.intersections.length === 0) {
+            if (this.intersections.isEmpty) {
                 return true;
             }
 
@@ -387,660 +677,414 @@ export default class Clipper extends ClipperBase {
                 return false;
             }
         } catch (error) {
-            this.sortedEdges = null;
-            this.intersections.length = 0;
+            this.tEdge.sorted = UNASSIGNED;
+            this.intersections.clean();
 
             showError('ProcessIntersections error');
         }
 
-        this.sortedEdges = null;
+        this.tEdge.sorted = UNASSIGNED;
 
         return true;
     }
 
-    private processIntersectList(): void {
-        const intersectCount: number = this.intersections.length;
-        let i: number = 0;
-        let node: IntersectNode = null;
+    private insertLocalMinimaPt(leftBoundIndex: number, rightBoundIndex: number): number {
+        const index = leftBoundIndex !== UNASSIGNED ? leftBoundIndex : rightBoundIndex;
+        const bot = this.tEdge.bot(index);
 
-        for (i = 0; i < intersectCount; ++i) {
-            node = this.intersections[i];
-            this.intersectEdges(node.Edge1, node.Edge2, node.Pt, true);
-            this.SwapPositionsInAEL(node.Edge1, node.Edge2);
-        }
-
-        this.intersections = [];
+        return leftBoundIndex !== UNASSIGNED && rightBoundIndex !== UNASSIGNED
+            ? this.addLocalMinPoly(leftBoundIndex, rightBoundIndex, bot)
+            : this.addOutPt(index, bot);
     }
 
-    private intersectEdges(edge1: TEdge, edge2: TEdge, point: PointI32, isProtect: boolean): void {
-        //e1 will be to the left of e2 BELOW the intersection. Therefore e1 is before
-        //e2 in AEL except when e1 is being inserted at the intersection point ...
-        let edge1Stops: boolean = !isProtect && edge1.NextInLML === null && edge1.Top.almostEqual(point);
-        let edge2Stops: boolean = !isProtect && edge2.NextInLML === null && edge2.Top.almostEqual(point);
-        let edge1Contributing: boolean = edge1.isAssigned;
-        let edge2Contributing: boolean = edge2.isAssigned;
+    private insertLocalMinimaIntoAEL(botY: number): void {
+        while (!Number.isNaN(this.localMinima.minY) && this.localMinima.minY === botY) {
+            const [leftBoundIndex, rightBoundIndex] = this.localMinima.pop();
+            const outPt = this.tEdge.insertLocalMinimaIntoAEL(leftBoundIndex, rightBoundIndex)
+                ? this.insertLocalMinimaPt(leftBoundIndex, rightBoundIndex)
+                : UNASSIGNED;
 
-        //if either edge is on an OPEN path ...
-        if (edge1.isWindDeletaEmpty || edge2.isWindDeletaEmpty) {
-            //ignore subject-subject open path intersections UNLESS they
-            //are both open paths, AND they are both 'contributing maximas' ...
-            if (edge1.isWindDeletaEmpty && edge2.isWindDeletaEmpty) {
-                if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
-                    OutRec.addLocalMaxPoly(this.polyOuts, edge1, edge2, point, this.activeEdges);
-                }
+            if (leftBoundIndex !== UNASSIGNED) {
+                this.scanbeam.insert(this.tEdge.top(leftBoundIndex).y);
             }
-            //if intersecting a subj line with a subj poly ...
-            else if (
-                edge1.PolyTyp === edge2.PolyTyp &&
-                edge1.WindDelta !== edge2.WindDelta &&
-                this.clipType === CLIP_TYPE.UNION
-            ) {
-                if (edge1.isWindDeletaEmpty) {
-                    if (edge2Contributing) {
-                        OutRec.addOutPt(this.polyOuts, edge1, point);
 
-                        if (edge1Contributing) {
-                            edge1.unassign();
-                        }
-                    }
+            if (rightBoundIndex !== UNASSIGNED) {
+                if (this.tEdge.isHorizontal(rightBoundIndex)) {
+                    this.tEdge.addEdgeToSEL(rightBoundIndex);
                 } else {
-                    if (edge1Contributing) {
-                        OutRec.addOutPt(this.polyOuts, edge2, point);
-
-                        if (edge2Contributing) {
-                            edge2.unassign();
-                        }
-                    }
-                }
-            } else if (edge1.PolyTyp !== edge2.PolyTyp) {
-                if (
-                    edge1.isWindDeletaEmpty &&
-                    Math.abs(edge2.WindCnt) === 1 &&
-                    (this.clipType !== CLIP_TYPE.UNION || edge2.WindCnt2 === 0)
-                ) {
-                    OutRec.addOutPt(this.polyOuts, edge1, point);
-
-                    if (edge1Contributing) {
-                        edge1.unassign();
-                    }
-                } else if (
-                    edge2.isWindDeletaEmpty &&
-                    Math.abs(edge1.WindCnt) === 1 &&
-                    (this.clipType !== CLIP_TYPE.UNION || edge1.WindCnt2 === 0)
-                ) {
-                    OutRec.addOutPt(this.polyOuts, edge2, point);
-
-                    if (edge2Contributing) {
-                        edge2.unassign();
-                    }
+                    this.scanbeam.insert(this.tEdge.top(rightBoundIndex).y);
                 }
             }
 
-            if (edge1Stops) {
-                if (!edge1.isAssigned) {
-                    this.activeEdges = edge1.deleteFromAEL(this.activeEdges);
-                } else {
-                    showError('Error intersecting polylines');
-                }
+            if (leftBoundIndex === UNASSIGNED || rightBoundIndex === UNASSIGNED) {
+                continue;
             }
-
-            if (edge2Stops) {
-                if (!edge2.isAssigned) {
-                    this.activeEdges = edge2.deleteFromAEL(this.activeEdges);
-                } else {
-                    showError('Error intersecting polylines');
-                }
-            }
-
-            return;
-        }
-
-        //update winding counts...
-        //assumes that e1 will be to the Right of e2 ABOVE the intersection
-        if (edge1.PolyTyp === edge2.PolyTyp) {
-            edge1.WindCnt = edge1.WindCnt === -edge2.WindDelta ? -edge1.WindCnt : edge1.WindCnt + edge2.WindDelta;
-            edge2.WindCnt = edge2.WindCnt === edge1.WindDelta ? -edge2.WindCnt : edge2.WindCnt - edge1.WindDelta;
-        } else {
-            edge1.WindCnt2 += edge2.WindDelta;
-            edge2.WindCnt2 -= edge1.WindDelta;
-        }
-
-        let e1Wc: number = 0;
-        let e2Wc: number = 0;
-
-        switch (this.fillType) {
-            case POLY_FILL_TYPE.POSITIVE:
-                e1Wc = edge1.WindCnt;
-                e2Wc = edge2.WindCnt;
-                break;
-            case POLY_FILL_TYPE.NEGATIVE:
-                e1Wc = -edge1.WindCnt;
-                e2Wc = -edge2.WindCnt;
-                break;
-            default:
-                e1Wc = Math.abs(edge1.WindCnt);
-                e2Wc = Math.abs(edge2.WindCnt);
-                break;
-        }
-
-        if (edge1Contributing && edge2Contributing) {
+            //if output polygons share an Edge with a horizontal rb, they'll need joining later ...
             if (
-                edge1Stops ||
-                edge2Stops ||
-                (e1Wc !== 0 && e1Wc !== 1) ||
-                (e2Wc !== 0 && e2Wc !== 1) ||
-                edge1.PolyTyp !== edge2.PolyTyp
+                outPt !== UNASSIGNED &&
+                this.tEdge.isHorizontal(rightBoundIndex) &&
+                !this.tEdge.isWindDeletaEmpty(rightBoundIndex)
             ) {
-                OutRec.addLocalMaxPoly(this.polyOuts, edge1, edge2, point, this.activeEdges);
-            } else {
-                OutRec.addOutPt(this.polyOuts, edge1, point);
-                OutRec.addOutPt(this.polyOuts, edge2, point);
-                TEdge.swapSides(edge1, edge2);
-                TEdge.swapPolyIndexes(edge1, edge2);
-            }
-        } else if (edge1Contributing) {
-            if (e2Wc === 0 || e2Wc === 1) {
-                OutRec.addOutPt(this.polyOuts, edge1, point);
-                TEdge.swapSides(edge1, edge2);
-                TEdge.swapPolyIndexes(edge1, edge2);
-            }
-        } else if (edge2Contributing) {
-            if (e1Wc === 0 || e1Wc === 1) {
-                OutRec.addOutPt(this.polyOuts, edge2, point);
-                TEdge.swapSides(edge1, edge2);
-                TEdge.swapPolyIndexes(edge1, edge2);
-            }
-        } else if ((e1Wc === 0 || e1Wc === 1) && (e2Wc === 0 || e2Wc === 1) && !edge1Stops && !edge2Stops) {
-            //neither edge is currently contributing ...
-            let e1Wc2: number = 0;
-            let e2Wc2: number = 0;
-
-            switch (this.fillType) {
-                case POLY_FILL_TYPE.POSITIVE:
-                    e1Wc2 = edge1.WindCnt2;
-                    e2Wc2 = edge2.WindCnt2;
-                    break;
-                case POLY_FILL_TYPE.NEGATIVE:
-                    e1Wc2 = -edge1.WindCnt2;
-                    e2Wc2 = -edge2.WindCnt2;
-                    break;
-                default:
-                    e1Wc2 = Math.abs(edge1.WindCnt2);
-                    e2Wc2 = Math.abs(edge2.WindCnt2);
-                    break;
+                this.addOutputJoins(outPt, rightBoundIndex);
             }
 
-            if (edge1.PolyTyp !== edge2.PolyTyp) {
-                this.AddLocalMinPoly(edge1, edge2, point);
-            } else if (e1Wc === 1 && e2Wc === 1) {
-                switch (this.clipType) {
-                    case CLIP_TYPE.UNION:
-                        if (e1Wc2 <= 0 && e2Wc2 <= 0) {
-                            this.AddLocalMinPoly(edge1, edge2, point);
-                        }
-                        break;
-                    case CLIP_TYPE.DIFFERENCE:
-                        if (
-                            (edge1.PolyTyp === POLY_TYPE.CLIP && Math.min(e1Wc2, e2Wc2) > 0) ||
-                            (edge1.PolyTyp === POLY_TYPE.SUBJECT && Math.max(e1Wc2, e2Wc2) <= 0)
-                        ) {
-                            this.AddLocalMinPoly(edge1, edge2, point);
-                        }
-                        break;
-                }
-            } else {
-                TEdge.swapSides(edge1, edge2);
-            }
-        }
-        if (edge1Stops !== edge2Stops && ((edge1Stops && edge1.isAssigned) || (edge2Stops && edge2.isAssigned))) {
-            TEdge.swapSides(edge1, edge2);
-            TEdge.swapPolyIndexes(edge1, edge2);
-        }
-        //finally, delete any non-contributing maxima edges  ...
-        if (edge1Stops) {
-            this.activeEdges = edge1.deleteFromAEL(this.activeEdges);
-        }
+            const condition = this.tEdge.canJoinLeft(leftBoundIndex);
 
-        if (edge2Stops) {
-            this.activeEdges = edge2.deleteFromAEL(this.activeEdges);
-        }
-    }
+            this.insertJoinFromEdge(condition, outPt, leftBoundIndex, false, true);
 
-    private AddLocalMinPoly(edge1: TEdge, edge2: TEdge, point: PointI32) {
-        let result: OutPt = null;
-        let edge: TEdge = null;
-        let edgePrev: TEdge;
+            if (this.tEdge.nextActive(leftBoundIndex) !== rightBoundIndex) {
+                const condition = this.tEdge.canJoinRight(rightBoundIndex);
 
-        if (edge2.isHorizontal || edge1.Dx > edge2.Dx) {
-            result = OutRec.addOutPt(this.polyOuts, edge1, point);
-            edge2.index = edge1.index;
-            edge2.Side = DIRECTION.RIGHT;
-            edge1.Side = DIRECTION.LEFT;
-            edge = edge1;
-            edgePrev = edge.PrevInAEL === edge2 ? edge2.PrevInAEL : edge.PrevInAEL;
-        } else {
-            result = OutRec.addOutPt(this.polyOuts, edge2, point);
-            edge1.index = edge2.index;
-            edge1.Side = DIRECTION.RIGHT;
-            edge2.Side = DIRECTION.LEFT;
-            edge = edge2;
-            edgePrev = edge.PrevInAEL === edge1 ? edge1.PrevInAEL : edge.PrevInAEL;
-        }
+                this.insertJoinFromEdge(condition, outPt, rightBoundIndex, false, true);
 
-        if (
-            edgePrev !== null &&
-            edgePrev.isFilled &&
-            edgePrev.topX(point.y) === edge.topX(point.y) &&
-            TEdge.slopesEqual(edge, edgePrev, this.isUseFullRange) &&
-            !edge.isWindDeletaEmpty
-        ) {
-            const outPt: NullPtr<OutPt> = OutRec.addOutPt(this.polyOuts, edgePrev, point);
-            this.joins.push(new Join(result, outPt, edge.Top));
-        }
+                if (this.tEdge.nextActive(leftBoundIndex) !== UNASSIGNED) {
+                    let edgeIndex = this.tEdge.nextActive(leftBoundIndex);
 
-        return result;
-    }
-
-    private buildResult(polygons: PointI32[][]): void {
-        const polygonCount = this.polyOuts.length;
-        let outRec: OutRec = null;
-        let polygon: NullPtr<PointI32[]> = null;
-        let i: number = 0;
-
-        for (i = 0; i < polygonCount; ++i) {
-            outRec = this.polyOuts[i];
-            polygon = outRec.export();
-
-            if (polygon !== null) {
-                polygons.push(polygon);
-            }
-        }
-    }
-
-    protected reset(): void {
-        super.reset();
-
-        this.scanbeam = this.minimaList !== null ? this.minimaList.getScanbeam() : null;
-        this.activeEdges = null;
-        this.sortedEdges = null;
-    }
-
-    private popScanbeam(): number {
-        const result: number = this.scanbeam.Y;
-
-        this.scanbeam = this.scanbeam.Next;
-
-        return result;
-    }
-
-    private disposeAllPolyPts(): void {
-        const polyCount: number = this.polyOuts.length;
-        let outRec: OutRec = null;
-        let i: number = 0;
-
-        for (i = 0; i < polyCount; ++i) {
-            outRec = this.polyOuts[i];
-            outRec.dispose();
-        }
-
-        this.polyOuts = [];
-    }
-
-    private processHorizontals(isTopOfScanbeam: boolean): void {
-        let horzEdge: TEdge = this.sortedEdges;
-
-        while (horzEdge !== null) {
-            this.sortedEdges = horzEdge.deleteFromSEL(this.sortedEdges);
-
-            this.processHorizontal(horzEdge, isTopOfScanbeam);
-
-            horzEdge = this.sortedEdges;
-        }
-    }
-
-    private processHorizontal(horzEdge: TEdge, isTopOfScanbeam: boolean) {
-        let dirValue: Float64Array = horzEdge.horzDirection;
-        let dir: DIRECTION = dirValue[0] as DIRECTION;
-        let horzLeft: number = dirValue[1];
-        let horzRight: number = dirValue[2];
-
-        let eLastHorz: NullPtr<TEdge> = horzEdge;
-        let eMaxPair: NullPtr<TEdge> = null;
-
-        while (eLastHorz.NextInLML !== null && eLastHorz.NextInLML.isHorizontal) {
-            eLastHorz = eLastHorz.NextInLML;
-        }
-
-        if (eLastHorz.NextInLML === null) {
-            eMaxPair = eLastHorz.maximaPair;
-        }
-
-        while (true) {
-            const isLastHorz: boolean = horzEdge === eLastHorz;
-            let e: NullPtr<TEdge> = horzEdge.getNextInAEL(dir);
-            let eNext: NullPtr<TEdge> = null;
-
-            while (e !== null) {
-                //Break if we've got to the end of an intermediate horizontal edge ...
-                //nb: Smaller Dx's are to the right of larger Dx's ABOVE the horizontal.
-                if (e.Curr.x === horzEdge.Top.x && horzEdge.NextInLML !== null && e.Dx < horzEdge.NextInLML.Dx) {
-                    break;
-                }
-
-                eNext = e.getNextInAEL(dir);
-                //saves eNext for later
-                if ((dir === DIRECTION.RIGHT && e.Curr.x <= horzRight) || (dir === DIRECTION.LEFT && e.Curr.x >= horzLeft)) {
-                    if (horzEdge.isFilled) {
-                        this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
+                    while (edgeIndex !== rightBoundIndex) {
+                        //nb: For calculating winding counts etc, IntersectEdges() assumes
+                        //that param1 will be to the right of param2 ABOVE the intersection ...
+                        this.intersectEdges(rightBoundIndex, edgeIndex, this.tEdge.curr(leftBoundIndex), false);
+                        //order important here
+                        edgeIndex = this.tEdge.getNeighboar(edgeIndex, true, true);
                     }
-
-                    //so far we're still in range of the horizontal Edge  but make sure
-                    //we're at the last of consec. horizontals when matching with eMaxPair
-                    if (e === eMaxPair && isLastHorz) {
-                        if (dir === DIRECTION.RIGHT) {
-                            this.intersectEdges(horzEdge, e, e.Top, false);
-                        } else {
-                            this.intersectEdges(e, horzEdge, e.Top, false);
-                        }
-                        if (eMaxPair.isAssigned) {
-                            showError('ProcessHorizontal error');
-                        }
-
-                        return;
-                    }
-
-                    const Pt: PointI32 = PointI32.create(e.Curr.x, horzEdge.Curr.y);
-
-                    if (dir === DIRECTION.RIGHT) {
-                        this.intersectEdges(horzEdge, e, Pt, true);
-                    } else {
-                        this.intersectEdges(e, horzEdge, Pt, true);
-                    }
-
-                    this.SwapPositionsInAEL(horzEdge, e);
-                } else if (
-                    (dir === DIRECTION.RIGHT && e.Curr.x >= horzRight) ||
-                    (dir === DIRECTION.LEFT && e.Curr.x <= horzLeft)
-                ) {
-                    break;
                 }
-
-                e = eNext;
             }
-            //end while
-            if (horzEdge.isFilled) {
-                this.prepareHorzJoins(horzEdge, isTopOfScanbeam);
-            }
-
-            if (horzEdge.NextInLML !== null && horzEdge.NextInLML.isHorizontal) {
-                horzEdge = this.updateEdgeIntoAEL(horzEdge);
-
-                if (horzEdge.isAssigned) {
-                    OutRec.addOutPt(this.polyOuts, horzEdge, horzEdge.Bot);
-                }
-
-                dirValue = horzEdge.horzDirection;
-                dir = dirValue[0] as DIRECTION;
-                horzLeft = dirValue[1];
-                horzRight = dirValue[2];
-            } else {
-                break;
-            }
-        }
-        //end for (;;)
-        if (horzEdge.NextInLML !== null) {
-            if (horzEdge.isAssigned) {
-                const op1: NullPtr<OutPt> = OutRec.addOutPt(this.polyOuts, horzEdge, horzEdge.Top);
-                horzEdge = this.updateEdgeIntoAEL(horzEdge);
-
-                if (horzEdge.isWindDeletaEmpty) {
-                    return;
-                }
-                //nb: HorzEdge is no longer horizontal here
-                let prevEdge: NullPtr<TEdge> = horzEdge.PrevInAEL;
-                let nextEdge: NullPtr<TEdge> = horzEdge.NextInAEL;
-
-                if (
-                    prevEdge !== null &&
-                    prevEdge.Curr.almostEqual(horzEdge.Bot) &&
-                    prevEdge.isFilled &&
-                    prevEdge.Curr.y > prevEdge.Top.y &&
-                    TEdge.slopesEqual(horzEdge, prevEdge, this.isUseFullRange)
-                ) {
-                    const op2: OutPt = OutRec.addOutPt(this.polyOuts, prevEdge, horzEdge.Bot);
-                    this.joins.push(new Join(op1, op2, horzEdge.Top));
-                } else if (
-                    nextEdge !== null &&
-                    nextEdge.Curr.almostEqual(horzEdge.Bot) &&
-                    nextEdge.isFilled &&
-                    nextEdge.Curr.y > nextEdge.Top.y &&
-                    TEdge.slopesEqual(horzEdge, nextEdge, this.isUseFullRange)
-                ) {
-                    const op2: NullPtr<OutPt> = OutRec.addOutPt(this.polyOuts, nextEdge, horzEdge.Bot);
-                    this.joins.push(new Join(op1, op2, horzEdge.Top));
-                }
-            } else {
-                horzEdge = this.updateEdgeIntoAEL(horzEdge);
-            }
-        } else if (eMaxPair !== null) {
-            if (eMaxPair.isAssigned) {
-                if (dir === DIRECTION.RIGHT) {
-                    this.intersectEdges(horzEdge, eMaxPair, horzEdge.Top, false);
-                } else {
-                    this.intersectEdges(eMaxPair, horzEdge, horzEdge.Top, false);
-                }
-                if (eMaxPair.isAssigned) {
-                    showError('ProcessHorizontal error');
-                }
-            } else {
-                this.activeEdges = horzEdge.deleteFromAEL(this.activeEdges);
-                this.activeEdges = eMaxPair.deleteFromAEL(this.activeEdges);
-            }
-        } else {
-            if (horzEdge.isAssigned) {
-                OutRec.addOutPt(this.polyOuts, horzEdge, horzEdge.Top);
-            }
-
-            this.activeEdges = horzEdge.deleteFromAEL(this.activeEdges);
         }
     }
 
-    private prepareHorzJoins(horzEdge: TEdge, isTopOfScanbeam: boolean) {
+    private insertJoinFromEdge(
+        condition: boolean,
+        outHash1: number,
+        edgeIndex: number,
+        isNext: boolean,
+        isTop2: boolean
+    ): boolean {
+        return this.insertJoin(
+            condition,
+            outHash1,
+            this.tEdge.getNeighboar(edgeIndex, isNext, true),
+            this.tEdge.bot(edgeIndex),
+            isTop2 ? this.tEdge.top(edgeIndex) : this.tEdge.bot(edgeIndex)
+        );
+    }
+
+    private insertJoin(
+        condition: boolean,
+        outHash1: number,
+        edgeIndex: number,
+        point1: Point<Int32Array>,
+        point2: Point<Int32Array> = point1
+    ): boolean {
+        if (condition) {
+            const outHash2 = this.addOutPt(edgeIndex, point1);
+            this.join.add(outHash1, outHash2, point2);
+        }
+
+        return condition;
+    }
+
+    private addScanbeamJoin(edge1Index: number, edge2Index: number, point: Point<Int32Array>): void {
+        const outPt1 = this.addOutPt(edge2Index, point);
+        const outPt2 = this.addOutPt(edge1Index, point);
+
+        this.join.add(outPt1, outPt2, point);
+        //StrictlySimple (type-3) join
+    }
+
+    private addOutputJoins(outHash: number, rightBoundIndex: number): void {
+        const joinCount: number = this.join.getLength(true);
+
+        if (joinCount > 0) {
+            const point = PointI32.create();
+
+            for (let i = 0; i < joinCount; ++i) {
+                //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
+                //the 'ghost' join to a real join ready for later ...
+                point.set(this.join.getX(i, true), this.join.getY(i, true));
+
+                if (this.horzSegmentsOverlap(this.join.getHash1(i, true), point, rightBoundIndex)) {
+                    this.join.fromGhost(i, outHash);
+                }
+            }
+        }
+    }
+
+    private prepareHorzJoins(horzEdgeIndex: number) {
         //Also, since horizontal edges at the top of one SB are often removed from
         //the AEL before we process the horizontal edges at the bottom of the next,
         //we need to create 'ghost' Join records of 'contrubuting' horizontals that
         //we can compare with horizontals at the bottom of the next SB.
-        if (isTopOfScanbeam) {
-            //get the last Op for this horizontal edge
-            //the point may be anywhere along the horizontal ...
-            let outPt: NullPtr<OutPt> = this.polyOuts[horzEdge.index].Pts;
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        const recIndex = this.tEdge.getRecIndex(horzEdgeIndex);
+        const side = this.tEdge.side(horzEdgeIndex);
+        const top = this.tEdge.top(horzEdgeIndex);
+        const bot = this.tEdge.bot(horzEdgeIndex);
 
-            if (horzEdge.Side === DIRECTION.RIGHT) {
-                outPt = outPt.prev;
-            }
+        const [outPtHash, x, y] = this.outRec.getJoinData(recIndex, side, top, bot);
 
-            const offPoint: PointI32 = outPt.point.almostEqual(horzEdge.Top) ? horzEdge.Bot : horzEdge.Top;
-
-            this.ghostJoins.push(new Join(outPt, null, offPoint));
-        }
+        this.join.addGhost(outPtHash, x, y);
     }
 
-    private updateEdgeIntoAEL(edge: TEdge): NullPtr<TEdge> {
-        if (edge.NextInLML === null) {
-            showError('UpdateEdgeIntoAEL: invalid call');
-        }
+    private addOutPt(edgeIndex: number, point: Point<Int32Array>): number {
+        let outRecIndex: number;
+        let pointIndex: number;
 
-        const AelPrev: NullPtr<TEdge> = edge.PrevInAEL;
-        const AelNext: NullPtr<TEdge> = edge.NextInAEL;
-        edge.NextInLML.index = edge.index;
+        if (!this.tEdge.isAssigned(edgeIndex)) {
+            pointIndex = this.outRec.fromPoint(point);
+            outRecIndex = this.outRec.create(pointIndex);
 
-        if (AelPrev !== null) {
-            AelPrev.NextInAEL = edge.NextInLML;
+            this.setHoleState(outRecIndex, edgeIndex);
+
+            this.tEdge.setRecIndex(edgeIndex, this.outRec.currentIndex(outRecIndex));
+            //nb: do this after SetZ !
         } else {
-            this.activeEdges = edge.NextInLML;
+            const isToFront: boolean = this.tEdge.side(edgeIndex) === DIRECTION.LEFT;
+            const recIndex = this.tEdge.getRecIndex(edgeIndex);
+
+            outRecIndex = this.outRec.getOutRec(recIndex);
+            pointIndex = this.outRec.addOutPt(recIndex, isToFront, point);
         }
 
-        if (AelNext !== null) {
-            AelNext.PrevInAEL = edge.NextInLML;
-        }
-
-        edge.NextInLML.Side = edge.Side;
-        edge.NextInLML.WindDelta = edge.WindDelta;
-        edge.NextInLML.WindCnt = edge.WindCnt;
-        edge.NextInLML.WindCnt2 = edge.WindCnt2;
-        edge = edge.NextInLML;
-        edge.Curr.update(edge.Bot);
-        edge.PrevInAEL = AelPrev;
-        edge.NextInAEL = AelNext;
-
-        if (!edge.isHorizontal) {
-            this.scanbeam = Scanbeam.insert(edge.Top.y, this.scanbeam);
-        }
-
-        return edge;
+        return this.outRec.getHash(outRecIndex, pointIndex);
     }
 
-    private doSimplePolygons(): void {
+    private addLocalMinPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>): number {
+        let firstIndex = edge2Index;
+        let secondIndex = edge1Index;
+        let result: number = UNASSIGNED;
+
+        if (this.tEdge.isHorizontal(edge2Index) || this.tEdge.dx(edge1Index) > this.tEdge.dx(edge2Index)) {
+            firstIndex = edge1Index;
+            secondIndex = edge2Index;
+        }
+
+        result = this.addOutPt(firstIndex, point);
+        const { condition, prevIndex, top } = this.tEdge.addLocalMinPoly(firstIndex, secondIndex, point);
+
+        this.insertJoin(condition, result, prevIndex, point, top);
+
+        return result;
+    }
+
+    private addLocalMaxPoly(edge1Index: number, edge2Index: number, point: Point<Int32Array>): void {
+        this.addOutPt(edge1Index, point);
+
+        if (this.tEdge.isWindDeletaEmpty(edge2Index)) {
+            this.addOutPt(edge2Index, point);
+        }
+
+        const recIndex1 = this.tEdge.getRecIndex(edge1Index);
+        const recIndex2 = this.tEdge.getRecIndex(edge2Index);
+
+        if (recIndex1 === recIndex2) {
+            this.tEdge.unassign(edge1Index);
+            this.tEdge.unassign(edge2Index);
+            return;
+        }
+
+        const condition = recIndex1 < recIndex2;
+        const firstIndex = condition ? edge1Index : edge2Index;
+        const secondIndex = condition ? edge2Index : edge1Index;
+        const firstRecIndex = this.tEdge.getRecIndex(firstIndex);
+        const secondRecIndex = this.tEdge.getRecIndex(secondIndex);
+
+        //get the start and ends of both output polygons ...
+        const firstSide = this.tEdge.side(firstIndex);
+        const secondSide = this.tEdge.side(secondIndex);
+
+        this.tEdge.addLocalMaxPoly(firstIndex, secondIndex);
+        this.outRec.joinPolys(firstRecIndex, secondRecIndex, firstSide, secondSide);
+    }
+
+    private fixupOutPolygon(): void {
         let i: number = 0;
-        let outPt: OutPt = null;
-        let outRec: OutRec = null;
 
-        while (i < this.polyOuts.length) {
-            outRec = this.polyOuts[i++];
-            outPt = outRec.Pts;
+        this.outRec.fixDirections();
 
-            if (outPt !== null) {
-                outRec.simplify(outPt, this.polyOuts);
-            }
-        }
-    }
+        const joinCount: number = this.join.getLength(false);
+        const point = PointI32.create();
 
-    private fixupIntersectionOrder(): boolean {
-        //pre-condition: intersections are sorted bottom-most first.
-        //Now it's crucial that intersections are made only between adjacent edges,
-        //so to ensure this the order of intersections may need adjusting ...
-        this.intersections.sort(IntersectNode.sort);
-
-        this.copyAELToSEL();
-
-        const intersectCount: number = this.intersections.length;
-        let i: number = 0;
-        let j: number = 0;
-        let node: IntersectNode = null;
-
-        for (i = 0; i < intersectCount; ++i) {
-            if (!this.intersections[i].edgesAdjacent) {
-                j = i + 1;
-
-                while (j < intersectCount && !this.intersections[j].edgesAdjacent) {
-                    ++j;
-                }
-
-                if (j === intersectCount) {
-                    return false;
-                }
-
-                node = this.intersections[i];
-                this.intersections[i] = this.intersections[j];
-                this.intersections[j] = node;
-            }
-
-            this.SwapPositionsInSEL(this.intersections[i].Edge1, this.intersections[i].Edge2);
+        for (i = 0; i < joinCount; ++i) {
+            point.set(this.join.getX(i, false), this.join.getY(i, false));
+            this.joinCommonEdge(i, point);
         }
 
-        return true;
+        this.outRec.fixOutPolygon(this.tEdge.isUseFullRange);
     }
 
-    private SwapPositionsInAEL(edge1: TEdge, edge2: TEdge): void {
-        if (!TEdge.swapPositionsInAEL(edge1, edge2)) {
+    private setHoleState(recIndex: number, edgeIndex: number): void {
+        const { isHole, index } = this.tEdge.getHoleState(this.outRec.firstLeftIndex(recIndex), edgeIndex);
+
+        this.outRec.setHoleState(recIndex, isHole, index);
+    }
+
+    private joinCommonEdge(index: number, offPoint: Point<Int32Array>): void {
+        const inputHash1 = this.join.getHash1(index, false);
+        const inputHash2 = this.join.getHash2(index);
+        const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint);
+
+        if (!result) {
+            this.join.updateHash(index, outHash1, outHash2);
             return;
         }
 
-        if (edge1.PrevInAEL === null) {
-            this.activeEdges = edge1;
-        } else if (edge2.PrevInAEL === null) {
-            this.activeEdges = edge2;
-        }
-    }
+        //get the polygon fragment with the correct hole state (FirstLeft)
+        //before calling JoinPoints() ...
 
-    private SwapPositionsInSEL(edge1: TEdge, edge2: TEdge) {
-        if (!TEdge.swapPositionsInSEL(edge1, edge2)) {
+        const index1: number = get_u16_from_u32(outHash1, 0);
+        const index2: number = get_u16_from_u32(outHash2, 0);
+        const outPt1Index: number = get_u16_from_u32(outHash1, 1);
+        const outPt2Index: number = get_u16_from_u32(outHash2, 1);
+        const outRec1: number = this.outRec.getOutRec(index1);
+        let outRec2: number = this.outRec.getOutRec(index2);
+
+        if (index1 === index2) {
+            //instead of joining two polygons, we've just created a new one by
+            //splitting one polygon into two.
+            outRec2 = this.outRec.splitPolys(outRec1, outPt1Index, outPt2Index);
+
+            this.join.updateHash(index, outHash1, outHash2);
             return;
         }
 
-        if (edge1.PrevInSEL === null) {
-            this.sortedEdges = edge1;
-        } else if (edge2.PrevInSEL === null) {
-            this.sortedEdges = edge2;
-        }
+        this.outRec.joinPolys2(outRec1, outRec2);
+
+        this.join.updateHash(index, outHash1, outHash2);
     }
 
-    private copyAELToSEL(): void {
-        let edge: TEdge = this.activeEdges;
-        this.sortedEdges = edge;
+    private joinPoints(
+        outHash1: number,
+        outHash2: number,
+        offPoint: Point<Int32Array>
+    ): { outHash1: number; outHash2: number; result: boolean } {
+        const index1: number = get_u16_from_u32(outHash1, 0);
+        const index2: number = get_u16_from_u32(outHash2, 0);
+        const outRec1 = this.outRec.getOutRec(index1);
+        const outRec2 = this.outRec.getOutRec(index2);
+        const result = { outHash1, outHash2, result: false };
 
-        while (edge !== null) {
-            edge = edge.copyAELToSEL();
+        if (this.outRec.isUnassigned(outRec1) || this.outRec.isUnassigned(outRec2)) {
+            return result;
         }
+
+        const outPt1Index: number = get_u16_from_u32(outHash1, 1);
+        const outPt2Index: number = get_u16_from_u32(outHash2, 1);
+        const isRecordsSame = outRec1 === outRec2;
+        //There are 3 kinds of joins for output polygons ...
+        //1. Horizontal joins where Join.OutPt1 & Join.OutPt2 are a vertices anywhere
+        //along (horizontal) collinear edges (& Join.OffPt is on the same horizontal).
+        //2. Non-horizontal joins where Join.OutPt1 & Join.OutPt2 are at the same
+        //location at the Bottom of the overlapping segment (& Join.OffPt is above).
+        //3. StrictlySimple joins where edges touch but are not collinear and where
+        //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
+        const isHorizontal: boolean = this.outRec.point(outPt1Index).y === offPoint.y;
+
+        if (
+            isHorizontal &&
+            offPoint.almostEqual(this.outRec.point(outPt1Index)) &&
+            offPoint.almostEqual(this.outRec.point(outPt2Index))
+        ) {
+            //Strictly Simple join ...
+            const reverse1 = this.outRec.strictlySimpleJoin(outPt1Index, offPoint);
+            const reverse2 = this.outRec.strictlySimpleJoin(outPt2Index, offPoint);
+
+            if (reverse1 === reverse2) {
+                return result;
+            }
+
+            result.outHash2 = join_u16_to_u32(index2, this.outRec.applyJoin(outPt1Index, outPt2Index, reverse1));
+            result.result = true;
+
+            return result;
+        }
+
+        if (isHorizontal) {
+            //treat horizontal joins differently to non-horizontal joins since with
+            //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
+            //may be anywhere along the horizontal edge.
+            const outPt1Res = this.outRec.flatHorizontal(outPt1Index, outPt2Index, outPt2Index);
+
+            if (outPt1Res.length === 0) {
+                return result;
+            }
+
+            const [op1Index, op1bIndex] = outPt1Res;
+            //a flat 'polygon'
+            const outPt2Res = this.outRec.flatHorizontal(outPt2Index, op1Index, op1bIndex);
+
+            if (outPt2Res.length === 0) {
+                return result;
+            }
+
+            const [op2Index, op2bIndex] = outPt2Res;
+            //a flat 'polygon'
+            //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
+
+            const value = this.outRec.getOverlap(op1Index, op1bIndex, op2Index, op2bIndex);
+            const isOverlapped = value.x < value.y;
+
+            if (!isOverlapped) {
+                return result;
+            }
+
+            //DiscardLeftSide: when overlapping edges are joined, a spike will created
+            //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
+            //on the discard Side as either may still be needed for other joins ...
+            result.outHash1 = join_u16_to_u32(index1, op1Index);
+            result.outHash2 = join_u16_to_u32(index2, op2Index);
+            result.result = this.outRec.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, value);
+
+            return result;
+        }
+
+        let op1 = outPt1Index;
+        let op2 = outPt2Index;
+        let op1b: number = this.outRec.getUniquePt(op1, true);
+        let op2b: number = this.outRec.getUniquePt(op2, true);
+        //nb: For non-horizontal joins ...
+        //    1. Jr.OutPt1.Pt.Y === Jr.OutPt2.Pt.Y
+        //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
+        //make sure the polygons are correctly oriented ...
+
+        const reverse1: boolean = this.tEdge.checkReverse(this.outRec.point(op1), this.outRec.point(op1b), offPoint);
+
+        if (reverse1) {
+            op1b = this.outRec.getUniquePt(op1, false);
+
+            if (this.tEdge.checkReverse(this.outRec.point(op1), this.outRec.point(op1b), offPoint)) {
+                return result;
+            }
+        }
+
+        const reverse2: boolean = this.tEdge.checkReverse(this.outRec.point(op2), this.outRec.point(op2b), offPoint);
+
+        if (reverse2) {
+            op2b = this.outRec.getUniquePt(op2, false);
+
+            if (this.tEdge.checkReverse(this.outRec.point(op2), this.outRec.point(op2b), offPoint)) {
+                return result;
+            }
+        }
+
+        if (op1b === op1 || op2b === op2 || op1b === op2b || (isRecordsSame && reverse1 === reverse2)) {
+            return result;
+        }
+
+        result.outHash2 = join_u16_to_u32(index2, this.outRec.applyJoin(outPt1Index, outPt2Index, reverse1));
+
+        result.result = true;
+
+        return result;
     }
 
-    private buildIntersectList(botY: number, topY: number): void {
-        if (this.activeEdges === null) {
-            return;
-        }
-        //prepare for sorting ...
-        let edge: TEdge = this.activeEdges;
-        //console.log(JSON.stringify(JSON.decycle( e )));
-        this.sortedEdges = edge;
+    private horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, edgeIndex: number): boolean {
+        const outPtIndex = get_u16_from_u32(outHash, 1);
+        const top = this.tEdge.top(edgeIndex);
+        const bot = this.tEdge.bot(edgeIndex);
 
-        while (edge !== null) {
-            edge.PrevInSEL = edge.PrevInAEL;
-            edge.NextInSEL = edge.NextInAEL;
-            edge.Curr.x = edge.topX(topY);
-            edge = edge.NextInAEL;
-        }
-        //bubblesort ...
-        let isModified: boolean = true;
-        let nextEdge: TEdge = null;
-        let point: PointI32 = null;
-
-        while (isModified && this.sortedEdges !== null) {
-            isModified = false;
-            edge = this.sortedEdges;
-
-            while (edge.NextInSEL !== null) {
-                nextEdge = edge.NextInSEL;
-                point = PointI32.create();
-                //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-                if (edge.Curr.x > nextEdge.Curr.x) {
-                    if (
-                        !TEdge.intersectPoint(edge, nextEdge, point, this.isUseFullRange) &&
-                        edge.Curr.x > nextEdge.Curr.x + 1
-                    ) {
-                        //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
-                        //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
-                        showError('Intersection error');
-                    }
-
-                    if (point.y > botY) {
-                        point.set(Math.abs(edge.Dx) > Math.abs(nextEdge.Dx) ? nextEdge.topX(botY) : edge.topX(botY), botY);
-                    }
-
-                    this.intersections.push(new IntersectNode(edge, nextEdge, point));
-                    this.SwapPositionsInSEL(edge, nextEdge);
-                    isModified = true;
-                } else {
-                    edge = nextEdge;
-                }
-            }
-
-            if (edge.PrevInSEL !== null) {
-                edge.PrevInSEL.NextInSEL = null;
-            } else {
-                break;
-            }
-        }
-
-        this.sortedEdges = null;
+        return PointI32.horzSegmentsOverlap(this.outRec.point(outPtIndex), offPoint, bot, top);
     }
 }

@@ -9,6 +9,7 @@
 -   Migrated from Float64 to Float32/Int32 values in point for decrease memory usage and increase worker performance (Pair flow still use F64. If someone could help port this part of the code it would be great. There have been several attempts to port this part of the code to float32 but all of them have been unsuccessful).
 -   Optimized concave flow. Now it faster then original. Original flow removed.
 -   Isolated and refactored js-clipper logic to avoid of full lib usage (it decrease package size twice).
+-   Rewrote js-clipper from dynamic lists to Data locality pattern structure.
 -   Migrated part of pair flow to Rust with WASM (speed-up packing time near 10 times).
 -   Migrated UI to React.
 

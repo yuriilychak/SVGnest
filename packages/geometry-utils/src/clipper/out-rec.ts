@@ -1,447 +1,886 @@
+import { join_u16_to_u32 } from 'wasm-nesting';
+import { Point } from '../types';
+import { HORIZONTAL, UNASSIGNED } from './constants';
+import { DIRECTION } from './enums';
 import { PointI32 } from '../geometry';
-import OutPt from './out-pt';
-import TEdge from './t-edge';
-import { DIRECTION, NullPtr } from './types';
-
 export default class OutRec {
-    public Idx: number;
-    public IsHole: boolean;
-    public IsOpen: boolean;
-    public FirstLeft: OutRec;
-    public Pts: NullPtr<OutPt>;
-    public BottomPt: OutPt;
+    private recData: Int16Array[] = [];
+    private pointNeighboars: Int16Array[] = [];
+    private points: Point<Int32Array>[] = [];
+    private isReverseSolution: boolean = false;
+    private isStrictlySimple: boolean = false;
 
-    constructor(index: number = 0, isOpen: boolean = false, pointer: NullPtr<OutPt> = null) {
-        this.Idx = index;
-        this.IsHole = false;
-        this.IsOpen = isOpen;
-        this.FirstLeft = null;
-        this.Pts = pointer;
-        this.BottomPt = null;
+    constructor(isReverseSolution: boolean, isStrictlySimple: boolean) {
+        this.isReverseSolution = isReverseSolution;
+        this.isStrictlySimple = isStrictlySimple;
     }
 
-    public fixupOutPolygon(preserveCollinear: boolean, useFullRange: boolean): void {
-        //FixupOutPolygon() - removes duplicate points and simplifies consecutive
-        //parallel edges by removing the middle vertex.
-        this.BottomPt = null;
-        let lastOutPt: NullPtr<OutPt> = null;
-        let outPt: NullPtr<OutPt> = this.Pts;
-
-        while (true) {
-            if (outPt !== null && (outPt.prev === outPt || outPt.prev === outPt.next)) {
-                outPt.dispose();
-                this.Pts = null;
-
-                return;
-            }
-            //test for duplicate points and collinear edges ...
-            if (
-                outPt.point.almostEqual(outPt.next.point) ||
-                outPt.point.almostEqual(outPt.prev.point) ||
-                (PointI32.slopesEqual(outPt.prev.point, outPt.point, outPt.next.point, useFullRange) &&
-                    (!preserveCollinear || !outPt.point.getBetween(outPt.prev.point, outPt.next.point)))
-            ) {
-                lastOutPt = null;
-                outPt.prev.next = outPt.next;
-                outPt.next.prev = outPt.prev;
-                outPt = outPt.prev;
-
-                continue;
-            }
-
-            if (outPt == lastOutPt) {
-                break;
-            }
-
-            if (lastOutPt === null) {
-                lastOutPt = outPt;
-            }
-
-            outPt = outPt.next;
-        }
-
-        this.Pts = outPt;
+    public get strictlySimple(): boolean {
+        return this.isStrictlySimple;
     }
 
-    public reversePts(): void {
-        if (this.Pts !== null) {
-            this.Pts.reverse();
+    public isUnassigned(index: number): boolean {
+        return this.recData[index][0] === UNASSIGNED;
+    }
+
+    public currentIndex(index: number): number {
+        return this.recData[index][1];
+    }
+
+    private setCurrentIndex(index1: number, index2: number): void {
+        this.recData[index1][1] = this.recData[index2][1];
+    }
+
+    public firstLeftIndex(index: number): number {
+        return index !== UNASSIGNED ? this.recData[index][2] : UNASSIGNED;
+    }
+
+    private setFirstLeftIndex(index: number, value: number): void {
+        this.recData[index][2] = value;
+    }
+
+    private getHoleStateRec(index1: number, index2: number): number {
+        switch (true) {
+            case this.param1RightOfParam2(index1, index2):
+                return index2;
+            case this.param1RightOfParam2(index2, index1):
+                return index1;
+            default:
+                return this.getLowermostRec(index1, index2);
         }
     }
 
-    public dispose(): void {
-        if (this.Pts !== null) {
-            this.Pts.dispose();
+    public setHoleState(recIndex: number, isHole: boolean, index: number): void {
+        if (this.firstLeftIndex(recIndex) === UNASSIGNED && index !== UNASSIGNED) {
+            this.setFirstLeftIndex(recIndex, index);
+        }
+
+        if (isHole) {
+            this.setHole(recIndex, true);
         }
     }
 
-    public export(): PointI32[] | null {
-        const pointCount = this.pointCount;
+    public getJoinData(recIndex: number, direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        const index: number =
+            direction === DIRECTION.RIGHT
+                ? this.getNeighboarIndex(this.pointIndex(recIndex), false)
+                : this.pointIndex(recIndex);
+        const offPoint = this.point(index).almostEqual(top) ? bottom : top;
 
-        if (pointCount < 2) {
-            return null;
-        }
+        return [this.getHash(recIndex, index), offPoint.x, offPoint.y];
+    }
 
-        const result: PointI32[] = new Array(pointCount);
-        let outPt: OutPt = this.Pts.prev as OutPt;
-        let i: number = 0;
+    public getOutRec(index: number): number {
+        let result: number = index;
 
-        for (i = 0; i < pointCount; ++i) {
-            result[i] = outPt.point;
-            outPt = outPt.prev as OutPt;
+        while (result !== this.currentIndex(result)) {
+            result = this.currentIndex(result);
         }
 
         return result;
     }
 
-    public joinCommonEdges(outRec: OutRec, isReverseSolution: boolean): boolean {
-        if (!outRec.containsPoly(this)) {
-            return false;
-        }
-        //outRec1 is contained by outRec2 ...
-        this.IsHole = !outRec.IsHole;
-        this.FirstLeft = outRec;
+    private export(recIndex: number): Point<Int32Array>[] {
+        const index = this.pointIndex(recIndex);
+        const pointCount = this.getLength(index);
 
-        if ((this.IsHole !== isReverseSolution) === this.area > 0) {
-            this.Pts.reverse();
+        if (pointCount < 2) {
+            return [];
         }
 
-        return true;
+        const result: Point<Int32Array>[] = new Array(pointCount);
+        const prevIndex = this.getNeighboarIndex(index, false);
+        let outPt: number = prevIndex;
+        let i: number = 0;
+
+        for (i = 0; i < pointCount; ++i) {
+            result[i] = this.point(outPt).clone();
+            outPt = this.prev(outPt);
+        }
+
+        return result;
     }
 
-    public updateOutPtIdxs(): void {
-        let outPt: OutPt = this.Pts;
+    public buildResult(polygons: Point<Int32Array>[][]): void {
+        for (let i = 0; i < this.recData.length; ++i) {
+            const polygon = this.isUnassigned(i) ? [] : this.export(i);
+
+            if (polygon.length !== 0) {
+                polygons.push(polygon);
+            }
+        }
+    }
+
+    public fixDirections(): void {
+        for (let i = 0; i < this.recData.length; ++i) {
+            this.reverse(i);
+        }
+    }
+
+    public create(pointIndex: number): number {
+        const index = this.recData.length;
+
+        this.recData.push(new Int16Array([pointIndex, index, UNASSIGNED, 0]));
+
+        return index;
+    }
+
+    public dispose(): void {
+        this.recData.length = 0;
+        this.points.length = 0;
+        this.pointNeighboars.length = 0;
+    }
+
+    private fixupOutPolygonInner(recIndex: number, preserveCollinear: boolean, useFullRange: boolean): number {
+        const index = this.pointIndex(recIndex);
+        //FixupOutPolygon() - removes duplicate points and simplifies consecutive
+        //parallel edges by removing the middle vertex.
+        let lastOutIndex: number = UNASSIGNED;
+        let outPt = index;
+
+        while (true) {
+            if (this.prev(outPt) === outPt || this.prev(outPt) === this.next(outPt)) {
+                return UNASSIGNED;
+            }
+
+            const nextPt = this.next(outPt);
+            const prevPt = this.prev(outPt);
+            //test for duplicate points and collinear edges ...
+            if (
+                this.almostEqual(outPt, prevPt) ||
+                this.almostEqual(outPt, nextPt) ||
+                (PointI32.slopesEqual(this.point(prevPt), this.point(outPt), this.point(nextPt), useFullRange) &&
+                    (!preserveCollinear || !this.point(outPt).getBetween(this.point(prevPt), this.point(nextPt))))
+            ) {
+                lastOutIndex = UNASSIGNED;
+                outPt = this.remove(outPt);
+
+                continue;
+            }
+
+            if (outPt === lastOutIndex) {
+                break;
+            }
+
+            if (lastOutIndex === UNASSIGNED) {
+                lastOutIndex = outPt;
+            }
+
+            outPt = this.next(outPt);
+        }
+
+        return outPt;
+    }
+
+    public fixOutPolygon(isUseFullRange: boolean) {
+        for (let i = 0; i < this.recData.length; ++i) {
+            if (!this.isUnassigned(i)) {
+                this.setPointIndex(i, this.fixupOutPolygonInner(i, false, isUseFullRange));
+            }
+        }
+
+        if (this.isStrictlySimple) {
+            for (let i = 0; i < this.recData.length; ++i) {
+                this.simplify(i);
+            }
+        }
+    }
+
+    private getLowermostRec(outRec1Index: number, outRec2Index: number): number {
+        const bIndex1: number = this.getBottomPt(outRec1Index);
+        const bIndex2: number = this.getBottomPt(outRec2Index);
+
+        switch (true) {
+            case this.pointY(bIndex1) > this.pointY(bIndex2):
+                return outRec1Index;
+            case this.pointY(bIndex1) < this.pointY(bIndex2):
+                return outRec2Index;
+            case this.pointX(bIndex1) < this.pointX(bIndex2):
+                return outRec1Index;
+            case this.pointX(bIndex1) > this.pointX(bIndex2):
+                return outRec2Index;
+            case bIndex1 === this.next(bIndex1):
+                return outRec2Index;
+            case bIndex2 === this.next(bIndex2):
+                return outRec1Index;
+            case this.firstIsBottomPt(bIndex1, bIndex2):
+                return outRec1Index;
+            default:
+                return outRec2Index;
+        }
+    }
+
+    private split(op1Index: number, op2Index: number): void {
+        const op1Prev = this.getNeighboarIndex(op1Index, false);
+        const op2Prev = this.getNeighboarIndex(op2Index, false);
+
+        this.push(op2Prev, op1Index, true);
+        this.push(op1Prev, op2Index, true);
+    }
+
+    private canSplit(index1: number, index2: number): boolean {
+        return (
+            this.almostEqual(index2, index1) &&
+            this.getNeighboarIndex(index2, true) != index1 &&
+            this.getNeighboarIndex(index2, false) != index1
+        );
+    }
+
+    private simplify(recIndex: number): void {
+        if (this.isUnassigned(recIndex)) {
+            return;
+        }
+
+        const inputIndex = this.pointIndex(recIndex);
+        let currIndex = this.pointIndex(recIndex);
+        let splitIndex = UNASSIGNED;
+
+        do //for each Pt in Polygon until duplicate found do ...
+        {
+            splitIndex = this.getNeighboarIndex(currIndex, true);
+
+            while (splitIndex !== this.pointIndex(recIndex)) {
+                if (this.canSplit(currIndex, splitIndex)) {
+                    //split the polygon into two ...
+                    this.split(currIndex, splitIndex);
+                    this.setPointIndex(recIndex, currIndex);
+                    const outRecIndex = this.create(splitIndex);
+
+                    this.updateSplit(recIndex, outRecIndex);
+
+                    splitIndex = currIndex;
+                    //ie get ready for the next iteration
+                }
+
+                splitIndex = this.getNeighboarIndex(splitIndex, true);
+            }
+
+            currIndex = this.getNeighboarIndex(currIndex, true);
+        } while (currIndex != inputIndex);
+    }
+
+    private updateSplit(index1: number, index2: number): void {
+        if (this.containsPoly(index1, index2)) {
+            //OutRec2 is contained by OutRec1 ...
+            this.setHole(index2, !this.isHole(index1));
+            this.setFirstLeftIndex(index2, index1);
+        } else if (this.containsPoly(index2, index1)) {
+            //OutRec1 is contained by OutRec2 ...
+            this.setHole(index2, this.isHole(index1));
+            this.setHole(index1, !this.isHole(index2));
+            this.setFirstLeftIndex(index2, this.firstLeftIndex(index1));
+            this.setFirstLeftIndex(index1, index2);
+        } else {
+            //the 2 polygons are separate ...
+            this.setHole(index2, this.isHole(index1));
+            this.setFirstLeftIndex(index2, this.firstLeftIndex(index1));
+        }
+    }
+
+    private postInit(recIndex: number): void {
+        this.setHole(recIndex, !this.isHole(recIndex));
+        this.setFirstLeftIndex(recIndex, recIndex);
+
+        this.reverse(recIndex);
+    }
+
+    private getLength(index: number): number {
+        const prevIndex = this.getNeighboarIndex(index, false);
+
+        if (prevIndex === UNASSIGNED) {
+            return 0;
+        }
+
+        let result: number = 0;
+        let outPt: number = prevIndex;
 
         do {
-            outPt.index = this.Idx;
-            outPt = outPt.prev;
-        } while (outPt !== this.Pts);
+            ++result;
+            outPt = this.next(outPt);
+        } while (outPt !== prevIndex);
+
+        return result;
     }
 
-    private containsPoly(outRec: OutRec): boolean {
-        let outPt: OutPt = outRec.Pts;
+    private join(recIndex1: number, recIndex2: number, side1: DIRECTION, side2: DIRECTION): void {
+        const index1: number = this.pointIndex(recIndex1);
+        const index2: number = this.pointIndex(recIndex2);
+        const prevIndex1: number = this.getNeighboarIndex(index1, false);
+        const prevIndex2: number = this.getNeighboarIndex(index2, false);
+        const isLeft = side1 === DIRECTION.LEFT;
+        let pointIndex: number;
+
+        if (side1 === side2) {
+            this.reverseInner(index2);
+            this.push(index2, index1, true);
+            this.push(prevIndex1, prevIndex2, true);
+
+            pointIndex = isLeft ? prevIndex2 : index1;
+        } else {
+            this.push(prevIndex1, index2, true);
+            this.push(prevIndex2, index1, true);
+
+            pointIndex = isLeft ? index2 : index1;
+        }
+
+        this.setPointIndex(recIndex1, pointIndex);
+    }
+
+    public getHash(recIndex: number, pointIndex: number): number {
+        return join_u16_to_u32(recIndex, pointIndex);
+    }
+
+    public addOutPt(recIndex: number, isToFront: boolean, point: Point<Int32Array>): number {
+        const outRec: number = this.getOutRec(recIndex);
+        //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
+        const op: number = this.pointIndex(outRec);
+
+        if (isToFront && point.almostEqual(this.point(op))) {
+            return op;
+        }
+
+        const prev = this.prev(op);
+
+        if (!isToFront && point.almostEqual(this.point(prev))) {
+            return prev;
+        }
+
+        const newIndex = this.createOutPt(point);
+        this.push(this.prev(op), newIndex, true);
+        this.push(newIndex, op, true);
+
+        if (isToFront) {
+            this.setPointIndex(outRec, newIndex);
+        }
+
+        return newIndex;
+    }
+
+    private pointIn(inputIndex: number, outIndex: number): number {
+        //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
+        //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
+        const outX = this.pointX(outIndex);
+        const outY = this.pointY(outIndex);
+        let outPt: number = inputIndex;
+        let startOutPt: number = outPt;
+        let result: number = 0;
+        let poly0x: number = 0;
+        let poly0y: number = 0;
+        let poly1x: number = 0;
+        let poly1y: number = 0;
+        let d: number = 0;
+
+        while (true) {
+            const nextPt = this.next(outPt);
+            poly0x = this.pointX(outPt);
+            poly0y = this.pointY(outPt);
+            poly1x = this.pointX(nextPt);
+            poly1y = this.pointY(nextPt);
+
+            if (poly1y === outY) {
+                if (poly1x === outX || (poly0y === outY && poly1x > outX === poly0x < outX)) {
+                    return UNASSIGNED;
+                }
+            }
+
+            if (poly0y < outY !== poly1y < outY) {
+                if (poly0x >= outX) {
+                    if (poly1x > outX) {
+                        result = 1 - result;
+                    } else {
+                        d = (poly0x - outX) * (poly1y - outY) - (poly1x - outX) * (poly0y - outY);
+
+                        if (d == 0) {
+                            return UNASSIGNED;
+                        }
+
+                        if (d > 0 === poly1y > poly0y) {
+                            result = 1 - result;
+                        }
+                    }
+                } else {
+                    if (poly1x > outX) {
+                        d = (poly0x - outX) * (poly1y - outY) - (poly1x - outX) * (poly0y - outY);
+
+                        if (d === 0) {
+                            return UNASSIGNED;
+                        }
+
+                        if (d > 0 === poly1y > poly0y) {
+                            result = 1 - result;
+                        }
+                    }
+                }
+            }
+
+            outPt = this.next(outPt);
+
+            if (startOutPt === outPt) {
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    private pointIndex(index: number): number {
+        return this.recData[index][0];
+    }
+
+    private setPointIndex(index: number, value: number): void {
+        this.recData[index][0] = value;
+    }
+
+    private isHole(index: number): boolean {
+        return this.recData[index][3] === 1;
+    }
+
+    private setHole(index: number, value: boolean): void {
+        this.recData[index][3] = value ? 1 : 0;
+    }
+
+    private param1RightOfParam2(outRec1Index: number, outRec2Index: number): boolean {
+        let innerIndex = outRec1Index;
+
+        do {
+            innerIndex = this.firstLeftIndex(innerIndex);
+
+            if (innerIndex == outRec2Index) {
+                return true;
+            }
+        } while (innerIndex !== UNASSIGNED);
+
+        return false;
+    }
+
+    private containsPoly(recIndex1: number, recIndex2: number): boolean {
+        const index1 = this.pointIndex(recIndex1);
+        const index2 = this.pointIndex(recIndex2);
+
+        let currIndex: number = index2;
         let res: number = 0;
 
         do {
-            res = this.Pts.pointIn(outPt.point);
+            res = this.pointIn(index1, currIndex);
 
             if (res >= 0) {
                 return res !== 0;
             }
 
-            outPt = outPt.next;
-        } while (outPt !== outRec.Pts);
+            currIndex = this.getNeighboarIndex(currIndex, true);
+        } while (currIndex !== index2);
 
         return true;
     }
 
-    public get pointCount(): number {
-        return this.Pts !== null && this.Pts.prev !== null ? this.Pts.prev.pointCount : 0;
-    }
-
-    public get isEmpty(): boolean {
-        return this.Pts === null || this.IsOpen;
-    }
-
-    public get area(): number {
-        if (this.Pts == null) {
-            return 0;
+    private reverse(index: number): void {
+        if (!this.isUnassigned(index) && (this.isHole(index) !== this.isReverseSolution) === this.getArea(index) > 0) {
+            this.reverseInner(this.pointIndex(index));
         }
+    }
 
-        let outPt: OutPt = this.Pts;
+    private getArea(recIndex: number): number {
+        const index = this.pointIndex(recIndex);
+        let outPt: number = index;
         let result: number = 0;
 
         do {
-            result = result + (outPt.prev.point.x + outPt.point.x) * (outPt.prev.point.y - outPt.point.y);
-            outPt = outPt.next;
-        } while (outPt != this.Pts);
+            let prevPt: number = this.prev(outPt);
+            result = result + (this.pointX(prevPt) + this.pointX(outPt)) * (this.pointY(prevPt) - this.pointY(outPt));
+            outPt = this.next(outPt);
+        } while (outPt != index);
 
         return result * 0.5;
     }
 
-    public setHoleState(inputEdge: TEdge, outs: OutRec[]): void {
-        let isHole: boolean = false;
-        let edge: NullPtr<TEdge> = inputEdge.PrevInAEL;
+    private getBottomPt(recIndex: number): number {
+        const inputIndex = this.pointIndex(recIndex);
+        let outIndex1 = inputIndex;
+        let outIndex2 = this.getNeighboarIndex(inputIndex, true);
+        let dupsIndex: number = UNASSIGNED;
 
-        while (edge !== null) {
-            if (edge.isAssigned && !edge.isWindDeletaEmpty) {
-                isHole = !isHole;
-
-                if (this.FirstLeft === null) {
-                    this.FirstLeft = outs[edge.index];
+        while (outIndex2 !== outIndex1) {
+            if (this.pointY(outIndex2) > this.pointY(outIndex1)) {
+                outIndex1 = outIndex2;
+                dupsIndex = UNASSIGNED;
+            } else if (this.pointY(outIndex2) == this.pointY(outIndex1) && this.pointX(outIndex2) <= this.pointX(outIndex1)) {
+                if (this.pointX(outIndex2) < this.pointX(outIndex1)) {
+                    dupsIndex = UNASSIGNED;
+                    outIndex1 = outIndex2;
+                } else if (this.next(outIndex2) !== outIndex1 && this.prev(outIndex2) !== outIndex1) {
+                    dupsIndex = outIndex2;
                 }
             }
 
-            edge = edge.PrevInAEL;
+            outIndex2 = this.next(outIndex2);
         }
 
-        if (isHole) {
-            this.IsHole = true;
-        }
-    }
-
-    public simplify(outPt: OutPt, output: OutRec[]): void {
-        let outRec: OutRec = null;
-        let op2: OutPt = null;
-        let op3: OutPt = null;
-        let op4: OutPt = null;
-
-        do //for each Pt in Polygon until duplicate found do ...
-        {
-            op2 = outPt.next;
-
-            while (op2 !== this.Pts) {
-                if (outPt.point.almostEqual(op2.point) && op2.next != outPt && op2.prev != outPt) {
-                    //split the polygon into two ...
-                    op3 = outPt.prev;
-                    op4 = op2.prev;
-                    outPt.prev = op4;
-                    op4.next = outPt;
-                    op2.prev = op3;
-                    op3.next = op2;
-                    this.Pts = outPt;
-                    outRec = OutRec.create(output);
-                    outRec.Pts = op2;
-                    outRec.updateOutPtIdxs();
-
-                    if (this.containsPoly(outRec)) {
-                        //OutRec2 is contained by OutRec1 ...
-                        outRec.IsHole = !this.IsHole;
-                        outRec.FirstLeft = this;
-                    } else if (outRec.containsPoly(this)) {
-                        //OutRec1 is contained by OutRec2 ...
-                        outRec.IsHole = this.IsHole;
-                        this.IsHole = !outRec.IsHole;
-                        outRec.FirstLeft = this.FirstLeft;
-                        this.FirstLeft = outRec;
-                    } else {
-                        //the 2 polygons are separate ...
-                        outRec.IsHole = this.IsHole;
-                        outRec.FirstLeft = this.FirstLeft;
-                    }
-                    op2 = outPt;
-                    //ie get ready for the next iteration
+        if (dupsIndex !== UNASSIGNED) {
+            //there appears to be at least 2 vertices at bottomPt so ...
+            while (dupsIndex !== outIndex2) {
+                if (!this.firstIsBottomPt(outIndex2, dupsIndex)) {
+                    outIndex1 = dupsIndex;
                 }
-                op2 = op2.next;
+
+                dupsIndex = this.getNeighboarIndex(dupsIndex, true);
+
+                while (!this.almostEqual(dupsIndex, outIndex1)) {
+                    dupsIndex = this.getNeighboarIndex(dupsIndex, true);
+                }
             }
-            outPt = outPt.next;
-        } while (outPt != this.Pts);
+        }
+
+        return outIndex1;
     }
 
-    public static param1RightOfParam2(outRec1: OutRec, outRec2: OutRec): boolean {
-        do {
-            outRec1 = outRec1.FirstLeft;
+    private searchBottom(index: number, outIndex1: number, outIndex2: number, isNext: boolean): number {
+        let currIndex = index;
+        let nghbIndex = this.getNeighboarIndex(currIndex, isNext);
 
-            if (outRec1 == outRec2) {
-                return true;
-            }
-        } while (outRec1 !== null);
+        while (this.pointY(nghbIndex) === this.pointY(currIndex) && nghbIndex !== outIndex1 && nghbIndex !== outIndex2) {
+            currIndex = nghbIndex;
+            nghbIndex = this.getNeighboarIndex(currIndex, isNext);
+        }
 
-        return false;
+        return currIndex;
     }
 
-    public static parseFirstLeft(FirstLeft: OutRec): NullPtr<OutRec> {
-        while (FirstLeft != null && FirstLeft.Pts == null) FirstLeft = FirstLeft.FirstLeft;
-        return FirstLeft;
+    public flatHorizontal(index: number, outIndex1: number, outIndex2: number): number[] {
+        const outIndex = this.searchBottom(index, index, outIndex2, false);
+        const outBIndex = this.searchBottom(index, outIndex, outIndex1, true);
+        const outBIndexNext = this.getNeighboarIndex(outBIndex, true);
+
+        return outBIndexNext === outIndex || outBIndexNext === outIndex1 ? [] : [outIndex, outBIndex];
     }
 
-    public static getLowermostRec(outRec1: OutRec, outRec2: OutRec): OutRec {
-        //work out which polygon fragment has the correct hole state ...
-        if (outRec1.BottomPt === null) {
-            outRec1.BottomPt = outRec1.Pts.getBottomPt();
-        }
-        if (outRec2.BottomPt === null) {
-            outRec2.BottomPt = outRec2.Pts.getBottomPt();
+    public strictlySimpleJoin(index: number, point: Point<Int32Array>): boolean {
+        let result = this.next(index);
+
+        while (result !== index && this.point(result).almostEqual(point)) {
+            result = this.next(result);
         }
 
-        const bPt1: NullPtr<OutPt> = outRec1.BottomPt;
-        const bPt2: NullPtr<OutPt> = outRec2.BottomPt;
-
-        switch (true) {
-            case bPt1.point.y > bPt2.point.y:
-                return outRec1;
-            case bPt1.point.y < bPt2.point.y:
-                return outRec2;
-            case bPt1.point.x < bPt2.point.x:
-                return outRec1;
-            case bPt1.point.x > bPt2.point.x:
-                return outRec2;
-            case bPt1.next === bPt1:
-                return outRec2;
-            case bPt2.next === bPt2:
-                return outRec1;
-            case OutPt.firstIsBottomPt(bPt1, bPt2):
-                return outRec1;
-            default:
-                return outRec2;
-        }
+        return this.pointY(result) > point.y;
     }
 
-    public static addOutPt(records: OutRec[], edge: TEdge, point: PointI32): OutPt {
-        const isToFront: boolean = edge.Side === DIRECTION.LEFT;
-        let outRec: OutRec = null;
-        let newOp: OutPt = null;
+    public applyJoin(index1: number, index2: number, reverse: boolean): number {
+        const op1b = this.duplicate(index1, !reverse);
+        const op2b = this.duplicate(index2, reverse);
 
-        if (!edge.isAssigned) {
-            newOp = new OutPt(0, point);
-            outRec = OutRec.create(records, edge.isWindDeletaEmpty, newOp);
-            newOp.index = outRec.Idx;
-            newOp.next = newOp;
-            newOp.prev = newOp;
-
-            if (!outRec.IsOpen) {
-                outRec.setHoleState(edge, records);
-            }
-
-            edge.index = outRec.Idx;
-            //nb: do this after SetZ !
-            return newOp;
+        if (reverse) {
+            this.push(index2, index1, true);
+            this.push(op1b, op2b, true);
+        } else {
+            this.push(index1, index2, true);
+            this.push(op2b, op1b, true);
         }
 
-        outRec = records[edge.index];
-        //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-        const op: OutPt = outRec.Pts;
-
-        if (isToFront && point.almostEqual(op.point)) {
-            return op;
-        }
-
-        if (!isToFront && point.almostEqual(op.prev.point)) {
-            return op.prev;
-        }
-
-        newOp = new OutPt(outRec.Idx, point, op, op.prev);
-        newOp.prev.next = newOp;
-        op.prev = newOp;
-
-        if (isToFront) {
-            outRec.Pts = newOp;
-        }
-
-        return newOp;
+        return op1b;
     }
 
-    public static getOutRec(records: OutRec[], idx: number): OutRec {
-        let result: OutRec = records[idx];
+    public getUniquePt(index: number, isNext: boolean): number {
+        let result = this.getNeighboarIndex(index, isNext);
 
-        while (result !== records[result.Idx]) {
-            result = records[result.Idx];
+        while (this.almostEqual(result, index) && result !== index) {
+            result = this.getNeighboarIndex(result, isNext);
         }
 
         return result;
     }
 
-    public static getHoleStateRec(outRec1: OutRec, outRec2: OutRec): OutRec {
-        switch (true) {
-            case OutRec.param1RightOfParam2(outRec1, outRec2):
-                return outRec2;
-            case OutRec.param1RightOfParam2(outRec2, outRec1):
-                return outRec1;
-            default:
-                return OutRec.getLowermostRec(outRec1, outRec2);
-        }
+    private reverseInner(index: number): void {
+        let pp1: number = index;
+
+        do {
+            const pp2 = this.next(pp1);
+            this.setNext(pp1, this.prev(pp1));
+            this.setPrev(pp1, pp2);
+            pp1 = pp2;
+        } while (pp1 !== index);
     }
 
-    public static addLocalMaxPoly(records: OutRec[], edge1: TEdge, edge2: TEdge, point: PointI32, activeEdge: TEdge): void {
-        OutRec.addOutPt(records, edge1, point);
+    private remove(index: number): number {
+        const result = this.prev(index);
+        this.push(this.prev(index), this.next(index), true);
+        this.setPrev(index, UNASSIGNED);
+        this.setNext(index, UNASSIGNED);
 
-        if (edge2.isWindDeletaEmpty) {
-            OutRec.addOutPt(records, edge2, point);
+        return result;
+    }
+
+    private firstIsBottomPt(btmIndex1: number, btmIndex2: number): boolean {
+        const dx1p: number = this.getDistance(btmIndex1, false);
+        const dx1n: number = this.getDistance(btmIndex1, true);
+        const dx2p: number = this.getDistance(btmIndex2, false);
+        const dx2n: number = this.getDistance(btmIndex2, true);
+
+        const maxDx: number = Math.max(dx2p, dx2n);
+
+        return dx1p >= maxDx || dx1n >= maxDx;
+    }
+
+    public joinHorz(
+        op1Index: number,
+        op1bIndex: number,
+        op2Index: number,
+        op2bIndex: number,
+        value: Point<Int32Array>
+    ): boolean {
+        const point = PointI32.create();
+        let isDiscardLeft: boolean = false;
+
+        if (this.pointX(op1Index) >= value.x && this.pointX(op1Index) <= value.y) {
+            //Pt = op1.Pt;
+            point.update(this.point(op1Index));
+            isDiscardLeft = this.pointX(op1Index) > this.pointX(op1bIndex);
+        } else if (this.pointX(op2Index) >= value.x && this.pointX(op2Index) <= value.y) {
+            //Pt = op2.Pt;
+            point.update(this.point(op2Index));
+            isDiscardLeft = this.pointX(op2Index) > this.pointX(op2bIndex);
+        } else if (this.pointX(op1bIndex) >= value.x && this.pointX(op1bIndex) <= value.y) {
+            //Pt = op1b.Pt;
+            point.update(this.point(op1bIndex));
+            isDiscardLeft = this.pointX(op1bIndex) > this.pointX(op1Index);
+        } else {
+            //Pt = op2b.Pt;
+            point.update(this.point(op2bIndex));
+            isDiscardLeft = this.pointX(op2bIndex) > this.pointX(op2Index);
         }
 
-        if (edge1.index === edge2.index) {
-            edge1.unassign();
-            edge2.unassign();
+        const direction1: DIRECTION = this.getDirection(op1Index, op1bIndex);
+        const direction2: DIRECTION = this.getDirection(op2Index, op2bIndex);
+
+        if (direction1 === direction2) {
+            return false;
+        }
+        //When DiscardLeft, we want Op1b to be on the Left of Op1, otherwise we
+        //want Op1b to be on the Right. (And likewise with Op2 and Op2b.)
+        //So, to facilitate this while inserting Op1b and Op2b ...
+        //when DiscardLeft, make sure we're AT or RIGHT of Pt before adding Op1b,
+        //otherwise make sure we're AT or LEFT of Pt. (Likewise with Op2b.)
+        const join1 = this.joinHorzInt(op1Index, op1bIndex, point, isDiscardLeft);
+        const join2 = this.joinHorzInt(op2Index, op2bIndex, point, isDiscardLeft);
+
+        this.push(join1.op, join2.op, join1.isRightOrder);
+        this.push(join1.opB, join2.opB, !join1.isRightOrder);
+
+        return true;
+    }
+
+    private joinHorzInt(
+        index1: number,
+        index2: number,
+        point: Point<Int32Array>,
+        isDiscardLeft: boolean
+    ): { op: number; opB: number; isRightOrder: boolean } {
+        let op: number = index1;
+        let opB: number = index2;
+
+        const direction: DIRECTION = this.getDirection(index1, index2);
+        const isRight = direction === DIRECTION.RIGHT;
+        const isRightOrder = isDiscardLeft !== isRight;
+
+        while (this.getDiscarded(op, isRight, point)) {
+            op = this.next(op);
+        }
+
+        if (!isRightOrder && this.pointX(op) !== point.x) {
+            op = this.next(op);
+        }
+
+        opB = this.duplicate(op, isRightOrder);
+
+        if (!this.point(opB).almostEqual(point)) {
+            op = opB;
+            //op1.Pt = Pt;
+            this.point(op).update(point);
+            opB = this.duplicate(op, isRightOrder);
+        }
+
+        return { op, opB, isRightOrder };
+    }
+
+    private getDiscarded(index: number, isRight: boolean, pt: Point<Int32Array>): boolean {
+        if (this.next(index) === UNASSIGNED) {
+            return false;
+        }
+
+        const next = this.next(index);
+        const nextX = this.pointX(next);
+        const currX = this.pointX(index);
+        const nextY = this.pointY(next);
+
+        return isRight ? nextX <= pt.x && nextX >= currX && nextY === pt.y : nextX >= pt.x && nextX <= currX && nextY === pt.y;
+    }
+
+    private getDirection(index1: number, index2: number): DIRECTION {
+        return this.pointX(index1) > this.pointX(index2) ? DIRECTION.LEFT : DIRECTION.RIGHT;
+    }
+
+    private getDistance(inputIndex: number, isNext: boolean): number {
+        let index = this.getNeighboarIndex(inputIndex, isNext);
+
+        if (index === UNASSIGNED) {
+            return Number.NaN;
+        }
+
+        while (this.almostEqual(inputIndex, index) && index !== inputIndex) {
+            index = this.getNeighboarIndex(index, isNext);
+
+            if (index === UNASSIGNED) {
+                return Number.NaN;
+            }
+        }
+
+        const offsetY: number = this.pointY(index) - this.pointY(inputIndex);
+        const offsetX: number = this.pointX(index) - this.pointX(inputIndex);
+        const result = offsetY === 0 ? HORIZONTAL : offsetX / offsetY;
+
+        return Math.abs(result);
+    }
+
+    public point(index: number): Point<Int32Array> {
+        return this.points[index];
+    }
+
+    private pointX(index: number): number {
+        return this.points[index].x;
+    }
+
+    private pointY(index: number): number {
+        return this.points[index].y;
+    }
+
+    private createOutPt(point: Point<Int32Array>): number {
+        const index = this.points.length;
+        this.points.push(point.clone());
+        this.pointNeighboars.push(new Int16Array([UNASSIGNED, UNASSIGNED]));
+
+        return index;
+    }
+
+    private duplicate(index: number, isInsertAfter: boolean): number {
+        const result: number = this.createOutPt(this.point(index));
+
+        if (isInsertAfter) {
+            this.push(result, this.next(index), true);
+            this.push(index, result, true);
+        } else {
+            this.push(this.prev(index), result, true);
+            this.push(result, index, true);
+        }
+
+        return result;
+    }
+
+    private next(index: number): number {
+        return this.getNeighboarIndex(index, true);
+    }
+
+    private setNext(index: number, value: number): void {
+        this.setNeighboarIndex(index, true, value);
+    }
+
+    private prev(index: number): number {
+        return this.getNeighboarIndex(index, false);
+    }
+
+    private setPrev(index: number, value: number): void {
+        this.setNeighboarIndex(index, false, value);
+    }
+
+    private setNeighboarIndex(index: number, isNext: boolean, value: number): void {
+        if (index === UNASSIGNED) {
             return;
         }
 
-        const firstEdge: TEdge = edge1.index < edge2.index ? edge1 : edge2;
-        const secondEdge: TEdge = edge1.index < edge2.index ? edge2 : edge1;
+        const neighboarIndex = isNext ? 1 : 0;
 
-        //get the start and ends of both output polygons ...
-        const outRec1: OutRec = records[firstEdge.index];
-        const outRec2: OutRec = records[secondEdge.index];
-        const holeStateRec: OutRec = OutRec.getHoleStateRec(outRec1, outRec2);
-        const p1_lft: OutPt = outRec1.Pts;
-        const p1_rt: OutPt = p1_lft.prev;
-        const p2_lft: OutPt = outRec2.Pts;
-        const p2_rt: OutPt = p2_lft.prev;
-        let side: DIRECTION;
-        //join e2 poly onto e1 poly and delete pointers to e2 ...
-        if (firstEdge.Side === DIRECTION.LEFT) {
-            if (secondEdge.Side === DIRECTION.LEFT) {
-                //z y x a b c
-                p2_lft.reverse();
-                p2_lft.next = p1_lft;
-                p1_lft.prev = p2_lft;
-                p1_rt.next = p2_rt;
-                p2_rt.prev = p1_rt;
-                outRec1.Pts = p2_rt;
-            } else {
-                //x y z a b c
-                p2_rt.next = p1_lft;
-                p1_lft.prev = p2_rt;
-                p2_lft.prev = p1_rt;
-                p1_rt.next = p2_lft;
-                outRec1.Pts = p2_lft;
-            }
-            side = DIRECTION.LEFT;
-        } else {
-            if (secondEdge.Side === DIRECTION.RIGHT) {
-                //a b c z y x
-                p2_lft.reverse();
-                p1_rt.next = p2_rt;
-                p2_rt.prev = p1_rt;
-                p2_lft.next = p1_lft;
-                p1_lft.prev = p2_lft;
-            } else {
-                //a b c x y z
-                p1_rt.next = p2_lft;
-                p2_lft.prev = p1_rt;
-                p1_lft.prev = p2_rt;
-                p2_rt.next = p1_lft;
-            }
-            side = DIRECTION.RIGHT;
-        }
-
-        outRec1.BottomPt = null;
-
-        if (holeStateRec === outRec2) {
-            if (outRec2.FirstLeft !== outRec1) {
-                outRec1.FirstLeft = outRec2.FirstLeft;
-            }
-
-            outRec1.IsHole = outRec2.IsHole;
-        }
-
-        outRec2.Pts = null;
-        outRec2.BottomPt = null;
-        outRec2.FirstLeft = outRec1;
-        const OKIdx: number = firstEdge.index;
-        const ObsoleteIdx: number = secondEdge.index;
-        firstEdge.unassign();
-        //nb: safe because we only get here via AddLocalMaxPoly
-        secondEdge.unassign();
-
-        let e: TEdge = activeEdge;
-
-        while (e !== null) {
-            if (e.index === ObsoleteIdx) {
-                e.index = OKIdx;
-                e.Side = side;
-                break;
-            }
-            e = e.NextInAEL;
-        }
-
-        outRec2.Idx = outRec1.Idx;
+        this.pointNeighboars[index][neighboarIndex] = value;
     }
 
-    public static create(output: OutRec[], isOpen: boolean = false, pointer: NullPtr<OutPt> = null): OutRec {
-        const result: OutRec = new OutRec(output.length, isOpen, pointer);
+    private getNeighboarIndex(index: number, isNext: boolean): number {
+        if (index == UNASSIGNED) {
+            return UNASSIGNED;
+        }
 
-        output.push(result);
+        const neighboarIndex = isNext ? 1 : 0;
 
-        return result;
+        return this.pointNeighboars[index][neighboarIndex];
+    }
+
+    private almostEqual(index1: number, index2: number): boolean {
+        return index1 != UNASSIGNED && index2 !== UNASSIGNED && this.point(index1).almostEqual(this.point(index2));
+    }
+
+    private push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
+        if (isReverse) {
+            this.setNext(outPt1Index, outPt2Index);
+            this.setPrev(outPt2Index, outPt1Index);
+        } else {
+            this.setPrev(outPt1Index, outPt2Index);
+            this.setNext(outPt2Index, outPt1Index);
+        }
+    }
+
+    public fromPoint(point: Point<Int32Array>): number {
+        const index = this.createOutPt(point);
+
+        this.push(index, index, true);
+
+        return index;
+    }
+
+    public joinPolys(firstRecIndex: number, secondRecIndex: number, firstSide: DIRECTION, secondSide: DIRECTION): void {
+        const holeStateRec = this.getHoleStateRec(firstRecIndex, secondRecIndex);
+        //join e2 poly onto e1 poly and delete pointers to e2 ...
+        this.join(firstRecIndex, secondRecIndex, firstSide, secondSide);
+
+        if (holeStateRec === secondRecIndex) {
+            if (this.firstLeftIndex(secondRecIndex) !== firstRecIndex) {
+                this.setFirstLeftIndex(firstRecIndex, this.firstLeftIndex(secondRecIndex));
+            }
+
+            this.setHole(firstRecIndex, this.isHole(secondRecIndex));
+        }
+
+        this.setPointIndex(secondRecIndex, UNASSIGNED);
+        this.setFirstLeftIndex(secondRecIndex, firstRecIndex);
+        this.setCurrentIndex(secondRecIndex, firstRecIndex);
+    }
+
+    public joinPolys2(outRec1: number, outRec2: number): void {
+        const holeStateRec = this.getHoleStateRec(outRec1, outRec2);
+        //joined 2 polygons together ...
+        this.setPointIndex(outRec2, UNASSIGNED);
+        this.setCurrentIndex(outRec2, outRec1);
+        this.setHole(outRec1, this.isHole(holeStateRec));
+
+        if (holeStateRec === outRec2) {
+            this.setFirstLeftIndex(outRec1, this.firstLeftIndex(outRec2));
+        }
+
+        this.setFirstLeftIndex(outRec2, outRec1);
+    }
+
+    public splitPolys(outRec1: number, outPt1Index: number, outPt2Index: number): number {
+        //instead of joining two polygons, we've just created a new one by
+        //splitting one polygon into two.
+        this.setPointIndex(outRec1, outPt1Index);
+        const outRec2 = this.create(outPt2Index);
+        this.postInit(outRec2);
+
+        return outRec2;
+    }
+
+    public getOverlap(op1Index: number, op1bIndex: number, op2Index: number, op2bIndex: number): Point<Int32Array> {
+        return PointI32.getOverlap(
+            this.pointX(op1Index),
+            this.pointX(op1bIndex),
+            this.pointX(op2Index),
+            this.pointX(op2bIndex)
+        );
     }
 }

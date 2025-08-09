@@ -1,25 +1,57 @@
-import { PointI32 } from '../geometry';
-import TEdge from './t-edge';
-import { NullPtr } from './types';
+import { Point } from "../types";
 
 export default class IntersectNode {
-    public Edge1: TEdge;
-    public Edge2: TEdge;
-    public Pt: PointI32;
+    private items: number[][];
 
-    constructor(edge1: NullPtr<TEdge> = null, edge2: NullPtr<TEdge> = null, point: NullPtr<PointI32> = null) {
-        this.Edge1 = edge1;
-        this.Edge2 = edge2;
-        this.Pt = PointI32.from(point);
+    constructor() {
+        this.items = [];
     }
 
-    public get edgesAdjacent(): boolean {
-        return this.Edge1.NextInSEL === this.Edge2 || this.Edge1.PrevInSEL === this.Edge2;
+    public add(edg1Index: number, edge2Index: number, point: Point<Int32Array>): void {
+        this.items.push([edg1Index, edge2Index, point.x, point.y]);
     }
 
-    public static sort(node1: IntersectNode, node2: IntersectNode): number {
+    public swap(index1: number, index2: number): void {
+        const temp = this.items[index1];
+        this.items[index1] = this.items[index2];
+        this.items[index2] = temp;
+    }
+
+    public sort(): void {
+        this.items.sort(IntersectNode.sortMiddleware);
+    }
+
+    public clean(): void {
+        this.items.length = 0;
+    }
+
+    public getEdge1Index(index: number): number {
+        return this.items[index][0];
+    }
+
+    public getEdge2Index(index: number): number {
+        return this.items[index][1];
+    }
+
+    public getX(index: number): number {
+        return this.items[index][2];
+    }
+
+    public getY(index: number): number {
+        return this.items[index][3];
+    }
+
+    public get length(): number {
+        return this.items.length;
+    }
+
+    public get isEmpty(): boolean {
+        return this.items.length === 0;
+    }
+
+    private static sortMiddleware(node1: number[], node2: number[]): number {
         //the following typecast is safe because the differences in Pt.Y will
         //be limited to the height of the scanbeam.
-        return node2.Pt.y - node1.Pt.y;
+        return node2[3] - node1[3];
     }
 }

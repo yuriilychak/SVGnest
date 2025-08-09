@@ -1,7 +1,7 @@
 import { cycle_index_wasm } from 'wasm-nesting';
 import Clipper from './clipper';
 import { getArea } from './helpers';
-import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './types';
+import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './enums';
 import { PointF32, PointI32 } from '../geometry';
 
 export default class ClipperOffset {
@@ -12,7 +12,7 @@ export default class ClipperOffset {
 
         const result: PointI32[][] = [];
         const destPolygon = this.doOffset(delta);
-        const clipper: Clipper = new Clipper();
+        const clipper: Clipper = new Clipper(delta <= 0, false);
 
         clipper.addPath(destPolygon, POLY_TYPE.SUBJECT);
 
@@ -22,7 +22,6 @@ export default class ClipperOffset {
             const outer: PointI32[] = ClipperOffset.getOuterBounds(destPolygon);
 
             clipper.addPath(outer, POLY_TYPE.SUBJECT);
-            clipper.ReverseSolution = true;
             clipper.execute(CLIP_TYPE.UNION, result, POLY_FILL_TYPE.NEGATIVE);
 
             if (result.length > 0) {
@@ -153,11 +152,9 @@ export default class ClipperOffset {
         let right: number = path[0].x;
         let top: number = path[0].y;
         let bottom: number = path[0].y;
-        let point: PointI32 = null;
-        let i: number = 0;
 
-        for (i = 0; i < pointCount; ++i) {
-            point = path[i];
+        for (let i = 0; i < pointCount; ++i) {
+            const point = path[i];
             left = Math.min(point.x, left);
             right = Math.max(point.x, right);
             top = Math.min(point.y, top);
