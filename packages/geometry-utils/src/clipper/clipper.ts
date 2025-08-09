@@ -201,7 +201,7 @@ export default class Clipper {
                         point.set(this.tEdge.getIntersectX(currIndex, nextIndex, botY), botY);
                     }
 
-                    this.intersections.add(currIndex, nextIndex, point);
+                    this.intersections.add(currIndex, nextIndex, point.x, point.y);
                     this.tEdge.swapPositionsInList(currIndex, nextIndex, false);
                     isModified = true;
                 } else {

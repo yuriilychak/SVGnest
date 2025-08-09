@@ -1,6 +1,6 @@
 import { join_u16_to_u32 } from 'wasm-nesting';
 import { Point } from '../types';
-import { HORIZONTAL, UNASSIGNED } from './constants';
+import { UNASSIGNED } from './constants';
 import { DIRECTION } from './enums';
 import { PointI32 } from '../geometry';
 export default class OutRec {
@@ -386,31 +386,20 @@ export default class OutRec {
             }
 
             if (poly0y < outY !== poly1y < outY) {
-                if (poly0x >= outX) {
-                    if (poly1x > outX) {
-                        result = 1 - result;
-                    } else {
-                        d = (poly0x - outX) * (poly1y - outY) - (poly1x - outX) * (poly0y - outY);
+                const offsetX0 = poly0x - outX;
+                const offsetX1 = poly1x - outX;
 
-                        if (d == 0) {
-                            return UNASSIGNED;
-                        }
+                if (offsetX0 >= 0 && offsetX1 > 0) {
+                    result = 1 - result;
+                } else if ((offsetX0 >= 0 && offsetX1 <= 0) || (offsetX0 < 0 && offsetX1 > 0)) {
+                    d = offsetX0 * (poly1y - outY) - offsetX1 * (poly0y - outY);
 
-                        if (d > 0 === poly1y > poly0y) {
-                            result = 1 - result;
-                        }
+                    if (d === 0) {
+                        return UNASSIGNED;
                     }
-                } else {
-                    if (poly1x > outX) {
-                        d = (poly0x - outX) * (poly1y - outY) - (poly1x - outX) * (poly0y - outY);
 
-                        if (d === 0) {
-                            return UNASSIGNED;
-                        }
-
-                        if (d > 0 === poly1y > poly0y) {
-                            result = 1 - result;
-                        }
+                    if (d > 0 === poly1y > poly0y) {
+                        result = 1 - result;
                     }
                 }
             }
@@ -621,6 +610,11 @@ export default class OutRec {
         return dx1p >= maxDx || dx1n >= maxDx;
     }
 
+    private joinHorzInt2(point: Point<Int32Array>, index1: number, index2: number): boolean {
+        point.update(this.point(index1));
+        return this.pointX(index1) > this.pointX(index2);
+    }
+
     public joinHorz(
         op1Index: number,
         op1bIndex: number,
@@ -628,33 +622,30 @@ export default class OutRec {
         op2bIndex: number,
         value: Point<Int32Array>
     ): boolean {
-        const point = PointI32.create();
-        let isDiscardLeft: boolean = false;
-
-        if (this.pointX(op1Index) >= value.x && this.pointX(op1Index) <= value.y) {
-            //Pt = op1.Pt;
-            point.update(this.point(op1Index));
-            isDiscardLeft = this.pointX(op1Index) > this.pointX(op1bIndex);
-        } else if (this.pointX(op2Index) >= value.x && this.pointX(op2Index) <= value.y) {
-            //Pt = op2.Pt;
-            point.update(this.point(op2Index));
-            isDiscardLeft = this.pointX(op2Index) > this.pointX(op2bIndex);
-        } else if (this.pointX(op1bIndex) >= value.x && this.pointX(op1bIndex) <= value.y) {
-            //Pt = op1b.Pt;
-            point.update(this.point(op1bIndex));
-            isDiscardLeft = this.pointX(op1bIndex) > this.pointX(op1Index);
-        } else {
-            //Pt = op2b.Pt;
-            point.update(this.point(op2bIndex));
-            isDiscardLeft = this.pointX(op2bIndex) > this.pointX(op2Index);
-        }
-
         const direction1: DIRECTION = this.getDirection(op1Index, op1bIndex);
         const direction2: DIRECTION = this.getDirection(op2Index, op2bIndex);
 
         if (direction1 === direction2) {
             return false;
         }
+
+        const point = PointI32.create();
+        let isDiscardLeft: boolean = false;
+
+        if (this.pointX(op1Index) >= value.x && this.pointX(op1Index) <= value.y) {
+            //Pt = op1.Pt;
+            isDiscardLeft = this.joinHorzInt2(point, op1Index, op1bIndex);
+        } else if (this.pointX(op2Index) >= value.x && this.pointX(op2Index) <= value.y) {
+            //Pt = op2.Pt;
+            isDiscardLeft = this.joinHorzInt2(point, op2Index, op2bIndex);
+        } else if (this.pointX(op1bIndex) >= value.x && this.pointX(op1bIndex) <= value.y) {
+            //Pt = op1b.Pt;
+            isDiscardLeft = this.joinHorzInt2(point, op1bIndex, op1Index);
+        } else {
+            //Pt = op2b.Pt;
+            isDiscardLeft = this.joinHorzInt2(point, op2bIndex, op2Index);
+        }
+    
         //When DiscardLeft, we want Op1b to be on the Left of Op1, otherwise we
         //want Op1b to be on the Right. (And likewise with Op2 and Op2b.)
         //So, to facilitate this while inserting Op1b and Op2b ...
@@ -736,7 +727,7 @@ export default class OutRec {
 
         const offsetY: number = this.pointY(index) - this.pointY(inputIndex);
         const offsetX: number = this.pointX(index) - this.pointX(inputIndex);
-        const result = offsetY === 0 ? HORIZONTAL : offsetX / offsetY;
+        const result = offsetY === 0 ? Number.MIN_SAFE_INTEGER : offsetX / offsetY;
 
         return Math.abs(result);
     }

@@ -1,6 +1,6 @@
 import { cycle_index_wasm as cycle_index } from 'wasm-nesting';
 import { Point } from '../types';
-import { HORIZONTAL, UNASSIGNED } from './constants';
+import { UNASSIGNED } from './constants';
 import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './enums';
 import { PointI32 } from '../geometry';
 import { clipperRound, slopesEqual } from '../helpers';
@@ -117,7 +117,7 @@ export default class TEdge {
 
             this.delta(currIndex).update(this.top(currIndex)).sub(this.bot(currIndex));
             this._dx[currIndex] =
-                this.delta(currIndex).y === 0 ? HORIZONTAL : this.delta(currIndex).x / this.delta(currIndex).y;
+                this.delta(currIndex).y === 0 ? Number.MIN_SAFE_INTEGER : this.delta(currIndex).x / this.delta(currIndex).y;
 
             if (isFlat && this.curr(currIndex).y !== startY) {
                 isFlat = false;
@@ -798,7 +798,7 @@ export default class TEdge {
     }
 
     private isDxHorizontal(index: number): boolean {
-        return this.dx(index) === HORIZONTAL;
+        return this.dx(index) === Number.MIN_SAFE_INTEGER;
     }
 
     private processBound(index: number, isClockwise: boolean): number {

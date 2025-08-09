@@ -1,5 +1,3 @@
-import { Point } from "../types";
-
 export default class IntersectNode {
     private items: number[][];
 
@@ -7,8 +5,8 @@ export default class IntersectNode {
         this.items = [];
     }
 
-    public add(edg1Index: number, edge2Index: number, point: Point<Int32Array>): void {
-        this.items.push([edg1Index, edge2Index, point.x, point.y]);
+    public add(edg1Index: number, edge2Index: number, x: number, y: number): void {
+        this.items.push([edg1Index, edge2Index, x, y]);
     }
 
     public swap(index1: number, index2: number): void {
