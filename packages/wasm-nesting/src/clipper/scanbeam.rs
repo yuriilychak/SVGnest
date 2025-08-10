@@ -1,10 +1,13 @@
+use std::collections::VecDeque;
 pub struct Scanbeam {
     values: VecDeque<i32>,
 }
 
 impl Scanbeam {
     pub fn new() -> Self {
-        Self { values: VecDeque::new() }
+        Self {
+            values: VecDeque::new(),
+        }
     }
 
     pub fn insert(&mut self, y: i32) {
@@ -27,7 +30,7 @@ impl Scanbeam {
             panic!("Scanbeam is empty");
         }
 
-        self.values.pop_front()
+        self.values.pop_front().unwrap()
     }
 
     pub fn clean(&mut self) {

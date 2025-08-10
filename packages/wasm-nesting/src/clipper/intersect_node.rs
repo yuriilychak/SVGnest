@@ -1,4 +1,3 @@
-#[derive(Debug)]
 pub struct IntersectNode {
     items: Vec<(isize, isize, i32, i32)>,
 }

@@ -160,7 +160,7 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
-    pub unsafe fn get_between(&self, point1: *mut Point<T>, point2: *mut Point<T>) -> bool {
+    pub unsafe fn get_between(&self, point1: *const Point<T>, point2: *const Point<T>) -> bool {
         if (*point1).almost_equal(point2, None)
             || (*point1).almost_equal(self, None)
             || self.almost_equal(point2, None)

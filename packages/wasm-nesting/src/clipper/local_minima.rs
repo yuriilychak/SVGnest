@@ -1,4 +1,5 @@
-#[derive(Debug)]
+use std::collections::VecDeque;
+
 pub struct LocalMinima {
     items: VecDeque<(i32, isize, isize)>,
 }

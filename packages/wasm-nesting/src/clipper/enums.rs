@@ -19,6 +19,7 @@ pub enum ClipType {
     Difference = 2,
 }
 
+#[derive(PartialEq)]
 #[repr(u8)]
 pub enum Direction {
     Left = 0,
