@@ -1,4 +1,4 @@
-import { join_u16_to_u32 as join_u16  } from 'wasm-nesting';
+import { join_u16_to_u32 as join_u16, get_u16_from_u32 as get_u16 } from 'wasm-nesting';
 import { Point } from '../types';
 import { UNASSIGNED } from './constants';
 import { DIRECTION } from './enums';
@@ -67,7 +67,7 @@ export default class OutRec {
             direction === DIRECTION.RIGHT
                 ? this.prev(this.pointIndex(recIndex))
                 : this.pointIndex(recIndex);
-        const offPoint = this.point(index).almostEqual(top) ? bottom : top;
+        const offPoint = this.pointEqual(index, top) ? bottom : top;
 
         return [this.getHash(recIndex, index), offPoint.x, offPoint.y];
     }
@@ -96,7 +96,7 @@ export default class OutRec {
         let i: number = 0;
 
         for (i = 0; i < pointCount; ++i) {
-            result[i] = PointI32.from(this.point(outPt));
+            result[i] = PointI32.create(this.pointX(outPt), this.pointY(outPt));
             outPt = this.prev(outPt);
         }
 
@@ -149,10 +149,10 @@ export default class OutRec {
             const prevPt = this.prev(outPt);
             //test for duplicate points and collinear edges ...
             if (
-                this.almostEqual(outPt, prevPt) ||
-                this.almostEqual(outPt, nextPt) ||
-                (PointI32.slopesEqual(this.point(prevPt), this.point(outPt), this.point(nextPt), useFullRange) &&
-                    (!preserveCollinear || !this.point(outPt).getBetween(this.point(prevPt), this.point(nextPt))))
+                this.innerEqual(outPt, prevPt) ||
+                this.innerEqual(outPt, nextPt) ||
+                (PointI32.slopesEqual(this.points[prevPt], this.points[outPt], this.points[nextPt], useFullRange) &&
+                    (!preserveCollinear || !this.points[outPt].getBetween(this.points[prevPt], this.points[nextPt])))
             ) {
                 lastOutIndex = UNASSIGNED;
                 outPt = this.remove(outPt);
@@ -192,7 +192,7 @@ export default class OutRec {
         const bIndex1: number = this.getBottomPt(outRec1Index);
         const bIndex2: number = this.getBottomPt(outRec2Index);
         const offsetX = this.pointX(bIndex1) - this.pointX(bIndex2);
-        const offsetY = this.pointY(bIndex1) - this.pointY(bIndex2);    
+        const offsetY = this.pointY(bIndex1) - this.pointY(bIndex2);
 
         switch (true) {
             case offsetY !== 0:
@@ -220,7 +220,7 @@ export default class OutRec {
 
     private canSplit(index1: number, index2: number): boolean {
         return (
-            this.almostEqual(index2, index1) &&
+            this.innerEqual(index2, index1) &&
             this.next(index2) != index1 &&
             this.prev(index2) != index1
         );
@@ -335,13 +335,13 @@ export default class OutRec {
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
         const op: number = this.pointIndex(outRec);
 
-        if (isToFront && point.almostEqual(this.point(op))) {
+        if (isToFront && this.pointEqual(op, point)) {
             return op;
         }
 
         const prev = this.prev(op);
 
-        if (!isToFront && point.almostEqual(this.point(prev))) {
+        if (!isToFront && this.pointEqual(prev, point)) {
             return prev;
         }
 
@@ -513,7 +513,7 @@ export default class OutRec {
 
                 dupsIndex = this.next(dupsIndex);
 
-                while (!this.almostEqual(dupsIndex, outIndex1)) {
+                while (!this.innerEqual(dupsIndex, outIndex1)) {
                     dupsIndex = this.next(dupsIndex);
                 }
             }
@@ -539,13 +539,13 @@ export default class OutRec {
         const outBIndex = this.searchBottom(index, outIndex, outIndex1, true);
         const outBIndexNext = this.next(outBIndex);
 
-        return outBIndexNext === outIndex || outBIndexNext === outIndex1 ? [] : [outIndex, outBIndex];
+        return outBIndexNext === outIndex || outBIndexNext === outIndex1 ? [UNASSIGNED, UNASSIGNED] : [outIndex, outBIndex];
     }
 
     public strictlySimpleJoin(index: number, point: Point<Int32Array>): boolean {
         let result = this.next(index);
 
-        while (result !== index && this.point(result).almostEqual(point)) {
+        while (result !== index && this.pointEqual(result, point)) {
             result = this.next(result);
         }
 
@@ -570,7 +570,7 @@ export default class OutRec {
     public getUniquePt(index: number, isNext: boolean): number {
         let result = this.getNeighboarIndex(index, isNext);
 
-        while (this.almostEqual(result, index) && result !== index) {
+        while (this.innerEqual(result, index) && result !== index) {
             result = this.getNeighboarIndex(result, isNext);
         }
 
@@ -609,7 +609,9 @@ export default class OutRec {
     }
 
     private joinHorzInt2(point: Point<Int32Array>, index1: number, index2: number): boolean {
-        point.update(this.point(index1));
+        point.x = this.pointX(index1);
+        point.y = this.pointY(index1);
+
         return this.pointX(index1) > this.pointX(index2);
     }
 
@@ -618,7 +620,8 @@ export default class OutRec {
         op1bIndex: number,
         op2Index: number,
         op2bIndex: number,
-        value: Point<Int32Array>
+        leftBound: number,
+        rightBound: number
     ): boolean {
         const direction1: DIRECTION = this.getDirection(op1Index, op1bIndex);
         const direction2: DIRECTION = this.getDirection(op2Index, op2bIndex);
@@ -630,20 +633,20 @@ export default class OutRec {
         const point = PointI32.create();
         let isDiscardLeft: boolean = false;
 
-        if (this.pointX(op1Index) >= value.x && this.pointX(op1Index) <= value.y) {
+        if (this.pointX(op1Index) >= leftBound && this.pointX(op1Index) <= rightBound) {
             //Pt = op1.Pt;
             isDiscardLeft = this.joinHorzInt2(point, op1Index, op1bIndex);
-        } else if (this.pointX(op2Index) >= value.x && this.pointX(op2Index) <= value.y) {
+        } else if (this.pointX(op2Index) >= leftBound && this.pointX(op2Index) <= rightBound) {
             //Pt = op2.Pt;
             isDiscardLeft = this.joinHorzInt2(point, op2Index, op2bIndex);
-        } else if (this.pointX(op1bIndex) >= value.x && this.pointX(op1bIndex) <= value.y) {
+        } else if (this.pointX(op1bIndex) >= leftBound && this.pointX(op1bIndex) <= rightBound) {
             //Pt = op1b.Pt;
             isDiscardLeft = this.joinHorzInt2(point, op1bIndex, op1Index);
         } else {
             //Pt = op2b.Pt;
             isDiscardLeft = this.joinHorzInt2(point, op2bIndex, op2Index);
         }
-    
+
         //When DiscardLeft, we want Op1b to be on the Left of Op1, otherwise we
         //want Op1b to be on the Right. (And likewise with Op2 and Op2b.)
         //So, to facilitate this while inserting Op1b and Op2b ...
@@ -681,10 +684,10 @@ export default class OutRec {
 
         opB = this.duplicate(op, isRightOrder);
 
-        if (!this.point(opB).almostEqual(point)) {
+        if (!this.pointEqual(opB, point)) {
             op = opB;
             //op1.Pt = Pt;
-            this.point(op).update(point);
+            this.pointEqual(op, point);
             opB = this.duplicate(op, isRightOrder);
         }
 
@@ -715,7 +718,7 @@ export default class OutRec {
             return Number.NaN;
         }
 
-        while (this.almostEqual(inputIndex, index) && index !== inputIndex) {
+        while (this.innerEqual(inputIndex, index) && index !== inputIndex) {
             index = this.getNeighboarIndex(index, isNext);
 
             if (index === UNASSIGNED) {
@@ -734,11 +737,11 @@ export default class OutRec {
         return this.points[index];
     }
 
-    private pointX(index: number): number {
+    public pointX(index: number): number {
         return this.points[index].x;
     }
 
-    private pointY(index: number): number {
+    public pointY(index: number): number {
         return this.points[index].y;
     }
 
@@ -751,7 +754,7 @@ export default class OutRec {
     }
 
     private duplicate(index: number, isInsertAfter: boolean): number {
-        const result: number = this.createOutPt(this.point(index));
+        const result: number = this.createOutPt(this.points[index]);
 
         if (isInsertAfter) {
             this.push(result, this.next(index), true);
@@ -794,8 +797,12 @@ export default class OutRec {
         return this.pointNeighboars[index][neighboarIndex];
     }
 
-    private almostEqual(index1: number, index2: number): boolean {
-        return index1 != UNASSIGNED && index2 !== UNASSIGNED && this.point(index1).almostEqual(this.point(index2));
+    private innerEqual(index1: number, index2: number): boolean {
+        return index1 != UNASSIGNED && index2 !== UNASSIGNED && this.points[index1].almostEqual(this.points[index2]);
+    }
+
+    public pointEqual(index: number, point: Point<Int32Array>): boolean {
+        return this.points[index].almostEqual(point);
     }
 
     private push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
@@ -858,12 +865,80 @@ export default class OutRec {
         return outRec2;
     }
 
-    public getOverlap(op1Index: number, op1bIndex: number, op2Index: number, op2bIndex: number): Point<Int32Array> {
-        return PointI32.getOverlap(
-            this.pointX(op1Index),
-            this.pointX(op1bIndex),
-            this.pointX(op2Index),
-            this.pointX(op2bIndex)
-        );
+    public getOverlap(op1Index: number, op1bIndex: number, op2Index: number, op2bIndex: number): number[] {
+           const a1 = this.pointX(op1Index);
+           const a2 = this.pointX(op1bIndex);
+           const b1 = this.pointX(op2Index);
+           const b2 = this.pointX(op2bIndex);
+
+        if (a1 < a2) {
+            return b1 < b2
+                ? [Math.max(a1, b1), Math.min(a2, b2)]
+                : [Math.max(a1, b2), Math.min(a2, b1)];
+        }
+
+        return b1 < b2 ? [Math.max(a2, b1), Math.min(a1, b2)] : [Math.max(a2, b2), Math.min(a1, b1)];
+    }
+
+    public horizontalJoinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>): { outHash1: number; outHash2: number; result: boolean } {
+        const defaultResult = { outHash1, outHash2, result: false };
+        const index1: number = get_u16(outHash1, 0);
+        const index2: number = get_u16(outHash2, 0);
+        const outPt1Index: number = get_u16(outHash1, 1);
+        const outPt2Index: number = get_u16(outHash2, 1);
+
+        if (
+            this.pointEqual(outPt1Index, offPoint) &&
+            this.pointEqual(outPt2Index, offPoint)
+        ) {
+            //Strictly Simple join ...
+            const reverse1 = this.strictlySimpleJoin(outPt1Index, offPoint);
+            const reverse2 = this.strictlySimpleJoin(outPt2Index, offPoint);
+
+            if (reverse1 === reverse2) {
+                return defaultResult;
+            }
+
+            return {
+                outHash1,
+                outHash2: join_u16(index2, this.applyJoin(outPt1Index, outPt2Index, reverse1)),
+                result: true
+            };
+        }
+        //treat horizontal joins differently to non-horizontal joins since with
+        //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
+        //may be anywhere along the horizontal edge.
+        const [op1Index, op1bIndex] = this.flatHorizontal(outPt1Index, outPt2Index, outPt2Index);
+
+        if (op1Index === UNASSIGNED || op1bIndex === UNASSIGNED) {
+            return defaultResult;
+        }
+
+        //a flat 'polygon'
+        const [op2Index, op2bIndex] = this.flatHorizontal(outPt2Index, op1Index, op1bIndex);
+
+        if (op2Index === UNASSIGNED || op2bIndex === UNASSIGNED) {
+            return defaultResult;
+        }
+
+        //a flat 'polygon'
+        //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
+
+        const [leftBound, rightBound] = this.getOverlap(op1Index, op1bIndex, op2Index, op2bIndex);
+        const isOverlapped = leftBound < rightBound;
+
+        if (!isOverlapped) {
+            return defaultResult;
+        }
+
+        //DiscardLeftSide: when overlapping edges are joined, a spike will created
+        //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
+        //on the discard Side as either may still be needed for other joins ...
+
+        return {
+            outHash1: join_u16(index1, op1Index),
+            outHash2: join_u16(index2, op2Index),
+            result: this.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, leftBound, rightBound)
+        };
     }
 }

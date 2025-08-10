@@ -980,64 +980,10 @@ export default class Clipper {
         //location at the Bottom of the overlapping segment (& Join.OffPt is above).
         //3. StrictlySimple joins where edges touch but are not collinear and where
         //Join.OutPt1, Join.OutPt2 & Join.OffPt all share the same point.
-        const isHorizontal: boolean = this.outRec.point(outPt1Index).y === offPoint.y;
-
-        if (
-            isHorizontal &&
-            offPoint.almostEqual(this.outRec.point(outPt1Index)) &&
-            offPoint.almostEqual(this.outRec.point(outPt2Index))
-        ) {
-            //Strictly Simple join ...
-            const reverse1 = this.outRec.strictlySimpleJoin(outPt1Index, offPoint);
-            const reverse2 = this.outRec.strictlySimpleJoin(outPt2Index, offPoint);
-
-            if (reverse1 === reverse2) {
-                return result;
-            }
-
-            result.outHash2 = join_u16_to_u32(index2, this.outRec.applyJoin(outPt1Index, outPt2Index, reverse1));
-            result.result = true;
-
-            return result;
-        }
+        const isHorizontal: boolean = this.outRec.pointY(outPt1Index) === offPoint.y;
 
         if (isHorizontal) {
-            //treat horizontal joins differently to non-horizontal joins since with
-            //them we're not yet sure where the overlapping is. OutPt1.Pt & OutPt2.Pt
-            //may be anywhere along the horizontal edge.
-            const outPt1Res = this.outRec.flatHorizontal(outPt1Index, outPt2Index, outPt2Index);
-
-            if (outPt1Res.length === 0) {
-                return result;
-            }
-
-            const [op1Index, op1bIndex] = outPt1Res;
-            //a flat 'polygon'
-            const outPt2Res = this.outRec.flatHorizontal(outPt2Index, op1Index, op1bIndex);
-
-            if (outPt2Res.length === 0) {
-                return result;
-            }
-
-            const [op2Index, op2bIndex] = outPt2Res;
-            //a flat 'polygon'
-            //Op1 -. Op1b & Op2 -. Op2b are the extremites of the horizontal edges
-
-            const value = this.outRec.getOverlap(op1Index, op1bIndex, op2Index, op2bIndex);
-            const isOverlapped = value.x < value.y;
-
-            if (!isOverlapped) {
-                return result;
-            }
-
-            //DiscardLeftSide: when overlapping edges are joined, a spike will created
-            //which needs to be cleaned up. However, we don't want Op1 or Op2 caught up
-            //on the discard Side as either may still be needed for other joins ...
-            result.outHash1 = join_u16_to_u32(index1, op1Index);
-            result.outHash2 = join_u16_to_u32(index2, op2Index);
-            result.result = this.outRec.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, value);
-
-            return result;
+            return this.outRec.horizontalJoinPoints(outHash1, outHash2, offPoint);
         }
 
         let op1 = outPt1Index;
