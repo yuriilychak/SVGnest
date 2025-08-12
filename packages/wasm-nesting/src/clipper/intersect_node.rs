@@ -1,5 +1,5 @@
 pub struct IntersectNode {
-    items: Vec<(isize, isize, i32, i32)>,
+    items: Vec<(usize, usize, i32, i32)>,
 }
 
 impl IntersectNode {
@@ -7,7 +7,7 @@ impl IntersectNode {
         Self { items: Vec::new() }
     }
 
-    pub fn add(&mut self, edge1_index: isize, edge2_index: isize, x: i32, y: i32) {
+    pub fn add(&mut self, edge1_index: usize, edge2_index: usize, x: i32, y: i32) {
         self.items.push((edge1_index, edge2_index, x, y));
     }
 
@@ -24,11 +24,11 @@ impl IntersectNode {
         self.items.clear();
     }
 
-    pub fn get_edge1_index(&self, index: usize) -> isize {
+    pub fn get_edge1_index(&self, index: usize) -> usize {
         self.items[index].0
     }
 
-    pub fn get_edge2_index(&self, index: usize) -> isize {
+    pub fn get_edge2_index(&self, index: usize) -> usize {
         self.items[index].1
     }
 

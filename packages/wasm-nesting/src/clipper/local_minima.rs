@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 pub struct LocalMinima {
-    items: VecDeque<(i32, isize, isize)>,
+    items: VecDeque<(i32, usize, usize)>,
 }
 
 impl LocalMinima {
@@ -9,11 +9,11 @@ impl LocalMinima {
         Self { items: VecDeque::new() }
     }
 
-    pub fn get_left_bound(&self, index: usize) -> isize {
+    pub fn get_left_bound(&self, index: usize) -> usize {
         self.items[index].1
     }
 
-    pub fn get_right_bound(&self, index: usize) -> isize {
+    pub fn get_right_bound(&self, index: usize) -> usize {
         self.items[index].2
     }
 
@@ -21,7 +21,7 @@ impl LocalMinima {
         self.items[index].0
     }
 
-    pub fn insert(&mut self, y: i32, left: isize, right: isize) -> usize {
+    pub fn insert(&mut self, y: i32, left: usize, right: usize) -> usize {
         let local_minima = (y, left, right);
 
         for (i, _) in self.items.iter().enumerate() {
@@ -35,7 +35,7 @@ impl LocalMinima {
         self.items.len() - 1
     }
 
-    pub fn pop(&mut self) -> (isize, isize) {
+    pub fn pop(&mut self) -> (usize, usize) {
         if self.is_empty() {
             panic!("No minima to pop");
         }

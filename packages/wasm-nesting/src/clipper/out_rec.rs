@@ -5,8 +5,8 @@ use crate::clipper::constants::UNASSIGNED;
 use crate::clipper::enums::Direction;
 
 pub struct OutRec {
-    rec_data: Vec<[isize; 4]>,
-    point_neighboars: Vec<[isize; 2]>,
+    rec_data: Vec<[usize; 4]>,
+    point_neighboars: Vec<[usize; 2]>,
     points: Vec<Point<i32>>,
     is_reverse_solution: bool,
     is_strictly_simple: bool,
@@ -28,27 +28,27 @@ impl OutRec {
     }
 
     pub fn is_unassigned(&self, index: usize) -> bool {
-        self.rec_data[index][0] == UNASSIGNED
+        self.rec_data[index - 1][0] == UNASSIGNED
     }
 
     pub fn current_index(&self, index: usize) -> usize {
-        self.rec_data[index][1] as usize
+        self.rec_data[index - 1][1] 
     }
 
     fn set_current_index(&mut self, index1: usize, index2: usize) {
-        self.rec_data[index1][1] = self.rec_data[index2][1];
+        self.rec_data[index1 - 1][1] = self.rec_data[index2 - 1][1];
     }
 
-    pub fn first_left_index(&self, index: usize) -> isize {
-        if index as isize != UNASSIGNED {
-            self.rec_data[index][2]
+    pub fn first_left_index(&self, index: usize) -> usize {
+        if index  != UNASSIGNED {
+            self.rec_data[index - 1][2]
         } else {
             UNASSIGNED
         }
     }
 
-    fn set_first_left_index(&mut self, index: usize, value: isize) {
-        self.rec_data[index][2] = value;
+    fn set_first_left_index(&mut self, index: usize, value: usize) {
+        self.rec_data[index - 1][2] = value;
     }
 
     fn get_hole_state_rec(&self, index1: usize, index2: usize) -> usize {
@@ -61,7 +61,7 @@ impl OutRec {
         }
     }
 
-    pub fn set_hole_state(&mut self, rec_index: usize, is_hole: bool, index: isize) {
+    pub fn set_hole_state(&mut self, rec_index: usize, is_hole: bool, index: usize) {
         if self.first_left_index(rec_index) == UNASSIGNED && index != UNASSIGNED {
             self.set_first_left_index(rec_index, index);
         }
@@ -79,9 +79,9 @@ impl OutRec {
         bottom: &Point<i32>,
     ) -> (u32, i32, i32) {
         let index = if direction == Direction::Right {
-            self.prev(self.point_index(rec_index) as usize) as usize
+            self.prev(self.point_index(rec_index) ) 
         } else {
-            self.point_index(rec_index) as usize
+            self.point_index(rec_index) 
         };
 
         let off_point = if self.point_equal(index, top) {
@@ -102,7 +102,7 @@ impl OutRec {
     }
 
     fn export(&self, rec_index: usize) -> Vec<Point<i32>> {
-        let index = self.point_index(rec_index) as usize;
+        let index = self.point_index(rec_index) ;
         let point_count = self.get_length(index);
 
         let mut result: Vec<Point<i32>> = Vec::new();
@@ -111,7 +111,7 @@ impl OutRec {
             return result;
         }
 
-        let prev_index = self.prev(index) as usize;
+        let prev_index = self.prev(index) ;
         let mut out_pt = prev_index;
 
         for _i in 0..point_count {
@@ -119,7 +119,7 @@ impl OutRec {
                 Some(self.point_x(out_pt)),
                 Some(self.point_y(out_pt)),
             ));
-            out_pt = self.prev(out_pt) as usize;
+            out_pt = self.prev(out_pt) ;
         }
 
         result
@@ -145,10 +145,10 @@ impl OutRec {
         }
     }
 
-    pub fn create(&mut self, point_index: isize) -> usize {
-        let index = self.rec_data.len();
+    pub fn create(&mut self, point_index: usize) -> usize {
+        let index = self.rec_data.len() + 1;
         self.rec_data
-            .push([point_index, index as isize, UNASSIGNED, 0]);
+            .push([point_index, index , UNASSIGNED, 0]);
         index
     }
 
@@ -163,30 +163,30 @@ impl OutRec {
         rec_index: usize,
         preserve_collinear: bool,
         use_full_range: bool,
-    ) -> isize {
-        let index = self.point_index(rec_index) as usize;
+    ) -> usize {
+        let index = self.point_index(rec_index) ;
         let mut last_out_index = UNASSIGNED;
         let mut out_pt = index;
 
         loop {
-            if self.prev(out_pt) == out_pt as isize || self.prev(out_pt) == self.next(out_pt) {
+            if self.prev(out_pt) == out_pt  || self.prev(out_pt) == self.next(out_pt) {
                 return UNASSIGNED;
             }
 
-            let next_pt = self.next(out_pt) as usize;
-            let prev_pt = self.prev(out_pt) as usize;
+            let next_pt = self.next(out_pt) ;
+            let prev_pt = self.prev(out_pt) ;
 
             let slopes_equal = unsafe {
                 Point::<i32>::slopes_equal(
-                    &self.points[prev_pt],
-                    &self.points[out_pt],
-                    &self.points[next_pt],
+                    &self.points[prev_pt - 1],
+                    &self.points[out_pt - 1],
+                    &self.points[next_pt - 1],
                     use_full_range,
                 )
             };
 
             let is_between = unsafe {
-                self.points[out_pt].get_between(&self.points[prev_pt], &self.points[next_pt])
+                self.points[out_pt - 1].get_between(&self.points[prev_pt - 1], &self.points[next_pt - 1])
             };
 
             if self.inner_equal(out_pt, prev_pt)
@@ -194,22 +194,22 @@ impl OutRec {
                 || (slopes_equal && !(preserve_collinear && is_between))
             {
                 last_out_index = UNASSIGNED;
-                out_pt = self.remove(out_pt) as usize;
+                out_pt = self.remove(out_pt) ;
                 continue;
             }
 
-            if out_pt as isize == last_out_index {
+            if out_pt  == last_out_index {
                 break;
             }
 
             if last_out_index == UNASSIGNED {
-                last_out_index = out_pt as isize;
+                last_out_index = out_pt ;
             }
 
-            out_pt = self.next(out_pt) as usize;
+            out_pt = self.next(out_pt) ;
         }
 
-        out_pt as isize
+        out_pt 
     }
 
     pub fn fix_out_polygon(&mut self, is_use_full_range: bool) {
@@ -245,9 +245,9 @@ impl OutRec {
             } else {
                 out_rec2_index
             }
-        } else if self.next(b_index1) == b_index1 as isize {
+        } else if self.next(b_index1) == b_index1  {
             out_rec2_index
-        } else if self.next(b_index2) == b_index2 as isize {
+        } else if self.next(b_index2) == b_index2  {
             out_rec1_index
         } else if self.first_is_bottom_pt(b_index1, b_index2) {
             out_rec1_index
@@ -257,8 +257,8 @@ impl OutRec {
     }
 
     fn split(&mut self, op1_index: usize, op2_index: usize) {
-        let op1_prev = self.prev(op1_index) as usize;
-        let op2_prev = self.prev(op2_index) as usize;
+        let op1_prev = self.prev(op1_index) ;
+        let op2_prev = self.prev(op2_index) ;
 
         self.push(op2_prev, op1_index, true);
         self.push(op1_prev, op2_index, true);
@@ -266,8 +266,8 @@ impl OutRec {
 
     fn can_split(&self, index1: usize, index2: usize) -> bool {
         self.inner_equal(index2, index1)
-            && self.next(index2) != index1 as isize
-            && self.prev(index2) != index1 as isize
+            && self.next(index2) != index1 
+            && self.prev(index2) != index1 
     }
 
     fn simplify(&mut self, rec_index: usize) {
@@ -275,25 +275,25 @@ impl OutRec {
             return;
         }
 
-        let input_index = self.point_index(rec_index) as usize;
-        let mut curr_index = self.point_index(rec_index) as usize;
+        let input_index = self.point_index(rec_index) ;
+        let mut curr_index = self.point_index(rec_index) ;
         let mut split_index;
 
         loop {
-            split_index = self.next(curr_index) as usize;
+            split_index = self.next(curr_index) ;
 
-            while split_index as isize != self.point_index(rec_index) {
+            while split_index  != self.point_index(rec_index) {
                 if self.can_split(curr_index, split_index) {
                     self.split(curr_index, split_index);
-                    self.set_point_index(rec_index, curr_index as isize);
-                    let out_rec_index = self.create(split_index as isize);
+                    self.set_point_index(rec_index, curr_index );
+                    let out_rec_index = self.create(split_index );
                     self.update_split(rec_index, out_rec_index);
                     split_index = curr_index;
                 }
-                split_index = self.next(split_index) as usize;
+                split_index = self.next(split_index) ;
             }
 
-            curr_index = self.next(curr_index) as usize;
+            curr_index = self.next(curr_index) ;
             if curr_index == input_index {
                 break;
             }
@@ -303,12 +303,12 @@ impl OutRec {
     fn update_split(&mut self, index1: usize, index2: usize) {
         if self.contains_poly(index1, index2) {
             self.set_hole(index2, !self.is_hole(index1));
-            self.set_first_left_index(index2, index1 as isize);
+            self.set_first_left_index(index2, index1 );
         } else if self.contains_poly(index2, index1) {
             self.set_hole(index2, self.is_hole(index1));
             self.set_hole(index1, !self.is_hole(index2));
             self.set_first_left_index(index2, self.first_left_index(index1));
-            self.set_first_left_index(index1, index2 as isize);
+            self.set_first_left_index(index1, index2 );
         } else {
             self.set_hole(index2, self.is_hole(index1));
             self.set_first_left_index(index2, self.first_left_index(index1));
@@ -317,7 +317,7 @@ impl OutRec {
 
     fn post_init(&mut self, rec_index: usize) {
         self.set_hole(rec_index, !self.is_hole(rec_index));
-        self.set_first_left_index(rec_index, rec_index as isize);
+        self.set_first_left_index(rec_index, rec_index );
         self.reverse(rec_index);
     }
 
@@ -328,11 +328,11 @@ impl OutRec {
         }
 
         let mut result = 0;
-        let mut out_pt = prev_index as usize;
+        let mut out_pt = prev_index ;
         loop {
             result += 1;
-            out_pt = self.next(out_pt) as usize;
-            if out_pt as isize == prev_index {
+            out_pt = self.next(out_pt) ;
+            if out_pt  == prev_index {
                 break;
             }
         }
@@ -340,10 +340,10 @@ impl OutRec {
     }
 
     fn join(&mut self, rec_index1: usize, rec_index2: usize, side1: Direction, side2: Direction) {
-        let index1 = self.point_index(rec_index1) as usize;
-        let index2 = self.point_index(rec_index2) as usize;
-        let prev_index1 = self.prev(index1) as usize;
-        let prev_index2 = self.prev(index2) as usize;
+        let index1 = self.point_index(rec_index1) ;
+        let index2 = self.point_index(rec_index2) ;
+        let prev_index1 = self.prev(index1) ;
+        let prev_index2 = self.prev(index2) ;
         let is_left = side1 == Direction::Left;
         let point_index;
 
@@ -358,7 +358,7 @@ impl OutRec {
             point_index = if is_left { index2 } else { index1 };
         }
 
-        self.set_point_index(rec_index1, point_index as isize);
+        self.set_point_index(rec_index1, point_index );
     }
 
     pub fn get_hash(&self, rec_index: usize, point_index: usize) -> u32 {
@@ -367,23 +367,23 @@ impl OutRec {
 
     pub fn add_out_pt(&mut self, rec_index: usize, is_to_front: bool, point: &Point<i32>) -> usize {
         let out_rec = self.get_out_rec(rec_index);
-        let op = self.point_index(out_rec) as usize;
+        let op = self.point_index(out_rec) ;
 
         if is_to_front && self.point_equal(op, point) {
             return op;
         }
 
-        let prev = self.prev(op) as usize;
+        let prev = self.prev(op) ;
         if !is_to_front && self.point_equal(prev, point) {
             return prev;
         }
 
         let new_index = self.create_out_pt(point.x, point.y);
-        self.push(self.prev(op) as usize, new_index, true);
+        self.push(self.prev(op) , new_index, true);
         self.push(new_index, op, true);
 
         if is_to_front {
-            self.set_point_index(out_rec, new_index as isize);
+            self.set_point_index(out_rec, new_index );
         }
 
         new_index
@@ -397,7 +397,7 @@ impl OutRec {
         let mut result = 0;
 
         loop {
-            let next_pt = self.next(out_pt) as usize;
+            let next_pt = self.next(out_pt) ;
             let poly0x = self.point_x(out_pt);
             let poly0y = self.point_y(out_pt);
             let poly1x = self.point_x(next_pt);
@@ -405,7 +405,7 @@ impl OutRec {
 
             if poly1y == out_y {
                 if poly1x == out_x || (poly0y == out_y && (poly1x > out_x) == (poly0x < out_x)) {
-                    return UNASSIGNED;
+                    return -1;
                 }
             }
 
@@ -420,7 +420,7 @@ impl OutRec {
                         - offset_x1 as i64 * (poly0y - out_y) as i64;
 
                     if d == 0 {
-                        return UNASSIGNED;
+                        return -1;
                     }
 
                     if (d > 0) == (poly1y > poly0y) {
@@ -429,7 +429,7 @@ impl OutRec {
                 }
             }
 
-            out_pt = self.next(out_pt) as usize;
+            out_pt = self.next(out_pt) ;
             if start_out_pt == out_pt {
                 break;
             }
@@ -438,27 +438,27 @@ impl OutRec {
         result
     }
 
-    fn point_index(&self, index: usize) -> isize {
-        self.rec_data[index][0]
+    fn point_index(&self, index: usize) -> usize {
+        self.rec_data[index - 1][0]
     }
 
-    fn set_point_index(&mut self, index: usize, value: isize) {
-        self.rec_data[index][0] = value;
+    fn set_point_index(&mut self, index: usize, value: usize) {
+        self.rec_data[index - 1][0] = value;
     }
 
     fn is_hole(&self, index: usize) -> bool {
-        self.rec_data[index][3] == 1
+        self.rec_data[index - 1][3] == 1
     }
 
     fn set_hole(&mut self, index: usize, value: bool) {
-        self.rec_data[index][3] = if value { 1 } else { 0 };
+        self.rec_data[index - 1][3] = if value { 1 } else { 0 };
     }
 
     fn param1_right_of_param2(&self, out_rec1_index: usize, out_rec2_index: usize) -> bool {
-        let mut inner_index = out_rec1_index as isize;
+        let mut inner_index = out_rec1_index ;
         loop {
-            inner_index = self.first_left_index(inner_index as usize);
-            if inner_index == out_rec2_index as isize {
+            inner_index = self.first_left_index(inner_index );
+            if inner_index == out_rec2_index  {
                 return true;
             }
             if inner_index == UNASSIGNED {
@@ -469,8 +469,8 @@ impl OutRec {
     }
 
     fn contains_poly(&self, rec_index1: usize, rec_index2: usize) -> bool {
-        let index1 = self.point_index(rec_index1) as usize;
-        let index2 = self.point_index(rec_index2) as usize;
+        let index1 = self.point_index(rec_index1) ;
+        let index2 = self.point_index(rec_index2) ;
         let mut curr_index = index2;
 
         loop {
@@ -478,7 +478,7 @@ impl OutRec {
             if res >= 0 {
                 return res != 0;
             }
-            curr_index = self.next(curr_index) as usize;
+            curr_index = self.next(curr_index) ;
             if curr_index == index2 {
                 break;
             }
@@ -490,20 +490,20 @@ impl OutRec {
         if !self.is_unassigned(index)
             && (self.is_hole(index) != self.is_reverse_solution) == (self.get_area(index) > 0.0)
         {
-            self.reverse_inner(self.point_index(index) as usize);
+            self.reverse_inner(self.point_index(index) );
         }
     }
 
     fn get_area(&self, rec_index: usize) -> f64 {
-        let index = self.point_index(rec_index) as usize;
+        let index = self.point_index(rec_index) ;
         let mut out_pt = index;
         let mut result: i64 = 0;
 
         loop {
-            let prev_pt = self.prev(out_pt) as usize;
+            let prev_pt = self.prev(out_pt) ;
             result += (self.point_x(prev_pt) as i64 + self.point_x(out_pt) as i64)
                 * (self.point_y(prev_pt) as i64 - self.point_y(out_pt) as i64);
-            out_pt = self.next(out_pt) as usize;
+            out_pt = self.next(out_pt) ;
             if out_pt == index {
                 break;
             }
@@ -512,9 +512,9 @@ impl OutRec {
     }
 
     fn get_bottom_pt(&self, rec_index: usize) -> usize {
-        let input_index = self.point_index(rec_index) as usize;
+        let input_index = self.point_index(rec_index) ;
         let mut out_index1 = input_index;
-        let mut out_index2 = self.next(input_index) as usize;
+        let mut out_index2 = self.next(input_index) ;
         let mut dups_index = UNASSIGNED;
 
         while out_index2 != out_index1 {
@@ -527,24 +527,24 @@ impl OutRec {
                 if self.point_x(out_index2) < self.point_x(out_index1) {
                     dups_index = UNASSIGNED;
                     out_index1 = out_index2;
-                } else if self.next(out_index2) != out_index1 as isize
-                    && self.prev(out_index2) != out_index1 as isize
+                } else if self.next(out_index2) != out_index1 
+                    && self.prev(out_index2) != out_index1 
                 {
-                    dups_index = out_index2 as isize;
+                    dups_index = out_index2 ;
                 }
             }
-            out_index2 = self.next(out_index2) as usize;
+            out_index2 = self.next(out_index2) ;
         }
 
         if dups_index != UNASSIGNED {
-            let mut dups_index_usize = dups_index as usize;
+            let mut dups_index_usize = dups_index ;
             while dups_index_usize != out_index2 {
                 if !self.first_is_bottom_pt(out_index2, dups_index_usize) {
                     out_index1 = dups_index_usize;
                 }
-                dups_index_usize = self.next(dups_index_usize) as usize;
+                dups_index_usize = self.next(dups_index_usize) ;
                 while !self.inner_equal(dups_index_usize, out_index1) {
-                    dups_index_usize = self.next(dups_index_usize) as usize;
+                    dups_index_usize = self.next(dups_index_usize) ;
                 }
             }
         }
@@ -559,14 +559,14 @@ impl OutRec {
         is_next: bool,
     ) -> usize {
         let mut curr_index = index;
-        let mut nghb_index = self.get_neighboar_index(curr_index, is_next) as usize;
+        let mut nghb_index = self.get_neighboar_index(curr_index, is_next) ;
 
         while self.point_y(nghb_index) == self.point_y(curr_index)
             && nghb_index != out_index1
             && nghb_index != out_index2
         {
             curr_index = nghb_index;
-            nghb_index = self.get_neighboar_index(curr_index, is_next) as usize;
+            nghb_index = self.get_neighboar_index(curr_index, is_next) ;
         }
         curr_index
     }
@@ -576,22 +576,22 @@ impl OutRec {
         index: usize,
         out_index1: usize,
         out_index2: usize,
-    ) -> (isize, isize) {
+    ) -> (usize, usize) {
         let out_index = self.search_bottom(index, index, out_index2, false);
         let out_b_index = self.search_bottom(index, out_index, out_index1, true);
         let out_b_index_next = self.next(out_b_index);
 
-        if out_b_index_next == out_index as isize || out_b_index_next == out_index1 as isize {
+        if out_b_index_next == out_index  || out_b_index_next == out_index1  {
             (UNASSIGNED, UNASSIGNED)
         } else {
-            (out_index as isize, out_b_index as isize)
+            (out_index , out_b_index )
         }
     }
 
     pub fn strictly_simple_join(&self, index: usize, point: &Point<i32>) -> bool {
-        let mut result = self.next(index) as usize;
+        let mut result = self.next(index) ;
         while result != index && self.point_equal(result, point) {
-            result = self.next(result) as usize;
+            result = self.next(result) ;
         }
         self.point_y(result) > point.y
     }
@@ -611,9 +611,9 @@ impl OutRec {
     }
 
     pub fn get_unique_pt(&self, index: usize, is_next: bool) -> usize {
-        let mut result = self.get_neighboar_index(index, is_next) as usize;
+        let mut result = self.get_neighboar_index(index, is_next) ;
         while self.inner_equal(result, index) && result != index {
-            result = self.get_neighboar_index(result, is_next) as usize;
+            result = self.get_neighboar_index(result, is_next) ;
         }
         result
     }
@@ -621,9 +621,9 @@ impl OutRec {
     fn reverse_inner(&mut self, index: usize) {
         let mut pp1 = index;
         loop {
-            let pp2 = self.next(pp1) as usize;
+            let pp2 = self.next(pp1) ;
             self.set_next(pp1, self.prev(pp1));
-            self.set_prev(pp1, pp2 as isize);
+            self.set_prev(pp1, pp2 );
             pp1 = pp2;
             if pp1 == index {
                 break;
@@ -631,9 +631,9 @@ impl OutRec {
         }
     }
 
-    fn remove(&mut self, index: usize) -> isize {
+    fn remove(&mut self, index: usize) -> usize {
         let result = self.prev(index);
-        self.push(self.prev(index) as usize, self.next(index) as usize, true);
+        self.push(self.prev(index) , self.next(index) , true);
         self.set_prev(index, UNASSIGNED);
         self.set_next(index, UNASSIGNED);
         result
@@ -708,11 +708,11 @@ impl OutRec {
         let is_right_order = is_discard_left != is_right;
 
         while self.get_discarded(op, is_right, point) {
-            op = self.next(op) as usize;
+            op = self.next(op) ;
         }
 
         if !is_right_order && self.point_x(op) != point.x {
-            op = self.next(op) as usize;
+            op = self.next(op) ;
         }
 
         let mut op_b = self.duplicate(op, is_right_order);
@@ -720,7 +720,7 @@ impl OutRec {
         if !self.point_equal(op_b, point) {
             op = op_b;
             unsafe {
-                self.points[op].update(point);
+                self.points[op - 1].update(point);
             }
             op_b = self.duplicate(op, is_right_order);
         }
@@ -733,7 +733,7 @@ impl OutRec {
             return false;
         }
 
-        let next = self.next(index) as usize;
+        let next = self.next(index) ;
         let next_x = self.point_x(next);
         let curr_x = self.point_x(index);
         let next_y = self.point_y(next);
@@ -759,15 +759,15 @@ impl OutRec {
             return f64::NAN;
         }
 
-        while self.inner_equal(input_index, index as usize) && index != input_index as isize {
-            index = self.get_neighboar_index(index as usize, is_next);
+        while self.inner_equal(input_index, index ) && index != input_index  {
+            index = self.get_neighboar_index(index , is_next);
             if index == UNASSIGNED {
                 return f64::NAN;
             }
         }
 
-        let offset_y = self.point_y(index as usize) - self.point_y(input_index);
-        let offset_x = self.point_x(index as usize) - self.point_x(input_index);
+        let offset_y = self.point_y(index ) - self.point_y(input_index);
+        let offset_x = self.point_x(index ) - self.point_x(input_index);
         let result = if offset_y == 0 {
             f64::MIN_POSITIVE
         } else {
@@ -778,83 +778,82 @@ impl OutRec {
     }
 
     pub fn point(&self, index: usize) -> &Point<i32> {
-        &self.points[index]
+        &self.points[index - 1]
     }
 
     pub fn point_x(&self, index: usize) -> i32 {
-        self.points[index].x
+        self.points[index - 1].x
     }
 
     pub fn point_y(&self, index: usize) -> i32 {
-        self.points[index].y
+        self.points[index - 1].y
     }
 
     fn create_out_pt(&mut self, x: i32, y: i32) -> usize {
-        let index = self.points.len();
         self.points.push(Point::<i32>::new(Some(x), Some(y)));
         self.point_neighboars.push([UNASSIGNED, UNASSIGNED]);
-        index
+        self.points.len()
     }
 
     fn duplicate(&mut self, index: usize, is_insert_after: bool) -> usize {
         let result = self.create_out_pt(self.point_x(index), self.point_y(index));
         if is_insert_after {
-            self.push(result, self.next(index) as usize, true);
+            self.push(result, self.next(index) , true);
             self.push(index, result, true);
         } else {
-            self.push(self.prev(index) as usize, result, true);
+            self.push(self.prev(index) , result, true);
             self.push(result, index, true);
         }
         result
     }
 
-    fn next(&self, index: usize) -> isize {
+    fn next(&self, index: usize) -> usize {
         self.get_neighboar_index(index, true)
     }
 
-    fn set_next(&mut self, index: usize, value: isize) {
-        if index as isize != UNASSIGNED {
-            self.point_neighboars[index][1] = value;
+    fn set_next(&mut self, index: usize, value: usize) {
+        if index != UNASSIGNED {
+            self.point_neighboars[index - 1][1] = value;
         }
     }
 
-    fn prev(&self, index: usize) -> isize {
+    fn prev(&self, index: usize) -> usize {
         self.get_neighboar_index(index, false)
     }
 
-    fn set_prev(&mut self, index: usize, value: isize) {
-        if index as isize != UNASSIGNED {
-            self.point_neighboars[index][0] = value;
+    fn set_prev(&mut self, index: usize, value: usize) {
+        if index  != UNASSIGNED {
+            self.point_neighboars[index - 1][0] = value;
         }
     }
 
-    fn get_neighboar_index(&self, index: usize, is_next: bool) -> isize {
-        if index as isize == UNASSIGNED {
+    fn get_neighboar_index(&self, index: usize, is_next: bool) -> usize {
+        if index  == UNASSIGNED {
             return UNASSIGNED;
         }
         let neighboar_index = if is_next { 1 } else { 0 };
-        self.point_neighboars[index][neighboar_index]
+        self.point_neighboars[index - 1][neighboar_index]
     }
 
     fn inner_equal(&self, index1: usize, index2: usize) -> bool {
         unsafe {
-            index1 as isize != UNASSIGNED
-                && index2 as isize != UNASSIGNED
-                && self.points[index1].almost_equal(&self.points[index2], None)
+            index1  != UNASSIGNED
+                && index2  != UNASSIGNED
+                && self.points[index1 - 1].almost_equal(&self.points[index2 - 1], None)
         }
     }
 
     pub fn point_equal(&self, index: usize, point: &Point<i32>) -> bool {
-        unsafe { self.points[index].almost_equal(point, None) }
+        unsafe { self.points[index - 1].almost_equal(point, None) }
     }
 
     fn push(&mut self, out_pt1_index: usize, out_pt2_index: usize, is_reverse: bool) {
         if is_reverse {
-            self.set_next(out_pt1_index, out_pt2_index as isize);
-            self.set_prev(out_pt2_index, out_pt1_index as isize);
+            self.set_next(out_pt1_index, out_pt2_index );
+            self.set_prev(out_pt2_index, out_pt1_index );
         } else {
-            self.set_prev(out_pt1_index, out_pt2_index as isize);
-            self.set_next(out_pt2_index, out_pt1_index as isize);
+            self.set_prev(out_pt1_index, out_pt2_index );
+            self.set_next(out_pt2_index, out_pt1_index );
         }
     }
 
@@ -875,14 +874,14 @@ impl OutRec {
         self.join(first_rec_index, second_rec_index, first_side, second_side);
 
         if hole_state_rec == second_rec_index {
-            if self.first_left_index(second_rec_index) != first_rec_index as isize {
+            if self.first_left_index(second_rec_index) != first_rec_index  {
                 self.set_first_left_index(first_rec_index, self.first_left_index(second_rec_index));
             }
             self.set_hole(first_rec_index, self.is_hole(second_rec_index));
         }
 
         self.set_point_index(second_rec_index, UNASSIGNED);
-        self.set_first_left_index(second_rec_index, first_rec_index as isize);
+        self.set_first_left_index(second_rec_index, first_rec_index );
         self.set_current_index(second_rec_index, first_rec_index);
     }
 
@@ -896,14 +895,14 @@ impl OutRec {
             self.set_first_left_index(out_rec1, self.first_left_index(out_rec2));
         }
 
-        self.set_first_left_index(out_rec2, out_rec1 as isize);
+        self.set_first_left_index(out_rec2, out_rec1 );
     }
 
     pub fn split_polys(
         &mut self,
         out_rec1: usize,
-        out_pt1_index: isize,
-        out_pt2_index: isize,
+        out_pt1_index: usize,
+        out_pt2_index: usize,
     ) -> usize {
         self.set_point_index(out_rec1, out_pt1_index);
         let out_rec2 = self.create(out_pt2_index);
@@ -976,16 +975,16 @@ impl OutRec {
         }
 
         let (op2_index, op2b_index) =
-            self.flat_horizontal(out_pt2_index, op1_index as usize, op1b_index as usize);
+            self.flat_horizontal(out_pt2_index, op1_index , op1b_index );
         if op2_index == UNASSIGNED || op2b_index == UNASSIGNED {
             return default_result;
         }
 
         let (left_bound, right_bound) = self.get_overlap(
-            op1_index as usize,
-            op1b_index as usize,
-            op2_index as usize,
-            op2b_index as usize,
+            op1_index ,
+            op1b_index ,
+            op2_index ,
+            op2b_index ,
         );
         let is_overlapped = left_bound < right_bound;
 
@@ -997,10 +996,10 @@ impl OutRec {
             join_u16(index1 as u16, op1_index as u16),
             join_u16(index2 as u16, op2_index as u16),
             self.join_horz(
-                op1_index as usize,
-                op1b_index as usize,
-                op2_index as usize,
-                op2b_index as usize,
+                op1_index ,
+                op1b_index ,
+                op2_index ,
+                op2b_index ,
                 left_bound,
                 right_bound,
             ),
