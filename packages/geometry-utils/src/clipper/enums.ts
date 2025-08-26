@@ -18,3 +18,10 @@ export enum DIRECTION {
     LEFT = 0,
     RIGHT = 1
 }
+
+export enum EDGE_SIDE {
+    CURRENT = 0,
+    TOP = 1,
+    BOTTOM = 2,
+    DELTA = 3
+}

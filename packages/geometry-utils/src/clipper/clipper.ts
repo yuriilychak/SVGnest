@@ -7,7 +7,7 @@ import IntersectNode from './intersect-node';
 import LocalMinima from './local-minima';
 import Scanbeam from './scanbeam';
 import TEdge from './t-edge';
-import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './enums';
+import { CLIP_TYPE, DIRECTION, EDGE_SIDE, POLY_FILL_TYPE, POLY_TYPE } from './enums';
 import Join from './join';
 import OutRec from './out-rec';
 
@@ -190,7 +190,7 @@ export default class Clipper {
 
                 point.set(0, 0);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-                if (this.tEdge.curr(currIndex).x > this.tEdge.curr(nextIndex).x) {
+                if (this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) > this.tEdge.getX(nextIndex, EDGE_SIDE.CURRENT)) {
                     if (this.tEdge.getIntersectError(currIndex, nextIndex, point)) {
                         //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
                         //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
@@ -403,8 +403,8 @@ export default class Clipper {
                 nextIndex = this.tEdge.getNeighboar(currIndex, isRight, true);
                 //saves eNext for later
                 if (
-                    (isRight && this.tEdge.curr(currIndex).x <= horzRight) ||
-                    (!isRight && this.tEdge.curr(currIndex).x >= horzLeft)
+                    (isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) <= horzRight) ||
+                    (!isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) >= horzLeft)
                 ) {
                     if (this.tEdge.isFilled(horzIndex) && isTopOfScanbeam) {
                         this.prepareHorzJoins(horzIndex);
@@ -431,8 +431,8 @@ export default class Clipper {
 
                     this.tEdge.swapPositionsInList(horzIndex, currIndex, true);
                 } else if (
-                    (isRight && this.tEdge.curr(currIndex).x >= horzRight) ||
-                    (!isRight && this.tEdge.curr(currIndex).x <= horzLeft)
+                    (isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) >= horzRight) ||
+                    (!isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) <= horzLeft)
                 ) {
                     break;
                 }
@@ -569,7 +569,7 @@ export default class Clipper {
             }
 
             if (this.outRec.strictlySimple && this.tEdge.canAddScanbeam(edgeIndex)) {
-                this.addScanbeamJoin(edgeIndex, this.tEdge.prevActive(edgeIndex), this.tEdge.curr(edgeIndex));
+                this.addScanbeamJoin(edgeIndex);
                 //StrictlySimple (type-3) join
             }
 
@@ -783,7 +783,9 @@ export default class Clipper {
         return condition;
     }
 
-    private addScanbeamJoin(edge1Index: number, edge2Index: number, point: Point<Int32Array>): void {
+    private addScanbeamJoin(edge1Index: number): void {
+        const point = this.tEdge.curr(edge1Index);
+        const edge2Index = this.tEdge.prevActive(edge1Index);
         const outPt1 = this.addOutPt(edge2Index, point);
         const outPt2 = this.addOutPt(edge1Index, point);
 

@@ -1,7 +1,7 @@
 import { cycle_index_wasm as cycle_index } from 'wasm-nesting';
 import { Point } from '../types';
 import { UNASSIGNED } from './constants';
-import { CLIP_TYPE, DIRECTION, POLY_FILL_TYPE, POLY_TYPE } from './enums';
+import { CLIP_TYPE, DIRECTION, EDGE_SIDE, POLY_FILL_TYPE, POLY_TYPE } from './enums';
 import { PointI32 } from '../geometry';
 import { clipperRound, slopesEqual } from '../helpers';
 import { showError } from './helpers';
@@ -129,6 +129,14 @@ export default class TEdge {
 
         // Return the starting edge index if path is valid
         return isFlat ? UNASSIGNED : indices[0];
+    }
+
+    public getX(index: number, side: EDGE_SIDE): number {
+        return this._points[index][side].x;
+    }
+
+    public getY(index: number, side: EDGE_SIDE): number {
+        return this._points[index][side].y;
     }
 
     public curr(index: number): Point<Int32Array> {
