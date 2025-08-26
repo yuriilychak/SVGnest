@@ -88,12 +88,12 @@ export default class ClipperWrapper {
         let i: number = 0;
         let j: number = 0;
 
-        for(i = 0; i < nodeCount; ++i) {
+        for (i = 0; i < nodeCount; ++i) {
             size = nodes[i].memSeg.length;
 
             this.simplifyNodes(nodes[i].children);
-            
-            for(j = 0; j < size; ++j) {
+
+            for (j = 0; j < size; ++j) {
                 nodes[i].memSeg[j] = Math.round(nodes[i].memSeg[j] * 100) / 100;
             }
         }
@@ -192,8 +192,8 @@ export default class ClipperWrapper {
         const simple: PointI32[][] = [];
         const clipper = new Clipper(false, true);
 
-        clipper.addPath(clipperPolygon, PolyType.SUBJECT);
-        clipper.execute(ClipType.UNION, simple, PolyFillType.NON_ZERO);
+        clipper.addPath(clipperPolygon, PolyType.Subject);
+        clipper.execute(ClipType.Union, simple, PolyFillType.NonZero);
 
         if (!simple || simple.length === 0) {
             return;
@@ -283,7 +283,7 @@ export default class ClipperWrapper {
             clone = ClipperWrapper.fromMemSeg(memSeg, offset);
 
             if (absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
-                clipper.addPath(clone, PolyType.SUBJECT);
+                clipper.addPath(clone, PolyType.Subject);
             }
         }
     }
@@ -294,7 +294,7 @@ export default class ClipperWrapper {
         const result = [];
         let memSeg: Float32Array = null;
         let i: number = 0;
-        
+
 
         for (i = 0; i < nfpCount; ++i) {
             memSeg = nfpWrapper.getNFPMemSeg(i)
@@ -336,7 +336,7 @@ export default class ClipperWrapper {
 
         const combinedNfp: PointI32[][] = [];
 
-        if (!clipper.execute(ClipType.UNION, combinedNfp, PolyFillType.NON_ZERO)) {
+        if (!clipper.execute(ClipType.Union, combinedNfp, PolyFillType.NonZero)) {
             return null;
         }
 
@@ -345,10 +345,10 @@ export default class ClipperWrapper {
         const clipperBinNfp: PointI32[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
 
         clipper = new Clipper(false, false);
-        clipper.addPaths(combinedNfp, PolyType.CLIP);
-        clipper.addPaths(clipperBinNfp, PolyType.SUBJECT);
+        clipper.addPaths(combinedNfp, PolyType.Clip);
+        clipper.addPaths(clipperBinNfp, PolyType.Subject);
 
-        if (!clipper.execute(ClipType.DIFFERENCE, finalNfp, PolyFillType.NON_ZERO)) {
+        if (!clipper.execute(ClipType.Difference, finalNfp, PolyFillType.NonZero)) {
             return null;
         }
 

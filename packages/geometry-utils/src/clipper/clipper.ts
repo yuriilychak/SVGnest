@@ -7,7 +7,7 @@ import IntersectNode from './intersect-node';
 import LocalMinima from './local-minima';
 import Scanbeam from './scanbeam';
 import TEdge from './t-edge';
-import { CLIP_TYPE, DIRECTION, EDGE_SIDE, POLY_FILL_TYPE, POLY_TYPE } from './enums';
+import { BoolCondition, ClipType, Direction, EdgeSide, PolyFillType, PolyType } from './enums';
 import Join from './join';
 import OutRec from './out-rec';
 
@@ -29,7 +29,7 @@ export default class Clipper {
         this.outRec = new OutRec(reverseSolution, strictlySimple);
     }
 
-    public addPath(polygon: PointI32[], polyType: POLY_TYPE): boolean {
+    public addPath(polygon: PointI32[], polyType: PolyType): boolean {
         let edgeIndex = this.tEdge.createPath(polygon, polyType);
 
         if (edgeIndex === UNASSIGNED) {
@@ -62,7 +62,7 @@ export default class Clipper {
         return true;
     }
 
-    public addPaths(polygons: PointI32[][], polyType: POLY_TYPE): boolean {
+    public addPaths(polygons: PointI32[][], polyType: PolyType): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;
@@ -78,7 +78,7 @@ export default class Clipper {
         return result;
     }
 
-    public execute(clipType: CLIP_TYPE, solution: PointI32[][], fillType: POLY_FILL_TYPE): boolean {
+    public execute(clipType: ClipType, solution: PointI32[][], fillType: PolyFillType): boolean {
         if (this.isExecuteLocked) {
             return false;
         }
@@ -190,7 +190,7 @@ export default class Clipper {
 
                 point.set(0, 0);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-                if (this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) > this.tEdge.getX(nextIndex, EDGE_SIDE.CURRENT)) {
+                if (this.tEdge.checkCondition(currIndex, nextIndex, EdgeSide.Current, EdgeSide.Current, BoolCondition.Greater, true)) {
                     if (this.tEdge.getIntersectError(currIndex, nextIndex, point)) {
                         //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
                         //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
@@ -380,7 +380,7 @@ export default class Clipper {
 
     private processHorizontal(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
         let dirValue: Float64Array = this.tEdge.horzDirection(horzEdgeIndex);
-        let dir: DIRECTION = dirValue[0] as DIRECTION;
+        let dir: Direction = dirValue[0] as Direction;
         let horzLeft: number = dirValue[1];
         let horzRight: number = dirValue[2];
         const lastHorzIndex = this.tEdge.getLastHorizontal(horzEdgeIndex);
@@ -389,9 +389,9 @@ export default class Clipper {
 
         while (true) {
             const isLastHorz: boolean = horzIndex === lastHorzIndex;
-            let currIndex = this.tEdge.getNeighboar(horzIndex, dir === DIRECTION.RIGHT, true);
+            let currIndex = this.tEdge.getNeighboar(horzIndex, dir === Direction.Right, true);
             let nextIndex = UNASSIGNED;
-            const isRight: boolean = dir === DIRECTION.RIGHT;
+            const isRight: boolean = dir === Direction.Right;
 
             while (currIndex !== UNASSIGNED) {
                 //Break if we've got to the end of an intermediate horizontal edge ...
@@ -403,8 +403,8 @@ export default class Clipper {
                 nextIndex = this.tEdge.getNeighboar(currIndex, isRight, true);
                 //saves eNext for later
                 if (
-                    (isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) <= horzRight) ||
-                    (!isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) >= horzLeft)
+                    (isRight && this.tEdge.getX(currIndex, EdgeSide.Current) <= horzRight) ||
+                    (!isRight && this.tEdge.getX(currIndex, EdgeSide.Current) >= horzLeft)
                 ) {
                     if (this.tEdge.isFilled(horzIndex) && isTopOfScanbeam) {
                         this.prepareHorzJoins(horzIndex);
@@ -431,8 +431,8 @@ export default class Clipper {
 
                     this.tEdge.swapPositionsInList(horzIndex, currIndex, true);
                 } else if (
-                    (isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) >= horzRight) ||
-                    (!isRight && this.tEdge.getX(currIndex, EDGE_SIDE.CURRENT) <= horzLeft)
+                    (isRight && this.tEdge.getX(currIndex, EdgeSide.Current) >= horzRight) ||
+                    (!isRight && this.tEdge.getX(currIndex, EdgeSide.Current) <= horzLeft)
                 ) {
                     break;
                 }
@@ -452,7 +452,7 @@ export default class Clipper {
                 }
 
                 dirValue = this.tEdge.horzDirection(horzIndex);
-                dir = dirValue[0] as DIRECTION;
+                dir = dirValue[0] as Direction;
                 horzLeft = dirValue[1];
                 horzRight = dirValue[2];
             } else {
@@ -491,8 +491,8 @@ export default class Clipper {
 
         if (maxPairIndex !== UNASSIGNED) {
             if (this.tEdge.isAssigned(maxPairIndex)) {
-                const index1 = dir === DIRECTION.RIGHT ? horzIndex : maxPairIndex;
-                const index2 = dir === DIRECTION.RIGHT ? maxPairIndex : horzIndex;
+                const index1 = dir === Direction.Right ? horzIndex : maxPairIndex;
+                const index2 = dir === Direction.Right ? maxPairIndex : horzIndex;
 
                 this.intersectEdges(index1, index2, this.tEdge.top(horzIndex), false);
 
@@ -843,7 +843,7 @@ export default class Clipper {
             this.tEdge.setRecIndex(edgeIndex, this.outRec.currentIndex(outRecIndex));
             //nb: do this after SetZ !
         } else {
-            const isToFront: boolean = this.tEdge.side(edgeIndex) === DIRECTION.LEFT;
+            const isToFront: boolean = this.tEdge.side(edgeIndex) === Direction.Left;
             const recIndex = this.tEdge.getRecIndex(edgeIndex);
 
             outRecIndex = this.outRec.getOutRec(recIndex);

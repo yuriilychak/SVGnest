@@ -1,7 +1,7 @@
 import { cycle_index_wasm } from 'wasm-nesting';
 import Clipper from './clipper';
 import { getArea } from './helpers';
-import { CLIP_TYPE, POLY_FILL_TYPE, POLY_TYPE } from './enums';
+import { ClipType, PolyFillType, PolyType } from './enums';
 import { PointF32, PointI32 } from '../geometry';
 
 export default class ClipperOffset {
@@ -14,15 +14,15 @@ export default class ClipperOffset {
         const destPolygon = this.doOffset(delta);
         const clipper: Clipper = new Clipper(delta <= 0, false);
 
-        clipper.addPath(destPolygon, POLY_TYPE.SUBJECT);
+        clipper.addPath(destPolygon, PolyType.Subject);
 
         if (delta > 0) {
-            clipper.execute(CLIP_TYPE.UNION, result, POLY_FILL_TYPE.POSITIVE);
+            clipper.execute(ClipType.Union, result, PolyFillType.Positive);
         } else {
             const outer: PointI32[] = ClipperOffset.getOuterBounds(destPolygon);
 
-            clipper.addPath(outer, POLY_TYPE.SUBJECT);
-            clipper.execute(CLIP_TYPE.UNION, result, POLY_FILL_TYPE.NEGATIVE);
+            clipper.addPath(outer, PolyType.Subject);
+            clipper.execute(ClipType.Union, result, PolyFillType.Negative);
 
             if (result.length > 0) {
                 result.splice(0, 1);

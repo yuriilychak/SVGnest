@@ -1,7 +1,7 @@
 import { join_u16_to_u32 as join_u16, get_u16_from_u32 as get_u16 } from 'wasm-nesting';
 import { Point } from '../types';
 import { UNASSIGNED } from './constants';
-import { DIRECTION } from './enums';
+import { Direction } from './enums';
 import { PointI32 } from '../geometry';
 export default class OutRec {
     private recData: Int16Array[] = [];
@@ -60,11 +60,11 @@ export default class OutRec {
         }
     }
 
-    public getJoinData(recIndex: number, direction: DIRECTION, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
+    public getJoinData(recIndex: number, direction: Direction, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
         const index: number =
-            direction === DIRECTION.RIGHT
+            direction === Direction.Right
                 ? this.prev(this.pointIndex(recIndex))
                 : this.pointIndex(recIndex);
         const offPoint = this.pointEqual(index, top) ? bottom : top;
@@ -302,12 +302,12 @@ export default class OutRec {
         return result;
     }
 
-    private join(recIndex1: number, recIndex2: number, side1: DIRECTION, side2: DIRECTION): void {
+    private join(recIndex1: number, recIndex2: number, side1: Direction, side2: Direction): void {
         const index1: number = this.pointIndex(recIndex1);
         const index2: number = this.pointIndex(recIndex2);
         const prevIndex1: number = this.prev(index1);
         const prevIndex2: number = this.prev(index2);
-        const isLeft = side1 === DIRECTION.LEFT;
+        const isLeft = side1 === Direction.Left;
         let pointIndex: number;
 
         if (side1 === side2) {
@@ -623,8 +623,8 @@ export default class OutRec {
         leftBound: number,
         rightBound: number
     ): boolean {
-        const direction1: DIRECTION = this.getDirection(op1Index, op1bIndex);
-        const direction2: DIRECTION = this.getDirection(op2Index, op2bIndex);
+        const direction1: Direction = this.getDirection(op1Index, op1bIndex);
+        const direction2: Direction = this.getDirection(op2Index, op2bIndex);
 
         if (direction1 === direction2) {
             return false;
@@ -670,8 +670,8 @@ export default class OutRec {
         let op: number = index1;
         let opB: number = index2;
 
-        const direction: DIRECTION = this.getDirection(index1, index2);
-        const isRight = direction === DIRECTION.RIGHT;
+        const direction: Direction = this.getDirection(index1, index2);
+        const isRight = direction === Direction.Right;
         const isRightOrder = isDiscardLeft !== isRight;
 
         while (this.getDiscarded(op, isRight, point)) {
@@ -707,8 +707,8 @@ export default class OutRec {
         return isRight ? nextX <= pt.x && nextX >= currX && nextY === pt.y : nextX >= pt.x && nextX <= currX && nextY === pt.y;
     }
 
-    private getDirection(index1: number, index2: number): DIRECTION {
-        return this.pointX(index1) > this.pointX(index2) ? DIRECTION.LEFT : DIRECTION.RIGHT;
+    private getDirection(index1: number, index2: number): Direction {
+        return this.pointX(index1) > this.pointX(index2) ? Direction.Left : Direction.Right;
     }
 
     private getDistance(inputIndex: number, isNext: boolean): number {
@@ -823,7 +823,7 @@ export default class OutRec {
         return index;
     }
 
-    public joinPolys(firstRecIndex: number, secondRecIndex: number, firstSide: DIRECTION, secondSide: DIRECTION): void {
+    public joinPolys(firstRecIndex: number, secondRecIndex: number, firstSide: Direction, secondSide: Direction): void {
         const holeStateRec = this.getHoleStateRec(firstRecIndex, secondRecIndex);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
         this.join(firstRecIndex, secondRecIndex, firstSide, secondSide);
@@ -866,10 +866,10 @@ export default class OutRec {
     }
 
     public getOverlap(op1Index: number, op1bIndex: number, op2Index: number, op2bIndex: number): number[] {
-           const a1 = this.pointX(op1Index);
-           const a2 = this.pointX(op1bIndex);
-           const b1 = this.pointX(op2Index);
-           const b2 = this.pointX(op2bIndex);
+        const a1 = this.pointX(op1Index);
+        const a2 = this.pointX(op1bIndex);
+        const b1 = this.pointX(op2Index);
+        const b2 = this.pointX(op2bIndex);
 
         if (a1 < a2) {
             return b1 < b2
