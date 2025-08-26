@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys::Float32Array;
+use web_sys::js_sys::{Float32Array, Int32Array};
 
 pub mod clipper;
 pub mod constants;
@@ -10,6 +10,11 @@ pub mod utils;
 
 use crate::nesting::pair_flow::pair_data;
 
+use crate::clipper::{
+    clipper::Clipper,
+    enums::{ClipType, PolyFillType, PolyType},
+};
+use crate::geometry::point::Point;
 use utils::almost_equal::AlmostEqual;
 use utils::bit_ops::*;
 use utils::math::*;
@@ -68,6 +73,76 @@ pub fn pair_data_f32(buff: &[f32]) -> Float32Array {
     let out = Float32Array::new_with_length(serialzed.len() as u32);
 
     out.copy_from(&serialzed);
+
+    out
+}
+
+fn from_mem_seg(mem_seg: &[f32]) -> Vec<Point<i32>> {
+    const SCALE: f32 = 100.0;
+
+    debug_assert!(
+        mem_seg.len() % 2 == 0,
+        "mem_seg length must be even (pairs of x,y)"
+    );
+
+    let count = mem_seg.len() / 2;
+    let mut out = Vec::with_capacity(count);
+
+    for chunk in mem_seg.chunks_exact(2) {
+        // Scale and round to nearest, then cast to i32.
+        let x = (chunk[0] * SCALE).round() as i32;
+        let y = (chunk[1] * SCALE).round() as i32;
+        out.push(Point::<i32>::new(Some(x), Some(y)));
+    }
+
+    out
+}
+
+pub fn pack_points_to_i32(nested: &[Vec<Point<i32>>]) -> Vec<i32> {
+    let m = nested.len();
+    let total_points: usize = nested.iter().map(|v| v.len()).sum();
+    let header_len = 1 + m; // m count + m offsets
+    let data_len = total_points * 2; // x,y per point
+    let total_len = header_len + data_len;
+
+    // Preallocate once. Fill header first, then data.
+    let mut out = Vec::with_capacity(total_len);
+    out.resize(header_len, 0);
+    out[0] = m as i32;
+
+    // Fill offsets (relative to start of data section).
+    let mut running: usize = 0;
+    for (i, arr) in nested.iter().enumerate() {
+        out[1 + i] = running as i32;
+        running += arr.len() * 2; // each point contributes 2 ints
+    }
+
+    // Append data: [x0,y0, x1,y1, ...]
+    for arr in nested {
+        for p in arr {
+            out.push(p.x);
+            out.push(p.y);
+        }
+    }
+
+    debug_assert_eq!(out.len(), total_len);
+    out
+}
+
+#[wasm_bindgen]
+pub fn clean_node(buff: &[f32]) -> Int32Array {
+    let clipper_polygon = from_mem_seg(buff);
+    let mut simple: Vec<Vec<Point<i32>>> = Vec::new();
+    let mut clipper = Clipper::new(false, true);
+
+    clipper.add_path(&clipper_polygon, PolyType::Subject);
+    clipper.execute(ClipType::Union, &mut simple, PolyFillType::NonZero);
+
+    let packed = pack_points_to_i32(&simple);
+
+    let out = Int32Array::new_with_length(packed.len() as u32);
+
+    out.copy_from(&packed);
 
     out
 }

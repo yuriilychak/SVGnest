@@ -61,7 +61,7 @@ impl TEdge {
         }
     }
 
-    pub fn create_path(&mut self, polygon: &[Point<i32>], poly_type: PolyType) -> usize {
+    pub fn create_path(&mut self, polygon: &Vec<Point<i32>>, poly_type: PolyType) -> usize {
         let mut last_index = polygon.len() - 1;
 
         unsafe {
@@ -176,6 +176,14 @@ impl TEdge {
 
     pub fn top(&mut self, index: usize) -> &mut Point<i32> {
         &mut self.points[index - 1][2]
+    }
+
+    pub fn top_lnk(&mut self, index: usize) -> &Point<i32> {
+        &self.points[index - 1][2]
+    }
+
+    pub fn bot_lnk(&mut self, index: usize) -> &Point<i32> {
+        &self.points[index - 1][1]
     }
 
     pub fn point_pair_mut_ref(
@@ -555,8 +563,8 @@ impl TEdge {
             && self.curr(neighboar_index).y > self.top(neighboar_index).y
     }
 
-    pub fn check_shared_condition(&mut self, index: usize, out_hash: usize, is_next: bool) -> bool {
-        out_hash != UNASSIGNED
+    pub fn check_shared_condition(&mut self, index: usize, out_hash: u32, is_next: bool) -> bool {
+        (out_hash != UNASSIGNED as u32)
             && self.check_horizontal_condition(index, is_next)
             && !self.is_wind_deleta_empty(index)
     }
