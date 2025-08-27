@@ -107,7 +107,16 @@ export default class TEdge {
             const currIndex = indices[i];
             const nextIndex = indices[cycle_index(i, indices.length, 1)];
 
-            if (this.checkCondition(currIndex, nextIndex, EdgeSide.Current, EdgeSide.Current, BoolCondition.GreaterOrEqual, false)) {
+            if (
+                this.checkCondition(
+                    currIndex,
+                    nextIndex,
+                    EdgeSide.Current,
+                    EdgeSide.Current,
+                    BoolCondition.GreaterOrEqual,
+                    false
+                )
+            ) {
                 this.update(currIndex, currIndex, EdgeSide.Bottom, EdgeSide.Current);
                 this.update(currIndex, nextIndex, EdgeSide.Top, EdgeSide.Current);
             } else {
@@ -139,11 +148,18 @@ export default class TEdge {
         return this._points[index][side].y;
     }
 
-    public checkCondition(index1: number, index2: number, side1: EdgeSide, side2: EdgeSide, condition: BoolCondition, isX: boolean): boolean {
+    public checkCondition(
+        index1: number,
+        index2: number,
+        side1: EdgeSide,
+        side2: EdgeSide,
+        condition: BoolCondition,
+        isX: boolean
+    ): boolean {
         const value1: number = isX ? this.getX(index1, side1) : this.getY(index1, side1);
         const value2: number = isX ? this.getX(index2, side2) : this.getY(index2, side2);
 
-        switch(condition) {
+        switch (condition) {
             case BoolCondition.Unequal:
                 return value1 !== value2;
             case BoolCondition.Equal:
@@ -226,7 +242,10 @@ export default class TEdge {
         while (true) {
             let prevIndex = this.prev(result);
 
-            while (!this.almostEqual(result, prevIndex, EdgeSide.Bottom, EdgeSide.Bottom) || this.almostEqual(result, result, EdgeSide.Current, EdgeSide.Top)) {
+            while (
+                !this.almostEqual(result, prevIndex, EdgeSide.Bottom, EdgeSide.Bottom) ||
+                this.almostEqual(result, result, EdgeSide.Current, EdgeSide.Top)
+            ) {
                 result = this.next(result);
                 prevIndex = this.prev(result);
             }
@@ -414,7 +433,10 @@ export default class TEdge {
 
         const prevIndex = this.prevActive(index);
 
-        return this.isFilled(prevIndex) && this.checkCondition(prevIndex, index, EdgeSide.Current, EdgeSide.Current, BoolCondition.Equal, true);
+        return (
+            this.isFilled(prevIndex) &&
+            this.checkCondition(prevIndex, index, EdgeSide.Current, EdgeSide.Current, BoolCondition.Equal, true)
+        );
     }
 
     public nextActive(index: number): number {
@@ -462,8 +484,7 @@ export default class TEdge {
     }
 
     public isNeighboar(index1: number, index2: number, isAel: boolean): boolean {
-        return this.getNeighboar(index1, true, isAel) === index2 ||
-            this.getNeighboar(index1, false, isAel) === index2
+        return this.getNeighboar(index1, true, isAel) === index2 || this.getNeighboar(index1, false, isAel) === index2;
     }
 
     public addEdgeToSEL(index: number): void {
@@ -704,7 +725,10 @@ export default class TEdge {
     }
 
     public getIntersectError(currIndex: number, nextIndex: number, point: Point<Int32Array>): boolean {
-        return !this.intersectPoint(currIndex, nextIndex, point) && this.getX(currIndex, EdgeSide.Current) > this.getX(nextIndex, EdgeSide.Current) + 1;
+        return (
+            !this.intersectPoint(currIndex, nextIndex, point) &&
+            this.getX(currIndex, EdgeSide.Current) > this.getX(nextIndex, EdgeSide.Current) + 1
+        );
     }
 
     public intersectLineWithPoly(edge1Index: number, edge2Index: number): boolean {
@@ -755,7 +779,11 @@ export default class TEdge {
         return this.getContributing(leftBoundIndex);
     }
 
-    public addLocalMinPoly(index1: number, index2: number, point: Point<Int32Array>): { condition: boolean; prevIndex: number; top: Point<Int32Array> } {
+    public addLocalMinPoly(
+        index1: number,
+        index2: number,
+        point: Point<Int32Array>
+    ): { condition: boolean; prevIndex: number; top: Point<Int32Array> } {
         this.setRecIndex(index2, this.getRecIndex(index1));
         this.setSide(index2, Direction.Right);
         this.setSide(index1, Direction.Left);
@@ -777,7 +805,6 @@ export default class TEdge {
         this.unassign(secondIndex);
 
         this.updateIndexAEL(firstSide, ObsoleteIdx, OKIdx);
-
     }
 
     public deleteIntersectAsignment(index: number): void {
@@ -789,7 +816,7 @@ export default class TEdge {
     }
 
     public getStopped(index: number, point: Point<Int32Array>, isProtect: boolean): boolean {
-        return !isProtect && !this.hasNextLocalMinima(index) && this.top(index).almostEqual(point)
+        return !isProtect && !this.hasNextLocalMinima(index) && this.top(index).almostEqual(point);
     }
 
     private resetBound(index: number, side: Direction): void {
@@ -905,7 +932,6 @@ export default class TEdge {
         //move to the edge just beyond current bound
     }
 
-
     private windDelta(index: number): number {
         return this._wind[index][0];
     }
@@ -1004,23 +1030,24 @@ export default class TEdge {
             return false;
         }
 
+        const botX1 = this.getX(edge1Index, EdgeSide.Bottom);
+        const botX2 = this.getX(edge2Index, EdgeSide.Bottom);
+        const botY1 = this.getY(edge1Index, EdgeSide.Bottom);
+        const botY2 = this.getY(edge2Index, EdgeSide.Bottom);
+
         if (this.delta(edge1Index).x === 0) {
-            intersectPoint.set(
-                this.bot(edge1Index).x,
-                this.isHorizontal(edge2Index)
-                    ? this.bot(edge2Index).y
-                    : clipperRound((this.bot(edge1Index).x - this.bot(edge2Index).x) / dx2 + this.bot(edge2Index).y)
-            );
+            const newY = this.isHorizontal(edge2Index)
+                ? botY2
+                : clipperRound((botX1 - botX2) / dx2 + botY2);
+            intersectPoint.set(botX1, newY);
         } else if (this.delta(edge2Index).x === 0) {
-            intersectPoint.set(
-                this.bot(edge2Index).x,
-                this.isHorizontal(edge1Index)
-                    ? this.bot(edge1Index).y
-                    : clipperRound((this.bot(edge2Index).x - this.bot(edge1Index).x) / dx1 + this.bot(edge1Index).y)
-            );
+            const newY = this.isHorizontal(edge1Index)
+                ? botY1
+                : clipperRound((botX2 - botX1) / dx1 + botY1);
+            intersectPoint.set(botX2, newY);
         } else {
-            const b1 = this.bot(edge1Index).x - this.bot(edge1Index).y * dx1;
-            const b2 = this.bot(edge2Index).x - this.bot(edge2Index).y * dx2;
+            const b1 = botX1 - botY1 * dx1;
+            const b2 = botX2 - botY2 * dx2;
             const q: number = (b2 - b1) / (dx1 - dx2);
 
             intersectPoint.set(
@@ -1029,19 +1056,21 @@ export default class TEdge {
             );
         }
 
-        if (intersectPoint.y < this.top(edge1Index).y || intersectPoint.y < this.top(edge2Index).y) {
-            if (this.top(edge1Index).y > this.top(edge2Index).y) {
-                intersectPoint.set(this.topX(edge2Index, this.top(edge1Index).y), this.top(edge1Index).y);
+        const topY1 = this.getY(edge1Index, EdgeSide.Top);
+        const topY2 = this.getY(edge2Index, EdgeSide.Top);
 
-                return intersectPoint.x < this.top(edge1Index).x;
+        if (intersectPoint.y < topY1 || intersectPoint.y < topY2) {
+            if (topY1 > topY2) {
+                intersectPoint.set(this.topX(edge2Index, topY1), topY1);
+
+                return intersectPoint.x < this.getX(edge1Index, EdgeSide.Top);
             }
 
-            intersectPoint.set(
-                Math.abs(this.dx(edge1Index)) < Math.abs(this.dx(edge2Index))
-                    ? this.topX(edge1Index, intersectPoint.y)
-                    : this.topX(edge2Index, intersectPoint.y),
-                this.top(edge2Index).y
-            );
+            const newX = Math.abs(this.dx(edge1Index)) < Math.abs(this.dx(edge2Index))
+                ? this.topX(edge1Index, intersectPoint.y)
+                : this.topX(edge2Index, intersectPoint.y);
+
+            intersectPoint.set(newX, topY2);
         }
 
         return true;
@@ -1106,7 +1135,7 @@ export default class TEdge {
         const isRemoved: boolean = isAel
             ? nextIndex1 === prevIndex1 || nextIndex2 === prevIndex2
             : (nextIndex1 === UNASSIGNED && prevIndex1 === UNASSIGNED) ||
-            (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
+              (nextIndex2 === UNASSIGNED && prevIndex2 === UNASSIGNED);
 
         if (isRemoved) {
             return false;
@@ -1269,7 +1298,6 @@ export default class TEdge {
     }
 
     private insertsBefore(index1: number, index2: number): boolean {
-        
         if (this.checkCondition(index1, index2, EdgeSide.Current, EdgeSide.Current, BoolCondition.Equal, true)) {
             return this.checkCondition(index1, index2, EdgeSide.Top, EdgeSide.Top, BoolCondition.Greater, false)
                 ? this.top(index1).x < this.topX(index2, this.top(index1).y)

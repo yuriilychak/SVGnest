@@ -166,7 +166,7 @@ export default class Clipper {
         const result = this.tEdge.updateEdgeIntoAEL(edgeIndex);
 
         if (!this.tEdge.isHorizontal(result)) {
-            this.scanbeam.insert(this.tEdge.top(result).y);
+            this.scanbeam.insert(this.tEdge.getY(result, EdgeSide.Top));
         }
 
         return result;
