@@ -379,7 +379,7 @@ export default class Clipper {
     }
 
     private processHorizontal(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
-        let dirValue: Float64Array = this.tEdge.horzDirection(horzEdgeIndex);
+        let dirValue: Int32Array = this.tEdge.horzDirection(horzEdgeIndex);
         let dir: Direction = dirValue[0] as Direction;
         let horzLeft: number = dirValue[1];
         let horzRight: number = dirValue[2];

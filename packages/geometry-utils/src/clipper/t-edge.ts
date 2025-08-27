@@ -219,7 +219,7 @@ export default class TEdge {
     public createLocalMinima(edgeIndex: number): number[] {
         const prevIndex = this.prev(edgeIndex);
         const isClockwise = this.getClockwise(edgeIndex);
-        const y = this.bot(edgeIndex).y;
+        const y = this.getY(edgeIndex, EdgeSide.Bottom);
         const leftBoundIndex = isClockwise ? edgeIndex : prevIndex;
         const rightBoundIndex = isClockwise ? prevIndex : edgeIndex;
 
@@ -266,13 +266,14 @@ export default class TEdge {
                 prevIndex = this.prev(result);
             }
 
-            if (this.top(result).y === this.bot(prevIndex).y) {
+            if (this.checkCondition(result, prevIndex, EdgeSide.Top, EdgeSide.Bottom, BoolCondition.Equal, false)) {
                 continue;
             }
 
             prevIndex = this.prev(edgeIndex);
+
             //ie just an intermediate horz.
-            if (this.bot(prevIndex).x < this.bot(result).x) {
+            if (this.checkCondition(result, prevIndex, EdgeSide.Bottom, EdgeSide.Bottom, BoolCondition.Greater, true)) {
                 result = edgeIndex;
             }
 
@@ -300,12 +301,11 @@ export default class TEdge {
         return this.getNextLocalMinima(index) !== UNASSIGNED;
     }
 
-    public horzDirection(index: number): Float64Array {
-        return new Float64Array(
-            this.bot(index).x < this.top(index).x
-                ? [Direction.Right, this.bot(index).x, this.top(index).x]
-                : [Direction.Left, this.top(index).x, this.bot(index).x]
-        );
+    public horzDirection(index: number): Int32Array {
+        const botX = this.getX(index, EdgeSide.Bottom);
+        const topX = this.getX(index, EdgeSide.Top);
+
+        return new Int32Array(botX < topX ? [Direction.Right, botX, topX] : [Direction.Left, topX, botX]);
     }
 
     public getStop(index: number, point: Point<Int32Array>, isProtect: boolean): boolean {
@@ -832,9 +832,9 @@ export default class TEdge {
     private topX(index: number, y: number): number {
         //if (edge.Bot === edge.Curr) alert ("edge.Bot = edge.Curr");
         //if (edge.Bot === edge.Top) alert ("edge.Bot = edge.Top");
-        return y === this.top(index).y
-            ? this.top(index).x
-            : this.bot(index).x + clipperRound(this.dx(index) * (y - this.bot(index).y));
+        return y === this.getY(index, EdgeSide.Top)
+            ? this.getX(index, EdgeSide.Top)
+            : this.getX(index, EdgeSide.Bottom) + clipperRound(this.dx(index) * (y - this.getY(index, EdgeSide.Bottom)));
     }
 
     private getContributing(index: number): boolean {
@@ -878,7 +878,7 @@ export default class TEdge {
             //before finishing right, so ...
             const neighboarIndex = this.baseNeighboar(index, !isClockwise);
 
-            if (this.bot(index).x !== this.bot(neighboarIndex).x) {
+            if (this.checkCondition(index, neighboarIndex, EdgeSide.Bottom, EdgeSide.Bottom, BoolCondition.Unequal, true)) {
                 this.reverseHorizontal(index);
             }
         }
@@ -886,7 +886,7 @@ export default class TEdge {
         let neighboarIndex = this.baseNeighboar(index, isClockwise);
         let resultIndex = index;
 
-        while (this.top(resultIndex).y === this.bot(neighboarIndex).y) {
+        while (this.checkCondition(resultIndex, neighboarIndex, EdgeSide.Top, EdgeSide.Bottom, BoolCondition.Equal, false)) {
             resultIndex = neighboarIndex;
             neighboarIndex = this.baseNeighboar(neighboarIndex, isClockwise);
         }
@@ -969,7 +969,10 @@ export default class TEdge {
 
         const neighboarIndex = this.baseNeighboar(edgeIndex, isNext);
 
-        return this.isDxHorizontal(edgeIndex) && this.bot(edgeIndex).x !== this.top(neighboarIndex).x;
+        return (
+            this.isDxHorizontal(edgeIndex) &&
+            this.checkCondition(edgeIndex, neighboarIndex, EdgeSide.Bottom, EdgeSide.Top, BoolCondition.Unequal, true)
+        );
     }
 
     private getIndexValid(index: number): boolean {
@@ -1022,8 +1025,8 @@ export default class TEdge {
         const dx2 = this.dx(edge2Index);
 
         if (this.slopesEqual(edge1Index, edge2Index) || dx1 === dx2) {
-            const point: Point<Int32Array> =
-                this.bot(edge2Index).y > this.bot(edge1Index).y ? this.bot(edge2Index) : this.bot(edge1Index);
+            const index = this.checkCondition(edge1Index, edge2Index, EdgeSide.Bottom, EdgeSide.Bottom, BoolCondition.Less, false) ? edge2Index : edge1Index;
+            const point: Point<Int32Array> = this.bot(index);
 
             intersectPoint.update(point);
 
@@ -1036,14 +1039,10 @@ export default class TEdge {
         const botY2 = this.getY(edge2Index, EdgeSide.Bottom);
 
         if (this.delta(edge1Index).x === 0) {
-            const newY = this.isHorizontal(edge2Index)
-                ? botY2
-                : clipperRound((botX1 - botX2) / dx2 + botY2);
+            const newY = this.isHorizontal(edge2Index) ? botY2 : clipperRound((botX1 - botX2) / dx2 + botY2);
             intersectPoint.set(botX1, newY);
         } else if (this.delta(edge2Index).x === 0) {
-            const newY = this.isHorizontal(edge1Index)
-                ? botY1
-                : clipperRound((botX2 - botX1) / dx1 + botY1);
+            const newY = this.isHorizontal(edge1Index) ? botY1 : clipperRound((botX2 - botX1) / dx1 + botY1);
             intersectPoint.set(botX2, newY);
         } else {
             const b1 = botX1 - botY1 * dx1;
@@ -1066,9 +1065,10 @@ export default class TEdge {
                 return intersectPoint.x < this.getX(edge1Index, EdgeSide.Top);
             }
 
-            const newX = Math.abs(this.dx(edge1Index)) < Math.abs(this.dx(edge2Index))
-                ? this.topX(edge1Index, intersectPoint.y)
-                : this.topX(edge2Index, intersectPoint.y);
+            const newX =
+                Math.abs(this.dx(edge1Index)) < Math.abs(this.dx(edge2Index))
+                    ? this.topX(edge1Index, intersectPoint.y)
+                    : this.topX(edge2Index, intersectPoint.y);
 
             intersectPoint.set(newX, topY2);
         }
