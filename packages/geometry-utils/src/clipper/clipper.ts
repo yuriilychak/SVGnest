@@ -136,7 +136,17 @@ export default class Clipper {
                 botY = topY;
             } while (!this.scanbeam.isEmpty || !this.localMinima.isEmpty);
 
-            this.fixupOutPolygon();
+            let i: number = 0;
+
+            this.outRec.fixDirections();
+
+            const joinCount: number = this.join.getLength(false);
+
+            for (i = 0; i < joinCount; ++i) {
+                this.joinCommonEdge(i);
+            }
+
+            this.outRec.fixOutPolygon(this.tEdge.isUseFullRange);
 
             return true;
         } finally {
@@ -190,7 +200,16 @@ export default class Clipper {
 
                 point.set(0, 0);
                 //console.log("e.Curr.X: " + e.Curr.X + " eNext.Curr.X" + eNext.Curr.X);
-                if (this.tEdge.checkCondition(currIndex, nextIndex, EdgeSide.Current, EdgeSide.Current, BoolCondition.Greater, true)) {
+                if (
+                    this.tEdge.checkCondition(
+                        currIndex,
+                        nextIndex,
+                        EdgeSide.Current,
+                        EdgeSide.Current,
+                        BoolCondition.Greater,
+                        true
+                    )
+                ) {
                     if (this.tEdge.getIntersectError(currIndex, nextIndex, point)) {
                         //console.log("e.Curr.X: "+JSON.stringify(JSON.decycle( e.Curr.X )));
                         //console.log("eNext.Curr.X+1: "+JSON.stringify(JSON.decycle( eNext.Curr.X+1)));
@@ -219,6 +238,16 @@ export default class Clipper {
         }
 
         this.tEdge.sorted = UNASSIGNED;
+    }
+
+    private intersectEdgeFromSize(
+        edge1Index: number,
+        edge2Index: number,
+        edgeIndex3: number,
+        side: EdgeSide,
+        isProtect: boolean
+    ) {
+        this.intersectEdges(edge1Index, edge2Index, this.tEdge.point(edgeIndex3, side), isProtect);
     }
 
     private intersectEdges(edge1Index: number, edge2Index: number, point: Point<Int32Array>, isProtect: boolean): void {
@@ -330,42 +359,28 @@ export default class Clipper {
         return true;
     }
 
-    private applyIntersection(index: number, point: Point<Int32Array>, isContributing: boolean): void {
-        this.addOutPt(index, point);
-
-        if (isContributing) {
-            this.tEdge.unassign(index);
-        }
-    }
-
     private intersectOpenEdges(edge1Index: number, edge2Index: number, isProtect: boolean, point: Point<Int32Array>) {
         const edge1Stops: boolean = this.tEdge.getStopped(edge1Index, point, isProtect);
         const edge2Stops: boolean = this.tEdge.getStopped(edge2Index, point, isProtect);
         const edge1Contributing: boolean = this.tEdge.isAssigned(edge1Index);
         const edge2Contributing: boolean = this.tEdge.isAssigned(edge2Index);
+        const isWindDeltaEmpty1: boolean = this.tEdge.isWindDeletaEmpty(edge1Index);
+        const isWindDeltaEmpty2: boolean = this.tEdge.isWindDeletaEmpty(edge2Index);
+
         //ignore subject-subject open path intersections UNLESS they
         //are both open paths, AND they are both 'contributing maximas' ...
-        if (this.tEdge.isWindDeletaEmpty(edge1Index) && this.tEdge.isWindDeletaEmpty(edge2Index)) {
+        if (isWindDeltaEmpty1 && isWindDeltaEmpty2) {
             if ((edge1Stops || edge2Stops) && edge1Contributing && edge2Contributing) {
                 this.addLocalMaxPoly(edge1Index, edge2Index, point);
             }
         }
         //if intersecting a subj line with a subj poly ...
-        else if (this.tEdge.intersectLineWithPoly(edge1Index, edge2Index)) {
-            if (this.tEdge.isWindDeletaEmpty(edge1Index)) {
-                if (edge2Contributing) {
-                    this.applyIntersection(edge1Index, point, edge1Contributing);
-                }
-            } else {
-                if (edge1Contributing) {
-                    this.applyIntersection(edge2Index, point, edge2Contributing);
-                }
-            }
-        } else if (!this.tEdge.isSamePolyType(edge1Index, edge2Index)) {
-            if (this.tEdge.intersectLine(edge1Index, edge2Index)) {
-                this.applyIntersection(edge1Index, point, edge1Contributing);
-            } else if (this.tEdge.intersectLine(edge2Index, edge1Index)) {
-                this.applyIntersection(edge2Index, point, edge2Contributing);
+        else {
+            const edgeIndex = this.tEdge.getIntersectIndex(edge1Index, edge2Index);
+
+            if (edgeIndex !== UNASSIGNED) {
+                this.addOutPt(edgeIndex, point);
+                this.tEdge.unassign(edgeIndex);
             }
         }
 
@@ -376,6 +391,10 @@ export default class Clipper {
         if (edge2Stops) {
             this.tEdge.deleteIntersectAsignment(edge2Index);
         }
+    }
+
+    private outPtFromEdge(index: number, side: EdgeSide): number {
+        return this.addOutPt(index, this.tEdge.point(index, side));
     }
 
     private processHorizontal(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
@@ -416,7 +435,7 @@ export default class Clipper {
                     //so far we're still in range of the horizontal Edge  but make sure
                     //we're at the last of consec. horizontals when matching with eMaxPair
                     if (currIndex === maxPairIndex && isLastHorz) {
-                        this.intersectEdges(index1, index2, this.tEdge.point(currIndex, EdgeSide.Top), false);
+                        this.intersectEdgeFromSize(index1, index2, currIndex, EdgeSide.Top, false);
 
                         if (this.tEdge.isAssigned(maxPairIndex)) {
                             showError('ProcessHorizontal error');
@@ -448,7 +467,7 @@ export default class Clipper {
                 horzIndex = this.updateEdgeIntoAEL(horzIndex);
 
                 if (this.tEdge.isAssigned(horzIndex)) {
-                    this.addOutPt(horzIndex, this.tEdge.point(horzIndex, EdgeSide.Bottom));
+                    this.outPtFromEdge(horzIndex, EdgeSide.Bottom);
                 }
 
                 dirValue = this.tEdge.horzDirection(horzIndex);
@@ -463,7 +482,7 @@ export default class Clipper {
         //end for (;;)
         if (this.tEdge.hasNextLocalMinima(horzIndex)) {
             if (this.tEdge.isAssigned(horzIndex)) {
-                const op1 = this.addOutPt(horzIndex, this.tEdge.point(horzIndex, EdgeSide.Top));
+                const op1 = this.outPtFromEdge(horzIndex, EdgeSide.Top);
                 horzIndex = this.updateEdgeIntoAEL(horzIndex);
 
                 if (this.tEdge.isWindDeletaEmpty(horzIndex)) {
@@ -494,7 +513,7 @@ export default class Clipper {
                 const index1 = dir === Direction.Right ? horzIndex : maxPairIndex;
                 const index2 = dir === Direction.Right ? maxPairIndex : horzIndex;
 
-                this.intersectEdges(index1, index2, this.tEdge.point(horzIndex, EdgeSide.Top), false);
+                this.intersectEdgeFromSize(index1, index2, horzIndex, EdgeSide.Top, false);
 
                 if (this.tEdge.isAssigned(maxPairIndex)) {
                     showError('ProcessHorizontal error');
@@ -510,7 +529,7 @@ export default class Clipper {
         }
 
         if (this.tEdge.isAssigned(horzIndex)) {
-            this.addOutPt(horzIndex, this.tEdge.point(horzIndex, EdgeSide.Top));
+            this.outPtFromEdge(horzIndex, EdgeSide.Top);
         }
 
         this.tEdge.deleteFromList(horzIndex, true);
@@ -560,7 +579,7 @@ export default class Clipper {
                 edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
 
                 if (this.tEdge.isAssigned(edgeIndex)) {
-                    this.addOutPt(edgeIndex, this.tEdge.point(edgeIndex, EdgeSide.Bottom));
+                    this.outPtFromEdge(edgeIndex, EdgeSide.Bottom);
                 }
 
                 this.tEdge.addEdgeToSEL(edgeIndex);
@@ -569,7 +588,12 @@ export default class Clipper {
             }
 
             if (this.outRec.strictlySimple && this.tEdge.canAddScanbeam(edgeIndex)) {
-                this.addScanbeamJoin(edgeIndex);
+                const point = this.tEdge.point(edgeIndex, EdgeSide.Current);
+                const edge2Index = this.tEdge.prevActive(edgeIndex);
+                const outPt1 = this.addOutPt(edge2Index, point);
+                const outPt2 = this.addOutPt(edgeIndex, point);
+
+                this.join.add(outPt1, outPt2, point);
                 //StrictlySimple (type-3) join
             }
 
@@ -582,7 +606,7 @@ export default class Clipper {
 
         while (edgeIndex !== UNASSIGNED) {
             if (this.tEdge.getIntermediate(edgeIndex, topY)) {
-                outPt1 = this.tEdge.isAssigned(edgeIndex) ? this.addOutPt(edgeIndex, this.tEdge.point(edgeIndex, EdgeSide.Top)) : UNASSIGNED;
+                outPt1 = this.tEdge.isAssigned(edgeIndex) ? this.outPtFromEdge(edgeIndex, EdgeSide.Top) : UNASSIGNED;
                 edgeIndex = this.updateEdgeIntoAEL(edgeIndex);
                 //if output polygons share an edge, they'll need joining later...
                 const condition1 = this.tEdge.checkSharedCondition(edgeIndex, outPt1, false);
@@ -600,7 +624,7 @@ export default class Clipper {
     private doMaxima(edgeIndex: number): void {
         if (this.tEdge.maximaPair(edgeIndex) === UNASSIGNED) {
             if (this.tEdge.isAssigned(edgeIndex)) {
-                this.addOutPt(edgeIndex, this.tEdge.point(edgeIndex, EdgeSide.Top));
+                this.outPtFromEdge(edgeIndex, EdgeSide.Top);
             }
 
             this.tEdge.deleteFromList(edgeIndex, true);
@@ -611,7 +635,7 @@ export default class Clipper {
         let nextEdgeIndex: number = this.tEdge.nextActive(edgeIndex);
 
         while (nextEdgeIndex !== UNASSIGNED && nextEdgeIndex !== this.tEdge.maximaPair(edgeIndex)) {
-            this.intersectEdges(edgeIndex, nextEdgeIndex, this.tEdge.point(edgeIndex, EdgeSide.Top), true);
+            this.intersectEdgeFromSize(edgeIndex, nextEdgeIndex, edgeIndex, EdgeSide.Top, true);
             this.tEdge.swapPositionsInList(edgeIndex, nextEdgeIndex, true);
             nextEdgeIndex = this.tEdge.nextActive(edgeIndex);
         }
@@ -622,10 +646,10 @@ export default class Clipper {
             this.tEdge.deleteFromList(edgeIndex, true);
             this.tEdge.deleteFromList(maxIndex, true);
         } else if (this.tEdge.isAssigned(edgeIndex) && this.tEdge.isAssigned(maxIndex)) {
-            this.intersectEdges(edgeIndex, maxIndex, this.tEdge.point(edgeIndex, EdgeSide.Top), false);
+            this.intersectEdgeFromSize(edgeIndex, maxIndex, edgeIndex, EdgeSide.Top, false);
         } else if (this.tEdge.isWindDeletaEmpty(edgeIndex)) {
             if (this.tEdge.isAssigned(edgeIndex)) {
-                this.addOutPt(edgeIndex, this.tEdge.point(edgeIndex, EdgeSide.Top));
+                this.outPtFromEdge(edgeIndex, EdgeSide.Top);
                 this.tEdge.unassign(edgeIndex);
             }
 
@@ -690,11 +714,10 @@ export default class Clipper {
 
     private insertLocalMinimaPt(leftBoundIndex: number, rightBoundIndex: number): number {
         const index = leftBoundIndex !== UNASSIGNED ? leftBoundIndex : rightBoundIndex;
-        const bot = this.tEdge.point(index, EdgeSide.Bottom);
 
         return leftBoundIndex !== UNASSIGNED && rightBoundIndex !== UNASSIGNED
-            ? this.addLocalMinPoly(leftBoundIndex, rightBoundIndex, bot)
-            : this.addOutPt(index, bot);
+            ? this.addLocalMinPoly(leftBoundIndex, rightBoundIndex, this.tEdge.point(index, EdgeSide.Bottom))
+            : this.outPtFromEdge(index, EdgeSide.Bottom);
     }
 
     private insertLocalMinimaIntoAEL(botY: number): void {
@@ -725,7 +748,21 @@ export default class Clipper {
                 this.tEdge.isHorizontal(rightBoundIndex) &&
                 !this.tEdge.isWindDeletaEmpty(rightBoundIndex)
             ) {
-                this.addOutputJoins(outPt, rightBoundIndex);
+                const joinCount: number = this.join.getLength(true);
+
+                for (let i = 0; i < joinCount; ++i) {
+                    //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
+                    //the 'ghost' join to a real join ready for later ...
+                    const outHash = this.join.getHash1(i, true);
+                    const outPtIndex = get_u16_from_u32(outHash, 1);
+                    const joinX = this.join.getX(i, true);
+                    const joinY = this.join.getY(i, true);
+                    const outRecPoint = this.outRec.point(outPtIndex);
+
+                    if (this.tEdge.horzSegmentsOverlap(outRecPoint, joinX, joinY, rightBoundIndex)) {
+                        this.join.fromGhost(i, outPt);
+                    }
+                }
             }
 
             const condition = this.tEdge.canJoinLeft(leftBoundIndex);
@@ -743,7 +780,7 @@ export default class Clipper {
                     while (edgeIndex !== rightBoundIndex) {
                         //nb: For calculating winding counts etc, IntersectEdges() assumes
                         //that param1 will be to the right of param2 ABOVE the intersection ...
-                        this.intersectEdges(rightBoundIndex, edgeIndex, this.tEdge.point(leftBoundIndex, EdgeSide.Current), false);
+                        this.intersectEdgeFromSize(rightBoundIndex, edgeIndex, leftBoundIndex, EdgeSide.Current, false);
                         //order important here
                         edgeIndex = this.tEdge.getNeighboar(edgeIndex, true, true);
                     }
@@ -764,7 +801,7 @@ export default class Clipper {
             outHash1,
             this.tEdge.getNeighboar(edgeIndex, isNext, true),
             this.tEdge.point(edgeIndex, EdgeSide.Bottom),
-            this.tEdge.point(edgeIndex, isTop2 ?EdgeSide.Top : EdgeSide.Bottom)
+            this.tEdge.point(edgeIndex, isTop2 ? EdgeSide.Top : EdgeSide.Bottom)
         );
     }
 
@@ -783,34 +820,6 @@ export default class Clipper {
         return condition;
     }
 
-    private addScanbeamJoin(edge1Index: number): void {
-        const point = this.tEdge.point(edge1Index, EdgeSide.Current);
-        const edge2Index = this.tEdge.prevActive(edge1Index);
-        const outPt1 = this.addOutPt(edge2Index, point);
-        const outPt2 = this.addOutPt(edge1Index, point);
-
-        this.join.add(outPt1, outPt2, point);
-        //StrictlySimple (type-3) join
-    }
-
-    private addOutputJoins(outHash: number, rightBoundIndex: number): void {
-        const joinCount: number = this.join.getLength(true);
-
-        if (joinCount > 0) {
-            const point = PointI32.create();
-
-            for (let i = 0; i < joinCount; ++i) {
-                //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
-                //the 'ghost' join to a real join ready for later ...
-                point.set(this.join.getX(i, true), this.join.getY(i, true));
-
-                if (this.horzSegmentsOverlap(this.join.getHash1(i, true), point, rightBoundIndex)) {
-                    this.join.fromGhost(i, outHash);
-                }
-            }
-        }
-    }
-
     private prepareHorzJoins(horzEdgeIndex: number) {
         //Also, since horizontal edges at the top of one SB are often removed from
         //the AEL before we process the horizontal edges at the bottom of the next,
@@ -820,10 +829,7 @@ export default class Clipper {
         //the point may be anywhere along the horizontal ...
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        const recIndex = this.tEdge.getRecIndex(horzEdgeIndex);
-        const side = this.tEdge.side(horzEdgeIndex);
-        const top = this.tEdge.point(horzEdgeIndex, EdgeSide.Top);
-        const bot = this.tEdge.point(horzEdgeIndex, EdgeSide.Bottom);
+        const { recIndex, side, top, bot } = this.tEdge.prepareHorzJoins(horzEdgeIndex);
 
         const [outPtHash, x, y] = this.outRec.getJoinData(recIndex, side, top, bot);
 
@@ -838,7 +844,9 @@ export default class Clipper {
             pointIndex = this.outRec.fromPoint(point);
             outRecIndex = this.outRec.create(pointIndex);
 
-            this.setHoleState(outRecIndex, edgeIndex);
+            const { isHole, index } = this.tEdge.getHoleState(this.outRec.firstLeftIndex(outRecIndex), edgeIndex);
+
+            this.outRec.setHoleState(outRecIndex, isHole, index);
 
             this.tEdge.setRecIndex(edgeIndex, this.outRec.currentIndex(outRecIndex));
             //nb: do this after SetZ !
@@ -901,29 +909,8 @@ export default class Clipper {
         this.outRec.joinPolys(firstRecIndex, secondRecIndex, firstSide, secondSide);
     }
 
-    private fixupOutPolygon(): void {
-        let i: number = 0;
-
-        this.outRec.fixDirections();
-
-        const joinCount: number = this.join.getLength(false);
-        const point = PointI32.create();
-
-        for (i = 0; i < joinCount; ++i) {
-            point.set(this.join.getX(i, false), this.join.getY(i, false));
-            this.joinCommonEdge(i, point);
-        }
-
-        this.outRec.fixOutPolygon(this.tEdge.isUseFullRange);
-    }
-
-    private setHoleState(recIndex: number, edgeIndex: number): void {
-        const { isHole, index } = this.tEdge.getHoleState(this.outRec.firstLeftIndex(recIndex), edgeIndex);
-
-        this.outRec.setHoleState(recIndex, isHole, index);
-    }
-
-    private joinCommonEdge(index: number, offPoint: Point<Int32Array>): void {
+    private joinCommonEdge(index: number): void {
+        const offPoint = PointI32.create(this.join.getX(index, false), this.join.getY(index, false));
         const inputHash1 = this.join.getHash1(index, false);
         const inputHash2 = this.join.getHash2(index);
         const { outHash1, outHash2, result } = this.joinPoints(inputHash1, inputHash2, offPoint);
@@ -997,22 +984,22 @@ export default class Clipper {
         //    2. Jr.OutPt1.Pt > Jr.OffPt.Y
         //make sure the polygons are correctly oriented ...
 
-        const reverse1: boolean = this.tEdge.checkReverse(this.outRec.point(op1), this.outRec.point(op1b), offPoint);
+        const reverse1: boolean = this.outRec.checkReverse(op1, op1b, offPoint, this.tEdge.isUseFullRange);
 
         if (reverse1) {
             op1b = this.outRec.getUniquePt(op1, false);
 
-            if (this.tEdge.checkReverse(this.outRec.point(op1), this.outRec.point(op1b), offPoint)) {
+            if (this.outRec.checkReverse(op1, op1b, offPoint, this.tEdge.isUseFullRange)) {
                 return result;
             }
         }
 
-        const reverse2: boolean = this.tEdge.checkReverse(this.outRec.point(op2), this.outRec.point(op2b), offPoint);
+        const reverse2: boolean = this.outRec.checkReverse(op2, op2b, offPoint, this.tEdge.isUseFullRange);
 
         if (reverse2) {
             op2b = this.outRec.getUniquePt(op2, false);
 
-            if (this.tEdge.checkReverse(this.outRec.point(op2), this.outRec.point(op2b), offPoint)) {
+            if (this.outRec.checkReverse(op2, op2b, offPoint, this.tEdge.isUseFullRange)) {
                 return result;
             }
         }
@@ -1026,13 +1013,5 @@ export default class Clipper {
         result.result = true;
 
         return result;
-    }
-
-    private horzSegmentsOverlap(outHash: number, offPoint: Point<Int32Array>, edgeIndex: number): boolean {
-        const outPtIndex = get_u16_from_u32(outHash, 1);
-        const top = this.tEdge.point(edgeIndex, EdgeSide.Top);
-        const bot = this.tEdge.point(edgeIndex, EdgeSide.Bottom);
-
-        return PointI32.horzSegmentsOverlap(this.outRec.point(outPtIndex), offPoint, bot, top);
     }
 }

@@ -19,24 +19,32 @@ export default class OutRec {
         return this.isStrictlySimple;
     }
 
+    private getRectData(index: number, dataIndex: number): number {
+        return this.recData[index][dataIndex];
+    }
+
+    private setRectData(index: number, dataIndex: number, value: number) {
+        this.recData[index][dataIndex] = value;
+    }
+
     public isUnassigned(index: number): boolean {
-        return this.recData[index][0] === UNASSIGNED;
+        return this.getRectData(index, 0) === UNASSIGNED;
     }
 
     public currentIndex(index: number): number {
-        return this.recData[index][1];
+        return this.getRectData(index, 1);
     }
 
     private setCurrentIndex(index1: number, index2: number): void {
-        this.recData[index1][1] = this.recData[index2][1];
+        this.setRectData(index1, 1, this.getRectData(index2, 1));
     }
 
     public firstLeftIndex(index: number): number {
-        return index !== UNASSIGNED ? this.recData[index][2] : UNASSIGNED;
+        return index !== UNASSIGNED ? this.getRectData(index, 2) : UNASSIGNED;
     }
 
     private setFirstLeftIndex(index: number, value: number): void {
-        this.recData[index][2] = value;
+        this.setRectData(index, 2, value);
     }
 
     private getHoleStateRec(index1: number, index2: number): number {
@@ -151,8 +159,8 @@ export default class OutRec {
             if (
                 this.innerEqual(outPt, prevPt) ||
                 this.innerEqual(outPt, nextPt) ||
-                (PointI32.slopesEqual(this.points[prevPt], this.points[outPt], this.points[nextPt], useFullRange) &&
-                    (!preserveCollinear || !this.points[outPt].getBetween(this.points[prevPt], this.points[nextPt])))
+                (this.slopesEqual(prevPt, outPt, this.point(nextPt), useFullRange) &&
+                    (!preserveCollinear || !this.point(outPt).getBetween(this.point(prevPt), this.point(nextPt))))
             ) {
                 lastOutIndex = UNASSIGNED;
                 outPt = this.remove(outPt);
@@ -413,19 +421,19 @@ export default class OutRec {
     }
 
     private pointIndex(index: number): number {
-        return this.recData[index][0];
+        return this.getRectData(index, 0);
     }
 
     private setPointIndex(index: number, value: number): void {
-        this.recData[index][0] = value;
+        this.setRectData(index, 0, value);
     }
 
     private isHole(index: number): boolean {
-        return this.recData[index][3] === 1;
+        return this.getRectData(index, 3) === 1;
     }
 
     private setHole(index: number, value: boolean): void {
-        this.recData[index][3] = value ? 1 : 0;
+        this.setRectData(index, 3, value ? 1 : 0);
     }
 
     private param1RightOfParam2(outRec1Index: number, outRec2Index: number): boolean {
@@ -738,11 +746,11 @@ export default class OutRec {
     }
 
     public pointX(index: number): number {
-        return this.points[index].x;
+        return this.point(index).x;
     }
 
     public pointY(index: number): number {
-        return this.points[index].y;
+        return this.point(index).y;
     }
 
     private createOutPt(point: Point<Int32Array>): number {
@@ -754,7 +762,7 @@ export default class OutRec {
     }
 
     private duplicate(index: number, isInsertAfter: boolean): number {
-        const result: number = this.createOutPt(this.points[index]);
+        const result: number = this.createOutPt(this.point(index));
 
         if (isInsertAfter) {
             this.push(result, this.next(index), true);
@@ -771,10 +779,14 @@ export default class OutRec {
         return this.getNeighboarIndex(index, true);
     }
 
-    private setNext(index: number, value: number): void {
+    private setNeighboar(index: number, neighboarIndex: number, value: number): void {
         if (index !== UNASSIGNED) {
-            this.pointNeighboars[index][1] = value;
+            this.pointNeighboars[index][neighboarIndex] = value;
         }
+    }
+
+    private setNext(index: number, value: number): void {
+        this.setNeighboar(index, 1, value);
     }
 
     private prev(index: number): number {
@@ -782,9 +794,7 @@ export default class OutRec {
     }
 
     private setPrev(index: number, value: number): void {
-        if (index !== UNASSIGNED) {
-            this.pointNeighboars[index][0] = value;
-        }
+        this.setNeighboar(index, 0, value);
     }
 
     private getNeighboarIndex(index: number, isNext: boolean): number {
@@ -798,11 +808,11 @@ export default class OutRec {
     }
 
     private innerEqual(index1: number, index2: number): boolean {
-        return index1 != UNASSIGNED && index2 !== UNASSIGNED && this.points[index1].almostEqual(this.points[index2]);
+        return index1 != UNASSIGNED && index2 !== UNASSIGNED && this.point(index1).almostEqual(this.point(index2));
     }
 
     public pointEqual(index: number, point: Point<Int32Array>): boolean {
-        return this.points[index].almostEqual(point);
+        return point.almostEqual(this.point(index));
     }
 
     private push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
@@ -940,5 +950,16 @@ export default class OutRec {
             outHash2: join_u16(index2, op2Index),
             result: this.joinHorz(op1Index, op1bIndex, op2Index, op2bIndex, leftBound, rightBound)
         };
+    }
+
+    public checkReverse(p1Index: number, p2Index: number, p3: Point<Int32Array>, isUseFullRange: boolean): boolean {
+        const p1 = this.point(p1Index);
+        const p2 = this.point(p2Index);
+
+        return p2.y > p1.y || !this.slopesEqual(p1Index, p2Index, p3, isUseFullRange);
+    }
+
+    private slopesEqual(p1Index: number, p2Index: number, p3: Point<Int32Array>, isUseFullRange: boolean): boolean {
+        return PointI32.slopesEqual(this.point(p1Index), this.point(p2Index), p3, isUseFullRange);
     }
 }

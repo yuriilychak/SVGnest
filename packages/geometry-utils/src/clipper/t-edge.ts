@@ -378,8 +378,8 @@ export default class TEdge {
                     return e1Wc2 <= 0 && e2Wc2 <= 0;
                 case ClipType.Difference:
                     return (
-                        (this._polyType[edge1Index] === PolyType.Clip && Math.min(e1Wc2, e2Wc2) > 0) ||
-                        (this._polyType[edge1Index] === PolyType.Subject && Math.max(e1Wc2, e2Wc2) <= 0)
+                        (this.polyType(edge1Index) === PolyType.Clip && Math.min(e1Wc2, e2Wc2) > 0) ||
+                        (this.polyType(edge1Index) === PolyType.Subject && Math.max(e1Wc2, e2Wc2) <= 0)
                     );
                 default:
                     return false;
@@ -490,7 +490,7 @@ export default class TEdge {
     }
 
     public isSamePolyType(index1: number, index2: number): boolean {
-        return this._polyType[index1] === this._polyType[index2];
+        return this.polyType(index1) === this.polyType(index2);
     }
 
     public alignWndCount(index1: number, index2: number): void {
@@ -588,10 +588,6 @@ export default class TEdge {
 
     public get isUseFullRange(): boolean {
         return this._isUseFullRange;
-    }
-
-    public checkReverse(p1: Point<Int32Array>, p2: Point<Int32Array>, p3: Point<Int32Array>): boolean {
-        return p2.y > p1.y || !PointI32.slopesEqual(p1, p2, p3, this._isUseFullRange);
     }
 
     public reset(): void {
@@ -780,7 +776,7 @@ export default class TEdge {
         const prevNeighboar = this.prevActive(index1) === index2 ? index2 : index1;
         const prevIndex = this.prevActive(prevNeighboar);
         const condition = this.checkMinJoin(index1, prevIndex, point);
-        const top = this.point(index1, EdgeSide.Top);
+        const top = PointI32.from(this.point(index1, EdgeSide.Top));
 
         return { condition, prevIndex, top };
     }
@@ -808,6 +804,34 @@ export default class TEdge {
         return !isProtect && !this.hasNextLocalMinima(index) && point.almostEqual(this.point(index, EdgeSide.Top));
     }
 
+    public horzSegmentsOverlap(point: Point<Int32Array>, joinX: number, joinY: number, edgeIndex: number): boolean {
+        const offPoint = PointI32.create(joinX, joinY);
+        const top = this.point(edgeIndex, EdgeSide.Top);
+        const bot = this.point(edgeIndex, EdgeSide.Bottom);
+
+        return PointI32.horzSegmentsOverlap(point, offPoint, bot, top);
+    }
+
+    public getIntersectIndex(edge1Index: number, edge2Index: number): number {
+        const edge1Contributing: boolean = this.isAssigned(edge1Index);
+        const edge2Contributing: boolean = this.isAssigned(edge2Index);
+        const isWindDeltaEmpty1: boolean = this.isWindDeletaEmpty(edge1Index);
+        const isIntersectLineWithPoly: boolean = this.intersectLineWithPoly(edge1Index, edge2Index);
+        const isSamePolyType: boolean = this.isSamePolyType(edge1Index, edge2Index); 
+
+        if ((isIntersectLineWithPoly && isWindDeltaEmpty1 && edge2Contributing) ||
+            (!isIntersectLineWithPoly && !isSamePolyType && this.intersectLine(edge1Index, edge2Index))) {
+            return edge1Index;
+        }
+        
+        if ((isIntersectLineWithPoly && !isWindDeltaEmpty1 && edge1Contributing) ||
+            (!isIntersectLineWithPoly && !isSamePolyType && this.intersectLine(edge2Index, edge1Index))) {
+            return edge2Index;
+        }
+
+        return UNASSIGNED;
+    }
+
     private resetBound(index: number, side: Direction): void {
         if (index === UNASSIGNED) {
             return;
@@ -827,7 +851,7 @@ export default class TEdge {
     }
 
     private getContributing(index: number): boolean {
-        const isReverse: boolean = this._clipType === ClipType.Difference && this._polyType[index] === PolyType.Clip;
+        const isReverse: boolean = this._clipType === ClipType.Difference && this.polyType(index) === PolyType.Clip;
         const windCount1 = this.windCount1(index);
         const windCount2 = this.windCount2(index);
 
@@ -917,34 +941,38 @@ export default class TEdge {
         //move to the edge just beyond current bound
     }
 
+    private getWind(index: number, windIndex: number): number {
+        return this._wind[index][windIndex];
+    }
+
+    private setWind(index: number, windIndex: number, value: number): void {
+        if (this.getIndexValid(index)) {
+            this._wind[index][windIndex] = value;
+        }
+    }
+
     private windDelta(index: number): number {
-        return this._wind[index][0];
+        return this.getWind(index, 0);
     }
 
     private setWindDelta(index: number, value: number): void {
-        if (this.getIndexValid(index)) {
-            this._wind[index][0] = value;
-        }
+        this.setWind(index, 0, value);
     }
 
     private windCount1(index: number): number {
-        return this._wind[index][1];
+        return this.getWind(index, 1);
     }
 
     private setWindCount1(index: number, value: number): void {
-        if (this.getIndexValid(index)) {
-            this._wind[index][1] = value;
-        }
+        this.setWind(index, 1, value);
     }
 
     private windCount2(index: number): number {
-        return this._wind[index][2];
+        return this.getWind(index, 2);
     }
 
     private setWindCount2(index: number, value: number): void {
-        if (this.getIndexValid(index)) {
-            this._wind[index][2] = value;
-        }
+        this.setWind(index, 2, value);
     }
 
     private checkReverseHorizontal(edgeIndex: number, index: number, isNext: boolean): boolean {
@@ -1068,6 +1096,23 @@ export default class TEdge {
         }
 
         return true;
+    }
+
+    public prepareHorzJoins(index: number) {
+        //Also, since horizontal edges at the top of one SB are often removed from
+        //the AEL before we process the horizontal edges at the bottom of the next,
+        //we need to create 'ghost' Join records of 'contrubuting' horizontals that
+        //we can compare with horizontals at the bottom of the next SB.
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        //get the last Op for this horizontal edge
+        //the point may be anywhere along the horizontal ...
+        const recIndex = this.getRecIndex(index);
+        const side = this.side(index);
+        const top = this.point(index, EdgeSide.Top);
+        const bot = this.point(index, EdgeSide.Bottom);
+
+        return { recIndex, side, top, bot}
     }
 
     private nextNeighboar(index: number, isAel: boolean): number {
@@ -1349,5 +1394,9 @@ export default class TEdge {
         } else {
             this.sorted = value;
         }
+    }
+
+    private polyType(index: number): PolyType {
+        return this._polyType[index];
     }
 }
