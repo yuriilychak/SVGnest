@@ -318,7 +318,12 @@ export default class TEdge {
     }
 
     public getMaxima(index: number, y: number): boolean {
-        return !this.hasNextLocalMinima(index) && this.getY(index, EdgeSide.Top) === y;
+        if (!this.hasNextLocalMinima(index) && this.getY(index, EdgeSide.Top) === y) {
+            const tempEdgeIndex = this.maximaPair(index);
+            return tempEdgeIndex === UNASSIGNED || !this.isHorizontal(tempEdgeIndex);
+        }
+
+        return false;
     }
 
     public swapSidesAndIndeces(edge1Index: number, edge2Index: number): void {
@@ -1398,5 +1403,9 @@ export default class TEdge {
 
     private polyType(index: number): PolyType {
         return this._polyType[index];
+    }
+
+    public getCurrentActive(edgeIndex: number, prevIndex: number): number {
+        return this.prevActive(edgeIndex) === UNASSIGNED ? this.active : this.nextActive(prevIndex);
     }
 }

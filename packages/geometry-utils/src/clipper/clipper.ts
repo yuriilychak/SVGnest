@@ -393,8 +393,8 @@ export default class Clipper {
         }
     }
 
-    private outPtFromEdge(index: number, side: EdgeSide): number {
-        return this.addOutPt(index, this.tEdge.point(index, side));
+    private outPtFromEdge(index: number, side: EdgeSide, pointIndex: number = index): number {
+        return this.addOutPt(index, this.tEdge.point(pointIndex, side));
     }
 
     private processHorizontal(horzEdgeIndex: number, isTopOfScanbeam: boolean) {
@@ -528,11 +528,20 @@ export default class Clipper {
             return;
         }
 
-        if (this.tEdge.isAssigned(horzIndex)) {
-            this.outPtFromEdge(horzIndex, EdgeSide.Top);
+        this.deleteMaxima(horzIndex, false);
+    }
+
+    private deleteMaxima(maxIndex: number, isUnassign: boolean, edgeIndex: number = maxIndex): void {
+        if (this.tEdge.isAssigned(maxIndex)) {
+            this.outPtFromEdge(maxIndex, EdgeSide.Top, edgeIndex);
+
+            if (isUnassign) {
+                this.tEdge.unassign(maxIndex);
+            }
+
         }
 
-        this.tEdge.deleteFromList(horzIndex, true);
+        this.tEdge.deleteFromList(maxIndex, true);
     }
 
     private processHorizontals(isTopOfScanbeam: boolean): void {
@@ -548,26 +557,18 @@ export default class Clipper {
     }
 
     private processEdgesAtTopOfScanbeam(topY: number): void {
-        let isMaximaEdge: boolean = false;
         let outPt1: number = UNASSIGNED;
         let edgeIndex: number = this.tEdge.active;
 
         while (edgeIndex !== UNASSIGNED) {
             //1. process maxima, treating them as if they're 'bent' horizontal edges,
             //   but exclude maxima with horizontal edges. nb: e can't be a horizontal.
-            isMaximaEdge = this.tEdge.getMaxima(edgeIndex, topY);
-
-            if (isMaximaEdge) {
-                const tempEdgeIndex = this.tEdge.maximaPair(edgeIndex);
-                isMaximaEdge = tempEdgeIndex === UNASSIGNED || !this.tEdge.isHorizontal(tempEdgeIndex);
-            }
-
-            if (isMaximaEdge) {
+            if (this.tEdge.getMaxima(edgeIndex, topY)) {
                 const prevIndex = this.tEdge.prevActive(edgeIndex);
+
                 this.doMaxima(edgeIndex);
 
-                edgeIndex =
-                    this.tEdge.prevActive(edgeIndex) === UNASSIGNED ? this.tEdge.active : this.tEdge.nextActive(prevIndex);
+                edgeIndex = this.tEdge.getCurrentActive(edgeIndex, prevIndex);
                 continue;
             }
 
@@ -590,8 +591,8 @@ export default class Clipper {
             if (this.outRec.strictlySimple && this.tEdge.canAddScanbeam(edgeIndex)) {
                 const point = this.tEdge.point(edgeIndex, EdgeSide.Current);
                 const edge2Index = this.tEdge.prevActive(edgeIndex);
-                const outPt1 = this.addOutPt(edge2Index, point);
-                const outPt2 = this.addOutPt(edgeIndex, point);
+                const outPt1 = this.outPtFromEdge(edge2Index, EdgeSide.Current, edgeIndex);
+                const outPt2 = this.outPtFromEdge(edgeIndex, EdgeSide.Current);
 
                 this.join.add(outPt1, outPt2, point);
                 //StrictlySimple (type-3) join
@@ -623,11 +624,7 @@ export default class Clipper {
 
     private doMaxima(edgeIndex: number): void {
         if (this.tEdge.maximaPair(edgeIndex) === UNASSIGNED) {
-            if (this.tEdge.isAssigned(edgeIndex)) {
-                this.outPtFromEdge(edgeIndex, EdgeSide.Top);
-            }
-
-            this.tEdge.deleteFromList(edgeIndex, true);
+            this.deleteMaxima(edgeIndex, false);
 
             return;
         }
@@ -648,19 +645,8 @@ export default class Clipper {
         } else if (this.tEdge.isAssigned(edgeIndex) && this.tEdge.isAssigned(maxIndex)) {
             this.intersectEdgeFromSize(edgeIndex, maxIndex, edgeIndex, EdgeSide.Top, false);
         } else if (this.tEdge.isWindDeletaEmpty(edgeIndex)) {
-            if (this.tEdge.isAssigned(edgeIndex)) {
-                this.outPtFromEdge(edgeIndex, EdgeSide.Top);
-                this.tEdge.unassign(edgeIndex);
-            }
-
-            this.tEdge.deleteFromList(edgeIndex, true);
-
-            if (this.tEdge.isAssigned(maxIndex)) {
-                this.addOutPt(maxIndex, this.tEdge.point(edgeIndex, EdgeSide.Top));
-                this.tEdge.unassign(maxIndex);
-            }
-
-            this.tEdge.deleteFromList(maxIndex, true);
+            this.deleteMaxima(edgeIndex, true);
+            this.deleteMaxima(maxIndex, true, edgeIndex);
         } else {
             showError('DoMaxima error');
         }
