@@ -43,8 +43,6 @@ export default class TEdge {
         let i: number = 0;
 
         for (i = 0; i <= lastIndex; ++i) {
-            indices.push(this._dx.length);
-
             this._isUseFullRange = polygon[i].rangeTest(this._isUseFullRange);
             this._edgeData.push(
                 new Int16Array([UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED, UNASSIGNED])
@@ -54,6 +52,7 @@ export default class TEdge {
             this._polyType.push(polyType);
             this._side.push(Direction.Left);
             this._points.push([PointI32.from(polygon[i]), PointI32.create(), PointI32.create(), PointI32.create()]);
+            indices.push(this._dx.length);
         }
 
         // 2. Remove duplicate vertices and collinear edges by mutating the edges array
@@ -81,9 +80,9 @@ export default class TEdge {
                 // Check for collinear edges
                 if (
                     PointI32.slopesEqual(
-                        this._points[prevIndex][EdgeSide.Current],
-                        this._points[currIndex][EdgeSide.Current],
-                        this._points[nextIndex][EdgeSide.Current],
+                        this._points[prevIndex - 1][EdgeSide.Current],
+                        this._points[currIndex - 1][EdgeSide.Current],
+                        this._points[nextIndex - 1][EdgeSide.Current],
                         this._isUseFullRange
                     )
                 ) {
@@ -130,9 +129,9 @@ export default class TEdge {
             }
 
             this.update(currIndex, currIndex, EdgeSide.Delta, EdgeSide.Top);
-            this._points[currIndex][EdgeSide.Delta].sub(this._points[currIndex][EdgeSide.Bottom]);
+            this._points[currIndex - 1][EdgeSide.Delta].sub(this.point(currIndex, EdgeSide.Bottom));
 
-            this._dx[currIndex] =
+            this._dx[currIndex - 1] =
                 this.getY(currIndex, EdgeSide.Delta) === 0
                     ? Number.MIN_SAFE_INTEGER
                     : this.getX(currIndex, EdgeSide.Delta) / this.getY(currIndex, EdgeSide.Delta);
@@ -150,11 +149,11 @@ export default class TEdge {
     }
 
     public getX(index: number, side: EdgeSide): number {
-        return this._points[index][side].x;
+        return this._points[index - 1][side].x;
     }
 
     public getY(index: number, side: EdgeSide): number {
-        return this._points[index][side].y;
+        return this._points[index - 1][side].y;
     }
 
     public checkCondition(
@@ -187,21 +186,21 @@ export default class TEdge {
     }
 
     public update(inputIndex: number, updateIndex: number, inputSide: EdgeSide, updateSide: EdgeSide): void {
-        const inputPoint = this._points[inputIndex][inputSide];
-        const updatePoint = this._points[updateIndex][updateSide];
+        const inputPoint = this._points[inputIndex - 1][inputSide];
+        const updatePoint = this._points[updateIndex - 1][updateSide];
 
         inputPoint.update(updatePoint);
     }
 
     public almostEqual(index1: number, index2: number, side1: EdgeSide, side2: EdgeSide): boolean {
-        const point1 = this._points[index1][side1];
-        const point2 = this._points[index2][side2];
+        const point1 = this._points[index1 - 1][side1];
+        const point2 = this._points[index2 - 1][side2];
 
         return point1.almostEqual(point2);
     }
 
     public point(index: number, side: EdgeSide): Point<Int32Array> {
-        return this._points[index][side];
+        return this._points[index - 1][side];
     }
 
     public dispose(): void {
@@ -214,7 +213,7 @@ export default class TEdge {
     }
 
     public side(index: number): Direction {
-        return this._side[index];
+        return this._side[index - 1];
     }
 
     public createLocalMinima(edgeIndex: number): number[] {
@@ -234,7 +233,7 @@ export default class TEdge {
     }
 
     public dx(index: number): number {
-        return this._dx[index];
+        return this._dx[index - 1];
     }
 
     public findNextLocMin(index: number): number {
@@ -611,7 +610,7 @@ export default class TEdge {
         let edgeIndex = this.active;
 
         while (edgeIndex !== UNASSIGNED) {
-            this._points[edgeIndex][EdgeSide.Current].x = this.topX(edgeIndex, topY);
+            this._points[edgeIndex - 1][EdgeSide.Current].x = this.topX(edgeIndex, topY);
             edgeIndex = this.copyActiveToSorted(edgeIndex);
         }
 
@@ -689,7 +688,7 @@ export default class TEdge {
     }
 
     public currFromTopX(index: number, y: number): void {
-        this._points[index][EdgeSide.Current].set(this.topX(index, y), y);
+        this._points[index - 1][EdgeSide.Current].set(this.topX(index, y), y);
     }
 
     public isAssigned(index: number): boolean {
@@ -872,7 +871,7 @@ export default class TEdge {
 
     private setSide(index: number, value: Direction): void {
         if (this.getIndexValid(index)) {
-            this._side[index] = value;
+            this._side[index - 1] = value;
         } else {
             showError(`TEdgeController.setSide: index ${index} is out of bounds`);
         }
@@ -947,12 +946,12 @@ export default class TEdge {
     }
 
     private getWind(index: number, windIndex: number): number {
-        return this._wind[index][windIndex];
+        return this._wind[index - 1][windIndex];
     }
 
     private setWind(index: number, windIndex: number, value: number): void {
         if (this.getIndexValid(index)) {
-            this._wind[index][windIndex] = value;
+            this._wind[index - 1][windIndex] = value;
         }
     }
 
@@ -994,7 +993,7 @@ export default class TEdge {
     }
 
     private getIndexValid(index: number): boolean {
-        return index !== UNASSIGNED && index < this._dx.length;
+        return index !== UNASSIGNED && index <= this._dx.length;
     }
 
     private next(index: number): number {
@@ -1134,8 +1133,8 @@ export default class TEdge {
         //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
         const topX: number = this.getX(index, EdgeSide.Top);
         const botX: number = this.getX(index, EdgeSide.Bottom);
-        this._points[index][EdgeSide.Top].x = botX;
-        this._points[index][EdgeSide.Bottom].x = topX;
+        this._points[index - 1][EdgeSide.Top].x = botX;
+        this._points[index - 1][EdgeSide.Bottom].x = topX;
     }
 
     private setPrevActive(index: number, value: number): void {
@@ -1156,15 +1155,13 @@ export default class TEdge {
     }
 
     private getDataIndex(edgeIndex: number, dataIndex: number): number {
-        return this.getIndexValid(edgeIndex) ? this._edgeData[edgeIndex][dataIndex] : UNASSIGNED;
+        return this.getIndexValid(edgeIndex) ? this._edgeData[edgeIndex - 1][dataIndex] : UNASSIGNED;
     }
 
     private setDataIndex(edgeIndex: number, dataIndex: number, value: number): void {
-        if (!this.getIndexValid(edgeIndex)) {
-            return;
+        if (this.getIndexValid(edgeIndex)) {
+            this._edgeData[edgeIndex - 1][dataIndex] = value;
         }
-
-        this._edgeData[edgeIndex][dataIndex] = value;
     }
 
     private setNextLocalMinima(edgeIndex: number, minimaIndex: number): void {
@@ -1402,7 +1399,7 @@ export default class TEdge {
     }
 
     private polyType(index: number): PolyType {
-        return this._polyType[index];
+        return this._polyType[index - 1];
     }
 
     public getCurrentActive(edgeIndex: number, prevIndex: number): number {

@@ -1,1 +1,1 @@
-export const UNASSIGNED: number = -1;
+export const UNASSIGNED: number = 0;

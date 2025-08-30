@@ -20,11 +20,11 @@ export default class OutRec {
     }
 
     private getRectData(index: number, dataIndex: number): number {
-        return this.recData[index][dataIndex];
+        return this.recData[index - 1][dataIndex];
     }
 
     private setRectData(index: number, dataIndex: number, value: number) {
-        this.recData[index][dataIndex] = value;
+        this.recData[index - 1][dataIndex] = value;
     }
 
     public isUnassigned(index: number): boolean {
@@ -112,7 +112,7 @@ export default class OutRec {
     }
 
     public buildResult(polygons: Point<Int32Array>[][]): void {
-        for (let i = 0; i < this.recData.length; ++i) {
+        for (let i = 1; i <= this.recData.length; ++i) {
             const polygon = this.isUnassigned(i) ? [] : this.export(i);
 
             if (polygon.length !== 0) {
@@ -122,13 +122,13 @@ export default class OutRec {
     }
 
     public fixDirections(): void {
-        for (let i = 0; i < this.recData.length; ++i) {
+        for (let i = 1; i <= this.recData.length; ++i) {
             this.reverse(i);
         }
     }
 
     public create(pointIndex: number): number {
-        const index = this.recData.length;
+        const index = this.recData.length + 1;
 
         this.recData.push(new Int16Array([pointIndex, index, UNASSIGNED, 0]));
 
@@ -183,14 +183,14 @@ export default class OutRec {
     }
 
     public fixOutPolygon(isUseFullRange: boolean) {
-        for (let i = 0; i < this.recData.length; ++i) {
+        for (let i = 1; i <= this.recData.length; ++i) {
             if (!this.isUnassigned(i)) {
                 this.setPointIndex(i, this.fixupOutPolygonInner(i, false, isUseFullRange));
             }
         }
 
         if (this.isStrictlySimple) {
-            for (let i = 0; i < this.recData.length; ++i) {
+            for (let i = 1; i <= this.recData.length; ++i) {
                 this.simplify(i);
             }
         }
@@ -742,7 +742,7 @@ export default class OutRec {
     }
 
     public point(index: number): Point<Int32Array> {
-        return this.points[index];
+        return this.points[index - 1];
     }
 
     public pointX(index: number): number {
@@ -754,11 +754,10 @@ export default class OutRec {
     }
 
     private createOutPt(point: Point<Int32Array>): number {
-        const index = this.points.length;
         this.points.push(PointI32.from(point));
         this.pointNeighboars.push(new Int16Array([UNASSIGNED, UNASSIGNED]));
 
-        return index;
+        return this.points.length;
     }
 
     private duplicate(index: number, isInsertAfter: boolean): number {
@@ -781,7 +780,7 @@ export default class OutRec {
 
     private setNeighboar(index: number, neighboarIndex: number, value: number): void {
         if (index !== UNASSIGNED) {
-            this.pointNeighboars[index][neighboarIndex] = value;
+            this.pointNeighboars[index - 1][neighboarIndex] = value;
         }
     }
 
@@ -804,7 +803,7 @@ export default class OutRec {
 
         const neighboarIndex = isNext ? 1 : 0;
 
-        return this.pointNeighboars[index][neighboarIndex];
+        return this.pointNeighboars[index - 1][neighboarIndex];
     }
 
     private innerEqual(index1: number, index2: number): boolean {
