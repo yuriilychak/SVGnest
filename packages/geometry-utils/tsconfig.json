@@ -7,6 +7,7 @@
         "baseUrl": ".", // Allow module resolution from the workspace root
         "paths": {
             "wasm-nesting": ["../wasm-nesting/pkg"] // Map the wasm-nesting module to its output directory
-        }
+        },
+        "ignoreDeprecations": "6.0"
     }
 }

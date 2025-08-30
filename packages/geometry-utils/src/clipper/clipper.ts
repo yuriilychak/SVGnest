@@ -29,7 +29,7 @@ export default class Clipper {
         this.outRec = new OutRec(reverseSolution, strictlySimple);
     }
 
-    public addPath(polygon: PointI32[], polyType: PolyType): boolean {
+    public addPath(polygon: Point<Int32Array>[], polyType: PolyType): boolean {
         let edgeIndex = this.tEdge.createPath(polygon, polyType);
 
         if (edgeIndex === UNASSIGNED) {
@@ -78,7 +78,7 @@ export default class Clipper {
         return result;
     }
 
-    public execute(clipType: ClipType, solution: PointI32[][], fillType: PolyFillType): boolean {
+    public execute(clipType: ClipType, solution: Point<Int32Array>[][], fillType: PolyFillType): boolean {
         if (this.isExecuteLocked) {
             return false;
         }

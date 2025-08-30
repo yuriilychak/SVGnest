@@ -3,14 +3,15 @@ import Clipper from './clipper';
 import { getArea } from './helpers';
 import { ClipType, PolyFillType, PolyType } from './enums';
 import { PointF32, PointI32 } from '../geometry';
+import { Point } from '../types';
 
 export default class ClipperOffset {
-    private srcPolygon: PointI32[] = [];
+    private srcPolygon: Point<Int32Array>[] = [];
 
-    public execute(polygon: PointI32[], delta: number): PointI32[][] {
+    public execute(polygon: Point<Int32Array>[], delta: number): Point<Int32Array>[][] {
         this.srcPolygon = this.formatPath(polygon);
 
-        const result: PointI32[][] = [];
+        const result: Point<Int32Array>[][] = [];
         const destPolygon = this.doOffset(delta);
         const clipper: Clipper = new Clipper(delta <= 0, false);
 
@@ -19,7 +20,7 @@ export default class ClipperOffset {
         if (delta > 0) {
             clipper.execute(ClipType.Union, result, PolyFillType.Positive);
         } else {
-            const outer: PointI32[] = ClipperOffset.getOuterBounds(destPolygon);
+            const outer: Point<Int32Array>[] = ClipperOffset.getOuterBounds(destPolygon);
 
             clipper.addPath(outer, PolyType.Subject);
             clipper.execute(ClipType.Union, result, PolyFillType.Negative);
@@ -32,7 +33,7 @@ export default class ClipperOffset {
         return result;
     }
 
-    private formatPath(polygon: PointI32[]): PointI32[] {
+    private formatPath(polygon: Point<Int32Array>[]): Point<Int32Array>[] {
         let highIndex: number = polygon.length - 1;
         let i: number = 0;
         let j: number = 0;
@@ -42,7 +43,7 @@ export default class ClipperOffset {
             --highIndex;
         }
 
-        const result: PointI32[] = [];
+        const result: Point<Int32Array>[] = [];
         //newNode.m_polygon.set_Capacity(highI + 1);
         result.push(polygon[0]);
 
@@ -60,14 +61,14 @@ export default class ClipperOffset {
         return result;
     }
 
-    private doOffset(delta: number): PointI32[] {
+    private doOffset(delta: number): Point<Int32Array>[] {
         //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount * 2);
         const pointCount: number = this.srcPolygon.length;
-        const result: PointI32[] = [];
+        const result: Point<Int32Array>[] = [];
         let i: number = 0;
 
         if (pointCount == 1) {
-            const point: PointI32 = PointI32.create(-1, -1);
+            const point: Point<Int32Array> = PointI32.create(-1, -1);
 
             for (i = 0; i < 4; ++i) {
                 result.push(PointI32.from(point).scaleUp(delta).add(this.srcPolygon[0]));
@@ -81,7 +82,7 @@ export default class ClipperOffset {
                 }
             }
         } else {
-            const normals: PointF32[] = new Array(pointCount);
+            const normals: Point<Float32Array>[] = new Array(pointCount);
             //this.m_normals.set_Capacity(len);
             for (i = 0; i < pointCount; ++i) {
                 normals[i] = PointF32.from(this.srcPolygon[cycle_index_wasm(i, this.srcPolygon.length, 1)])
@@ -100,7 +101,7 @@ export default class ClipperOffset {
         return result;
     }
 
-    private offsetPoint(polygon: PointI32[], normals: PointF32[], delta: number, i: number, k: number): number {
+    private offsetPoint(polygon: Point<Int32Array>[], normals: Point<Float32Array>[], delta: number, i: number, k: number): number {
         let sinA: number = normals[i].cross(normals[k]);
 
         if (Math.abs(sinA) < 0.00005) {
@@ -113,10 +114,10 @@ export default class ClipperOffset {
             sinA = -1;
         }
 
-        const currentPoint: PointI32 = this.srcPolygon[i];
-        const normal1: PointF32 = normals[i];
-        const normal2: PointF32 = normals[k];
-        const tmpPoint: PointF32 = PointF32.create();
+        const currentPoint: Point<Int32Array> = this.srcPolygon[i];
+        const normal1: Point<Float32Array> = normals[i];
+        const normal2: Point<Float32Array> = normals[k];
+        const tmpPoint: Point<Float32Array> = PointF32.create();
 
         if (sinA * delta < 0) {
             tmpPoint.update(normal2).scaleUp(delta).add(currentPoint).clipperRound();
@@ -146,7 +147,7 @@ export default class ClipperOffset {
         return i;
     }
 
-    private static getOuterBounds(path: PointI32[]): PointI32[] {
+    private static getOuterBounds(path: Point<Int32Array>[]): PointI32[] {
         const pointCount: number = path.length;
         let left: number = path[0].x;
         let right: number = path[0].x;

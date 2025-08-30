@@ -1,7 +1,8 @@
 import { cycle_index_wasm } from 'wasm-nesting';
 import { PointI32 } from '../geometry';
+import { Point } from '../types';
 
-export function getArea(poly: PointI32[]): number {
+export function getArea(poly: Point<Int32Array>[]): number {
     const pointCount: number = poly.length;
 
     if (pointCount < 3) {
@@ -20,16 +21,16 @@ export function getArea(poly: PointI32[]): number {
     return -result * 0.5;
 }
 
-export function absArea(poly: PointI32[]): number {
+export function absArea(poly: Point<Int32Array>[]): number {
     return Math.abs(getArea(poly));
 }
 
-export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
+export function cleanPolygon(path: Point<Int32Array>[], distance: number): Point<Int32Array>[] {
     //distance = proximity in units/pixels below which vertices will be stripped.
     //Default ~= sqrt(2) so when adjacent vertices or semi-adjacent vertices have
     //both x & y coords within 1 unit, then the second vertex will be stripped.
     let pointCount: number = path.length;
-    const result: PointI32[] = new Array<PointI32>(pointCount);
+    const result: Point<Int32Array>[] = new Array<PointI32>(pointCount);
     const marked: boolean[] = new Array<boolean>(false);
     let i: number = 0;
 
@@ -91,9 +92,9 @@ export function cleanPolygon(path: PointI32[], distance: number): PointI32[] {
     return pointCount < 3 ? [] : result;
 }
 
-export function cleanPolygons(polys: PointI32[][], distance: number): PointI32[][] {
+export function cleanPolygons(polys: Point<Int32Array>[][], distance: number): Point<Int32Array>[][] {
     const polygonCount: number = polys.length;
-    const result: PointI32[][] = new Array(polygonCount);
+    const result: Point<Int32Array>[][] = new Array(polygonCount);
     let i: number = 0;
 
     for (i = 0; i < polygonCount; ++i) {
