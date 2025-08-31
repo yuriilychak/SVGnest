@@ -62,7 +62,7 @@ export default class Clipper {
         return true;
     }
 
-    public addPaths(polygons: PointI32[][], polyType: PolyType): boolean {
+    public addPaths(polygons: Point<Int32Array>[][], polyType: PolyType): boolean {
         //  console.log("-------------------------------------------");
         //  console.log(JSON.stringify(ppg));
         const polygonCount: number = polygons.length;

@@ -7,3 +7,4 @@ pub mod local_minima;
 pub mod out_rec;
 pub mod scanbeam;
 pub mod t_edge;
+pub mod utils;

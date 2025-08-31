@@ -10,6 +10,7 @@ pub mod utils;
 
 use crate::nesting::pair_flow::pair_data;
 
+use crate::clipper::utils::clean_polygon;
 use crate::clipper::{
     clipper::Clipper,
     enums::{ClipType, PolyFillType, PolyType},
@@ -98,6 +99,24 @@ fn from_mem_seg(mem_seg: &[f32]) -> Vec<Point<i32>> {
     out
 }
 
+fn from_i32_mem_seg(mem_seg: &[i32]) -> Vec<Point<i32>> {
+    debug_assert!(
+        mem_seg.len() % 2 == 0,
+        "mem_seg length must be even (pairs of x,y)"
+    );
+
+    let count = mem_seg.len() / 2;
+    let mut out = Vec::with_capacity(count);
+
+    for chunk in mem_seg.chunks_exact(2) {
+        let x = chunk[0];
+        let y = chunk[1];
+        out.push(Point::<i32>::new(Some(x), Some(y)));
+    }
+
+    out
+}
+
 pub fn pack_points_to_i32(nested: &[Vec<Point<i32>>]) -> Vec<i32> {
     let m = nested.len();
     let total_points: usize = nested.iter().map(|v| v.len()).sum();
@@ -126,6 +145,25 @@ pub fn pack_points_to_i32(nested: &[Vec<Point<i32>>]) -> Vec<i32> {
     }
 
     debug_assert_eq!(out.len(), total_len);
+    out
+}
+
+fn pack_polygon_to_i32(polygon: &Vec<Point<i32>>) -> Vec<i32> {
+    let mut out = Vec::with_capacity(polygon.len() * 2);
+    for p in polygon {
+        out.push(p.x);
+        out.push(p.y);
+    }
+    out
+}
+
+#[wasm_bindgen]
+pub fn clean_polygon_wasm(buff: &[i32], distance: f64) -> Int32Array {
+    let polygon = from_i32_mem_seg(buff);
+    let cleaned_polygon = clean_polygon(&polygon, distance);
+    let packed = pack_polygon_to_i32(&cleaned_polygon);
+    let out = Int32Array::new_with_length(packed.len() as u32);
+    out.copy_from(&packed);
     out
 }
 

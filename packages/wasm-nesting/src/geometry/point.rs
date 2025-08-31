@@ -1,3 +1,4 @@
+use crate::utils::almost_equal::AlmostEqual;
 use crate::utils::math::slopes_equal;
 use crate::utils::number::Number;
 
@@ -133,25 +134,26 @@ impl<T: Number> Point<T> {
     }
 
     #[inline(always)]
-    pub unsafe fn len2(&self, other: *const Self) -> T {
-        let dx = self.x - (*other).x;
-        let dy = self.y - (*other).y;
+    pub unsafe fn len2(&self, other: *const Self) -> f64 {
+        let dx = (self.x - (*other).x).to_f64().unwrap();
+        let dy = (self.y - (*other).y).to_f64().unwrap();
         dx * dx + dy * dy
     }
 
     #[inline(always)]
     pub unsafe fn len(&self, other: *const Self) -> f64 {
-        self.len2(other).to_f64().unwrap().sqrt()
+        self.len2(other).sqrt()
     }
 
     #[inline(always)]
-    pub unsafe fn length2(&self) -> T {
-        self.x * self.x + self.y * self.y
+    pub unsafe fn length2(&self) -> f64 {
+        self.x.to_f64().unwrap() * self.x.to_f64().unwrap()
+            + self.y.to_f64().unwrap() * self.y.to_f64().unwrap()
     }
 
     #[inline(always)]
     pub unsafe fn length(&self) -> f64 {
-        self.length2().to_f64().unwrap().sqrt()
+        self.length2().sqrt()
     }
 
     #[inline(always)]
@@ -194,7 +196,7 @@ impl<T: Number> Point<T> {
 
     #[inline(always)]
     pub unsafe fn close_to(&self, point: *const Point<T>, dist_sqrd: f64) -> bool {
-        return self.len2(point).to_f64().unwrap() <= dist_sqrd;
+        return self.len2(point) <= dist_sqrd;
     }
 
     #[inline(always)]
@@ -280,9 +282,9 @@ impl<T: Number> Point<T> {
             return false;
         }
 
-        let dot = sub_a.dot(&sub_ab as *const Point<T>);
+        let dot: f64 = sub_a.dot(&sub_ab as *const Point<T>).to_f64().unwrap();
 
-        if dot < T::tol() {
+        if dot < f64::tol() {
             return false;
         }
 
@@ -318,11 +320,11 @@ impl<T: Number> Point<T> {
             || ((pt1_a.x == pt2_b.x) && (pt1_b.x == pt2_a.x))
     }
 
-    pub unsafe fn line_equation(p1: *mut Point<T>, p2: *mut Point<T>) -> (T, T, T) {
-        let x1 = (*p1).x;
-        let y1 = (*p1).y;
-        let x2 = (*p2).x;
-        let y2 = (*p2).y;
+    pub unsafe fn line_equation(p1: *const Point<T>, p2: *const Point<T>) -> (f64, f64, f64) {
+        let x1 = ((*p1).x).to_f64().unwrap();
+        let y1 = ((*p1).y).to_f64().unwrap();
+        let x2 = ((*p2).x).to_f64().unwrap();
+        let y2 = ((*p2).y).to_f64().unwrap();
 
         let a = y2 - y1;
         let b = x1 - x2;
@@ -354,23 +356,23 @@ impl<T: Number> Point<T> {
     }
 
     pub unsafe fn distance_from_line_sqrd(
-        point: *mut Point<T>,
-        line1: *mut Point<T>,
-        line2: *mut Point<T>,
+        line1: *const Point<T>,
+        point: *const Point<T>,
+        line2: *const Point<T>,
     ) -> f64 {
         let (a, b, c) = Self::line_equation(line2, line1);
-        let c_val = (a * (*point).x + b * (*point).y - c).to_f64().unwrap();
-        let denom = (a * a + b * b).to_f64().unwrap();
+        let c_val = a * ((*point).x.to_f64().unwrap()) + b * ((*point).y.to_f64().unwrap()) - c;
+        let denom = a * a + b * b;
 
         (c_val * c_val) / denom
     }
 
     pub unsafe fn slopes_near_collinear(
-        pt1: *mut Point<T>,
-        pt2: *mut Point<T>,
-        pt3: *mut Point<T>,
+        line1: *const Point<T>,
+        point: *const Point<T>,
+        line2: *const Point<T>,
         dist_sqrd: f64,
     ) -> bool {
-        Self::distance_from_line_sqrd(pt2, pt1, pt3) < dist_sqrd
+        Self::distance_from_line_sqrd(line1, point, line2) < dist_sqrd
     }
 }
