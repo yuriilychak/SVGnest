@@ -865,7 +865,7 @@ export default class TEdge {
             case PolyFillType.Positive:
                 return windCount1 === 1 && isReverse !== windCount2 <= 0;
             default:
-                return windCount1 === UNASSIGNED && isReverse !== windCount2 >= 0;
+                return windCount1 === -1 && isReverse !== windCount2 >= 0;
         }
     }
 

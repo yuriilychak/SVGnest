@@ -4,8 +4,8 @@ import { UNASSIGNED } from './constants';
 import { Direction } from './enums';
 import { PointI32 } from '../geometry';
 export default class OutRec {
-    private recData: Int16Array[] = [];
-    private pointNeighboars: Int16Array[] = [];
+    private recData: Uint16Array[] = [];
+    private pointNeighboars: Uint16Array[] = [];
     private points: Point<Int32Array>[] = [];
     private isReverseSolution: boolean = false;
     private isStrictlySimple: boolean = false;
@@ -130,7 +130,7 @@ export default class OutRec {
     public create(pointIndex: number): number {
         const index = this.recData.length + 1;
 
-        this.recData.push(new Int16Array([pointIndex, index, UNASSIGNED, 0]));
+        this.recData.push(new Uint16Array([pointIndex, index, UNASSIGNED, 0]));
 
         return index;
     }
@@ -755,7 +755,7 @@ export default class OutRec {
 
     private createOutPt(point: Point<Int32Array>): number {
         this.points.push(PointI32.from(point));
-        this.pointNeighboars.push(new Int16Array([UNASSIGNED, UNASSIGNED]));
+        this.pointNeighboars.push(new Uint16Array([UNASSIGNED, UNASSIGNED]));
 
         return this.points.length;
     }
