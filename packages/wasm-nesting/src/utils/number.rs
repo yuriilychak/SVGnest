@@ -180,39 +180,29 @@ impl Number for i32 {
         }
 
         let n_points = len >> 1;
-        let simd_pairs = n_points >> 1;
-        let mut acc = i32x4_splat(0);
-        let mut x0: Self;
-        let mut y0: Self;
-        let mut x1: Self;
-        let mut y1: Self;
-        let mut x2: Self;
-        let mut y2: Self;
+        let mut acc = i64x2_splat(0);
+        let mut x0: i64;
+        let mut y0: i64;
+        let mut x1: i64;
+        let mut y1: i64;
         let mut base: usize;
         let mut stack1: v128;
         let mut stack2: v128;
 
-        for i in 0..simd_pairs {
-            base = i << 2;
-            x0 = points[wrap(base, 0, len)];
-            y0 = points[wrap(base, 1, len)];
-            x1 = points[wrap(base, 2, len)];
-            y1 = points[wrap(base, 3, len)];
-            x2 = points[wrap(base, 4, len)];
-            y2 = points[wrap(base, 5, len)];
+        for i in 0..n_points {
+            base = i << 1;
+            x0 = points[wrap(base, 0, len)].to_i64().unwrap();
+            y0 = points[wrap(base, 1, len)].to_i64().unwrap();
+            x1 = points[wrap(base, 2, len)].to_i64().unwrap();
+            y1 = points[wrap(base, 3, len)].to_i64().unwrap();
 
-            stack1 = i32x4(y0, -x0, y1, -x1);
-            stack2 = i32x4(x1, y1, x2, y2);
-            acc = i32x4_add(acc, f32x4_mul(stack1, stack2));
+            stack1 = i64x2(y0, -x0);
+            stack2 = i64x2(x1, y1);
+            acc = i64x2_add(acc, i64x2_mul(stack1, stack2));
         }
 
         return 0.5
-            * (i32x4_extract_lane::<0>(acc)
-                + i32x4_extract_lane::<1>(acc)
-                + i32x4_extract_lane::<2>(acc)
-                + i32x4_extract_lane::<3>(acc)
-                + ((n_points & 1) as i32)
-                    * (points[len - 1] * points[0] - points[len - 2] * points[1]))
+            * (i64x2_extract_lane::<0>(acc) + i64x2_extract_lane::<1>(acc))
                 .to_f64()
                 .unwrap();
     }

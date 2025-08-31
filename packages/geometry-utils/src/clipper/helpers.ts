@@ -1,24 +1,11 @@
-import { clean_polygon_wasm } from 'wasm-nesting';
+import { clean_polygon_wasm, polygon_area_i32 } from 'wasm-nesting';
 import { PointI32 } from '../geometry';
 import { Point } from '../types';
 
 export function getArea(poly: Point<Int32Array>[]): number {
-    const pointCount: number = poly.length;
+    const polyData = new Int32Array(poly.reduce<number[]>((acc: number[], point: Point<Int32Array>) => acc.concat([point.x, point.y]), []));
 
-    if (pointCount < 3) {
-        return 0;
-    }
-
-    let result: number = 0;
-    let i: number = 0;
-    let j: number = 0;
-
-    for (i = 0, j = pointCount - 1; i < pointCount; ++i) {
-        result += (poly[j].x + poly[i].x) * (poly[j].y - poly[i].y);
-        j = i;
-    }
-
-    return -result * 0.5;
+    return -polygon_area_i32(polyData);
 }
 
 export function absArea(poly: Point<Int32Array>[]): number {
@@ -29,7 +16,7 @@ export function cleanPolygon(path: Point<Int32Array>[], distance: number): Point
     const polyData = new Int32Array(path.reduce<number[]>((acc: number[], point: Point<Int32Array>) => acc.concat([point.x, point.y]), []));
     const cleanedData = clean_polygon_wasm(polyData, distance);
     const pointCount = cleanedData.length / 2;
-    
+
     const result: Point<Int32Array>[] = new Array(pointCount);
 
     for (let i = 0; i < pointCount; i++) {
