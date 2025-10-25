@@ -1,0 +1,542 @@
+{
+  "suites": [
+    {
+      "id": "constructor",
+      "data": [
+        {
+          "id": "default_constructor",
+          "input": {
+            "reverseSolution": false,
+            "strictlySimple": false
+          },
+          "output": {
+            "isExecuteLocked": false,
+            "hasComponents": true
+          }
+        },
+        {
+          "id": "reverse_solution_constructor",
+          "input": {
+            "reverseSolution": true,
+            "strictlySimple": false
+          },
+          "output": {
+            "isExecuteLocked": false,
+            "hasComponents": true
+          }
+        },
+        {
+          "id": "strictly_simple_constructor",
+          "input": {
+            "reverseSolution": false,
+            "strictlySimple": true
+          },
+          "output": {
+            "isExecuteLocked": false,
+            "hasComponents": true
+          }
+        },
+        {
+          "id": "both_flags_constructor",
+          "input": {
+            "reverseSolution": true,
+            "strictlySimple": true
+          },
+          "output": {
+            "isExecuteLocked": false,
+            "hasComponents": true
+          }
+        },
+        {
+          "id": "default_false_constructor",
+          "input": {
+            "reverseSolution": false,
+            "strictlySimple": false
+          },
+          "output": {
+            "isExecuteLocked": false,
+            "hasComponents": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "addPath",
+      "data": [
+        {
+          "id": "square_subject",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "triangle_clip",
+          "input": {
+            "polygon": [
+              {"x": 50, "y": 25},
+              {"x": 150, "y": 25},
+              {"x": 100, "y": 125}
+            ],
+            "polyType": 1
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "pentagon_subject",
+          "input": {
+            "polygon": [
+              {"x": 50, "y": 0},
+              {"x": 100, "y": 30},
+              {"x": 80, "y": 100},
+              {"x": 20, "y": 100},
+              {"x": 0, "y": 30}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "concave_polygon_clip",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 50, "y": 0},
+              {"x": 50, "y": 25},
+              {"x": 25, "y": 25},
+              {"x": 25, "y": 50},
+              {"x": 0, "y": 50}
+            ],
+            "polyType": 1
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "degenerate_path",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 0, "y": 0}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "addPaths",
+      "data": [
+        {
+          "id": "multiple_squares",
+          "input": {
+            "polygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 50, "y": 0},
+                {"x": 50, "y": 50},
+                {"x": 0, "y": 50}
+              ],
+              [
+                {"x": 25, "y": 25},
+                {"x": 75, "y": 25},
+                {"x": 75, "y": 75},
+                {"x": 25, "y": 75}
+              ]
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "triangle_and_square",
+          "input": {
+            "polygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 100, "y": 0},
+                {"x": 50, "y": 100}
+              ],
+              [
+                {"x": 25, "y": 25},
+                {"x": 75, "y": 25},
+                {"x": 75, "y": 75},
+                {"x": 25, "y": 75}
+              ]
+            ],
+            "polyType": 1
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "complex_polygons",
+          "input": {
+            "polygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 40, "y": 0},
+                {"x": 40, "y": 20},
+                {"x": 20, "y": 20},
+                {"x": 20, "y": 40},
+                {"x": 0, "y": 40}
+              ],
+              [
+                {"x": 10, "y": 10},
+                {"x": 30, "y": 10},
+                {"x": 30, "y": 30},
+                {"x": 10, "y": 30}
+              ]
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "convex_concave_mix",
+          "input": {
+            "polygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 60, "y": 0},
+                {"x": 60, "y": 60},
+                {"x": 0, "y": 60}
+              ],
+              [
+                {"x": 20, "y": 10},
+                {"x": 50, "y": 10},
+                {"x": 50, "y": 25},
+                {"x": 35, "y": 25},
+                {"x": 35, "y": 50},
+                {"x": 20, "y": 50}
+              ]
+            ],
+            "polyType": 1
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "empty_polygons_array",
+          "input": {
+            "polygons": [],
+            "polyType": 0
+          },
+          "output": {
+            "result": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "execute_union",
+      "data": [
+        {
+          "id": "overlapping_squares_union",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 100, "y": 0},
+                {"x": 100, "y": 100},
+                {"x": 0, "y": 100}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 50, "y": 50},
+                {"x": 150, "y": 50},
+                {"x": 150, "y": 150},
+                {"x": 50, "y": 150}
+              ]
+            ],
+            "clipType": 1,
+            "fillType": 1
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "triangle_square_union",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 50, "y": 0},
+                {"x": 100, "y": 100},
+                {"x": 0, "y": 100}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 25, "y": 25},
+                {"x": 75, "y": 25},
+                {"x": 75, "y": 75},
+                {"x": 25, "y": 75}
+              ]
+            ],
+            "clipType": 1,
+            "fillType": 1
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "pentagon_circle_union",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 50, "y": 0},
+                {"x": 100, "y": 30},
+                {"x": 80, "y": 100},
+                {"x": 20, "y": 100},
+                {"x": 0, "y": 30}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 75, "y": 25},
+                {"x": 125, "y": 50},
+                {"x": 125, "y": 100},
+                {"x": 75, "y": 125},
+                {"x": 25, "y": 100},
+                {"x": 25, "y": 50}
+              ]
+            ],
+            "clipType": 1,
+            "fillType": 2
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "concave_polygons_union",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 50, "y": 0},
+                {"x": 50, "y": 25},
+                {"x": 25, "y": 25},
+                {"x": 25, "y": 50},
+                {"x": 0, "y": 50}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 25, "y": 25},
+                {"x": 75, "y": 25},
+                {"x": 75, "y": 50},
+                {"x": 50, "y": 50},
+                {"x": 50, "y": 75},
+                {"x": 25, "y": 75}
+              ]
+            ],
+            "clipType": 1,
+            "fillType": 3
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "non_overlapping_union",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 50, "y": 0},
+                {"x": 50, "y": 50},
+                {"x": 0, "y": 50}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 100, "y": 100},
+                {"x": 150, "y": 100},
+                {"x": 150, "y": 150},
+                {"x": 100, "y": 150}
+              ]
+            ],
+            "clipType": 1,
+            "fillType": 1
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "execute_difference",
+      "data": [
+        {
+          "id": "overlapping_squares_difference",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 100, "y": 0},
+                {"x": 100, "y": 100},
+                {"x": 0, "y": 100}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 50, "y": 50},
+                {"x": 150, "y": 50},
+                {"x": 150, "y": 150},
+                {"x": 50, "y": 150}
+              ]
+            ],
+            "clipType": 2,
+            "fillType": 1
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "triangle_square_difference",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 50, "y": 0},
+                {"x": 100, "y": 100},
+                {"x": 0, "y": 100}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 25, "y": 25},
+                {"x": 75, "y": 25},
+                {"x": 75, "y": 75},
+                {"x": 25, "y": 75}
+              ]
+            ],
+            "clipType": 2,
+            "fillType": 1
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "pentagon_difference",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 50, "y": 0},
+                {"x": 100, "y": 30},
+                {"x": 80, "y": 100},
+                {"x": 20, "y": 100},
+                {"x": 0, "y": 30}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 30, "y": 20},
+                {"x": 70, "y": 20},
+                {"x": 70, "y": 80},
+                {"x": 30, "y": 80}
+              ]
+            ],
+            "clipType": 2,
+            "fillType": 2
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "concave_difference",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 80, "y": 0},
+                {"x": 80, "y": 40},
+                {"x": 40, "y": 40},
+                {"x": 40, "y": 80},
+                {"x": 0, "y": 80}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 20, "y": 20},
+                {"x": 60, "y": 20},
+                {"x": 60, "y": 60},
+                {"x": 20, "y": 60}
+              ]
+            ],
+            "clipType": 2,
+            "fillType": 3
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        },
+        {
+          "id": "no_overlap_difference",
+          "input": {
+            "subjectPolygons": [
+              [
+                {"x": 0, "y": 0},
+                {"x": 50, "y": 0},
+                {"x": 50, "y": 50},
+                {"x": 0, "y": 50}
+              ]
+            ],
+            "clipPolygons": [
+              [
+                {"x": 100, "y": 100},
+                {"x": 150, "y": 100},
+                {"x": 150, "y": 150},
+                {"x": 100, "y": 150}
+              ]
+            ],
+            "clipType": 2,
+            "fillType": 1
+          },
+          "output": {
+            "result": true,
+            "hasSolution": true
+          }
+        }
+      ]
+    }
+  ]
+}
