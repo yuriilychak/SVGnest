@@ -158,7 +158,7 @@ describe('Scanbeam', () => {
         it('should maintain sorted order with floating point precision', () => {
             const values = [0.1 + 0.2, 0.3, 0.30000000000000004];
             values.forEach(val => scanbeam.insert(val));
-            
+
             // Due to floating point precision, 0.1 + 0.2 equals 0.30000000000000004
             // So we should have two distinct values: 0.30000000000000004 and 0.3
             expect(scanbeam.isEmpty).toBe(false);
@@ -171,7 +171,7 @@ describe('Scanbeam', () => {
             scanbeam.insert(NaN);
             scanbeam.insert(5);
             scanbeam.insert(NaN);
-            
+
             // NaN comparisons are always false, so behavior might be unexpected
             // This test documents the current behavior
             expect(scanbeam.isEmpty).toBe(false);
@@ -181,7 +181,7 @@ describe('Scanbeam', () => {
             scanbeam.insert(Infinity);
             scanbeam.insert(100);
             scanbeam.insert(-Infinity);
-            
+
             expect(scanbeam.pop()).toBe(Infinity);
             expect(scanbeam.pop()).toBe(100);
             expect(scanbeam.pop()).toBe(-Infinity);
@@ -193,19 +193,19 @@ describe('Scanbeam', () => {
     describe('Performance Tests', () => {
         it('should handle large number of insertions efficiently', () => {
             const startTime = Date.now();
-            
+
             // Insert 1000 random values
             for (let i = 0; i < 1000; i++) {
                 scanbeam.insert(Math.random() * 1000);
             }
-            
+
             const endTime = Date.now();
             const duration = endTime - startTime;
-            
+
             // Should complete within reasonable time (adjust threshold as needed)
             expect(duration).toBeLessThan(1000); // 1 second
             expect(scanbeam.isEmpty).toBe(false);
-            
+
             // Clean up for memory
             scanbeam.clean();
             expect(scanbeam.isEmpty).toBe(true);
@@ -218,16 +218,16 @@ describe('Scanbeam', () => {
             // Perform a series of operations and verify state consistency
             scanbeam.insert(10);
             expect(scanbeam.isEmpty).toBe(false);
-            
+
             scanbeam.insert(5);
             scanbeam.insert(15);
             expect((scanbeam as any).values).toEqual([15, 10, 5]);
-            
+
             const popped = scanbeam.pop();
             expect(popped).toBe(15);
             expect((scanbeam as any).values).toEqual([10, 5]);
             expect(scanbeam.isEmpty).toBe(false);
-            
+
             scanbeam.clean();
             expect((scanbeam as any).values).toEqual([]);
             expect(scanbeam.isEmpty).toBe(true);
@@ -237,7 +237,7 @@ describe('Scanbeam', () => {
             // Verify state remains consistent even after errors
             expect(() => scanbeam.pop()).toThrow('ScanbeamManager is empty');
             expect(scanbeam.isEmpty).toBe(true);
-            
+
             // Should still be able to insert after error
             scanbeam.insert(42);
             expect(scanbeam.isEmpty).toBe(false);
