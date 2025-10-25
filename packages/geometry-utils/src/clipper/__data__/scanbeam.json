@@ -1,0 +1,214 @@
+{
+  "suites": [
+    {
+      "id": "insert method - single values",
+      "data": [
+        {
+          "id": "insert single value into empty scanbeam",
+          "input": { "operations": [{ "method": "insert", "args": [5.5] }] },
+          "output": { "values": [5.5], "isEmpty": false }
+        },
+        {
+          "id": "insert ascending values",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "insert", "args": [3] }, { "method": "insert", "args": [5] }] },
+          "output": { "values": [5, 3, 1], "isEmpty": false }
+        },
+        {
+          "id": "insert descending values",
+          "input": { "operations": [{ "method": "insert", "args": [10] }, { "method": "insert", "args": [7] }, { "method": "insert", "args": [3] }] },
+          "output": { "values": [10, 7, 3], "isEmpty": false }
+        },
+        {
+          "id": "insert mixed order values",
+          "input": { "operations": [{ "method": "insert", "args": [4] }, { "method": "insert", "args": [9] }, { "method": "insert", "args": [2] }, { "method": "insert", "args": [7] }] },
+          "output": { "values": [9, 7, 4, 2], "isEmpty": false }
+        },
+        {
+          "id": "insert duplicate values",
+          "input": { "operations": [{ "method": "insert", "args": [5] }, { "method": "insert", "args": [5] }, { "method": "insert", "args": [3] }, { "method": "insert", "args": [5] }] },
+          "output": { "values": [5, 3], "isEmpty": false }
+        }
+      ]
+    },
+    {
+      "id": "insert method - edge cases",
+      "data": [
+        {
+          "id": "insert negative values",
+          "input": { "operations": [{ "method": "insert", "args": [-1] }, { "method": "insert", "args": [-5] }, { "method": "insert", "args": [0] }] },
+          "output": { "values": [0, -1, -5], "isEmpty": false }
+        },
+        {
+          "id": "insert zero value",
+          "input": { "operations": [{ "method": "insert", "args": [0] }] },
+          "output": { "values": [0], "isEmpty": false }
+        },
+        {
+          "id": "insert decimal values",
+          "input": { "operations": [{ "method": "insert", "args": [3.14] }, { "method": "insert", "args": [2.71] }, { "method": "insert", "args": [1.41] }] },
+          "output": { "values": [3.14, 2.71, 1.41], "isEmpty": false }
+        },
+        {
+          "id": "insert large values",
+          "input": { "operations": [{ "method": "insert", "args": [1000000] }, { "method": "insert", "args": [999999] }] },
+          "output": { "values": [1000000, 999999], "isEmpty": false }
+        },
+        {
+          "id": "insert very small decimal values",
+          "input": { "operations": [{ "method": "insert", "args": [0.001] }, { "method": "insert", "args": [0.002] }, { "method": "insert", "args": [0.0015] }] },
+          "output": { "values": [0.002, 0.0015, 0.001], "isEmpty": false }
+        }
+      ]
+    },
+    {
+      "id": "pop method",
+      "data": [
+        {
+          "id": "pop from scanbeam with single value",
+          "input": { "operations": [{ "method": "insert", "args": [42] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": 42, "values": [], "isEmpty": true }
+        },
+        {
+          "id": "pop from scanbeam with multiple values",
+          "input": { "operations": [{ "method": "insert", "args": [10] }, { "method": "insert", "args": [20] }, { "method": "insert", "args": [5] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": 20, "values": [10, 5], "isEmpty": false }
+        },
+        {
+          "id": "pop all values sequentially",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "insert", "args": [2] }, { "method": "insert", "args": [3] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "popResults": [3, 2, 1], "values": [], "isEmpty": true }
+        },
+        {
+          "id": "pop with negative values",
+          "input": { "operations": [{ "method": "insert", "args": [-1] }, { "method": "insert", "args": [-10] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": -1, "values": [-10], "isEmpty": false }
+        },
+        {
+          "id": "pop with decimal values",
+          "input": { "operations": [{ "method": "insert", "args": [1.5] }, { "method": "insert", "args": [2.7] }, { "method": "insert", "args": [0.3] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": 2.7, "values": [1.5, 0.3], "isEmpty": false }
+        }
+      ]
+    },
+    {
+      "id": "pop method - error cases",
+      "data": [
+        {
+          "id": "pop from empty scanbeam",
+          "input": { "operations": [{ "method": "pop", "args": [] }] },
+          "output": { "error": "ScanbeamManager is empty" }
+        },
+        {
+          "id": "pop after clean",
+          "input": { "operations": [{ "method": "insert", "args": [5] }, { "method": "clean", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "error": "ScanbeamManager is empty" }
+        },
+        {
+          "id": "pop twice from single value scanbeam",
+          "input": { "operations": [{ "method": "insert", "args": [10] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "firstPopResult": 10, "error": "ScanbeamManager is empty" }
+        },
+        {
+          "id": "multiple pops from empty scanbeam",
+          "input": { "operations": [{ "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "errors": ["ScanbeamManager is empty", "ScanbeamManager is empty"] }
+        },
+        {
+          "id": "pop after multiple clean operations",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "clean", "args": [] }, { "method": "clean", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "error": "ScanbeamManager is empty" }
+        }
+      ]
+    },
+    {
+      "id": "clean method",
+      "data": [
+        {
+          "id": "clean empty scanbeam",
+          "input": { "operations": [{ "method": "clean", "args": [] }] },
+          "output": { "values": [], "isEmpty": true }
+        },
+        {
+          "id": "clean scanbeam with single value",
+          "input": { "operations": [{ "method": "insert", "args": [15] }, { "method": "clean", "args": [] }] },
+          "output": { "values": [], "isEmpty": true }
+        },
+        {
+          "id": "clean scanbeam with multiple values",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "insert", "args": [2] }, { "method": "insert", "args": [3] }, { "method": "clean", "args": [] }] },
+          "output": { "values": [], "isEmpty": true }
+        },
+        {
+          "id": "multiple clean operations",
+          "input": { "operations": [{ "method": "insert", "args": [10] }, { "method": "clean", "args": [] }, { "method": "clean", "args": [] }, { "method": "clean", "args": [] }] },
+          "output": { "values": [], "isEmpty": true }
+        },
+        {
+          "id": "clean and then insert",
+          "input": { "operations": [{ "method": "insert", "args": [5] }, { "method": "insert", "args": [10] }, { "method": "clean", "args": [] }, { "method": "insert", "args": [7] }] },
+          "output": { "values": [7], "isEmpty": false }
+        }
+      ]
+    },
+    {
+      "id": "isEmpty getter",
+      "data": [
+        {
+          "id": "isEmpty on new scanbeam",
+          "input": { "operations": [] },
+          "output": { "isEmpty": true, "values": [] }
+        },
+        {
+          "id": "isEmpty after insert",
+          "input": { "operations": [{ "method": "insert", "args": [1] }] },
+          "output": { "isEmpty": false, "values": [1] }
+        },
+        {
+          "id": "isEmpty after pop all values",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "insert", "args": [2] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "isEmpty": true, "values": [] }
+        },
+        {
+          "id": "isEmpty after clean",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "insert", "args": [2] }, { "method": "clean", "args": [] }] },
+          "output": { "isEmpty": true, "values": [] }
+        },
+        {
+          "id": "isEmpty with remaining values after partial pop",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "insert", "args": [2] }, { "method": "insert", "args": [3] }, { "method": "pop", "args": [] }] },
+          "output": { "isEmpty": false, "values": [2, 1] }
+        }
+      ]
+    },
+    {
+      "id": "complex workflows",
+      "data": [
+        {
+          "id": "mixed operations workflow",
+          "input": { "operations": [{ "method": "insert", "args": [5] }, { "method": "insert", "args": [3] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [7] }, { "method": "insert", "args": [1] }] },
+          "output": { "values": [7, 3, 1], "isEmpty": false, "popResult": 5 }
+        },
+        {
+          "id": "insert, clean, insert workflow",
+          "input": { "operations": [{ "method": "insert", "args": [10] }, { "method": "insert", "args": [20] }, { "method": "clean", "args": [] }, { "method": "insert", "args": [15] }, { "method": "insert", "args": [25] }] },
+          "output": { "values": [25, 15], "isEmpty": false }
+        },
+        {
+          "id": "alternating insert and pop",
+          "input": { "operations": [{ "method": "insert", "args": [1] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [2] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [3] }] },
+          "output": { "values": [3], "isEmpty": false, "popResults": [1, 2] }
+        },
+        {
+          "id": "bulk insert then selective pop",
+          "input": { "operations": [{ "method": "insert", "args": [100] }, { "method": "insert", "args": [200] }, { "method": "insert", "args": [50] }, { "method": "insert", "args": [150] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "values": [100, 50], "isEmpty": false, "popResults": [200, 150] }
+        },
+        {
+          "id": "stress test with duplicates and mixed operations",
+          "input": { "operations": [{ "method": "insert", "args": [5] }, { "method": "insert", "args": [5] }, { "method": "insert", "args": [3] }, { "method": "insert", "args": [5] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [7] }, { "method": "clean", "args": [] }, { "method": "insert", "args": [1] }] },
+          "output": { "values": [1], "isEmpty": false, "popResult": 5 }
+        }
+      ]
+    }
+  ]
+}

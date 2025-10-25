@@ -3,10 +3,10 @@
     "include": ["src/**/*", "src/typings/**/*.d.ts"],
     "exclude": [],
     "compilerOptions": {
-        "typeRoots": ["node_modules/@types", "../../node_modules/@types"], // Ensure workspace dependencies are included
-        "baseUrl": ".", // Allow module resolution from the workspace root
+        "typeRoots": ["node_modules/@types", "../../node_modules/@types"], 
+        "baseUrl": ".",
         "paths": {
-            "wasm-nesting": ["../wasm-nesting/pkg"] // Map the wasm-nesting module to its output directory
+            "wasm-nesting": ["../wasm-nesting/pkg"]
         }
     }
 }
