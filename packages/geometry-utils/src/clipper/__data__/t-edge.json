@@ -1,0 +1,619 @@
+{
+  "suites": [
+    {
+      "id": "initialization",
+      "data": [
+        {
+          "id": "union_nonzero",
+          "input": {
+            "clipType": 1,
+            "fillType": 1
+          },
+          "output": {
+            "clipType": 1,
+            "fillType": 1
+          }
+        },
+        {
+          "id": "difference_positive",
+          "input": {
+            "clipType": 2,
+            "fillType": 2
+          },
+          "output": {
+            "clipType": 2,
+            "fillType": 2
+          }
+        },
+        {
+          "id": "difference_negative",
+          "input": {
+            "clipType": 2,
+            "fillType": 3
+          },
+          "output": {
+            "clipType": 2,
+            "fillType": 3
+          }
+        },
+        {
+          "id": "reset_edge",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "active": 0,
+            "sorted": 0
+          }
+        },
+        {
+          "id": "dispose_test",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "edgeDataLength": 0,
+            "windLength": 0,
+            "dxLength": 0,
+            "polyTypeLength": 0,
+            "sideLength": 0,
+            "pointsLength": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "path_creation",
+      "data": [
+        {
+          "id": "square_path",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": 1,
+            "hasEdges": true
+          }
+        },
+        {
+          "id": "triangle_path",
+          "input": {
+            "polygon": [
+              {"x": 50, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": 1,
+            "hasEdges": true
+          }
+        },
+        {
+          "id": "pentagon_path",
+          "input": {
+            "polygon": [
+              {"x": 50, "y": 0},
+              {"x": 100, "y": 30},
+              {"x": 80, "y": 100},
+              {"x": 20, "y": 100},
+              {"x": 0, "y": 30}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": 1,
+            "hasEdges": true
+          }
+        },
+        {
+          "id": "degenerate_path",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": 0,
+            "hasEdges": false
+          }
+        },
+        {
+          "id": "collinear_path",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 50, "y": 0},
+              {"x": 100, "y": 0}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "result": 0,
+            "hasEdges": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "geometry_access",
+      "data": [
+        {
+          "id": "get_coordinates_current",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "side": 0
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_coordinates_bottom",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "side": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_coordinates_top",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "side": 2
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_coordinates_delta",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "side": 3
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_point_reference",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "side": 0
+          },
+          "output": {
+            "hasPoint": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "comparison_methods",
+      "data": [
+        {
+          "id": "check_condition_greater",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "index1": 1,
+            "index2": 2,
+            "side1": 0,
+            "side2": 1,
+            "condition": 2,
+            "isX": true
+          },
+          "output": {
+            "hasResult": true
+          }
+        },
+        {
+          "id": "check_condition_equal",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "index1": 1,
+            "index2": 1,
+            "side1": 0,
+            "side2": 2,
+            "condition": 1,
+            "isX": false
+          },
+          "output": {
+            "hasResult": true
+          }
+        },
+        {
+          "id": "check_condition_less",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "index1": 1,
+            "index2": 2,
+            "side1": 1,
+            "side2": 2,
+            "condition": 4,
+            "isX": true
+          },
+          "output": {
+            "hasResult": true
+          }
+        },
+        {
+          "id": "almost_equal_same",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "index1": 1,
+            "index2": 1,
+            "side1": 0,
+            "side2": 0
+          },
+          "output": {
+            "result": true
+          }
+        },
+        {
+          "id": "almost_equal_different",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "index1": 1,
+            "index2": 2,
+            "side1": 0,
+            "side2": 1
+          },
+          "output": {
+            "hasResult": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "edge_management",
+      "data": [
+        {
+          "id": "get_dx_value",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_side_direction",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "find_next_local_minima",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_maxima_pair",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "has_next_local_minima",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "intersection_operations",
+      "data": [
+        {
+          "id": "horizontal_direction",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasArray": true
+          }
+        },
+        {
+          "id": "get_intermediate",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "y": 50
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_maxima",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "y": 50
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_hole_state",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "firstLeftIndex": 1,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasObject": true
+          }
+        },
+        {
+          "id": "get_stop",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "point": {"x": 50, "y": 50},
+            "isProtect": true
+          },
+          "output": {
+            "hasValue": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "utility_methods",
+      "data": [
+        {
+          "id": "calculate_dx",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "get_side_direction",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "update_coordinates",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "inputIndex": 1,
+            "updateIndex": 2,
+            "inputSide": 0,
+            "updateSide": 1
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "use_full_range",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 1000000, "y": 0},
+              {"x": 1000000, "y": 1000000},
+              {"x": 0, "y": 1000000}
+            ],
+            "polyType": 0
+          },
+          "output": {
+            "hasValue": true
+          }
+        },
+        {
+          "id": "record_index_operations",
+          "input": {
+            "polygon": [
+              {"x": 0, "y": 0},
+              {"x": 100, "y": 0},
+              {"x": 100, "y": 100},
+              {"x": 0, "y": 100}
+            ],
+            "polyType": 0,
+            "edgeIndex": 1,
+            "setValue": 5
+          },
+          "output": {
+            "expectedValue": 5
+          }
+        }
+      ]
+    }
+  ]
+}
