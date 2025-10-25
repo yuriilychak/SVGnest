@@ -30,3 +30,18 @@ export const cycle_index_wasm = (index: number, length: number, offset: number):
     }
     return newIndex % length;
 };
+
+// Calculate polygon area using the shoelace formula
+export const polygon_area_i32 = (polyData: Int32Array): number => {
+    const len = polyData.length;
+    if (len < 6) return 0; // Need at least 3 points (6 values)
+
+    let area = 0;
+    for (let i = 0; i < len; i += 2) {
+        const j = (i + 2) % len;
+        area += polyData[i] * polyData[j + 1];
+        area -= polyData[j] * polyData[i + 1];
+    }
+
+    return area / 2;
+};
