@@ -1,1 +1,1 @@
-pub const UNASSIGNED: usize = 0;
+pub const UNASSIGNED: isize = 0;

@@ -6,6 +6,7 @@ use crate::utils::{
     round::{ClipperRound, Round},
 };
 use num_traits::{FromPrimitive, Num, Signed, ToPrimitive};
+#[cfg(target_arch = "wasm32")]
 use std::arch::wasm32::*;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
@@ -62,6 +63,7 @@ impl Number for f64 {
         TOL_F64
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[inline(always)]
     fn polygon_area(points: &[Self]) -> f64 {
         let len = points.len();
@@ -94,6 +96,31 @@ impl Number for f64 {
 
         return 0.5 * (f64x2_extract_lane::<0>(acc) + f64x2_extract_lane::<1>(acc));
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline(always)]
+    fn polygon_area(points: &[Self]) -> f64 {
+        let len = points.len();
+
+        if len < 6 || len & 1 != 0 {
+            return 0.0;
+        }
+
+        let n_points = len >> 1;
+        let mut acc = 0.0;
+
+        for i in 0..n_points {
+            let base = i << 1;
+            let x0 = points[wrap(base, 0, len)];
+            let y0 = points[wrap(base, 1, len)];
+            let x1 = points[wrap(base, 2, len)];
+            let y1 = points[wrap(base, 3, len)];
+
+            acc += y0 * x1 - x0 * y1;
+        }
+
+        return 0.5 * acc;
+    }
 }
 
 impl Number for f32 {
@@ -110,6 +137,7 @@ impl Number for f32 {
         TOL_F32
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[inline(always)]
     fn polygon_area(points: &[Self]) -> f64 {
         let len = points.len();
@@ -155,6 +183,31 @@ impl Number for f32 {
                 .to_f64()
                 .unwrap();
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline(always)]
+    fn polygon_area(points: &[Self]) -> f64 {
+        let len = points.len();
+
+        if len < 6 || len & 1 != 0 {
+            return 0.0;
+        }
+
+        let n_points = len >> 1;
+        let mut acc = 0.0f32;
+
+        for i in 0..n_points {
+            let base = i << 1;
+            let x0 = points[wrap(base, 0, len)];
+            let y0 = points[wrap(base, 1, len)];
+            let x1 = points[wrap(base, 2, len)];
+            let y1 = points[wrap(base, 3, len)];
+
+            acc += y0 * x1 - x0 * y1;
+        }
+
+        return (0.5 * acc).to_f64().unwrap();
+    }
 }
 
 impl Number for i32 {
@@ -171,6 +224,7 @@ impl Number for i32 {
         0
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[inline(always)]
     fn polygon_area(points: &[Self]) -> f64 {
         let len = points.len();
@@ -205,5 +259,30 @@ impl Number for i32 {
             * (i64x2_extract_lane::<0>(acc) + i64x2_extract_lane::<1>(acc))
                 .to_f64()
                 .unwrap();
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline(always)]
+    fn polygon_area(points: &[Self]) -> f64 {
+        let len = points.len();
+
+        if len < 6 || len & 1 != 0 {
+            return 0.0;
+        }
+
+        let n_points = len >> 1;
+        let mut acc = 0i64;
+
+        for i in 0..n_points {
+            let base = i << 1;
+            let x0 = points[wrap(base, 0, len)] as i64;
+            let y0 = points[wrap(base, 1, len)] as i64;
+            let x1 = points[wrap(base, 2, len)] as i64;
+            let y1 = points[wrap(base, 3, len)] as i64;
+
+            acc += y0 * x1 - x0 * y1;
+        }
+
+        return 0.5 * acc as f64;
     }
 }

@@ -12,7 +12,6 @@ use crate::nesting::pair_flow::pair_data;
 
 use crate::clipper::utils::clean_polygon;
 use crate::clipper::{
-    clipper::Clipper,
     enums::{ClipType, PolyFillType, PolyType},
 };
 use crate::geometry::point::Point;
@@ -169,23 +168,5 @@ pub fn clean_polygon_wasm(buff: &[i32], distance: f64) -> Int32Array {
     let packed = pack_polygon_to_i32(&cleaned_polygon);
     let out = Int32Array::new_with_length(packed.len() as u32);
     out.copy_from(&packed);
-    out
-}
-
-#[wasm_bindgen]
-pub fn clean_node(buff: &[f32]) -> Int32Array {
-    let clipper_polygon = from_mem_seg(buff);
-    let mut simple: Vec<Vec<Point<i32>>> = Vec::new();
-    let mut clipper = Clipper::new(false, true);
-
-    clipper.add_path(&clipper_polygon, PolyType::Subject);
-    clipper.execute(ClipType::Union, &mut simple, PolyFillType::NonZero);
-
-    let packed = pack_points_to_i32(&simple);
-
-    let out = Int32Array::new_with_length(packed.len() as u32);
-
-    out.copy_from(&packed);
-
     out
 }
