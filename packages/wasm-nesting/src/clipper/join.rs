@@ -44,11 +44,11 @@ impl Join {
     /// * `usize` - The length of the specified array
     ///
     /// Equivalent to TypeScript getLength(isGhost: boolean): number
-    pub fn get_length(&self, is_ghost: bool) -> usize {
+    pub fn get_length(&self, is_ghost: bool) -> isize {
         if is_ghost {
-            self.ghost_joins.len()
+            self.ghost_joins.len() as isize
         } else {
-            self.joins.len()
+            self.joins.len() as isize
         }
     }
 
@@ -206,16 +206,16 @@ impl Join {
     ///
     /// # Returns
     /// * `usize` - The number of regular joins
-    pub fn joins_len(&self) -> usize {
-        self.joins.len()
+    pub fn joins_len(&self) -> isize {
+        self.joins.len() as isize
     }
 
     /// Gets the number of ghost joins
     ///
     /// # Returns
     /// * `usize` - The number of ghost joins
-    pub fn ghost_joins_len(&self) -> usize {
-        self.ghost_joins.len()
+    pub fn ghost_joins_len(&self) -> isize {
+        self.ghost_joins.len() as isize
     }
 
     /// Checks if both joins and ghost joins are empty

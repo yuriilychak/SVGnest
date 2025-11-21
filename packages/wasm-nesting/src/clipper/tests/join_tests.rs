@@ -56,7 +56,9 @@ struct TestSuite {
 }
 
 /// Execute operations and collect results
-fn execute_operations_and_get_results(operations: &[TestOperation]) -> HashMap<String, serde_json::Value> {
+fn execute_operations_and_get_results(
+    operations: &[TestOperation],
+) -> HashMap<String, serde_json::Value> {
     let mut join = Join::new();
     let mut results = HashMap::new();
 
@@ -66,7 +68,7 @@ fn execute_operations_and_get_results(operations: &[TestOperation]) -> HashMap<S
                 if operation.args.len() >= 3 {
                     let out_hash1 = operation.args[0].as_i64().unwrap_or(0) as isize;
                     let out_hash2 = operation.args[1].as_i64().unwrap_or(0) as isize;
-                    
+
                     if let Some(point_obj) = operation.args[2].as_object() {
                         let x = point_obj.get("x").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
                         let y = point_obj.get("y").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
@@ -131,7 +133,9 @@ fn execute_operations_and_get_results(operations: &[TestOperation]) -> HashMap<S
         );
         results.insert(
             format!("getHash1_{}_regular", i),
-            serde_json::Value::Number(serde_json::Number::from(join.get_hash1(i_isize, false) as i64)),
+            serde_json::Value::Number(serde_json::Number::from(
+                join.get_hash1(i_isize, false) as i64
+            )),
         );
         results.insert(
             format!("getHash2_{}", i),
@@ -152,7 +156,9 @@ fn execute_operations_and_get_results(operations: &[TestOperation]) -> HashMap<S
         );
         results.insert(
             format!("getHash1_{}_ghost", i),
-            serde_json::Value::Number(serde_json::Number::from(join.get_hash1(i_isize, true) as i64)),
+            serde_json::Value::Number(serde_json::Number::from(
+                join.get_hash1(i_isize, true) as i64
+            )),
         );
     }
 
@@ -310,7 +316,8 @@ mod tests {
             for test_case in suite.data {
                 println!("  Running test: {}", test_case.id);
 
-                let actual_results = execute_operations_and_get_results(&test_case.input.operations);
+                let actual_results =
+                    execute_operations_and_get_results(&test_case.input.operations);
 
                 // Check length_regular
                 if let Some(expected_length) = test_case.output.length_regular {
@@ -342,12 +349,36 @@ mod tests {
 
                 // Check regular join getters
                 let regular_getters = [
-                    ("get_x_0_regular", test_case.output.get_x_0_regular, "getX_0_regular"),
-                    ("get_y_0_regular", test_case.output.get_y_0_regular, "getY_0_regular"),
-                    ("get_x_1_regular", test_case.output.get_x_1_regular, "getX_1_regular"),
-                    ("get_y_1_regular", test_case.output.get_y_1_regular, "getY_1_regular"),
-                    ("get_x_2_regular", test_case.output.get_x_2_regular, "getX_2_regular"),
-                    ("get_y_2_regular", test_case.output.get_y_2_regular, "getY_2_regular"),
+                    (
+                        "get_x_0_regular",
+                        test_case.output.get_x_0_regular,
+                        "getX_0_regular",
+                    ),
+                    (
+                        "get_y_0_regular",
+                        test_case.output.get_y_0_regular,
+                        "getY_0_regular",
+                    ),
+                    (
+                        "get_x_1_regular",
+                        test_case.output.get_x_1_regular,
+                        "getX_1_regular",
+                    ),
+                    (
+                        "get_y_1_regular",
+                        test_case.output.get_y_1_regular,
+                        "getY_1_regular",
+                    ),
+                    (
+                        "get_x_2_regular",
+                        test_case.output.get_x_2_regular,
+                        "getX_2_regular",
+                    ),
+                    (
+                        "get_y_2_regular",
+                        test_case.output.get_y_2_regular,
+                        "getY_2_regular",
+                    ),
                 ];
 
                 for (desc, expected, key) in regular_getters {
@@ -368,12 +399,36 @@ mod tests {
 
                 // Check ghost join getters
                 let ghost_getters = [
-                    ("get_x_0_ghost", test_case.output.get_x_0_ghost, "getX_0_ghost"),
-                    ("get_y_0_ghost", test_case.output.get_y_0_ghost, "getY_0_ghost"),
-                    ("get_x_1_ghost", test_case.output.get_x_1_ghost, "getX_1_ghost"),
-                    ("get_y_1_ghost", test_case.output.get_y_1_ghost, "getY_1_ghost"),
-                    ("get_x_2_ghost", test_case.output.get_x_2_ghost, "getX_2_ghost"),
-                    ("get_y_2_ghost", test_case.output.get_y_2_ghost, "getY_2_ghost"),
+                    (
+                        "get_x_0_ghost",
+                        test_case.output.get_x_0_ghost,
+                        "getX_0_ghost",
+                    ),
+                    (
+                        "get_y_0_ghost",
+                        test_case.output.get_y_0_ghost,
+                        "getY_0_ghost",
+                    ),
+                    (
+                        "get_x_1_ghost",
+                        test_case.output.get_x_1_ghost,
+                        "getX_1_ghost",
+                    ),
+                    (
+                        "get_y_1_ghost",
+                        test_case.output.get_y_1_ghost,
+                        "getY_1_ghost",
+                    ),
+                    (
+                        "get_x_2_ghost",
+                        test_case.output.get_x_2_ghost,
+                        "getX_2_ghost",
+                    ),
+                    (
+                        "get_y_2_ghost",
+                        test_case.output.get_y_2_ghost,
+                        "getY_2_ghost",
+                    ),
                 ];
 
                 for (desc, expected, key) in ghost_getters {
@@ -394,12 +449,36 @@ mod tests {
 
                 // Check hash getters
                 let hash_getters = [
-                    ("get_hash1_0_regular", test_case.output.get_hash1_0_regular, "getHash1_0_regular"),
-                    ("get_hash1_1_regular", test_case.output.get_hash1_1_regular, "getHash1_1_regular"),
-                    ("get_hash1_2_regular", test_case.output.get_hash1_2_regular, "getHash1_2_regular"),
-                    ("get_hash1_0_ghost", test_case.output.get_hash1_0_ghost, "getHash1_0_ghost"),
-                    ("get_hash1_1_ghost", test_case.output.get_hash1_1_ghost, "getHash1_1_ghost"),
-                    ("get_hash1_2_ghost", test_case.output.get_hash1_2_ghost, "getHash1_2_ghost"),
+                    (
+                        "get_hash1_0_regular",
+                        test_case.output.get_hash1_0_regular,
+                        "getHash1_0_regular",
+                    ),
+                    (
+                        "get_hash1_1_regular",
+                        test_case.output.get_hash1_1_regular,
+                        "getHash1_1_regular",
+                    ),
+                    (
+                        "get_hash1_2_regular",
+                        test_case.output.get_hash1_2_regular,
+                        "getHash1_2_regular",
+                    ),
+                    (
+                        "get_hash1_0_ghost",
+                        test_case.output.get_hash1_0_ghost,
+                        "getHash1_0_ghost",
+                    ),
+                    (
+                        "get_hash1_1_ghost",
+                        test_case.output.get_hash1_1_ghost,
+                        "getHash1_1_ghost",
+                    ),
+                    (
+                        "get_hash1_2_ghost",
+                        test_case.output.get_hash1_2_ghost,
+                        "getHash1_2_ghost",
+                    ),
                     ("get_hash2_0", test_case.output.get_hash2_0, "getHash2_0"),
                     ("get_hash2_1", test_case.output.get_hash2_1, "getHash2_1"),
                     ("get_hash2_2", test_case.output.get_hash2_2, "getHash2_2"),
@@ -449,7 +528,7 @@ mod tests {
     #[test]
     fn test_empty_state_operations() {
         let mut join = Join::new();
-        
+
         assert_eq!(join.get_length(false), 0);
         assert_eq!(join.get_length(true), 0);
 
@@ -464,7 +543,7 @@ mod tests {
     #[test]
     fn test_large_numbers() {
         let mut join = Join::new();
-        
+
         // Use values within i32/isize range
         let large_hash1 = 2147483647isize; // Max i32 as isize
         let large_hash2 = 2147483646isize;
