@@ -7,7 +7,7 @@ export default class Join {
     // Convert to tuple Vector (i32, i32, usize) for easier access in Rust
     private ghostJoins: number[][] = [];
 
-    public getLength(isGhost: boolean): number {
+    public getLength(isGhost: boolean): isize {
         return isGhost ? this.ghostJoins.length : this.joins.length;
     }   
 

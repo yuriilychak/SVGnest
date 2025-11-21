@@ -3,6 +3,8 @@
 
 pub mod constants;
 pub mod enums;
+pub mod join;
+pub mod local_minima;
 pub mod scanbeam;
 pub mod utils;
 
