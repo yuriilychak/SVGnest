@@ -31,15 +31,15 @@ struct TestOutput {
     get_y_1_ghost: Option<i32>,
     get_x_2_ghost: Option<i32>,
     get_y_2_ghost: Option<i32>,
-    get_hash1_0_regular: Option<isize>,
-    get_hash1_1_regular: Option<isize>,
-    get_hash1_2_regular: Option<isize>,
-    get_hash1_0_ghost: Option<isize>,
-    get_hash1_1_ghost: Option<isize>,
-    get_hash1_2_ghost: Option<isize>,
-    get_hash2_0: Option<isize>,
-    get_hash2_1: Option<isize>,
-    get_hash2_2: Option<isize>,
+    get_hash1_0_regular: Option<usize>,
+    get_hash1_1_regular: Option<usize>,
+    get_hash1_2_regular: Option<usize>,
+    get_hash1_0_ghost: Option<usize>,
+    get_hash1_1_ghost: Option<usize>,
+    get_hash1_2_ghost: Option<usize>,
+    get_hash2_0: Option<usize>,
+    get_hash2_1: Option<usize>,
+    get_hash2_2: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -66,8 +66,8 @@ fn execute_operations_and_get_results(
         match operation.method.as_str() {
             "add" => {
                 if operation.args.len() >= 3 {
-                    let out_hash1 = operation.args[0].as_i64().unwrap_or(0) as isize;
-                    let out_hash2 = operation.args[1].as_i64().unwrap_or(0) as isize;
+                    let out_hash1 = operation.args[0].as_i64().unwrap_or(0) as usize;
+                    let out_hash2 = operation.args[1].as_i64().unwrap_or(0) as usize;
 
                     if let Some(point_obj) = operation.args[2].as_object() {
                         let x = point_obj.get("x").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
@@ -79,7 +79,7 @@ fn execute_operations_and_get_results(
             }
             "addGhost" => {
                 if operation.args.len() >= 3 {
-                    let hash = operation.args[0].as_i64().unwrap_or(0) as isize;
+                    let hash = operation.args[0].as_i64().unwrap_or(0) as usize;
                     let x = operation.args[1].as_i64().unwrap_or(0) as i32;
                     let y = operation.args[2].as_i64().unwrap_or(0) as i32;
                     join.add_ghost(hash, x, y);
@@ -87,16 +87,16 @@ fn execute_operations_and_get_results(
             }
             "fromGhost" => {
                 if operation.args.len() >= 2 {
-                    let index = operation.args[0].as_i64().unwrap_or(0) as isize;
-                    let hash = operation.args[1].as_i64().unwrap_or(0) as isize;
+                    let index = operation.args[0].as_i64().unwrap_or(0) as usize;
+                    let hash = operation.args[1].as_i64().unwrap_or(0) as usize;
                     join.from_ghost(index, hash);
                 }
             }
             "updateHash" => {
                 if operation.args.len() >= 3 {
-                    let index = operation.args[0].as_i64().unwrap_or(0) as isize;
-                    let hash1 = operation.args[1].as_i64().unwrap_or(0) as isize;
-                    let hash2 = operation.args[2].as_i64().unwrap_or(0) as isize;
+                    let index = operation.args[0].as_i64().unwrap_or(0) as usize;
+                    let hash1 = operation.args[1].as_i64().unwrap_or(0) as usize;
+                    let hash2 = operation.args[2].as_i64().unwrap_or(0) as usize;
                     join.update_hash(index, hash1, hash2);
                 }
             }
@@ -122,42 +122,42 @@ fn execute_operations_and_get_results(
 
     // Get values for regular joins (up to 3 indices)
     for i in 0..std::cmp::min(3, join.get_length(false)) {
-        let i_isize = i as isize;
+        let i_usize = i as usize;
         results.insert(
             format!("getX_{}_regular", i),
-            serde_json::Value::Number(serde_json::Number::from(join.get_x(i_isize, false))),
+            serde_json::Value::Number(serde_json::Number::from(join.get_x(i_usize, false))),
         );
         results.insert(
             format!("getY_{}_regular", i),
-            serde_json::Value::Number(serde_json::Number::from(join.get_y(i_isize, false))),
+            serde_json::Value::Number(serde_json::Number::from(join.get_y(i_usize, false))),
         );
         results.insert(
             format!("getHash1_{}_regular", i),
             serde_json::Value::Number(serde_json::Number::from(
-                join.get_hash1(i_isize, false) as i64
+                join.get_hash1(i_usize, false) as i64
             )),
         );
         results.insert(
             format!("getHash2_{}", i),
-            serde_json::Value::Number(serde_json::Number::from(join.get_hash2(i_isize) as i64)),
+            serde_json::Value::Number(serde_json::Number::from(join.get_hash2(i_usize) as i64)),
         );
     }
 
     // Get values for ghost joins (up to 3 indices)
     for i in 0..std::cmp::min(3, join.get_length(true)) {
-        let i_isize = i as isize;
+        let i_usize = i as usize;
         results.insert(
             format!("getX_{}_ghost", i),
-            serde_json::Value::Number(serde_json::Number::from(join.get_x(i_isize, true))),
+            serde_json::Value::Number(serde_json::Number::from(join.get_x(i_usize, true))),
         );
         results.insert(
             format!("getY_{}_ghost", i),
-            serde_json::Value::Number(serde_json::Number::from(join.get_y(i_isize, true))),
+            serde_json::Value::Number(serde_json::Number::from(join.get_y(i_usize, true))),
         );
         results.insert(
             format!("getHash1_{}_ghost", i),
             serde_json::Value::Number(serde_json::Number::from(
-                join.get_hash1(i_isize, true) as i64
+                join.get_hash1(i_usize, true) as i64
             )),
         );
     }
@@ -254,31 +254,31 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                             .and_then(|v| v.as_i64().map(|i| i as i32)),
                         get_hash1_0_regular: output_data
                             .and_then(|o| o.get("getHash1_0_regular"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash1_1_regular: output_data
                             .and_then(|o| o.get("getHash1_1_regular"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash1_2_regular: output_data
                             .and_then(|o| o.get("getHash1_2_regular"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash1_0_ghost: output_data
                             .and_then(|o| o.get("getHash1_0_ghost"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash1_1_ghost: output_data
                             .and_then(|o| o.get("getHash1_1_ghost"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash1_2_ghost: output_data
                             .and_then(|o| o.get("getHash1_2_ghost"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash2_0: output_data
                             .and_then(|o| o.get("getHash2_0"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash2_1: output_data
                             .and_then(|o| o.get("getHash2_1"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_hash2_2: output_data
                             .and_then(|o| o.get("getHash2_2"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                     };
 
                     test_cases.push(TestCase {
@@ -489,7 +489,7 @@ mod tests {
                         let actual_val = actual_results
                             .get(key)
                             .and_then(|v| v.as_i64())
-                            .map(|i| i as isize);
+                            .map(|i| i as usize);
                         assert_eq!(
                             actual_val,
                             Some(expected_val),
@@ -544,9 +544,9 @@ mod tests {
     fn test_large_numbers() {
         let mut join = Join::new();
 
-        // Use values within i32/isize range
-        let large_hash1 = 2147483647isize; // Max i32 as isize
-        let large_hash2 = 2147483646isize;
+        // Use values within i32/usize range
+        let large_hash1 = 2147483647usize; // Max i32 as usize
+        let large_hash2 = 2147483646usize;
         let large_x = 2147483645i32;
         let large_y = 2147483644i32;
 
@@ -568,7 +568,7 @@ mod tests {
         // Add 1000 regular joins
         for i in 0..1000 {
             let point = Point::new(Some(i * 2), Some(i * 3));
-            join.add(i as isize, (i + 1000) as isize, &point);
+            join.add(i as usize, (i + 1000) as usize, &point);
         }
 
         let duration = start.elapsed();
@@ -583,7 +583,7 @@ mod tests {
 
         // Add 1000 ghost joins
         for i in 0..1000 {
-            join.add_ghost(i as isize, i * 2, i * 3);
+            join.add_ghost(i as usize, i * 2, i * 3);
         }
 
         let duration = start.elapsed();

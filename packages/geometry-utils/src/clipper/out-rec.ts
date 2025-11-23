@@ -3,9 +3,14 @@ import { Point } from '../types';
 import { UNASSIGNED } from './constants';
 import { Direction } from './enums';
 import { PointI32 } from '../geometry';
+import { usize, u16, u32, i32 } from './types';
+
 export default class OutRec {
+    // should be Vector<(u16, u16, u16, u16)>
     private recData: Uint16Array[] = [];
+    // should be Vector<(u16, u16)>
     private pointNeighboars: Uint16Array[] = [];
+    // should be Vector<Point<i32>>
     private points: Point<Int32Array>[] = [];
     private isReverseSolution: boolean = false;
     private isStrictlySimple: boolean = false;
@@ -19,35 +24,35 @@ export default class OutRec {
         return this.isStrictlySimple;
     }
 
-    private getRectData(index: number, dataIndex: number): number {
+    private getRectData(index: usize, dataIndex: usize): u16 {
         return this.recData[index - 1][dataIndex];
     }
 
-    private setRectData(index: number, dataIndex: number, value: number) {
+    private setRectData(index: usize, dataIndex: usize, value: u16) {
         this.recData[index - 1][dataIndex] = value;
     }
 
-    public isUnassigned(index: number): boolean {
+    public isUnassigned(index: usize): boolean {
         return this.getRectData(index, 0) === UNASSIGNED;
     }
 
-    public currentIndex(index: number): number {
+    public currentIndex(index: usize): u16 {
         return this.getRectData(index, 1);
     }
 
-    private setCurrentIndex(index1: number, index2: number): void {
+    private setCurrentIndex(index1: usize, index2: usize): void {
         this.setRectData(index1, 1, this.getRectData(index2, 1));
     }
 
-    public firstLeftIndex(index: number): number {
+    public firstLeftIndex(index: usize): usize {
         return index !== UNASSIGNED ? this.getRectData(index, 2) : UNASSIGNED;
     }
 
-    private setFirstLeftIndex(index: number, value: number): void {
+    private setFirstLeftIndex(index: usize, value: u16): void {
         this.setRectData(index, 2, value);
     }
 
-    private getHoleStateRec(index1: number, index2: number): number {
+    private getHoleStateRec(index1: usize, index2: usize): usize {
         switch (true) {
             case this.param1RightOfParam2(index1, index2):
                 return index2;
@@ -58,7 +63,7 @@ export default class OutRec {
         }
     }
 
-    public setHoleState(recIndex: number, isHole: boolean, index: number): void {
+    public setHoleState(recIndex: usize, isHole: boolean, index: usize): void {
         if (this.firstLeftIndex(recIndex) === UNASSIGNED && index !== UNASSIGNED) {
             this.setFirstLeftIndex(recIndex, index);
         }
@@ -68,10 +73,11 @@ export default class OutRec {
         }
     }
 
-    public getJoinData(recIndex: number, direction: Direction, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
+    //returns tuple (usize, i32, i32))
+    public getJoinData(recIndex: usize, direction: Direction, top: Point<Int32Array>, bottom: Point<Int32Array>): number[] {
         //get the last Op for this horizontal edge
         //the point may be anywhere along the horizontal ...
-        const index: number =
+        const index: usize =
             direction === Direction.Right
                 ? this.prev(this.pointIndex(recIndex))
                 : this.pointIndex(recIndex);
@@ -80,8 +86,8 @@ export default class OutRec {
         return [this.getHash(recIndex, index), offPoint.x, offPoint.y];
     }
 
-    public getOutRec(index: number): number {
-        let result: number = index;
+    public getOutRec(index: usize): usize {
+        let result: usize = index;
 
         while (result !== this.currentIndex(result)) {
             result = this.currentIndex(result);
@@ -90,7 +96,7 @@ export default class OutRec {
         return result;
     }
 
-    private export(recIndex: number): Point<Int32Array>[] {
+    private export(recIndex: usize): Point<Int32Array>[] {
         const index = this.pointIndex(recIndex);
         const pointCount = this.getLength(index);
 
@@ -100,8 +106,8 @@ export default class OutRec {
 
         const result: Point<Int32Array>[] = new Array(pointCount);
         const prevIndex = this.prev(index);
-        let outPt: number = prevIndex;
-        let i: number = 0;
+        let outPt: usize = prevIndex;
+        let i: usize = 0;
 
         for (i = 0; i < pointCount; ++i) {
             result[i] = PointI32.create(this.pointX(outPt), this.pointY(outPt));
@@ -127,7 +133,7 @@ export default class OutRec {
         }
     }
 
-    public create(pointIndex: number): number {
+    public create(pointIndex: usize): usize {
         const index = this.recData.length + 1;
 
         this.recData.push(new Uint16Array([pointIndex, index, UNASSIGNED, 0]));
@@ -141,11 +147,11 @@ export default class OutRec {
         this.pointNeighboars.length = 0;
     }
 
-    private fixupOutPolygonInner(recIndex: number, preserveCollinear: boolean, useFullRange: boolean): number {
+    private fixupOutPolygonInner(recIndex: usize, preserveCollinear: boolean, useFullRange: boolean): usize {
         const index = this.pointIndex(recIndex);
         //FixupOutPolygon() - removes duplicate points and simplifies consecutive
         //parallel edges by removing the middle vertex.
-        let lastOutIndex: number = UNASSIGNED;
+        let lastOutIndex: usize = UNASSIGNED;
         let outPt = index;
 
         while (true) {
@@ -196,9 +202,9 @@ export default class OutRec {
         }
     }
 
-    private getLowermostRec(outRec1Index: number, outRec2Index: number): number {
-        const bIndex1: number = this.getBottomPt(outRec1Index);
-        const bIndex2: number = this.getBottomPt(outRec2Index);
+    private getLowermostRec(outRec1Index: usize, outRec2Index: usize): usize {
+        const bIndex1: usize = this.getBottomPt(outRec1Index);
+        const bIndex2: usize = this.getBottomPt(outRec2Index);
         const offsetX = this.pointX(bIndex1) - this.pointX(bIndex2);
         const offsetY = this.pointY(bIndex1) - this.pointY(bIndex2);
 
@@ -218,7 +224,7 @@ export default class OutRec {
         }
     }
 
-    private split(op1Index: number, op2Index: number): void {
+    private split(op1Index: usize, op2Index: usize): void {
         const op1Prev = this.prev(op1Index);
         const op2Prev = this.prev(op2Index);
 
@@ -226,7 +232,7 @@ export default class OutRec {
         this.push(op1Prev, op2Index, true);
     }
 
-    private canSplit(index1: number, index2: number): boolean {
+    private canSplit(index1: usize, index2: usize): boolean {
         return (
             this.innerEqual(index2, index1) &&
             this.next(index2) != index1 &&
@@ -234,7 +240,7 @@ export default class OutRec {
         );
     }
 
-    private simplify(recIndex: number): void {
+    private simplify(recIndex: usize): void {
         if (this.isUnassigned(recIndex)) {
             return;
         }
@@ -267,7 +273,7 @@ export default class OutRec {
         } while (currIndex != inputIndex);
     }
 
-    private updateSplit(index1: number, index2: number): void {
+    private updateSplit(index1: usize, index2: usize): void {
         if (this.containsPoly(index1, index2)) {
             //OutRec2 is contained by OutRec1 ...
             this.setHole(index2, !this.isHole(index1));
@@ -285,22 +291,22 @@ export default class OutRec {
         }
     }
 
-    private postInit(recIndex: number): void {
+    private postInit(recIndex: usize): void {
         this.setHole(recIndex, !this.isHole(recIndex));
         this.setFirstLeftIndex(recIndex, recIndex);
 
         this.reverse(recIndex);
     }
 
-    private getLength(index: number): number {
+    private getLength(index: usize): usize {
         const prevIndex = this.prev(index);
 
         if (prevIndex === UNASSIGNED) {
             return 0;
         }
 
-        let result: number = 0;
-        let outPt: number = prevIndex;
+        let result: usize = 0;
+        let outPt: usize = prevIndex;
 
         do {
             ++result;
@@ -310,13 +316,13 @@ export default class OutRec {
         return result;
     }
 
-    private join(recIndex1: number, recIndex2: number, side1: Direction, side2: Direction): void {
-        const index1: number = this.pointIndex(recIndex1);
-        const index2: number = this.pointIndex(recIndex2);
-        const prevIndex1: number = this.prev(index1);
-        const prevIndex2: number = this.prev(index2);
+    private join(recIndex1: usize, recIndex2: usize, side1: Direction, side2: Direction): void {
+        const index1: usize = this.pointIndex(recIndex1);
+        const index2: usize = this.pointIndex(recIndex2);
+        const prevIndex1: usize = this.prev(index1);
+        const prevIndex2: usize = this.prev(index2);
         const isLeft = side1 === Direction.Left;
-        let pointIndex: number;
+        let pointIndex: usize;
 
         if (side1 === side2) {
             this.reverseInner(index2);
@@ -334,14 +340,14 @@ export default class OutRec {
         this.setPointIndex(recIndex1, pointIndex);
     }
 
-    public getHash(recIndex: number, pointIndex: number): number {
+    public getHash(recIndex: usize, pointIndex: usize): u32 {
         return join_u16(recIndex, pointIndex);
     }
 
-    public addOutPt(recIndex: number, isToFront: boolean, point: Point<Int32Array>): number {
-        const outRec: number = this.getOutRec(recIndex);
+    public addOutPt(recIndex: usize, isToFront: boolean, point: Point<Int32Array>): number {
+        const outRec: usize = this.getOutRec(recIndex);
         //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
-        const op: number = this.pointIndex(outRec);
+        const op: usize = this.pointIndex(outRec);
 
         if (isToFront && this.pointEqual(op, point)) {
             return op;
@@ -364,19 +370,19 @@ export default class OutRec {
         return newIndex;
     }
 
-    private pointIn(inputIndex: number, outIndex: number): number {
+    private pointIn(inputIndex: usize, outIndex: usize): i32 {
         //returns 0 if false, +1 if true, -1 if pt ON polygon boundary
         //http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.88.5498&rep=rep1&type=pdf
         const outX = this.pointX(outIndex);
         const outY = this.pointY(outIndex);
-        let outPt: number = inputIndex;
-        let startOutPt: number = outPt;
-        let result: number = 0;
-        let poly0x: number = 0;
-        let poly0y: number = 0;
-        let poly1x: number = 0;
-        let poly1y: number = 0;
-        let d: number = 0;
+        let outPt: usize = inputIndex;
+        let startOutPt: usize = outPt;
+        let result: i32 = 0;
+        let poly0x: i32 = 0;
+        let poly0y: i32 = 0;
+        let poly1x: i32 = 0;
+        let poly1y: i32 = 0;
+        let d: i32 = 0;
 
         while (true) {
             const nextPt = this.next(outPt);
@@ -420,23 +426,23 @@ export default class OutRec {
         return result;
     }
 
-    private pointIndex(index: number): number {
+    private pointIndex(index: usize): usize {
         return this.getRectData(index, 0);
     }
 
-    private setPointIndex(index: number, value: number): void {
+    private setPointIndex(index: usize, value: usize): void {
         this.setRectData(index, 0, value);
     }
 
-    private isHole(index: number): boolean {
+    private isHole(index: usize): boolean {
         return this.getRectData(index, 3) === 1;
     }
 
-    private setHole(index: number, value: boolean): void {
+    private setHole(index: usize, value: boolean): void {
         this.setRectData(index, 3, value ? 1 : 0);
     }
 
-    private param1RightOfParam2(outRec1Index: number, outRec2Index: number): boolean {
+    private param1RightOfParam2(outRec1Index: usize, outRec2Index: usize): boolean {
         let innerIndex = outRec1Index;
 
         do {
@@ -450,12 +456,12 @@ export default class OutRec {
         return false;
     }
 
-    private containsPoly(recIndex1: number, recIndex2: number): boolean {
+    private containsPoly(recIndex1: usize, recIndex2: usize): boolean {
         const index1 = this.pointIndex(recIndex1);
         const index2 = this.pointIndex(recIndex2);
 
-        let currIndex: number = index2;
-        let res: number = 0;
+        let currIndex: usize = index2;
+        let res: usize = 0;
 
         do {
             res = this.pointIn(index1, currIndex);
@@ -470,19 +476,19 @@ export default class OutRec {
         return true;
     }
 
-    private reverse(index: number): void {
+    private reverse(index: usize): void {
         if (!this.isUnassigned(index) && (this.isHole(index) !== this.isReverseSolution) === this.getArea(index) > 0) {
             this.reverseInner(this.pointIndex(index));
         }
     }
 
-    private getArea(recIndex: number): number {
+    private getArea(recIndex: usize): usize {
         const index = this.pointIndex(recIndex);
-        let outPt: number = index;
-        let result: number = 0;
+        let outPt: usize = index;
+        let result: usize = 0;
 
         do {
-            let prevPt: number = this.prev(outPt);
+            let prevPt: usize = this.prev(outPt);
             result = result + (this.pointX(prevPt) + this.pointX(outPt)) * (this.pointY(prevPt) - this.pointY(outPt));
             outPt = this.next(outPt);
         } while (outPt != index);
@@ -490,11 +496,11 @@ export default class OutRec {
         return result * 0.5;
     }
 
-    private getBottomPt(recIndex: number): number {
+    private getBottomPt(recIndex: usize): usize {
         const inputIndex = this.pointIndex(recIndex);
         let outIndex1 = inputIndex;
         let outIndex2 = this.next(inputIndex);
-        let dupsIndex: number = UNASSIGNED;
+        let dupsIndex: usize = UNASSIGNED;
 
         while (outIndex2 !== outIndex1) {
             if (this.pointY(outIndex2) > this.pointY(outIndex1)) {
@@ -530,7 +536,7 @@ export default class OutRec {
         return outIndex1;
     }
 
-    private searchBottom(index: number, outIndex1: number, outIndex2: number, isNext: boolean): number {
+    private searchBottom(index: usize, outIndex1: usize, outIndex2: usize, isNext: boolean): usize {
         let currIndex = index;
         let nghbIndex = this.getNeighboarIndex(currIndex, isNext);
 
@@ -542,7 +548,8 @@ export default class OutRec {
         return currIndex;
     }
 
-    public flatHorizontal(index: number, outIndex1: number, outIndex2: number): number[] {
+    // should return tuple (usize, usize)
+    public flatHorizontal(index: usize, outIndex1: usize, outIndex2: usize): usize[] {
         const outIndex = this.searchBottom(index, index, outIndex2, false);
         const outBIndex = this.searchBottom(index, outIndex, outIndex1, true);
         const outBIndexNext = this.next(outBIndex);
@@ -550,7 +557,7 @@ export default class OutRec {
         return outBIndexNext === outIndex || outBIndexNext === outIndex1 ? [UNASSIGNED, UNASSIGNED] : [outIndex, outBIndex];
     }
 
-    public strictlySimpleJoin(index: number, point: Point<Int32Array>): boolean {
+    public strictlySimpleJoin(index: usize, point: Point<Int32Array>): boolean {
         let result = this.next(index);
 
         while (result !== index && this.pointEqual(result, point)) {
@@ -560,7 +567,7 @@ export default class OutRec {
         return this.pointY(result) > point.y;
     }
 
-    public applyJoin(index1: number, index2: number, reverse: boolean): number {
+    public applyJoin(index1: usize, index2: usize, reverse: boolean): usize {
         const op1b = this.duplicate(index1, !reverse);
         const op2b = this.duplicate(index2, reverse);
 
@@ -575,7 +582,7 @@ export default class OutRec {
         return op1b;
     }
 
-    public getUniquePt(index: number, isNext: boolean): number {
+    public getUniquePt(index: usize, isNext: boolean): usize {
         let result = this.getNeighboarIndex(index, isNext);
 
         while (this.innerEqual(result, index) && result !== index) {
@@ -585,8 +592,8 @@ export default class OutRec {
         return result;
     }
 
-    private reverseInner(index: number): void {
-        let pp1: number = index;
+    private reverseInner(index: usize): void {
+        let pp1: usize = index;
 
         do {
             const pp2 = this.next(pp1);
@@ -596,7 +603,7 @@ export default class OutRec {
         } while (pp1 !== index);
     }
 
-    private remove(index: number): number {
+    private remove(index: usize): usize {
         const result = this.prev(index);
         this.push(this.prev(index), this.next(index), true);
         this.setPrev(index, UNASSIGNED);
@@ -605,18 +612,18 @@ export default class OutRec {
         return result;
     }
 
-    private firstIsBottomPt(btmIndex1: number, btmIndex2: number): boolean {
-        const dx1p: number = this.getDistance(btmIndex1, false);
-        const dx1n: number = this.getDistance(btmIndex1, true);
-        const dx2p: number = this.getDistance(btmIndex2, false);
-        const dx2n: number = this.getDistance(btmIndex2, true);
+    private firstIsBottomPt(btmIndex1: usize, btmIndex2: usize): boolean {
+        const dx1p: usize = this.getDistance(btmIndex1, false);
+        const dx1n: usize = this.getDistance(btmIndex1, true);
+        const dx2p: usize = this.getDistance(btmIndex2, false);
+        const dx2n: usize = this.getDistance(btmIndex2, true);
 
-        const maxDx: number = Math.max(dx2p, dx2n);
+        const maxDx: usize = Math.max(dx2p, dx2n);
 
         return dx1p >= maxDx || dx1n >= maxDx;
     }
 
-    private joinHorzInt2(point: Point<Int32Array>, index1: number, index2: number): boolean {
+    private joinHorzInt2(point: Point<Int32Array>, index1: usize, index2: usize): boolean {
         point.x = this.pointX(index1);
         point.y = this.pointY(index1);
 
@@ -624,12 +631,12 @@ export default class OutRec {
     }
 
     public joinHorz(
-        op1Index: number,
-        op1bIndex: number,
-        op2Index: number,
-        op2bIndex: number,
-        leftBound: number,
-        rightBound: number
+        op1Index: usize,
+        op1bIndex: usize,
+        op2Index: usize,
+        op2bIndex: usize,
+        leftBound: usize,
+        rightBound: usize
     ): boolean {
         const direction1: Direction = this.getDirection(op1Index, op1bIndex);
         const direction2: Direction = this.getDirection(op2Index, op2bIndex);
@@ -669,14 +676,15 @@ export default class OutRec {
         return true;
     }
 
+    // should return tuple {usize, usize, boolean}
     private joinHorzInt(
-        index1: number,
-        index2: number,
+        index1: usize,
+        index2: usize,
         point: Point<Int32Array>,
         isDiscardLeft: boolean
-    ): { op: number; opB: number; isRightOrder: boolean } {
-        let op: number = index1;
-        let opB: number = index2;
+    ): { op: usize; opB: usize; isRightOrder: boolean } {
+        let op: usize = index1;
+        let opB: usize = index2;
 
         const direction: Direction = this.getDirection(index1, index2);
         const isRight = direction === Direction.Right;
@@ -702,7 +710,7 @@ export default class OutRec {
         return { op, opB, isRightOrder };
     }
 
-    private getDiscarded(index: number, isRight: boolean, pt: Point<Int32Array>): boolean {
+    private getDiscarded(index: usize, isRight: boolean, pt: Point<Int32Array>): boolean {
         if (this.next(index) === UNASSIGNED) {
             return false;
         }
@@ -715,11 +723,11 @@ export default class OutRec {
         return isRight ? nextX <= pt.x && nextX >= currX && nextY === pt.y : nextX >= pt.x && nextX <= currX && nextY === pt.y;
     }
 
-    private getDirection(index1: number, index2: number): Direction {
+    private getDirection(index1: usize, index2: usize): Direction {
         return this.pointX(index1) > this.pointX(index2) ? Direction.Left : Direction.Right;
     }
 
-    private getDistance(inputIndex: number, isNext: boolean): number {
+    private getDistance(inputIndex: usize, isNext: boolean): usize {
         let index = this.getNeighboarIndex(inputIndex, isNext);
 
         if (index === UNASSIGNED) {
@@ -734,34 +742,34 @@ export default class OutRec {
             }
         }
 
-        const offsetY: number = this.pointY(index) - this.pointY(inputIndex);
-        const offsetX: number = this.pointX(index) - this.pointX(inputIndex);
+        const offsetY: i32 = this.pointY(index) - this.pointY(inputIndex);
+        const offsetX: i32 = this.pointX(index) - this.pointX(inputIndex);
         const result = offsetY === 0 ? Number.MIN_SAFE_INTEGER : offsetX / offsetY;
 
         return Math.abs(result);
     }
 
-    public point(index: number): Point<Int32Array> {
+    public point(index: usize): Point<Int32Array> {
         return this.points[index - 1];
     }
 
-    public pointX(index: number): number {
+    public pointX(index: usize): i32 {
         return this.point(index).x;
     }
 
-    public pointY(index: number): number {
+    public pointY(index: usize): i32 {
         return this.point(index).y;
     }
 
-    private createOutPt(point: Point<Int32Array>): number {
+    private createOutPt(point: Point<Int32Array>): usize {
         this.points.push(PointI32.from(point));
         this.pointNeighboars.push(new Uint16Array([UNASSIGNED, UNASSIGNED]));
 
         return this.points.length;
     }
 
-    private duplicate(index: number, isInsertAfter: boolean): number {
-        const result: number = this.createOutPt(this.point(index));
+    private duplicate(index: usize, isInsertAfter: boolean): usize {
+        const result: usize = this.createOutPt(this.point(index));
 
         if (isInsertAfter) {
             this.push(result, this.next(index), true);
@@ -774,29 +782,29 @@ export default class OutRec {
         return result;
     }
 
-    private next(index: number): number {
+    private next(index: usize): usize {
         return this.getNeighboarIndex(index, true);
     }
 
-    private setNeighboar(index: number, neighboarIndex: number, value: number): void {
+    private setNeighboar(index: usize, neighboarIndex: usize, value: usize): void {
         if (index !== UNASSIGNED) {
             this.pointNeighboars[index - 1][neighboarIndex] = value;
         }
     }
 
-    private setNext(index: number, value: number): void {
+    private setNext(index: usize, value: usize): void {
         this.setNeighboar(index, 1, value);
     }
 
-    private prev(index: number): number {
+    private prev(index: usize): usize {
         return this.getNeighboarIndex(index, false);
     }
 
-    private setPrev(index: number, value: number): void {
+    private setPrev(index: usize, value: usize): void {
         this.setNeighboar(index, 0, value);
     }
 
-    private getNeighboarIndex(index: number, isNext: boolean): number {
+    private getNeighboarIndex(index: usize, isNext: boolean): usize {
         if (index == UNASSIGNED) {
             return UNASSIGNED;
         }
@@ -806,15 +814,15 @@ export default class OutRec {
         return this.pointNeighboars[index - 1][neighboarIndex];
     }
 
-    private innerEqual(index1: number, index2: number): boolean {
+    private innerEqual(index1: usize, index2: usize): boolean {
         return index1 != UNASSIGNED && index2 !== UNASSIGNED && this.point(index1).almostEqual(this.point(index2));
     }
 
-    public pointEqual(index: number, point: Point<Int32Array>): boolean {
+    public pointEqual(index: usize, point: Point<Int32Array>): boolean {
         return point.almostEqual(this.point(index));
     }
 
-    private push(outPt1Index: number, outPt2Index: number, isReverse: boolean): void {
+    private push(outPt1Index: usize, outPt2Index: usize, isReverse: boolean): void {
         if (isReverse) {
             this.setNext(outPt1Index, outPt2Index);
             this.setPrev(outPt2Index, outPt1Index);
@@ -824,7 +832,7 @@ export default class OutRec {
         }
     }
 
-    public fromPoint(point: Point<Int32Array>): number {
+    public fromPoint(point: Point<Int32Array>): usize {
         const index = this.createOutPt(point);
 
         this.push(index, index, true);
@@ -832,7 +840,7 @@ export default class OutRec {
         return index;
     }
 
-    public joinPolys(firstRecIndex: number, secondRecIndex: number, firstSide: Direction, secondSide: Direction): void {
+    public joinPolys(firstRecIndex: usize, secondRecIndex: usize, firstSide: Direction, secondSide: Direction): void {
         const holeStateRec = this.getHoleStateRec(firstRecIndex, secondRecIndex);
         //join e2 poly onto e1 poly and delete pointers to e2 ...
         this.join(firstRecIndex, secondRecIndex, firstSide, secondSide);
@@ -850,7 +858,7 @@ export default class OutRec {
         this.setCurrentIndex(secondRecIndex, firstRecIndex);
     }
 
-    public joinPolys2(outRec1: number, outRec2: number): void {
+    public joinPolys2(outRec1: usize, outRec2: usize): void {
         const holeStateRec = this.getHoleStateRec(outRec1, outRec2);
         //joined 2 polygons together ...
         this.setPointIndex(outRec2, UNASSIGNED);
@@ -864,7 +872,7 @@ export default class OutRec {
         this.setFirstLeftIndex(outRec2, outRec1);
     }
 
-    public splitPolys(outRec1: number, outPt1Index: number, outPt2Index: number): number {
+    public splitPolys(outRec1: usize, outPt1Index: usize, outPt2Index: usize): usize {
         //instead of joining two polygons, we've just created a new one by
         //splitting one polygon into two.
         this.setPointIndex(outRec1, outPt1Index);
@@ -874,7 +882,8 @@ export default class OutRec {
         return outRec2;
     }
 
-    public getOverlap(op1Index: number, op1bIndex: number, op2Index: number, op2bIndex: number): number[] {
+    // Should return tuple (i32, i32)
+    public getOverlap(op1Index: usize, op1bIndex: usize, op2Index: usize, op2bIndex: usize): i32[] {
         const a1 = this.pointX(op1Index);
         const a2 = this.pointX(op1bIndex);
         const b1 = this.pointX(op2Index);
@@ -889,12 +898,13 @@ export default class OutRec {
         return b1 < b2 ? [Math.max(a2, b1), Math.min(a1, b2)] : [Math.max(a2, b2), Math.min(a1, b1)];
     }
 
-    public horizontalJoinPoints(outHash1: number, outHash2: number, offPoint: Point<Int32Array>): { outHash1: number; outHash2: number; result: boolean } {
+    // Should return tuple (usize, usize, boolean)
+    public horizontalJoinPoints(outHash1: usize, outHash2: usize, offPoint: Point<Int32Array>): { outHash1: usize; outHash2: usize; result: boolean } {
         const defaultResult = { outHash1, outHash2, result: false };
-        const index1: number = get_u16(outHash1, 0);
-        const index2: number = get_u16(outHash2, 0);
-        const outPt1Index: number = get_u16(outHash1, 1);
-        const outPt2Index: number = get_u16(outHash2, 1);
+        const index1: usize = get_u16(outHash1, 0);
+        const index2: usize = get_u16(outHash2, 0);
+        const outPt1Index: usize = get_u16(outHash1, 1);
+        const outPt2Index: usize = get_u16(outHash2, 1);
 
         if (
             this.pointEqual(outPt1Index, offPoint) &&
@@ -951,14 +961,14 @@ export default class OutRec {
         };
     }
 
-    public checkReverse(p1Index: number, p2Index: number, p3: Point<Int32Array>, isUseFullRange: boolean): boolean {
+    public checkReverse(p1Index: usize, p2Index: usize, p3: Point<Int32Array>, isUseFullRange: boolean): boolean {
         const p1 = this.point(p1Index);
         const p2 = this.point(p2Index);
 
         return p2.y > p1.y || !this.slopesEqual(p1Index, p2Index, p3, isUseFullRange);
     }
 
-    private slopesEqual(p1Index: number, p2Index: number, p3: Point<Int32Array>, isUseFullRange: boolean): boolean {
+    private slopesEqual(p1Index: usize, p2Index: usize, p3: Point<Int32Array>, isUseFullRange: boolean): boolean {
         return PointI32.slopesEqual(this.point(p1Index), this.point(p2Index), p3, isUseFullRange);
     }
 }

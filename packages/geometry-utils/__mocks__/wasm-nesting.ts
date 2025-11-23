@@ -4,8 +4,8 @@ export const mid_value_f64 = (a: number, b: number, c: number): number => {
 };
 
 // Join two 16-bit unsigned integers into a 32-bit unsigned integer
-export const join_u16_to_u32 = (high: number, low: number): number => {
-    return ((high & 0xFFFF) << 16) | (low & 0xFFFF);
+export const join_u16_to_u32 = (value1: number, value2: number): number => {
+    return (value1 & 0xFFFF) | ((value2 & 0xFFFF) << 16);
 };
 
 // Extract 16-bit unsigned integer from 32-bit unsigned integer

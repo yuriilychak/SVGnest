@@ -16,23 +16,23 @@ struct TestInput {
 
 #[derive(Debug)]
 struct TestOutput {
-    insert_result: Option<isize>,
-    insert_results: Option<Vec<isize>>,
+    insert_result: Option<usize>,
+    insert_results: Option<Vec<usize>>,
     get_y_0: Option<i32>,
-    get_left_bound_0: Option<isize>,
-    get_right_bound_0: Option<isize>,
+    get_left_bound_0: Option<usize>,
+    get_right_bound_0: Option<usize>,
     get_y_1: Option<i32>,
-    get_left_bound_1: Option<isize>,
-    get_right_bound_1: Option<isize>,
+    get_left_bound_1: Option<usize>,
+    get_right_bound_1: Option<usize>,
     get_y_2: Option<i32>,
-    get_left_bound_2: Option<isize>,
-    get_right_bound_2: Option<isize>,
-    pop_result: Option<(isize, isize)>,
-    pop_results: Option<Vec<(isize, isize)>>,
-    first_pop_result: Option<(isize, isize)>,
+    get_left_bound_2: Option<usize>,
+    get_right_bound_2: Option<usize>,
+    pop_result: Option<(usize, usize)>,
+    pop_results: Option<Vec<(usize, usize)>>,
+    first_pop_result: Option<(usize, usize)>,
     error: Option<String>,
     errors: Option<Vec<String>>,
-    length: Option<isize>,
+    length: Option<usize>,
     is_empty: Option<bool>,
     min_y: Option<Option<i32>>, // Option<Option<i32>> to handle null values
 }
@@ -61,14 +61,14 @@ fn float_to_int(val: f64) -> i32 {
     }
 }
 
-/// Convert float to isize by intelligent scaling
-fn float_to_isize(val: f64) -> isize {
+/// Convert float to usize by intelligent scaling
+fn float_to_usize(val: f64) -> usize {
     // If the value is already close to an integer, don't scale
     if (val - val.round()).abs() < 1e-6 {
-        val.round() as isize
+        val.round() as usize
     } else {
         // For decimal values, scale by 10 to preserve one decimal place
-        (val * 10.0).round() as isize
+        (val * 10.0).round() as usize
     }
 }
 
@@ -85,8 +85,8 @@ fn execute_operations(operations: &[TestOperation]) -> HashMap<String, serde_jso
             "insert" => {
                 if operation.args.len() >= 3 {
                     let y = float_to_int(operation.args[0]);
-                    let left = float_to_isize(operation.args[1]);
-                    let right = float_to_isize(operation.args[2]);
+                    let left = float_to_usize(operation.args[1]);
+                    let right = float_to_usize(operation.args[2]);
 
                     let insert_result = local_minima.insert(y, left, right);
                     if insert_results.is_empty() {
@@ -293,13 +293,13 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                     let output = TestOutput {
                         insert_result: output_data
                             .and_then(|o| o.get("insertResult"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         insert_results: output_data
                             .and_then(|o| o.get("insertResults"))
                             .and_then(|v| v.as_array())
                             .map(|arr| {
                                 arr.iter()
-                                    .filter_map(|x| x.as_i64().map(|i| i as isize))
+                                    .filter_map(|x| x.as_i64().map(|i| i as usize))
                                     .collect()
                             }),
                         get_y_0: output_data
@@ -307,35 +307,35 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                             .and_then(|v| v.as_f64().map(float_to_int)),
                         get_left_bound_0: output_data
                             .and_then(|o| o.get("getLeftBound_0"))
-                            .and_then(|v| v.as_f64().map(float_to_isize)),
+                            .and_then(|v| v.as_f64().map(float_to_usize)),
                         get_right_bound_0: output_data
                             .and_then(|o| o.get("getRightBound_0"))
-                            .and_then(|v| v.as_f64().map(float_to_isize)),
+                            .and_then(|v| v.as_f64().map(float_to_usize)),
                         get_y_1: output_data
                             .and_then(|o| o.get("getY_1"))
                             .and_then(|v| v.as_f64().map(float_to_int)),
                         get_left_bound_1: output_data
                             .and_then(|o| o.get("getLeftBound_1"))
-                            .and_then(|v| v.as_f64().map(float_to_isize)),
+                            .and_then(|v| v.as_f64().map(float_to_usize)),
                         get_right_bound_1: output_data
                             .and_then(|o| o.get("getRightBound_1"))
-                            .and_then(|v| v.as_f64().map(float_to_isize)),
+                            .and_then(|v| v.as_f64().map(float_to_usize)),
                         get_y_2: output_data
                             .and_then(|o| o.get("getY_2"))
                             .and_then(|v| v.as_f64().map(float_to_int)),
                         get_left_bound_2: output_data
                             .and_then(|o| o.get("getLeftBound_2"))
-                            .and_then(|v| v.as_f64().map(float_to_isize)),
+                            .and_then(|v| v.as_f64().map(float_to_usize)),
                         get_right_bound_2: output_data
                             .and_then(|o| o.get("getRightBound_2"))
-                            .and_then(|v| v.as_f64().map(float_to_isize)),
+                            .and_then(|v| v.as_f64().map(float_to_usize)),
                         pop_result: output_data
                             .and_then(|o| o.get("popResult"))
                             .and_then(|v| v.as_array())
                             .and_then(|arr| {
                                 if arr.len() >= 2 {
-                                    let left = arr[0].as_f64().map(float_to_isize)?;
-                                    let right = arr[1].as_f64().map(float_to_isize)?;
+                                    let left = arr[0].as_f64().map(float_to_usize)?;
+                                    let right = arr[1].as_f64().map(float_to_usize)?;
                                     Some((left, right))
                                 } else {
                                     None
@@ -349,8 +349,8 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                                     .filter_map(|x| x.as_array())
                                     .filter_map(|pair| {
                                         if pair.len() >= 2 {
-                                            let left = pair[0].as_f64().map(float_to_isize)?;
-                                            let right = pair[1].as_f64().map(float_to_isize)?;
+                                            let left = pair[0].as_f64().map(float_to_usize)?;
+                                            let right = pair[1].as_f64().map(float_to_usize)?;
                                             Some((left, right))
                                         } else {
                                             None
@@ -363,8 +363,8 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                             .and_then(|v| v.as_array())
                             .and_then(|arr| {
                                 if arr.len() >= 2 {
-                                    let left = arr[0].as_f64().map(float_to_isize)?;
-                                    let right = arr[1].as_f64().map(float_to_isize)?;
+                                    let left = arr[0].as_f64().map(float_to_usize)?;
+                                    let right = arr[1].as_f64().map(float_to_usize)?;
                                     Some((left, right))
                                 } else {
                                     None
@@ -384,7 +384,7 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                             }),
                         length: output_data
                             .and_then(|o| o.get("length"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         is_empty: output_data
                             .and_then(|o| o.get("isEmpty"))
                             .and_then(|v| v.as_bool()),
@@ -439,7 +439,7 @@ mod tests {
                     let actual_insert = execution_results
                         .get("insertResult")
                         .and_then(|v| v.as_i64())
-                        .map(|i| i as isize);
+                        .map(|i| i as usize);
                     assert_eq!(
                         actual_insert,
                         Some(expected_insert),
@@ -450,12 +450,12 @@ mod tests {
 
                 // Check multiple insert results
                 if let Some(expected_inserts) = &test_case.output.insert_results {
-                    let actual_inserts: Vec<isize> = execution_results
+                    let actual_inserts: Vec<usize> = execution_results
                         .get("insertResults")
                         .and_then(|v| v.as_array())
                         .map(|arr| {
                             arr.iter()
-                                .filter_map(|x| x.as_i64().map(|i| i as isize))
+                                .filter_map(|x| x.as_i64().map(|i| i as usize))
                                 .collect()
                         })
                         .unwrap_or_default();
@@ -500,7 +500,7 @@ mod tests {
                         let actual_left = execution_results
                             .get(&left_key)
                             .and_then(|v| v.as_i64())
-                            .map(|i| i as isize);
+                            .map(|i| i as usize);
                         assert_eq!(
                             actual_left,
                             Some(expected_left),
@@ -519,7 +519,7 @@ mod tests {
                         let actual_right = execution_results
                             .get(&right_key)
                             .and_then(|v| v.as_i64())
-                            .map(|i| i as isize);
+                            .map(|i| i as usize);
                         assert_eq!(
                             actual_right,
                             Some(expected_right),
@@ -537,8 +537,8 @@ mod tests {
                         .and_then(|v| v.as_array())
                         .and_then(|arr| {
                             if arr.len() >= 2 {
-                                let left = arr[0].as_i64()? as isize;
-                                let right = arr[1].as_i64()? as isize;
+                                let left = arr[0].as_i64()? as usize;
+                                let right = arr[1].as_i64()? as usize;
                                 Some((left, right))
                             } else {
                                 None
@@ -554,7 +554,7 @@ mod tests {
 
                 // Check multiple pop results
                 if let Some(expected_pops) = &test_case.output.pop_results {
-                    let actual_pops: Vec<(isize, isize)> = execution_results
+                    let actual_pops: Vec<(usize, usize)> = execution_results
                         .get("popResults")
                         .and_then(|v| v.as_array())
                         .map(|arr| {
@@ -562,8 +562,8 @@ mod tests {
                                 .filter_map(|x| x.as_array())
                                 .filter_map(|pair| {
                                     if pair.len() >= 2 {
-                                        let left = pair[0].as_i64()? as isize;
-                                        let right = pair[1].as_i64()? as isize;
+                                        let left = pair[0].as_i64()? as usize;
+                                        let right = pair[1].as_i64()? as usize;
                                         Some((left, right))
                                     } else {
                                         None
@@ -586,8 +586,8 @@ mod tests {
                         .and_then(|v| v.as_array())
                         .and_then(|arr| {
                             if arr.len() >= 2 {
-                                let left = arr[0].as_i64()? as isize;
-                                let right = arr[1].as_i64()? as isize;
+                                let left = arr[0].as_i64()? as usize;
+                                let right = arr[1].as_i64()? as usize;
                                 Some((left, right))
                             } else {
                                 None
@@ -606,7 +606,7 @@ mod tests {
                     let actual_length = execution_results
                         .get("length")
                         .and_then(|v| v.as_i64())
-                        .map(|i| i as isize);
+                        .map(|i| i as usize);
                     assert_eq!(
                         actual_length,
                         Some(expected_length),
@@ -691,8 +691,8 @@ mod tests {
 
         // Test moderate numbers that are realistic for coordinate systems
         let moderate_positive = 50000i32;
-        let left_bound = (moderate_positive - 100) as isize;
-        let right_bound = (moderate_positive + 100) as isize;
+        let left_bound = (moderate_positive - 100) as usize;
+        let right_bound = (moderate_positive + 100) as usize;
         let index = local_minima.insert(moderate_positive, left_bound, right_bound);
         assert_eq!(index, 0);
         assert_eq!(local_minima.get_y(0), moderate_positive);
@@ -704,8 +704,8 @@ mod tests {
 
         // Test moderate negative numbers
         let moderate_negative = -50000i32;
-        let left_bound_neg = (moderate_negative - 100) as isize;
-        let right_bound_neg = (moderate_negative + 100) as isize;
+        let left_bound_neg = (moderate_negative - 100) as usize;
+        let right_bound_neg = (moderate_negative + 100) as usize;
         let index = local_minima.insert(moderate_negative, left_bound_neg, right_bound_neg);
         assert_eq!(index, 0);
         assert_eq!(local_minima.get_y(0), moderate_negative);
@@ -721,7 +721,7 @@ mod tests {
         // Insert 1000 minima with varied Y values
         for i in 0..1000 {
             let y = (i % 100) as i32;
-            local_minima.insert(y, (y - 10) as isize, (y + 10) as isize);
+            local_minima.insert(y, (y - 10) as usize, (y + 10) as usize);
         }
 
         let duration = start.elapsed();

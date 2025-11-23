@@ -15,8 +15,8 @@
         },
         {
           "id": "add nodes with negative coordinates",
-          "input": { "operations": [{ "method": "add", "args": [-1, -2, -10.5, -20.3] }, { "method": "add", "args": [0, 1, 5.2, -15.8] }] },
-          "output": { "length": 2, "isEmpty": false, "getEdge1Index_0": -1, "getEdge2Index_0": -2, "getX_0": -10.5, "getY_0": -20.3, "getEdge1Index_1": 0, "getEdge2Index_1": 1, "getX_1": 5.2, "getY_1": -15.8 }
+          "input": { "operations": [{ "method": "add", "args": [1, 2, -10.5, -20.3] }, { "method": "add", "args": [0, 1, 5.2, -15.8] }] },
+          "output": { "length": 2, "isEmpty": false, "getEdge1Index_0": 1, "getEdge2Index_0": 2, "getX_0": -10.5, "getY_0": -20.3, "getEdge1Index_1": 0, "getEdge2Index_1": 1, "getX_1": 5.2, "getY_1": -15.8 }
         },
         {
           "id": "add nodes with zero coordinates",
@@ -45,13 +45,13 @@
         },
         {
           "id": "get values with negative indices and coordinates",
-          "input": { "operations": [{ "method": "add", "args": [-10, -20, -100.5, -200.8] }] },
-          "output": { "getEdge1Index_0": -10, "getEdge2Index_0": -20, "getX_0": -100.5, "getY_0": -200.8, "length": 1 }
+          "input": { "operations": [{ "method": "add", "args": [10, 20, -100.5, -200.8] }] },
+          "output": { "getEdge1Index_0": 10, "getEdge2Index_0": 20, "getX_0": -100.5, "getY_0": -200.8, "length": 1 }
         },
         {
           "id": "get values with mixed positive and negative",
-          "input": { "operations": [{ "method": "add", "args": [15, -25, 75.3, -125.7] }, { "method": "add", "args": [-35, 45, -85.9, 135.1] }] },
-          "output": { "getEdge1Index_0": 15, "getEdge2Index_0": -25, "getX_0": 75.3, "getY_0": -125.7, "getEdge1Index_1": -35, "getEdge2Index_1": 45, "getX_1": -85.9, "getY_1": 135.1 }
+          "input": { "operations": [{ "method": "add", "args": [15, 25, 75.3, -125.7] }, { "method": "add", "args": [35, 45, -85.9, 135.1] }] },
+          "output": { "getEdge1Index_0": 15, "getEdge2Index_0": 25, "getX_0": 75.3, "getY_0": -125.7, "getEdge1Index_1": 35, "getEdge2Index_1": 45, "getX_1": -85.9, "getY_1": 135.1 }
         },
         {
           "id": "get values with large numbers",
@@ -80,8 +80,8 @@
         },
         {
           "id": "swap with negative coordinates",
-          "input": { "operations": [{ "method": "add", "args": [-1, -2, -10, -20] }, { "method": "add", "args": [3, 4, 30, 40] }, { "method": "swap", "args": [0, 1] }] },
-          "output": { "getEdge1Index_0": 3, "getEdge2Index_0": 4, "getX_0": 30, "getY_0": 40, "getEdge1Index_1": -1, "getEdge2Index_1": -2, "getX_1": -10, "getY_1": -20, "length": 2 }
+          "input": { "operations": [{ "method": "add", "args": [1, 2, -10, -20] }, { "method": "add", "args": [3, 4, 30, 40] }, { "method": "swap", "args": [0, 1] }] },
+          "output": { "getEdge1Index_0": 3, "getEdge2Index_0": 4, "getX_0": 30, "getY_0": 40, "getEdge1Index_1": 1, "getEdge2Index_1": 2, "getX_1": -10, "getY_1": -20, "length": 2 }
         },
         {
           "id": "swap with decimal coordinates",

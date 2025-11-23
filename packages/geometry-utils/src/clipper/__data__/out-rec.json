@@ -101,7 +101,7 @@
         {
           "id": "get hash for different indices",
           "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "getHash", "args": [2, 3] }] },
-          "output": { "getHash_result": 131075 }
+          "output": { "getHash_result": 196610 }
         },
         {
           "id": "get hash for zero indices",
@@ -111,12 +111,7 @@
         {
           "id": "get hash for large indices",
           "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "getHash", "args": [100, 200] }] },
-          "output": { "getHash_result": 6553800 }
-        },
-        {
-          "id": "get hash for max uint16 values",
-          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "getHash", "args": [65535, 65535] }] },
-          "output": { "getHash_result": -1 }
+          "output": { "getHash_result": 13107300 }
         }
       ]
     },

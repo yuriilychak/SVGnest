@@ -44,8 +44,8 @@ fn float_to_int(val: f64) -> i32 {
     if (val - val.round()).abs() < 1e-6 {
         val.round() as i32
     } else {
-        // For decimal values, scale by 1000 to preserve precision
-        (val * 1000.0).round() as i32
+        // For decimal values, scale by 10000 to preserve more precision
+        (val * 10000.0).round() as i32
     }
 }
 
@@ -64,26 +64,24 @@ fn execute_operations(operations: &[TestOperation]) -> HashMap<String, serde_jso
                 }
             }
             "pop" => {
-                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| scanbeam.pop())) {
-                    Ok(pop_result) => {
-                        if pop_results.is_empty() {
-                            results.insert(
-                                "popResult".to_string(),
-                                serde_json::Value::Number(serde_json::Number::from(pop_result)),
-                            );
-                        }
-                        pop_results.push(pop_result);
+                if scanbeam.is_empty() {
+                    let error_msg = "ScanbeamManager is empty".to_string();
+                    if errors.is_empty() {
+                        results.insert(
+                            "error".to_string(),
+                            serde_json::Value::String(error_msg.clone()),
+                        );
                     }
-                    Err(_) => {
-                        let error_msg = "ScanbeamManager is empty".to_string();
-                        if errors.is_empty() {
-                            results.insert(
-                                "error".to_string(),
-                                serde_json::Value::String(error_msg.clone()),
-                            );
-                        }
-                        errors.push(error_msg);
+                    errors.push(error_msg);
+                } else {
+                    let pop_result = scanbeam.pop();
+                    if pop_results.is_empty() {
+                        results.insert(
+                            "popResult".to_string(),
+                            serde_json::Value::Number(serde_json::Number::from(pop_result)),
+                        );
                     }
+                    pop_results.push(pop_result);
                 }
             }
             "clean" => {

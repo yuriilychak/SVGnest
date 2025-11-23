@@ -6,7 +6,7 @@ const LOW_RANGE: f64 = 47453132.0;
 
 const HIGH_RANGE: f64 = 4503599627370495.0;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Point<T: Number> {
     pub x: T,
     pub y: T,

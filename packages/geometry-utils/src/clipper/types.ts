@@ -6,3 +6,5 @@ export type i32 = number;
 export type usize = number;
 
 export type isize = number;
+
+export type u16 = number;

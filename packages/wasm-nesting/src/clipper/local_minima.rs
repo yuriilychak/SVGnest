@@ -3,13 +3,13 @@
 ///
 /// Type mappings:
 /// - i32: Represents Y-coordinate values
-/// - isize: Represents bound indices (left and right)
-/// - Vec<(i32, isize, isize)>: Array of tuples representing [y, left, right] items
+/// - usize: Represents bound indices (left and right)
+/// - Vec<(i32, usize, usize)>: Array of tuples representing [y, left, right] items
 #[derive(Debug, Clone)]
 pub struct LocalMinima {
     /// Array of tuples containing (y, left_bound, right_bound)
-    /// Type: Vec<(i32, isize, isize)> (equivalent to TypeScript number[][])
-    items: Vec<(i32, isize, isize)>,
+    /// Type: Vec<(i32, usize, usize)> (equivalent to TypeScript number[][])
+    items: Vec<(i32, usize, usize)>,
 }
 
 impl Default for LocalMinima {
@@ -28,39 +28,39 @@ impl LocalMinima {
     /// Gets the left bound at the specified index
     ///
     /// # Arguments
-    /// * `index` - The index to retrieve the left bound from (isize)
+    /// * `index` - The index to retrieve the left bound from (usize)
     ///
     /// # Returns
-    /// * `isize` - The left bound value
+    /// * `usize` - The left bound value
     ///
     /// # Panics
     /// * Panics if index is out of bounds
     ///
-    /// Equivalent to TypeScript getLeftBound(index: isize): isize
-    pub fn get_left_bound(&self, index: isize) -> isize {
+    /// Equivalent to TypeScript getLeftBound(index: usize): usize
+    pub fn get_left_bound(&self, index: usize) -> usize {
         self.items[index as usize].1
     }
 
     /// Gets the right bound at the specified index
     ///
     /// # Arguments
-    /// * `index` - The index to retrieve the right bound from (isize)
+    /// * `index` - The index to retrieve the right bound from (usize)
     ///
     /// # Returns
-    /// * `isize` - The right bound value
+    /// * `usize` - The right bound value
     ///
     /// # Panics
     /// * Panics if index is out of bounds
     ///
-    /// Equivalent to TypeScript getRightBound(index: isize): isize
-    pub fn get_right_bound(&self, index: isize) -> isize {
+    /// Equivalent to TypeScript getRightBound(index: usize): usize
+    pub fn get_right_bound(&self, index: usize) -> usize {
         self.items[index as usize].2
     }
 
     /// Gets the Y-coordinate value at the specified index
     ///
     /// # Arguments
-    /// * `index` - The index to retrieve the Y value from (isize)
+    /// * `index` - The index to retrieve the Y value from (usize)
     ///
     /// # Returns
     /// * `i32` - The Y-coordinate value
@@ -68,8 +68,8 @@ impl LocalMinima {
     /// # Panics
     /// * Panics if index is out of bounds
     ///
-    /// Equivalent to TypeScript getY(index: isize): i32
-    pub fn get_y(&self, index: isize) -> i32 {
+    /// Equivalent to TypeScript getY(index: usize): i32
+    pub fn get_y(&self, index: usize) -> i32 {
         self.items[index as usize].0
     }
 
@@ -78,37 +78,37 @@ impl LocalMinima {
     ///
     /// # Arguments
     /// * `y` - The Y-coordinate value (i32)
-    /// * `left` - The left bound index (isize)
-    /// * `right` - The right bound index (isize)
+    /// * `left` - The left bound index (usize)
+    /// * `right` - The right bound index (usize)
     ///
     /// # Returns
-    /// * `isize` - The index where the item was inserted
+    /// * `usize` - The index where the item was inserted
     ///
-    /// Equivalent to TypeScript insert(y: i32, left: isize, right: isize): isize
-    pub fn insert(&mut self, y: i32, left: isize, right: isize) -> isize {
+    /// Equivalent to TypeScript insert(y: i32, left: usize, right: usize): usize
+    pub fn insert(&mut self, y: i32, left: usize, right: usize) -> usize {
         let local_minima = (y, left, right);
 
         for i in 0..self.items.len() {
-            if y >= self.get_y(i as isize) {
+            if y >= self.get_y(i as usize) {
                 self.items.insert(i, local_minima);
-                return i as isize;
+                return i as usize;
             }
         }
 
         self.items.push(local_minima);
-        (self.items.len() - 1) as isize
+        (self.items.len() - 1) as usize
     }
 
     /// Removes and returns the first (highest Y) local minima as a tuple of bounds
     ///
     /// # Returns
-    /// * `(isize, isize)` - Tuple containing (left_bound, right_bound)
+    /// * `(usize, usize)` - Tuple containing (left_bound, right_bound)
     ///
     /// # Panics
     /// * Panics if the local minima is empty
     ///
-    /// Equivalent to TypeScript pop(): isize[] (returns tuple instead of array)
-    pub fn pop(&mut self) -> (isize, isize) {
+    /// Equivalent to TypeScript pop(): usize[] (returns tuple instead of array)
+    pub fn pop(&mut self) -> (usize, usize) {
         if self.is_empty() {
             panic!("No minima to pop");
         }
@@ -146,10 +146,10 @@ impl LocalMinima {
     /// Gets the number of items in the local minima
     ///
     /// # Returns
-    /// * `isize` - The length of the items array
+    /// * `usize` - The length of the items array
     ///
-    /// Equivalent to TypeScript get length(): isize
-    pub fn length(&self) -> isize {
-        self.items.len() as isize
+    /// Equivalent to TypeScript get length(): usize
+    pub fn length(&self) -> usize {
+        self.items.len() as usize
     }
 }

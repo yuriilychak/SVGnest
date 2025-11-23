@@ -18,20 +18,20 @@ struct TestInput {
 struct TestOutput {
     length: Option<usize>,
     is_empty: Option<bool>,
-    get_edge1_index_0: Option<isize>,
-    get_edge2_index_0: Option<isize>,
+    get_edge1_index_0: Option<usize>,
+    get_edge2_index_0: Option<usize>,
     get_x_0: Option<i32>,
     get_y_0: Option<i32>,
-    get_edge1_index_1: Option<isize>,
-    get_edge2_index_1: Option<isize>,
+    get_edge1_index_1: Option<usize>,
+    get_edge2_index_1: Option<usize>,
     get_x_1: Option<i32>,
     get_y_1: Option<i32>,
-    get_edge1_index_2: Option<isize>,
-    get_edge2_index_2: Option<isize>,
+    get_edge1_index_2: Option<usize>,
+    get_edge2_index_2: Option<usize>,
     get_x_2: Option<i32>,
     get_y_2: Option<i32>,
-    get_edge1_index_3: Option<isize>,
-    get_edge2_index_3: Option<isize>,
+    get_edge1_index_3: Option<usize>,
+    get_edge2_index_3: Option<usize>,
     get_x_3: Option<i32>,
     get_y_3: Option<i32>,
 }
@@ -54,9 +54,9 @@ fn float_to_scaled_int(value: f64) -> i32 {
     (value * 1000.0).round() as i32
 }
 
-/// Convert floating point value to isize by converting to i64 first
-fn float_to_isize(value: f64) -> isize {
-    value.round() as isize
+/// Convert floating point value to usize by converting to i64 first
+fn float_to_usize(value: f64) -> usize {
+    value.round() as usize
 }
 
 /// Execute operations and collect results
@@ -72,13 +72,13 @@ fn execute_operations_and_get_results(
                 if operation.args.len() >= 4 {
                     let edge1_index = operation.args[0]
                         .as_f64()
-                        .map(float_to_isize)
-                        .or_else(|| operation.args[0].as_i64().map(|v| v as isize))
+                        .map(float_to_usize)
+                        .or_else(|| operation.args[0].as_i64().map(|v| v as usize))
                         .unwrap_or(0);
                     let edge2_index = operation.args[1]
                         .as_f64()
-                        .map(float_to_isize)
-                        .or_else(|| operation.args[1].as_i64().map(|v| v as isize))
+                        .map(float_to_usize)
+                        .or_else(|| operation.args[1].as_i64().map(|v| v as usize))
                         .unwrap_or(0);
                     let x = operation.args[2]
                         .as_f64()
@@ -96,8 +96,8 @@ fn execute_operations_and_get_results(
             }
             "swap" => {
                 if operation.args.len() >= 2 {
-                    let index1 = operation.args[0].as_i64().unwrap_or(0) as isize;
-                    let index2 = operation.args[1].as_i64().unwrap_or(0) as isize;
+                    let index1 = operation.args[0].as_i64().unwrap_or(0) as usize;
+                    let index2 = operation.args[1].as_i64().unwrap_or(0) as usize;
                     intersect_node.swap(index1, index2);
                 }
             }
@@ -123,29 +123,29 @@ fn execute_operations_and_get_results(
 
     // Get values for intersection nodes (up to 4 indices)
     for i in 0..std::cmp::min(4, intersect_node.length()) {
-        let i_isize = i as isize;
+        let i_usize = i as usize;
         results.insert(
             format!("getEdge1Index_{}", i),
             serde_json::Value::Number(serde_json::Number::from(
-                intersect_node.get_edge1_index(i_isize) as i64,
+                intersect_node.get_edge1_index(i_usize) as i64,
             )),
         );
         results.insert(
             format!("getEdge2Index_{}", i),
             serde_json::Value::Number(serde_json::Number::from(
-                intersect_node.get_edge2_index(i_isize) as i64,
+                intersect_node.get_edge2_index(i_usize) as i64,
             )),
         );
         results.insert(
             format!("getX_{}", i),
             serde_json::Value::Number(serde_json::Number::from(
-                intersect_node.get_x(i_isize) as i64
+                intersect_node.get_x(i_usize) as i64
             )),
         );
         results.insert(
             format!("getY_{}", i),
             serde_json::Value::Number(serde_json::Number::from(
-                intersect_node.get_y(i_isize) as i64
+                intersect_node.get_y(i_usize) as i64
             )),
         );
     }
@@ -206,10 +206,10 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                             .and_then(|v| v.as_bool()),
                         get_edge1_index_0: output_data
                             .and_then(|o| o.get("getEdge1Index_0"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_edge2_index_0: output_data
                             .and_then(|o| o.get("getEdge2Index_0"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_x_0: output_data.and_then(|o| o.get("getX_0")).and_then(|v| {
                             v.as_f64()
                                 .map(float_to_scaled_int)
@@ -222,10 +222,10 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                         }),
                         get_edge1_index_1: output_data
                             .and_then(|o| o.get("getEdge1Index_1"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_edge2_index_1: output_data
                             .and_then(|o| o.get("getEdge2Index_1"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_x_1: output_data.and_then(|o| o.get("getX_1")).and_then(|v| {
                             v.as_f64()
                                 .map(float_to_scaled_int)
@@ -238,10 +238,10 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                         }),
                         get_edge1_index_2: output_data
                             .and_then(|o| o.get("getEdge1Index_2"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_edge2_index_2: output_data
                             .and_then(|o| o.get("getEdge2Index_2"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_x_2: output_data.and_then(|o| o.get("getX_2")).and_then(|v| {
                             v.as_f64()
                                 .map(float_to_scaled_int)
@@ -254,10 +254,10 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
                         }),
                         get_edge1_index_3: output_data
                             .and_then(|o| o.get("getEdge1Index_3"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_edge2_index_3: output_data
                             .and_then(|o| o.get("getEdge2Index_3"))
-                            .and_then(|v| v.as_i64().map(|i| i as isize)),
+                            .and_then(|v| v.as_i64().map(|i| i as usize)),
                         get_x_3: output_data.and_then(|o| o.get("getX_3")).and_then(|v| {
                             v.as_f64()
                                 .map(float_to_scaled_int)
@@ -482,9 +482,9 @@ mod tests {
     fn test_large_numbers() {
         let mut intersect_node = IntersectNode::new();
 
-        // Use values within i32/isize range
-        let large_edge1 = 2147483647isize; // Max i32 as isize
-        let large_edge2 = 2147483646isize;
+        // Use values within i32/usize range
+        let large_edge1 = 2147483647usize; // Max i32 as usize
+        let large_edge2 = 2147483646usize;
         let large_x = 2147483645i32;
         let large_y = 2147483644i32;
 
@@ -494,18 +494,6 @@ mod tests {
         assert_eq!(intersect_node.get_edge2_index(0), large_edge2);
         assert_eq!(intersect_node.get_x(0), large_x);
         assert_eq!(intersect_node.get_y(0), large_y);
-    }
-
-    #[test]
-    fn test_negative_coordinates() {
-        let mut intersect_node = IntersectNode::new();
-
-        intersect_node.add(-10, -20, -100, -200);
-
-        assert_eq!(intersect_node.get_edge1_index(0), -10);
-        assert_eq!(intersect_node.get_edge2_index(0), -20);
-        assert_eq!(intersect_node.get_x(0), -100);
-        assert_eq!(intersect_node.get_y(0), -200);
     }
 
     #[test]
@@ -594,7 +582,7 @@ mod tests {
 
         // Add 1000 intersection nodes
         for i in 0..1000 {
-            intersect_node.add(i as isize, (i + 1000) as isize, i * 2, i * 3);
+            intersect_node.add(i, i + 1000, (i * 2) as i32, (i * 3) as i32);
         }
 
         // Sort them

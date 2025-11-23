@@ -3,13 +3,13 @@
 ///
 /// Type mappings:
 /// - i32: Represents X and Y coordinate values
-/// - isize: Represents edge indices for polygon edge references
-/// - Vec<(isize, isize, i32, i32)>: Array of tuples representing [edge1Index, edge2Index, x, y]
+/// - usize: Represents edge indices for polygon edge references
+/// - Vec<(usize, usize, i32, i32)>: Array of tuples representing [edge1Index, edge2Index, x, y]
 #[derive(Debug, Clone)]
 pub struct IntersectNode {
     /// Array of tuples containing (edge1_index, edge2_index, x, y) for intersection nodes
-    /// Type: Vec<(isize, isize, i32, i32)> (equivalent to TypeScript number[][])
-    items: Vec<(isize, isize, i32, i32)>,
+    /// Type: Vec<(usize, usize, i32, i32)> (equivalent to TypeScript number[][])
+    items: Vec<(usize, usize, i32, i32)>,
 }
 
 impl Default for IntersectNode {
@@ -28,27 +28,27 @@ impl IntersectNode {
     /// Adds a new intersection node entry
     ///
     /// # Arguments
-    /// * `edge1_index` - The first edge index (isize)
-    /// * `edge2_index` - The second edge index (isize)
+    /// * `edge1_index` - The first edge index (usize)
+    /// * `edge2_index` - The second edge index (usize)
     /// * `x` - The X coordinate of the intersection (i32)
     /// * `y` - The Y coordinate of the intersection (i32)
     ///
-    /// Equivalent to TypeScript add(edg1Index: isize, edge2Index: isize, x: i32, y: i32): void
-    pub fn add(&mut self, edge1_index: isize, edge2_index: isize, x: i32, y: i32) {
+    /// Equivalent to TypeScript add(edg1Index: usize, edge2Index: usize, x: i32, y: i32): void
+    pub fn add(&mut self, edge1_index: usize, edge2_index: usize, x: i32, y: i32) {
         self.items.push((edge1_index, edge2_index, x, y));
     }
 
     /// Swaps two intersection node entries at the specified indices
     ///
     /// # Arguments
-    /// * `index1` - The first index to swap (isize)
-    /// * `index2` - The second index to swap (isize)
+    /// * `index1` - The first index to swap (usize)
+    /// * `index2` - The second index to swap (usize)
     ///
     /// # Panics
     /// * Panics if either index is out of bounds
     ///
-    /// Equivalent to TypeScript swap(index1: isize, index2: isize): void
-    pub fn swap(&mut self, index1: isize, index2: isize) {
+    /// Equivalent to TypeScript swap(index1: usize, index2: usize): void
+    pub fn swap(&mut self, index1: usize, index2: usize) {
         let idx1 = index1 as usize;
         let idx2 = index2 as usize;
         self.items.swap(idx1, idx2);
@@ -77,39 +77,39 @@ impl IntersectNode {
     /// Gets the first edge index at the specified position
     ///
     /// # Arguments
-    /// * `index` - The index to retrieve the edge1 index from (isize)
+    /// * `index` - The index to retrieve the edge1 index from (usize)
     ///
     /// # Returns
-    /// * `isize` - The first edge index
+    /// * `usize` - The first edge index
     ///
     /// # Panics
     /// * Panics if index is out of bounds
     ///
-    /// Equivalent to TypeScript getEdge1Index(index: isize): isize
-    pub fn get_edge1_index(&self, index: isize) -> isize {
+    /// Equivalent to TypeScript getEdge1Index(index: usize): usize
+    pub fn get_edge1_index(&self, index: usize) -> usize {
         self.items[index as usize].0
     }
 
     /// Gets the second edge index at the specified position
     ///
     /// # Arguments
-    /// * `index` - The index to retrieve the edge2 index from (isize)
+    /// * `index` - The index to retrieve the edge2 index from (usize)
     ///
     /// # Returns
-    /// * `isize` - The second edge index
+    /// * `usize` - The second edge index
     ///
     /// # Panics
     /// * Panics if index is out of bounds
     ///
-    /// Equivalent to TypeScript getEdge2Index(index: isize): isize
-    pub fn get_edge2_index(&self, index: isize) -> isize {
+    /// Equivalent to TypeScript getEdge2Index(index: usize): usize
+    pub fn get_edge2_index(&self, index: usize) -> usize {
         self.items[index as usize].1
     }
 
     /// Gets the X coordinate at the specified position
     ///
     /// # Arguments
-    /// * `index` - The index to retrieve the X coordinate from (isize)
+    /// * `index` - The index to retrieve the X coordinate from (usize)
     ///
     /// # Returns
     /// * `i32` - The X coordinate
@@ -117,15 +117,15 @@ impl IntersectNode {
     /// # Panics
     /// * Panics if index is out of bounds
     ///
-    /// Equivalent to TypeScript getX(index: isize): i32
-    pub fn get_x(&self, index: isize) -> i32 {
+    /// Equivalent to TypeScript getX(index: usize): i32
+    pub fn get_x(&self, index: usize) -> i32 {
         self.items[index as usize].2
     }
 
     /// Gets the Y coordinate at the specified position
     ///
     /// # Arguments
-    /// * `index` - The index to retrieve the Y coordinate from (isize)
+    /// * `index` - The index to retrieve the Y coordinate from (usize)
     ///
     /// # Returns
     /// * `i32` - The Y coordinate
@@ -133,19 +133,19 @@ impl IntersectNode {
     /// # Panics
     /// * Panics if index is out of bounds
     ///
-    /// Equivalent to TypeScript getY(index: isize): i32
-    pub fn get_y(&self, index: isize) -> i32 {
+    /// Equivalent to TypeScript getY(index: usize): i32
+    pub fn get_y(&self, index: usize) -> i32 {
         self.items[index as usize].3
     }
 
     /// Gets the number of intersection node entries
     ///
     /// # Returns
-    /// * `isize` - The number of entries
+    /// * `usize` - The number of entries
     ///
-    /// Equivalent to TypeScript get length(): isize
-    pub fn length(&self) -> isize {
-        self.items.len() as isize
+    /// Equivalent to TypeScript get length(): usize
+    pub fn length(&self) -> usize {
+        self.items.len() as usize
     }
 
     /// Checks if the intersection node list is empty
