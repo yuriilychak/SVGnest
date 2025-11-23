@@ -1,6 +1,7 @@
 // Clipper module - geometric clipping operations
 // Contains implementations for polygon clipping, offset, and related utilities
 
+pub mod clipper;
 pub mod constants;
 pub mod enums;
 pub mod intersect_node;

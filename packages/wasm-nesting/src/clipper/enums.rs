@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PolyFillType {
+    EvenOdd = 0,
     NonZero = 1,
     Positive = 2,
     Negative = 3,
@@ -16,8 +17,10 @@ pub enum PolyType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ClipType {
+    Intersection = 0,
     Union = 1,
     Difference = 2,
+    Xor = 3,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
