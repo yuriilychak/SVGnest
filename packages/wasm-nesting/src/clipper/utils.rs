@@ -1,5 +1,10 @@
 use crate::{geometry::point::Point, utils::math::cycle_index};
 
+/// Shows an error message as a warning in the terminal
+/// Equivalent to TypeScript's showError function
+pub fn show_error(message: &str) {
+    eprintln!("Warning: {}", message);
+}
 
 pub fn clean_polygon(path: &Vec<Point<i32>>, distance: f64) -> Vec<Point<i32>> {
     let mut point_count = path.len();
@@ -55,7 +60,12 @@ pub fn clean_polygon(path: &Vec<Point<i32>>, distance: f64) -> Vec<Point<i32>> {
                     curr_index = prev_index - 2;
                 }
                 marked[curr_index] = false;
-            } else if Point::slopes_near_collinear(&*prev_point, &*curr_point, &*next_point, dist_sqrd) {
+            } else if Point::slopes_near_collinear(
+                &*prev_point,
+                &*curr_point,
+                &*next_point,
+                dist_sqrd,
+            ) {
                 result.remove(curr_index);
                 marked.remove(curr_index);
                 point_count -= 1;

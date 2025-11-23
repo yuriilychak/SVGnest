@@ -11,9 +11,6 @@ pub mod utils;
 use crate::nesting::pair_flow::pair_data;
 
 use crate::clipper::utils::clean_polygon;
-use crate::clipper::{
-    enums::{ClipType, PolyFillType, PolyType},
-};
 use crate::geometry::point::Point;
 use utils::almost_equal::AlmostEqual;
 use utils::bit_ops::*;

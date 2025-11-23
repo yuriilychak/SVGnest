@@ -8,3 +8,5 @@ export type usize = number;
 export type isize = number;
 
 export type u16 = number;
+
+export type f64 = number;
