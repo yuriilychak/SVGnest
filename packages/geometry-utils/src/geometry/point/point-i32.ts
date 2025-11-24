@@ -6,7 +6,7 @@ export default class PointI32 extends PointBase<Int32Array> {
         return PointI32.from(point !== null ? point : this);
     }
     
-    public static slopesNearCollinear(line1: PointI32, point: PointI32, line2: PointI32, trashold: number) {
+    public static slopesNearCollinear(line1: Point<Int32Array>, point: Point<Int32Array>, line2: Point<Int32Array>, trashold: number) {
         const equation: number[] = PointI32.lineEquation(line2, line1);
         const c: number = equation[0] * point.x + equation[1] * point.y - equation[2];
         const distance: number = (c * c) / (equation[0] * equation[0] + equation[1] * equation[1]);

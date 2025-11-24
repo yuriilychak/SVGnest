@@ -1,0 +1,299 @@
+{
+  "suites": [
+    {
+      "id": "constructor and basic properties",
+      "data": [
+        {
+          "id": "constructor with default values",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }] },
+          "output": { "strictlySimple": false }
+        },
+        {
+          "id": "constructor with reverse solution true",
+          "input": { "operations": [{ "method": "constructor", "args": [true, false] }] },
+          "output": { "strictlySimple": false }
+        },
+        {
+          "id": "constructor with strictly simple true",
+          "input": { "operations": [{ "method": "constructor", "args": [false, true] }] },
+          "output": { "strictlySimple": true }
+        },
+        {
+          "id": "constructor with both flags true",
+          "input": { "operations": [{ "method": "constructor", "args": [true, true] }] },
+          "output": { "strictlySimple": true }
+        },
+        {
+          "id": "constructor with both flags false",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }] },
+          "output": { "strictlySimple": false }
+        }
+      ]
+    },
+    {
+      "id": "create method",
+      "data": [
+        {
+          "id": "create single record",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }] },
+          "output": { "create_result": 1 }
+        },
+        {
+          "id": "create multiple records",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }] },
+          "output": { "create_result_0": 1, "create_result_1": 2 }
+        },
+        {
+          "id": "create with different point indices",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [5] }, { "method": "create", "args": [10] }] },
+          "output": { "create_result_0": 1, "create_result_1": 2 }
+        },
+        {
+          "id": "create with zero point index",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [0] }] },
+          "output": { "create_result": 1 }
+        },
+        {
+          "id": "create with large point index",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1000] }] },
+          "output": { "create_result": 1 }
+        }
+      ]
+    },
+    {
+      "id": "fromPoint method",
+      "data": [
+        {
+          "id": "create point with basic coordinates",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "fromPoint", "args": [{ "x": 10, "y": 20 }] }] },
+          "output": { "fromPoint_result": 1, "pointX_1": 10, "pointY_1": 20 }
+        },
+        {
+          "id": "create point with negative coordinates",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "fromPoint", "args": [{ "x": -50, "y": -60 }] }] },
+          "output": { "fromPoint_result": 1, "pointX_1": -50, "pointY_1": -60 }
+        },
+        {
+          "id": "create point with zero coordinates",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "fromPoint", "args": [{ "x": 0, "y": 0 }] }] },
+          "output": { "fromPoint_result": 1, "pointX_1": 0, "pointY_1": 0 }
+        },
+        {
+          "id": "create multiple points",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "fromPoint", "args": [{ "x": 10, "y": 20 }] }, { "method": "fromPoint", "args": [{ "x": 30, "y": 40 }] }] },
+          "output": { "fromPoint_result_0": 1, "fromPoint_result_1": 2, "pointX_1": 10, "pointY_1": 20, "pointX_2": 30, "pointY_2": 40 }
+        },
+        {
+          "id": "create point with large coordinates",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "fromPoint", "args": [{ "x": 2147483647, "y": 2147483646 }] }] },
+          "output": { "fromPoint_result": 1, "pointX_1": 2147483647, "pointY_1": 2147483646 }
+        }
+      ]
+    },
+    {
+      "id": "getHash method",
+      "data": [
+        {
+          "id": "get hash for simple indices",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "getHash", "args": [1, 1] }] },
+          "output": { "getHash_result": 65537 }
+        },
+        {
+          "id": "get hash for different indices",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "getHash", "args": [2, 3] }] },
+          "output": { "getHash_result": 196610 }
+        },
+        {
+          "id": "get hash for zero indices",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "getHash", "args": [0, 0] }] },
+          "output": { "getHash_result": 0 }
+        },
+        {
+          "id": "get hash for large indices",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "getHash", "args": [100, 200] }] },
+          "output": { "getHash_result": 13107300 }
+        }
+      ]
+    },
+    {
+      "id": "isUnassigned method",
+      "data": [
+        {
+          "id": "check unassigned on new record",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [0] }, { "method": "isUnassigned", "args": [1] }] },
+          "output": { "isUnassigned_result": true }
+        },
+        {
+          "id": "check unassigned after setting point",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "isUnassigned", "args": [1] }] },
+          "output": { "isUnassigned_result": false }
+        },
+        {
+          "id": "check unassigned on multiple records",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [0] }, { "method": "create", "args": [1] }, { "method": "isUnassigned", "args": [1] }, { "method": "isUnassigned", "args": [2] }] },
+          "output": { "isUnassigned_result_0": true, "isUnassigned_result_1": false }
+        },
+        {
+          "id": "check unassigned with different point indices",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [5] }, { "method": "isUnassigned", "args": [1] }] },
+          "output": { "isUnassigned_result": false }
+        },
+        {
+          "id": "check unassigned after dispose",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "dispose", "args": [] }, { "method": "create", "args": [0] }, { "method": "isUnassigned", "args": [1] }] },
+          "output": { "isUnassigned_result": true }
+        }
+      ]
+    },
+    {
+      "id": "currentIndex method",
+      "data": [
+        {
+          "id": "get current index for new record",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "currentIndex", "args": [1] }] },
+          "output": { "currentIndex_result": 1 }
+        },
+        {
+          "id": "get current index for multiple records",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "currentIndex", "args": [1] }, { "method": "currentIndex", "args": [2] }] },
+          "output": { "currentIndex_result_0": 1, "currentIndex_result_1": 2 }
+        },
+        {
+          "id": "get current index after modifications",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "currentIndex", "args": [1] }] },
+          "output": { "currentIndex_result": 1 }
+        },
+        {
+          "id": "get current index with different point indices",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [10] }, { "method": "currentIndex", "args": [1] }] },
+          "output": { "currentIndex_result": 1 }
+        },
+        {
+          "id": "get current index after dispose and recreate",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "dispose", "args": [] }, { "method": "create", "args": [2] }, { "method": "currentIndex", "args": [1] }] },
+          "output": { "currentIndex_result": 1 }
+        }
+      ]
+    },
+    {
+      "id": "firstLeftIndex method",
+      "data": [
+        {
+          "id": "get first left index for new record",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "firstLeftIndex", "args": [1] }] },
+          "output": { "firstLeftIndex_result": 0 }
+        },
+        {
+          "id": "get first left index for multiple records",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "firstLeftIndex", "args": [1] }, { "method": "firstLeftIndex", "args": [2] }] },
+          "output": { "firstLeftIndex_result_0": 0, "firstLeftIndex_result_1": 0 }
+        },
+        {
+          "id": "get first left index with UNASSIGNED value",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "firstLeftIndex", "args": [0] }] },
+          "output": { "firstLeftIndex_result": 0 }
+        },
+        {
+          "id": "get first left index after setting hole state",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "setHoleState", "args": [1, true, 2] }, { "method": "firstLeftIndex", "args": [1] }] },
+          "output": { "firstLeftIndex_result": 2 }
+        },
+        {
+          "id": "get first left index with large record index",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "create", "args": [3] }, { "method": "firstLeftIndex", "args": [3] }] },
+          "output": { "firstLeftIndex_result": 0 }
+        }
+      ]
+    },
+    {
+      "id": "setHoleState method",
+      "data": [
+        {
+          "id": "set hole state as hole",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "setHoleState", "args": [1, true, 2] }, { "method": "firstLeftIndex", "args": [1] }] },
+          "output": { "firstLeftIndex_result": 2 }
+        },
+        {
+          "id": "set hole state as not hole",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "setHoleState", "args": [1, false, 2] }, { "method": "firstLeftIndex", "args": [1] }] },
+          "output": { "firstLeftIndex_result": 2 }
+        },
+        {
+          "id": "set hole state with UNASSIGNED index",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "setHoleState", "args": [1, true, 0] }, { "method": "firstLeftIndex", "args": [1] }] },
+          "output": { "firstLeftIndex_result": 0 }
+        },
+        {
+          "id": "set hole state multiple times",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "setHoleState", "args": [1, true, 2] }, { "method": "setHoleState", "args": [1, false, 3] }, { "method": "firstLeftIndex", "args": [1] }] },
+          "output": { "firstLeftIndex_result": 2 }
+        },
+        {
+          "id": "set hole state on multiple records",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "setHoleState", "args": [1, true, 2] }, { "method": "setHoleState", "args": [2, false, 1] }, { "method": "firstLeftIndex", "args": [1] }, { "method": "firstLeftIndex", "args": [2] }] },
+          "output": { "firstLeftIndex_result_0": 2, "firstLeftIndex_result_1": 1 }
+        }
+      ]
+    },
+    {
+      "id": "getOutRec method",
+      "data": [
+        {
+          "id": "get out rec for single record",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "getOutRec", "args": [1] }] },
+          "output": { "getOutRec_result": 1 }
+        },
+        {
+          "id": "get out rec for multiple records",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "getOutRec", "args": [1] }, { "method": "getOutRec", "args": [2] }] },
+          "output": { "getOutRec_result_0": 1, "getOutRec_result_1": 2 }
+        },
+        {
+          "id": "get out rec with same index",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "getOutRec", "args": [1] }, { "method": "getOutRec", "args": [1] }] },
+          "output": { "getOutRec_result_0": 1, "getOutRec_result_1": 1 }
+        },
+        {
+          "id": "get out rec after modifications",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "setHoleState", "args": [1, true, 2] }, { "method": "getOutRec", "args": [1] }] },
+          "output": { "getOutRec_result": 1 }
+        },
+        {
+          "id": "get out rec for large index",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "create", "args": [3] }, { "method": "getOutRec", "args": [3] }] },
+          "output": { "getOutRec_result": 3 }
+        }
+      ]
+    },
+    {
+      "id": "dispose method",
+      "data": [
+        {
+          "id": "dispose empty out rec",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "dispose", "args": [] }] },
+          "output": {}
+        },
+        {
+          "id": "dispose after creating records",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "create", "args": [2] }, { "method": "dispose", "args": [] }] },
+          "output": {}
+        },
+        {
+          "id": "dispose after creating points",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "fromPoint", "args": [{ "x": 10, "y": 20 }] }, { "method": "dispose", "args": [] }] },
+          "output": {}
+        },
+        {
+          "id": "dispose multiple times",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "dispose", "args": [] }, { "method": "dispose", "args": [] }] },
+          "output": {}
+        },
+        {
+          "id": "dispose and recreate",
+          "input": { "operations": [{ "method": "constructor", "args": [false, false] }, { "method": "create", "args": [1] }, { "method": "dispose", "args": [] }, { "method": "create", "args": [2] }, { "method": "currentIndex", "args": [1] }] },
+          "output": { "currentIndex_result": 1 }
+        }
+      ]
+    }
+  ]
+}

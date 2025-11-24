@@ -1,0 +1,244 @@
+{
+  "suites": [
+    {
+      "id": "add method",
+      "data": [
+        {
+          "id": "add single join with basic coordinates",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": 100, "getHash2_0": 200 }
+        },
+        {
+          "id": "add multiple joins with positive coordinates",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "add", "args": [300, 400, { "x": 30, "y": 40 }] }] },
+          "output": { "length_regular": 2, "getX_0_regular": 10, "getY_0_regular": 20, "getX_1_regular": 30, "getY_1_regular": 40, "getHash1_0_regular": 100, "getHash1_1_regular": 300, "getHash2_0": 200, "getHash2_1": 400 }
+        },
+        {
+          "id": "add joins with negative coordinates",
+          "input": { "operations": [{ "method": "add", "args": [500, 600, { "x": -50, "y": -60 }] }] },
+          "output": { "length_regular": 1, "getX_0_regular": -50, "getY_0_regular": -60, "getHash1_0_regular": 500, "getHash2_0": 600 }
+        },
+        {
+          "id": "add joins with zero coordinates",
+          "input": { "operations": [{ "method": "add", "args": [0, 0, { "x": 0, "y": 0 }] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 0, "getY_0_regular": 0, "getHash1_0_regular": 0, "getHash2_0": 0 }
+        },
+        {
+          "id": "add joins with large numbers",
+          "input": { "operations": [{ "method": "add", "args": [999999, 888888, { "x": 777777, "y": 666666 }] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 777777, "getY_0_regular": 666666, "getHash1_0_regular": 999999, "getHash2_0": 888888 }
+        }
+      ]
+    },
+    {
+      "id": "addGhost method",
+      "data": [
+        {
+          "id": "add single ghost join",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }] },
+          "output": { "length_ghost": 1, "getX_0_ghost": 10, "getY_0_ghost": 20, "getHash1_0_ghost": 100 }
+        },
+        {
+          "id": "add multiple ghost joins",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "addGhost", "args": [200, 30, 40] }] },
+          "output": { "length_ghost": 2, "getX_0_ghost": 10, "getY_0_ghost": 20, "getX_1_ghost": 30, "getY_1_ghost": 40, "getHash1_0_ghost": 100, "getHash1_1_ghost": 200 }
+        },
+        {
+          "id": "add ghost joins with negative coordinates",
+          "input": { "operations": [{ "method": "addGhost", "args": [300, -50, -60] }] },
+          "output": { "length_ghost": 1, "getX_0_ghost": -50, "getY_0_ghost": -60, "getHash1_0_ghost": 300 }
+        },
+        {
+          "id": "add ghost joins with zero values",
+          "input": { "operations": [{ "method": "addGhost", "args": [0, 0, 0] }] },
+          "output": { "length_ghost": 1, "getX_0_ghost": 0, "getY_0_ghost": 0, "getHash1_0_ghost": 0 }
+        },
+        {
+          "id": "add ghost joins with large numbers",
+          "input": { "operations": [{ "method": "addGhost", "args": [999999, 777777, 666666] }] },
+          "output": { "length_ghost": 1, "getX_0_ghost": 777777, "getY_0_ghost": 666666, "getHash1_0_ghost": 999999 }
+        }
+      ]
+    },
+    {
+      "id": "fromGhost method",
+      "data": [
+        {
+          "id": "convert single ghost to regular join",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "fromGhost", "args": [0, 200] }] },
+          "output": { "length_regular": 1, "length_ghost": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": 100, "getHash2_0": 200 }
+        },
+        {
+          "id": "convert multiple ghosts to regular joins",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "addGhost", "args": [300, 30, 40] }, { "method": "fromGhost", "args": [0, 200] }, { "method": "fromGhost", "args": [1, 400] }] },
+          "output": { "length_regular": 2, "length_ghost": 2, "getX_0_regular": 10, "getY_0_regular": 20, "getX_1_regular": 30, "getY_1_regular": 40, "getHash1_0_regular": 100, "getHash1_1_regular": 300, "getHash2_0": 200, "getHash2_1": 400 }
+        },
+        {
+          "id": "convert ghost with negative coordinates",
+          "input": { "operations": [{ "method": "addGhost", "args": [500, -50, -60] }, { "method": "fromGhost", "args": [0, 600] }] },
+          "output": { "length_regular": 1, "length_ghost": 1, "getX_0_regular": -50, "getY_0_regular": -60, "getHash1_0_regular": 500, "getHash2_0": 600 }
+        },
+        {
+          "id": "convert ghost with zero values",
+          "input": { "operations": [{ "method": "addGhost", "args": [0, 0, 0] }, { "method": "fromGhost", "args": [0, 0] }] },
+          "output": { "length_regular": 1, "length_ghost": 1, "getX_0_regular": 0, "getY_0_regular": 0, "getHash1_0_regular": 0, "getHash2_0": 0 }
+        },
+        {
+          "id": "convert ghost with large numbers",
+          "input": { "operations": [{ "method": "addGhost", "args": [999999, 777777, 666666] }, { "method": "fromGhost", "args": [0, 888888] }] },
+          "output": { "length_regular": 1, "length_ghost": 1, "getX_0_regular": 777777, "getY_0_regular": 666666, "getHash1_0_regular": 999999, "getHash2_0": 888888 }
+        }
+      ]
+    },
+    {
+      "id": "updateHash method",
+      "data": [
+        {
+          "id": "update hash of single join",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "updateHash", "args": [0, 150, 250] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": 150, "getHash2_0": 250 }
+        },
+        {
+          "id": "update hash of multiple joins",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "add", "args": [300, 400, { "x": 30, "y": 40 }] }, { "method": "updateHash", "args": [0, 150, 250] }, { "method": "updateHash", "args": [1, 350, 450] }] },
+          "output": { "length_regular": 2, "getHash1_0_regular": 150, "getHash2_0": 250, "getHash1_1_regular": 350, "getHash2_1": 450 }
+        },
+        {
+          "id": "update hash with zero values",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "updateHash", "args": [0, 0, 0] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": 0, "getHash2_0": 0 }
+        },
+        {
+          "id": "update hash with negative values",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "updateHash", "args": [0, -100, -200] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": -100, "getHash2_0": -200 }
+        },
+        {
+          "id": "update hash with large numbers",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "updateHash", "args": [0, 999999, 888888] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": 999999, "getHash2_0": 888888 }
+        }
+      ]
+    },
+    {
+      "id": "reset method",
+      "data": [
+        {
+          "id": "reset empty join",
+          "input": { "operations": [{ "method": "reset", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "reset after adding regular joins",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "add", "args": [300, 400, { "x": 30, "y": 40 }] }, { "method": "reset", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "reset after adding ghost joins",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "addGhost", "args": [200, 30, 40] }, { "method": "reset", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "reset after adding both types",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "addGhost", "args": [300, 30, 40] }, { "method": "reset", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "reset multiple times",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "reset", "args": [] }, { "method": "reset", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        }
+      ]
+    },
+    {
+      "id": "clearGhosts method",
+      "data": [
+        {
+          "id": "clear ghosts from empty join",
+          "input": { "operations": [{ "method": "clearGhosts", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "clear ghosts after adding ghost joins",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "addGhost", "args": [200, 30, 40] }, { "method": "clearGhosts", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "clear ghosts with regular joins present",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "addGhost", "args": [300, 30, 40] }, { "method": "clearGhosts", "args": [] }] },
+          "output": { "length_regular": 1, "length_ghost": 0, "getX_0_regular": 10, "getY_0_regular": 20 }
+        },
+        {
+          "id": "clear ghosts multiple times",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "clearGhosts", "args": [] }, { "method": "clearGhosts", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "clear ghosts after fromGhost operation",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "fromGhost", "args": [0, 200] }, { "method": "clearGhosts", "args": [] }] },
+          "output": { "length_regular": 1, "length_ghost": 0, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": 100, "getHash2_0": 200 }
+        }
+      ]
+    },
+    {
+      "id": "getter methods",
+      "data": [
+        {
+          "id": "get values from single regular join",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }] },
+          "output": { "length_regular": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getHash1_0_regular": 100, "getHash2_0": 200 }
+        },
+        {
+          "id": "get values from single ghost join",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }] },
+          "output": { "length_ghost": 1, "getX_0_ghost": 10, "getY_0_ghost": 20, "getHash1_0_ghost": 100 }
+        },
+        {
+          "id": "get values from multiple regular joins",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "add", "args": [300, 400, { "x": 30, "y": 40 }] }, { "method": "add", "args": [500, 600, { "x": 50, "y": 60 }] }] },
+          "output": { "length_regular": 3, "getX_0_regular": 10, "getY_0_regular": 20, "getX_1_regular": 30, "getY_1_regular": 40, "getX_2_regular": 50, "getY_2_regular": 60, "getHash1_0_regular": 100, "getHash1_1_regular": 300, "getHash1_2_regular": 500, "getHash2_0": 200, "getHash2_1": 400, "getHash2_2": 600 }
+        },
+        {
+          "id": "get values from multiple ghost joins",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "addGhost", "args": [200, 30, 40] }, { "method": "addGhost", "args": [300, 50, 60] }] },
+          "output": { "length_ghost": 3, "getX_0_ghost": 10, "getY_0_ghost": 20, "getX_1_ghost": 30, "getY_1_ghost": 40, "getX_2_ghost": 50, "getY_2_ghost": 60, "getHash1_0_ghost": 100, "getHash1_1_ghost": 200, "getHash1_2_ghost": 300 }
+        },
+        {
+          "id": "get values with mixed regular and ghost joins",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "addGhost", "args": [300, 30, 40] }] },
+          "output": { "length_regular": 1, "length_ghost": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getX_0_ghost": 30, "getY_0_ghost": 40, "getHash1_0_regular": 100, "getHash1_0_ghost": 300, "getHash2_0": 200 }
+        }
+      ]
+    },
+    {
+      "id": "complex workflows",
+      "data": [
+        {
+          "id": "add, update, then reset workflow",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "updateHash", "args": [0, 150, 250] }, { "method": "reset", "args": [] }] },
+          "output": { "length_regular": 0, "length_ghost": 0 }
+        },
+        {
+          "id": "ghost to regular conversion workflow",
+          "input": { "operations": [{ "method": "addGhost", "args": [100, 10, 20] }, { "method": "addGhost", "args": [200, 30, 40] }, { "method": "fromGhost", "args": [0, 300] }, { "method": "fromGhost", "args": [1, 400] }, { "method": "clearGhosts", "args": [] }] },
+          "output": { "length_regular": 2, "length_ghost": 0, "getX_0_regular": 10, "getY_0_regular": 20, "getX_1_regular": 30, "getY_1_regular": 40, "getHash1_0_regular": 100, "getHash1_1_regular": 200, "getHash2_0": 300, "getHash2_1": 400 }
+        },
+        {
+          "id": "mixed operations workflow",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "addGhost", "args": [300, 30, 40] }, { "method": "fromGhost", "args": [0, 400] }, { "method": "updateHash", "args": [0, 150, 250] }] },
+          "output": { "length_regular": 2, "length_ghost": 1, "getX_0_regular": 10, "getY_0_regular": 20, "getX_1_regular": 30, "getY_1_regular": 40, "getHash1_0_regular": 150, "getHash1_1_regular": 300, "getHash2_0": 250, "getHash2_1": 400 }
+        },
+        {
+          "id": "bulk additions and operations",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "add", "args": [300, 400, { "x": 30, "y": 40 }] }, { "method": "addGhost", "args": [500, 50, 60] }, { "method": "addGhost", "args": [600, 70, 80] }, { "method": "updateHash", "args": [1, 350, 450] }, { "method": "fromGhost", "args": [0, 700] }] },
+          "output": { "length_regular": 3, "length_ghost": 2, "getX_0_regular": 10, "getY_0_regular": 20, "getX_1_regular": 30, "getY_1_regular": 40, "getX_2_regular": 50, "getY_2_regular": 60, "getHash1_0_regular": 100, "getHash1_1_regular": 350, "getHash1_2_regular": 500, "getHash2_0": 200, "getHash2_1": 450, "getHash2_2": 700 }
+        },
+        {
+          "id": "stress test with multiple resets",
+          "input": { "operations": [{ "method": "add", "args": [100, 200, { "x": 10, "y": 20 }] }, { "method": "addGhost", "args": [300, 30, 40] }, { "method": "reset", "args": [] }, { "method": "add", "args": [500, 600, { "x": 50, "y": 60 }] }, { "method": "clearGhosts", "args": [] }] },
+          "output": { "length_regular": 1, "length_ghost": 0, "getX_0_regular": 50, "getY_0_regular": 60, "getHash1_0_regular": 500, "getHash2_0": 600 }
+        }
+      ]
+    }
+  ]
+}

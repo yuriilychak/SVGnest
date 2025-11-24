@@ -1,0 +1,214 @@
+{
+  "suites": [
+    {
+      "id": "insert method",
+      "data": [
+        {
+          "id": "insert single minima",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }] },
+          "output": { "insertResult": 0, "length": 1, "minY": 10, "isEmpty": false }
+        },
+        {
+          "id": "insert multiple minima in descending Y order",
+          "input": { "operations": [{ "method": "insert", "args": [20, 10, 30] }, { "method": "insert", "args": [15, 5, 25] }, { "method": "insert", "args": [10, 0, 20] }] },
+          "output": { "insertResults": [0, 1, 2], "length": 3, "minY": 20, "isEmpty": false }
+        },
+        {
+          "id": "insert multiple minima in ascending Y order",
+          "input": { "operations": [{ "method": "insert", "args": [5, 0, 10] }, { "method": "insert", "args": [10, 5, 15] }, { "method": "insert", "args": [15, 10, 20] }] },
+          "output": { "insertResults": [0, 0, 0], "length": 3, "minY": 15, "isEmpty": false }
+        },
+        {
+          "id": "insert minima with same Y values",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }, { "method": "insert", "args": [10, 0, 20] }, { "method": "insert", "args": [10, 10, 25] }] },
+          "output": { "insertResults": [0, 0, 0], "length": 3, "minY": 10, "isEmpty": false }
+        },
+        {
+          "id": "insert minima with mixed Y order",
+          "input": { "operations": [{ "method": "insert", "args": [15, 10, 20] }, { "method": "insert", "args": [5, 0, 10] }, { "method": "insert", "args": [25, 20, 30] }, { "method": "insert", "args": [10, 5, 15] }] },
+          "output": { "insertResults": [0, 1, 0, 2], "length": 4, "minY": 25, "isEmpty": false }
+        }
+      ]
+    },
+    {
+      "id": "getter methods",
+      "data": [
+        {
+          "id": "get values from single minima",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }] },
+          "output": { "getY_0": 10, "getLeftBound_0": 5, "getRightBound_0": 15, "length": 1, "minY": 10 }
+        },
+        {
+          "id": "get values from multiple minima",
+          "input": { "operations": [{ "method": "insert", "args": [20, 10, 30] }, { "method": "insert", "args": [15, 5, 25] }, { "method": "insert", "args": [10, 0, 20] }] },
+          "output": { "getY_0": 20, "getLeftBound_0": 10, "getRightBound_0": 30, "getY_1": 15, "getLeftBound_1": 5, "getRightBound_1": 25, "getY_2": 10, "getLeftBound_2": 0, "getRightBound_2": 20 }
+        },
+        {
+          "id": "get values with negative coordinates",
+          "input": { "operations": [{ "method": "insert", "args": [-5, -10, -2] }, { "method": "insert", "args": [0, -5, 5] }] },
+          "output": { "getY_0": 0, "getLeftBound_0": -5, "getRightBound_0": 5, "getY_1": -5, "getLeftBound_1": -10, "getRightBound_1": -2 }
+        },
+        {
+          "id": "get values with decimal coordinates",
+          "input": { "operations": [{ "method": "insert", "args": [10.5, 5.2, 15.8] }, { "method": "insert", "args": [7.3, 2.1, 12.9] }] },
+          "output": { "getY_0": 10.5, "getLeftBound_0": 5.2, "getRightBound_0": 15.8, "getY_1": 7.3, "getLeftBound_1": 2.1, "getRightBound_1": 12.9 }
+        },
+        {
+          "id": "get values with zero coordinates",
+          "input": { "operations": [{ "method": "insert", "args": [0, 0, 0] }, { "method": "insert", "args": [5, 0, 10] }] },
+          "output": { "getY_0": 5, "getLeftBound_0": 0, "getRightBound_0": 10, "getY_1": 0, "getLeftBound_1": 0, "getRightBound_1": 0 }
+        }
+      ]
+    },
+    {
+      "id": "pop method",
+      "data": [
+        {
+          "id": "pop from single minima",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": [5, 15], "length": 0, "isEmpty": true, "minY": null }
+        },
+        {
+          "id": "pop from multiple minima",
+          "input": { "operations": [{ "method": "insert", "args": [20, 10, 30] }, { "method": "insert", "args": [15, 5, 25] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": [10, 30], "length": 1, "isEmpty": false, "minY": 15 }
+        },
+        {
+          "id": "pop all minima sequentially",
+          "input": { "operations": [{ "method": "insert", "args": [15, 5, 20] }, { "method": "insert", "args": [10, 0, 15] }, { "method": "insert", "args": [20, 10, 25] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "popResults": [[10, 25], [5, 20], [0, 15]], "length": 0, "isEmpty": true, "minY": null }
+        },
+        {
+          "id": "pop with negative coordinates",
+          "input": { "operations": [{ "method": "insert", "args": [-5, -10, -2] }, { "method": "insert", "args": [0, -3, 3] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": [-3, 3], "length": 1, "isEmpty": false, "minY": -5 }
+        },
+        {
+          "id": "pop with decimal coordinates",
+          "input": { "operations": [{ "method": "insert", "args": [7.5, 2.3, 12.7] }, { "method": "insert", "args": [12.1, 6.4, 18.9] }, { "method": "pop", "args": [] }] },
+          "output": { "popResult": [6.4, 18.9], "length": 1, "isEmpty": false, "minY": 7.5 }
+        }
+      ]
+    },
+    {
+      "id": "pop method - error cases",
+      "data": [
+        {
+          "id": "pop from empty local minima",
+          "input": { "operations": [{ "method": "pop", "args": [] }] },
+          "output": { "error": "No minima to pop" }
+        },
+        {
+          "id": "pop twice from single minima",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "firstPopResult": [5, 15], "error": "No minima to pop" }
+        },
+        {
+          "id": "multiple pops from empty local minima",
+          "input": { "operations": [{ "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "errors": ["No minima to pop", "No minima to pop"] }
+        },
+        {
+          "id": "pop after inserting and popping all",
+          "input": { "operations": [{ "method": "insert", "args": [5, 0, 10] }, { "method": "insert", "args": [15, 10, 20] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "popResults": [[10, 20], [0, 10]], "error": "No minima to pop" }
+        },
+        {
+          "id": "pop from empty after multiple operations",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [20, 10, 25] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "popResults": [[5, 15], [10, 25]], "error": "No minima to pop" }
+        }
+      ]
+    },
+    {
+      "id": "isEmpty and length getters",
+      "data": [
+        {
+          "id": "empty state on new instance",
+          "input": { "operations": [] },
+          "output": { "isEmpty": true, "length": 0, "minY": null }
+        },
+        {
+          "id": "non-empty state after insert",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }] },
+          "output": { "isEmpty": false, "length": 1, "minY": 10 }
+        },
+        {
+          "id": "empty state after pop all",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }, { "method": "insert", "args": [20, 10, 25] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "isEmpty": true, "length": 0, "minY": null }
+        },
+        {
+          "id": "length changes with operations",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }, { "method": "insert", "args": [20, 10, 25] }, { "method": "insert", "args": [5, 0, 10] }, { "method": "pop", "args": [] }] },
+          "output": { "isEmpty": false, "length": 2, "minY": 10 }
+        },
+        {
+          "id": "length with multiple same Y values",
+          "input": { "operations": [{ "method": "insert", "args": [10, 0, 5] }, { "method": "insert", "args": [10, 5, 10] }, { "method": "insert", "args": [10, 10, 15] }, { "method": "insert", "args": [10, 15, 20] }] },
+          "output": { "isEmpty": false, "length": 4, "minY": 10 }
+        }
+      ]
+    },
+    {
+      "id": "minY getter",
+      "data": [
+        {
+          "id": "minY on empty instance",
+          "input": { "operations": [] },
+          "output": { "minY": null, "isEmpty": true }
+        },
+        {
+          "id": "minY with single minima",
+          "input": { "operations": [{ "method": "insert", "args": [15, 10, 20] }] },
+          "output": { "minY": 15, "isEmpty": false }
+        },
+        {
+          "id": "minY with multiple minima",
+          "input": { "operations": [{ "method": "insert", "args": [20, 15, 25] }, { "method": "insert", "args": [10, 5, 15] }, { "method": "insert", "args": [30, 25, 35] }] },
+          "output": { "minY": 30, "isEmpty": false }
+        },
+        {
+          "id": "minY after pop operations",
+          "input": { "operations": [{ "method": "insert", "args": [25, 20, 30] }, { "method": "insert", "args": [15, 10, 20] }, { "method": "insert", "args": [35, 30, 40] }, { "method": "pop", "args": [] }] },
+          "output": { "minY": 25, "isEmpty": false }
+        },
+        {
+          "id": "minY with negative values",
+          "input": { "operations": [{ "method": "insert", "args": [-10, -15, -5] }, { "method": "insert", "args": [0, -5, 5] }, { "method": "insert", "args": [-20, -25, -15] }] },
+          "output": { "minY": 0, "isEmpty": false }
+        }
+      ]
+    },
+    {
+      "id": "complex workflows",
+      "data": [
+        {
+          "id": "mixed insert and pop operations",
+          "input": { "operations": [{ "method": "insert", "args": [10, 5, 15] }, { "method": "insert", "args": [20, 15, 25] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [5, 0, 10] }, { "method": "insert", "args": [30, 25, 35] }] },
+          "output": { "length": 3, "minY": 30, "isEmpty": false, "popResult": [15, 25] }
+        },
+        {
+          "id": "insert with same Y then pop",
+          "input": { "operations": [{ "method": "insert", "args": [15, 5, 10] }, { "method": "insert", "args": [15, 10, 15] }, { "method": "insert", "args": [15, 15, 20] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "length": 1, "minY": 15, "isEmpty": false, "popResults": [[15, 20], [10, 15]] }
+        },
+        {
+          "id": "alternating insert and pop",
+          "input": { "operations": [{ "method": "insert", "args": [10, 0, 5] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [20, 10, 15] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [30, 20, 25] }] },
+          "output": { "length": 1, "minY": 30, "isEmpty": false, "popResults": [[0, 5], [10, 15]] }
+        },
+        {
+          "id": "bulk operations with varied Y values",
+          "input": { "operations": [{ "method": "insert", "args": [100, 50, 150] }, { "method": "insert", "args": [50, 25, 75] }, { "method": "insert", "args": [200, 100, 300] }, { "method": "insert", "args": [25, 0, 50] }, { "method": "pop", "args": [] }, { "method": "pop", "args": [] }] },
+          "output": { "length": 2, "minY": 50, "isEmpty": false, "popResults": [[100, 300], [50, 150]] }
+        },
+        {
+          "id": "edge case with zero and negative values",
+          "input": { "operations": [{ "method": "insert", "args": [0, -5, 5] }, { "method": "insert", "args": [-10, -15, -5] }, { "method": "insert", "args": [10, 5, 15] }, { "method": "pop", "args": [] }, { "method": "insert", "args": [-5, -10, 0] }] },
+          "output": { "length": 3, "minY": 0, "isEmpty": false, "popResult": [5, 15] }
+        }
+      ]
+    }
+  ]
+}

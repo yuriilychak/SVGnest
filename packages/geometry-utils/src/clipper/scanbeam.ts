@@ -1,11 +1,13 @@
+import { i32 } from "./types";
+
 export default class Scanbeam {
-    private values: number[];
+    private values: i32[];
 
     constructor() {
         this.values = [];
     }
 
-    public insert(y: number): void {
+    public insert(y: i32): void {
         for (let i = 0; i < this.values.length; ++i) {
             if (y === this.values[i]) {
                 return;
@@ -20,7 +22,7 @@ export default class Scanbeam {
         this.values.push(y);
     }
 
-    public pop(): number {
+    public pop(): i32 {
         if (this.isEmpty) {
             throw new Error('ScanbeamManager is empty');
         }

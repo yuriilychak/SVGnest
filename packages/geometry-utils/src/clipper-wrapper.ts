@@ -1,9 +1,10 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 import type { BoundRect, NestConfig, Point, PointPool, Polygon, PolygonNode } from './types';
-import { generateNFPCacheKey, getPolygonNode, serializeConfig } from './helpers';
+import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
+import { clean_node_inner_wasm } from 'wasm-nesting';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -88,12 +89,12 @@ export default class ClipperWrapper {
         let i: number = 0;
         let j: number = 0;
 
-        for(i = 0; i < nodeCount; ++i) {
+        for (i = 0; i < nodeCount; ++i) {
             size = nodes[i].memSeg.length;
 
             this.simplifyNodes(nodes[i].children);
-            
-            for(j = 0; j < size; ++j) {
+
+            for (j = 0; j < size; ++j) {
                 nodes[i].memSeg[j] = Math.round(nodes[i].memSeg[j] * 100) / 100;
             }
         }
@@ -168,9 +169,9 @@ export default class ClipperWrapper {
         if (this.configuration.spacing !== 0) {
             const { spacing } = this.configuration;
             const offset: number = 0.5 * spacing * sign;
-            const path: PointI32[] = ClipperWrapper.fromMemSeg(node.memSeg);
+            const path: Point<Int32Array>[] = ClipperWrapper.fromMemSeg(node.memSeg);
 
-            const resultPath: PointI32[][] = clipperOffset.execute(path, offset * ClipperWrapper.CLIPPER_SCALE);
+            const resultPath: Point<Int32Array>[][] = clipperOffset.execute(path, offset * ClipperWrapper.CLIPPER_SCALE);
 
             if (resultPath.length !== 1) {
                 throw new Error(`Error while offset ${JSON.stringify(node)}`);
@@ -188,50 +189,19 @@ export default class ClipperWrapper {
 
     private cleanNode(node: PolygonNode): void {
         const { curveTolerance } = this.configuration;
-        const clipperPolygon = ClipperWrapper.fromMemSeg(node.memSeg);
-        const simple: PointI32[][] = [];
-        const clipper = new Clipper(false, true);
 
-        clipper.addPath(clipperPolygon, PolyType.SUBJECT);
-        clipper.execute(ClipType.UNION, simple, PolyFillType.NON_ZERO);
+        const res = clean_node_inner_wasm(node.memSeg, curveTolerance);
 
-        if (!simple || simple.length === 0) {
-            return;
+        if(res.length) {
+            node.memSeg = res;
         }
-
-        let i: number = 0;
-        let biggest: PointI32[] = simple[0];
-        let biggestArea: number = absArea(biggest);
-        let area: number = 0;
-        let pointCount: number = simple.length;
-
-        for (i = 1; i < pointCount; ++i) {
-            area = absArea(simple[i]);
-
-            if (area > biggestArea) {
-                biggest = simple[i];
-                biggestArea = area;
-            }
-        }
-
-        // clean up singularities, coincident points and edges
-        const clearedPolygon: PointI32[] = cleanPolygon(biggest, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
-        pointCount = clearedPolygon && clearedPolygon.length ? clearedPolygon.length : 0;
-
-        if (!pointCount) {
-            return;
-        }
-
-        const res = ClipperWrapper.toMemSeg(clearedPolygon);
-
-        node.memSeg = res;
     }
 
     public static fromMemSeg(
         memSeg: Float32Array,
         offset: Point<Float32Array> = null,
         isRound: boolean = false
-    ): PointI32[] {
+    ): Point<Int32Array>[] {
         const cleanTrashold: number = offset === null ? -1 : ClipperWrapper.CLEAN_TRASHOLD;
         const pointCount: number = memSeg.length >> 1;
         const result: PointI32[] = [];
@@ -274,7 +244,7 @@ export default class ClipperWrapper {
     public static applyNfps(clipper: Clipper, nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): void {
         const nfpWrapper: NFPWrapper = new NFPWrapper(nfpBuffer);
         const nfpCount: number = nfpWrapper.count;
-        let clone: PointI32[] = null;
+        let clone: Point<Int32Array>[] = null;
         let memSeg: Float32Array = null;
         let i: number = 0;
 
@@ -283,18 +253,18 @@ export default class ClipperWrapper {
             clone = ClipperWrapper.fromMemSeg(memSeg, offset);
 
             if (absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
-                clipper.addPath(clone, PolyType.SUBJECT);
+                clipper.addPath(clone, PolyType.Subject);
             }
         }
     }
 
-    public static nfpToClipper(pointPool: PointPool<Float32Array>, nfpWrapper: NFPWrapper): PointI32[][] {
+    public static nfpToClipper(pointPool: PointPool<Float32Array>, nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
         const pointIndices = pointPool.alloc(1);
         const nfpCount: number = nfpWrapper.count;
         const result = [];
         let memSeg: Float32Array = null;
         let i: number = 0;
-        
+
 
         for (i = 0; i < nfpCount; ++i) {
             memSeg = nfpWrapper.getNFPMemSeg(i)
@@ -334,21 +304,21 @@ export default class ClipperWrapper {
 
         pointPool.malloc(pointIndices);
 
-        const combinedNfp: PointI32[][] = [];
+        const combinedNfp: Point<Int32Array>[][] = [];
 
-        if (!clipper.execute(ClipType.UNION, combinedNfp, PolyFillType.NON_ZERO)) {
+        if (!clipper.execute(ClipType.Union, combinedNfp, PolyFillType.NonZero)) {
             return null;
         }
 
         // difference with bin polygon
-        let finalNfp: PointI32[][] = [];
-        const clipperBinNfp: PointI32[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
+        let finalNfp: Point<Int32Array>[][] = [];
+        const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
 
         clipper = new Clipper(false, false);
-        clipper.addPaths(combinedNfp, PolyType.CLIP);
-        clipper.addPaths(clipperBinNfp, PolyType.SUBJECT);
+        clipper.addPaths(combinedNfp, PolyType.Clip);
+        clipper.addPaths(clipperBinNfp, PolyType.Subject);
 
-        if (!clipper.execute(ClipType.DIFFERENCE, finalNfp, PolyFillType.NON_ZERO)) {
+        if (!clipper.execute(ClipType.Difference, finalNfp, PolyFillType.NonZero)) {
             return null;
         }
 
