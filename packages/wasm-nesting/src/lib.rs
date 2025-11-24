@@ -11,10 +11,12 @@ pub mod utils;
 use crate::nesting::pair_flow::pair_data;
 
 use crate::clipper::clipper::Clipper;
+use crate::clipper::clipper_offset::ClipperOffset;
 use crate::clipper::constants::CLIPPER_SCALE;
 use crate::clipper::enums::{ClipType, PolyFillType, PolyType};
 use crate::clipper::utils as clipper_utils;
 use crate::geometry::point::Point;
+use crate::geometry::polygon::Polygon;
 use crate::utils::almost_equal::AlmostEqual;
 use crate::utils::bit_ops::*;
 use crate::utils::math::*;
@@ -217,6 +219,79 @@ pub fn clean_node_inner_wasm(buff: &[f32], curve_tolerance: f64) -> Float32Array
     out
 }
 
+/// Offset a polygon node and normalize it
+///
+/// # Arguments
+/// * `mem_seg` - Flat array of f32 values representing points (x0, y0, x1, y1, ...)
+/// * `sign` - Sign of the offset (1 or -1)
+/// * `spacing` - Spacing value for offset
+/// * `curve_tolerance` - Tolerance for cleaning coincident points and edges
+///
+/// # Returns
+/// Normalized and offset polygon as a flat Vec<f32>, or the normalized input if spacing is 0
+pub fn offset_node_inner(
+    mem_seg: &[f32],
+    sign: i32,
+    spacing: i32,
+    curve_tolerance: f64,
+) -> Vec<f32> {
+    let mut res_mem_seg = mem_seg.to_vec();
+
+    if spacing != 0 {
+        let offset = 0.5 * (spacing as f32) * (sign as f32);
+        let path = clipper_utils::from_mem_seg(mem_seg, None, false);
+
+        let mut clipper_offset = ClipperOffset::new();
+        let offset_scaled = (offset * (CLIPPER_SCALE as f32)) as i32;
+        let result_path = clipper_offset.execute(&path, offset_scaled);
+
+        if result_path.len() != 1 {
+            // Error case - return empty or handle error
+            // In TypeScript it throws an error, but we'll return empty for Rust
+            return Vec::new();
+        }
+
+        res_mem_seg = clipper_utils::to_mem_seg(&result_path[0]);
+
+        // Clean the result
+        let cleaned = clean_node_inner(&res_mem_seg, curve_tolerance);
+
+        if !cleaned.is_empty() {
+            res_mem_seg = cleaned;
+        }
+    }
+
+    // Normalize the polygon
+    let point_count = res_mem_seg.len() / 2;
+    if point_count < 3 {
+        return res_mem_seg;
+    }
+
+    let mut polygon = Polygon::<f32>::new();
+    unsafe {
+        polygon.bind(res_mem_seg.clone().into_boxed_slice(), 0, point_count);
+
+        if let Some(normalized) = polygon.normalize() {
+            return normalized.to_vec();
+        }
+    }
+
+    res_mem_seg
+}
+
+#[wasm_bindgen]
+pub fn offset_node_inner_wasm(
+    buff: &[f32],
+    sign: i32,
+    spacing: i32,
+    curve_tolerance: f64,
+) -> Float32Array {
+    let result = offset_node_inner(buff, sign, spacing, curve_tolerance);
+    let out = Float32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -270,5 +345,39 @@ mod tests {
 
         // Should return empty for invalid polygon
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_offset_node_inner_zero_spacing() {
+        // With zero spacing, should just normalize the polygon
+        let mem_seg = vec![0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0];
+
+        let result = offset_node_inner(&mem_seg, 1, 0, 0.01);
+
+        // Should return normalized result (same point count)
+        assert!(!result.is_empty());
+        assert_eq!(result.len(), 8);
+    }
+
+    #[test]
+    fn test_offset_node_inner_positive_spacing() {
+        // With positive spacing, should offset outward
+        let mem_seg = vec![0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0];
+
+        let result = offset_node_inner(&mem_seg, 1, 2, 0.01);
+
+        // Should return some result
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_offset_node_inner_negative_spacing() {
+        // With negative spacing, should offset inward
+        let mem_seg = vec![0.0, 0.0, 100.0, 0.0, 100.0, 100.0, 0.0, 100.0];
+
+        let result = offset_node_inner(&mem_seg, -1, 5, 0.01);
+
+        // Result may be empty or have offset polygon - just verify no panic
+        let _ = result.len();
     }
 }

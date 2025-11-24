@@ -1,10 +1,10 @@
-import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
-import type { BoundRect, NestConfig, Point, PointPool, Polygon, PolygonNode } from './types';
+import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, Clipper } from './clipper';
+import type { BoundRect, NestConfig, Point, Polygon, PolygonNode } from './types';
 import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
-import { clean_node_inner_wasm } from 'wasm-nesting';
+import { clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -30,10 +30,9 @@ export default class ClipperWrapper {
 
         const binNode: PolygonNode = getPolygonNode(-1, memSeg);
         const bounds: BoundRect<Float32Array> = this.polygon.exportBounds();
-        const clipperOffset: ClipperOffset = ClipperOffset.create();
 
         this.cleanNode(binNode);
-        this.offsetNode(clipperOffset, binNode, -1);
+        this.offsetNode(binNode, -1);
 
         this.polygon.bind(binNode.memSeg);
         this.polygon.resetPosition();
@@ -73,9 +72,7 @@ export default class ClipperWrapper {
         // turn the list into a tree
         this.nestPolygons(point, nodes);
 
-        const clipperOffset: ClipperOffset = ClipperOffset.create();
-
-        this.offsetNodes(clipperOffset, nodes, 1);
+        this.offsetNodes(nodes, 1);
 
         this.simplifyNodes(nodes);
 
@@ -153,46 +150,29 @@ export default class ClipperWrapper {
         }
     }
 
-    private offsetNodes(clipperOffset: ClipperOffset, nodes: PolygonNode[], sign: number): void {
+    private offsetNodes(nodes: PolygonNode[], sign: number): void {
         const nodeCont: number = nodes.length;
         let node: PolygonNode = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCont; ++i) {
             node = nodes[i];
-            this.offsetNode(clipperOffset, node, sign);
-            this.offsetNodes(clipperOffset, node.children, -sign);
+            this.offsetNode(node, sign);
+            this.offsetNodes(node.children, -sign);
         }
     }
 
-    private offsetNode(clipperOffset: ClipperOffset, node: PolygonNode, sign: number): void {
-        if (this.configuration.spacing !== 0) {
-            const { spacing } = this.configuration;
-            const offset: number = 0.5 * spacing * sign;
-            const path: Point<Int32Array>[] = ClipperWrapper.fromMemSeg(node.memSeg);
-
-            const resultPath: Point<Int32Array>[][] = clipperOffset.execute(path, offset * ClipperWrapper.CLIPPER_SCALE);
-
-            if (resultPath.length !== 1) {
-                throw new Error(`Error while offset ${JSON.stringify(node)}`);
-            }
-
-            node.memSeg = ClipperWrapper.toMemSeg(resultPath[0]);
-
-            this.cleanNode(node);
-        }
-
-        this.polygon.bind(node.memSeg);
-
-        node.memSeg = this.polygon.normalize();
+    private offsetNode(node: PolygonNode, sign: number): void {
+        node.memSeg = offset_node_inner_wasm(node.memSeg, sign, this.configuration.spacing, this.configuration.curveTolerance);
     }
+
 
     private cleanNode(node: PolygonNode): void {
         const { curveTolerance } = this.configuration;
 
         const res = clean_node_inner_wasm(node.memSeg, curveTolerance);
 
-        if(res.length) {
+        if (res.length) {
             node.memSeg = res;
         }
     }
@@ -258,34 +238,28 @@ export default class ClipperWrapper {
         }
     }
 
-    public static nfpToClipper(pointPool: PointPool<Float32Array>, nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
-        const pointIndices = pointPool.alloc(1);
+    public static nfpToClipper(nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
         const nfpCount: number = nfpWrapper.count;
         const result = [];
         let memSeg: Float32Array = null;
         let i: number = 0;
-
 
         for (i = 0; i < nfpCount; ++i) {
             memSeg = nfpWrapper.getNFPMemSeg(i)
             result.push(ClipperWrapper.fromMemSeg(memSeg, null, true));
         }
 
-        pointPool.malloc(pointIndices);
-
         return result;
     }
 
     public static getFinalNfps(
-        pointPool: PointPool<Float32Array>,
         placeContent: PlaceContent,
         placed: PolygonNode[],
         path: PolygonNode,
         binNfp: NFPWrapper,
         placement: number[]
-    ) {
-        const pointIndices: number = pointPool.alloc(1);
-        const tmpPoint: Point<Float32Array> = pointPool.get(pointIndices, 0);
+    ): Point<Int32Array>[][] | null {
+        const tmpPoint: Point<Float32Array> = PointF32.create();
         let clipper = new Clipper(false, false);
         let i: number = 0;
         let key: number = 0;
@@ -302,8 +276,6 @@ export default class ClipperWrapper {
             ClipperWrapper.applyNfps(clipper, placeContent.nfpCache.get(key), tmpPoint);
         }
 
-        pointPool.malloc(pointIndices);
-
         const combinedNfp: Point<Int32Array>[][] = [];
 
         if (!clipper.execute(ClipType.Union, combinedNfp, PolyFillType.NonZero)) {
@@ -312,7 +284,7 @@ export default class ClipperWrapper {
 
         // difference with bin polygon
         let finalNfp: Point<Int32Array>[][] = [];
-        const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
+        const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(binNfp);
 
         clipper = new Clipper(false, false);
         clipper.addPaths(combinedNfp, PolyType.Clip);
