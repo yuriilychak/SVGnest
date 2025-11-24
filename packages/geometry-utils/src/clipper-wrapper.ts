@@ -1,9 +1,10 @@
 import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, ClipperOffset, Clipper } from './clipper';
 import type { BoundRect, NestConfig, Point, PointPool, Polygon, PolygonNode } from './types';
-import { generateNFPCacheKey, getPolygonNode, serializeConfig } from './helpers';
+import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
+import { clean_node_inner_wasm } from 'wasm-nesting';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -188,43 +189,12 @@ export default class ClipperWrapper {
 
     private cleanNode(node: PolygonNode): void {
         const { curveTolerance } = this.configuration;
-        const clipperPolygon = ClipperWrapper.fromMemSeg(node.memSeg);
-        const simple: PointI32[][] = [];
-        const clipper = new Clipper(false, true);
 
-        clipper.addPath(clipperPolygon, PolyType.Subject);
-        clipper.execute(ClipType.Union, simple, PolyFillType.NonZero);
+        const res = clean_node_inner_wasm(node.memSeg, curveTolerance);
 
-        if (!simple || simple.length === 0) {
-            return;
+        if(res.length) {
+            node.memSeg = res;
         }
-
-        let i: number = 0;
-        let biggest: PointI32[] = simple[0];
-        let biggestArea: number = absArea(biggest);
-        let area: number = 0;
-        let pointCount: number = simple.length;
-
-        for (i = 1; i < pointCount; ++i) {
-            area = absArea(simple[i]);
-
-            if (area > biggestArea) {
-                biggest = simple[i];
-                biggestArea = area;
-            }
-        }
-
-        // clean up singularities, coincident points and edges
-        const clearedPolygon: Point<Int32Array>[] = cleanPolygon(biggest, curveTolerance * ClipperWrapper.CLIPPER_SCALE);
-        pointCount = clearedPolygon && clearedPolygon.length ? clearedPolygon.length : 0;
-
-        if (!pointCount) {
-            return;
-        }
-
-        const res = ClipperWrapper.toMemSeg(clearedPolygon);
-
-        node.memSeg = res;
     }
 
     public static fromMemSeg(

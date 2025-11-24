@@ -36,6 +36,9 @@ pub trait Number:
     fn max_num(self, other: Self) -> Self;
     fn tol() -> Self;
     fn polygon_area(points: &[Self]) -> f64;
+    fn abs_polygon_area(points: &[Self]) -> f64 {
+        Self::polygon_area(points).abs()
+    }
     fn reverse_polygon(data: &mut [Self], offset: usize, point_count: usize) {
         let half = point_count >> 1;
         let last = point_count - 1;
