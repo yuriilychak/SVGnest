@@ -192,7 +192,7 @@ export default class ClipperWrapper {
 
         const res = clean_node_inner_wasm(node.memSeg, curveTolerance);
 
-        if(res.length) {
+        if (res.length) {
             node.memSeg = res;
         }
     }
@@ -258,34 +258,28 @@ export default class ClipperWrapper {
         }
     }
 
-    public static nfpToClipper(pointPool: PointPool<Float32Array>, nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
-        const pointIndices = pointPool.alloc(1);
+    public static nfpToClipper(nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
         const nfpCount: number = nfpWrapper.count;
         const result = [];
         let memSeg: Float32Array = null;
         let i: number = 0;
-
 
         for (i = 0; i < nfpCount; ++i) {
             memSeg = nfpWrapper.getNFPMemSeg(i)
             result.push(ClipperWrapper.fromMemSeg(memSeg, null, true));
         }
 
-        pointPool.malloc(pointIndices);
-
         return result;
     }
 
     public static getFinalNfps(
-        pointPool: PointPool<Float32Array>,
         placeContent: PlaceContent,
         placed: PolygonNode[],
         path: PolygonNode,
         binNfp: NFPWrapper,
         placement: number[]
-    ) {
-        const pointIndices: number = pointPool.alloc(1);
-        const tmpPoint: Point<Float32Array> = pointPool.get(pointIndices, 0);
+    ): Point<Int32Array>[][] | null {
+        const tmpPoint: Point<Float32Array> = PointF32.create();
         let clipper = new Clipper(false, false);
         let i: number = 0;
         let key: number = 0;
@@ -302,8 +296,6 @@ export default class ClipperWrapper {
             ClipperWrapper.applyNfps(clipper, placeContent.nfpCache.get(key), tmpPoint);
         }
 
-        pointPool.malloc(pointIndices);
-
         const combinedNfp: Point<Int32Array>[][] = [];
 
         if (!clipper.execute(ClipType.Union, combinedNfp, PolyFillType.NonZero)) {
@@ -312,7 +304,7 @@ export default class ClipperWrapper {
 
         // difference with bin polygon
         let finalNfp: Point<Int32Array>[][] = [];
-        const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(pointPool, binNfp);
+        const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(binNfp);
 
         clipper = new Clipper(false, false);
         clipper.addPaths(combinedNfp, PolyType.Clip);

@@ -4,11 +4,12 @@ import { getArea } from './helpers';
 import { ClipType, PolyFillType, PolyType } from './enums';
 import { PointF32, PointI32 } from '../geometry';
 import { Point } from '../types';
+import { f64, f32, i32, isize, usize } from './types';
 
 export default class ClipperOffset {
     private srcPolygon: Point<Int32Array>[] = [];
 
-    public execute(polygon: Point<Int32Array>[], delta: number): Point<Int32Array>[][] {
+    public execute(polygon: Point<Int32Array>[], delta: i32): Point<Int32Array>[][] {
         this.srcPolygon = this.formatPath(polygon);
 
         const result: Point<Int32Array>[][] = [];
@@ -34,9 +35,9 @@ export default class ClipperOffset {
     }
 
     private formatPath(polygon: Point<Int32Array>[]): Point<Int32Array>[] {
-        let highIndex: number = polygon.length - 1;
-        let i: number = 0;
-        let j: number = 0;
+        let highIndex: isize = polygon.length - 1;
+        let i: usize = 0;
+        let j: usize = 0;
 
         //strip duplicate points from path and also get index to the lowest point ...
         while (highIndex > 0 && polygon[0].almostEqual(polygon[highIndex])) {
@@ -61,11 +62,11 @@ export default class ClipperOffset {
         return result;
     }
 
-    private doOffset(delta: number): Point<Int32Array>[] {
+    private doOffset(delta: i32): Point<Int32Array>[] {
         //this.m_destPolys.set_Capacity(this.m_polyNodes.ChildCount * 2);
         const pointCount: number = this.srcPolygon.length;
         const result: Point<Int32Array>[] = [];
-        let i: number = 0;
+        let i: usize = 0;
 
         if (pointCount == 1) {
             const point: Point<Int32Array> = PointI32.create(-1, -1);
@@ -91,7 +92,7 @@ export default class ClipperOffset {
                     .normalize();
             }
 
-            let k: number = pointCount - 1;
+            let k: isize = pointCount - 1;
 
             for (i = 0; i < pointCount; ++i) {
                 k = this.offsetPoint(result, normals, delta, i, k);
@@ -101,8 +102,8 @@ export default class ClipperOffset {
         return result;
     }
 
-    private offsetPoint(polygon: Point<Int32Array>[], normals: Point<Float32Array>[], delta: number, i: number, k: number): number {
-        let sinA: number = normals[i].cross(normals[k]);
+    private offsetPoint(polygon: Point<Int32Array>[], normals: Point<Float32Array>[], delta: f32, i: usize, k: usize): number {
+        let sinA: f64 = normals[i].cross(normals[k]);
 
         if (Math.abs(sinA) < 0.00005) {
             return k;
@@ -126,16 +127,16 @@ export default class ClipperOffset {
             tmpPoint.update(normal1).scaleUp(delta).add(currentPoint).clipperRound();
             polygon.push(PointI32.from(tmpPoint));
         } else {
-            const r: number = 1 + normal1.dot(normal2);
+            const r: f64 = 1 + normal1.dot(normal2);
 
             // mitter
             if (r >= 1.8) {
-                const q: number = delta / r;
+                const q: f64 = delta / r;
                 tmpPoint.update(normal2).add(normal1).scaleUp(q).add(currentPoint).clipperRound();
                 polygon.push(PointI32.from(tmpPoint));
                 // square
             } else {
-                const dx: number = Math.tan(Math.atan2(sinA, normal2.dot(normal1)) * 0.25);
+                const dx: f64 = Math.tan(Math.atan2(sinA, normal2.dot(normal1)) * 0.25);
 
                 tmpPoint.update(normal2).normal().scaleUp(dx).reverse().add(normal2).scaleUp(delta).add(currentPoint);
                 polygon.push(PointI32.from(tmpPoint));
@@ -147,12 +148,12 @@ export default class ClipperOffset {
         return i;
     }
 
-    private static getOuterBounds(path: Point<Int32Array>[]): PointI32[] {
-        const pointCount: number = path.length;
-        let left: number = path[0].x;
-        let right: number = path[0].x;
-        let top: number = path[0].y;
-        let bottom: number = path[0].y;
+    private static getOuterBounds(path: Point<Int32Array>[]): Point<Int32Array>[] {
+        const pointCount: usize = path.length;
+        let left: i32 = path[0].x;
+        let right: i32 = path[0].x;
+        let top: i32 = path[0].y;
+        let bottom: i32 = path[0].y;
 
         for (let i = 0; i < pointCount; ++i) {
             const point = path[i];

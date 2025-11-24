@@ -149,7 +149,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
                 continue;
             }
 
-            finalNfp = ClipperWrapper.getFinalNfps(pointPool, placeContent, placed, node, binNfp, placement);
+            finalNfp = ClipperWrapper.getFinalNfps(placeContent, placed, node, binNfp, placement);
 
             if (finalNfp === null) {
                 continue;
