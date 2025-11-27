@@ -293,7 +293,7 @@ mod tests {
     use super::*;
 
     const TEST_DATA: &str =
-        include_str!("../../../../geometry-utils/src/clipper/__data__/intersect-node.json");
+        include_str!("../.././__data__/intersect-node.json");
 
     #[test]
     fn test_intersect_node_from_json_data() {

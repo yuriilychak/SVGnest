@@ -1,3 +1,0 @@
-export { PolyFillType as PolyFillType, PolyType as PolyType, ClipType as ClipType } from './enums';
-export { absArea, cleanPolygon, cleanPolygons } from './helpers';
-export { default as Clipper } from './clipper';

@@ -419,8 +419,7 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
 mod tests {
     use super::*;
 
-    const TEST_DATA: &str =
-        include_str!("../../../../geometry-utils/src/clipper/__data__/local-minima.json");
+    const TEST_DATA: &str = include_str!("../.././__data__/local-minima.json");
 
     #[test]
     fn test_local_minima_from_json_data() {

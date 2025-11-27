@@ -273,6 +273,17 @@ impl Clipper {
         point: &Point<i32>,
         is_protect: bool,
     ) {
+        if point.y == 54833 {
+            eprintln!(
+                "\n=== intersect_edges called with point=({}, {}) ===",
+                point.x, point.y
+            );
+            eprintln!(
+                "  edge1_index={}, edge2_index={}, is_protect={}",
+                edge1_index, edge2_index, is_protect
+            );
+        }
+
         let edge1_stops: bool = self.t_edge.get_stop(edge1_index, point, is_protect);
         let edge2_stops: bool = self.t_edge.get_stop(edge2_index, point, is_protect);
         let edge1_contributing: bool = self.t_edge.is_assigned(edge1_index);
@@ -489,7 +500,11 @@ impl Clipper {
                 curr_index = next_index;
             }
 
-            if self.t_edge.is_filled(horz_edge_index) && is_top_of_scanbeam {
+            // IMPORTANT: Check is_filled on horz_index, not horz_edge_index
+            // horz_index may have been updated in the loop and could be unassigned
+            // This prevents calling prepare_horz_joins with an unassigned edge
+            // which would cause index underflow in get_rect_data
+            if self.t_edge.is_filled(horz_index) && is_top_of_scanbeam {
                 self.prepare_horz_joins(horz_index);
             }
 

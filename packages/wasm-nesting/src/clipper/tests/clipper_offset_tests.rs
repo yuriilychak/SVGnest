@@ -87,7 +87,7 @@ fn convert_to_point_array(points: &Vec<TestPoint>) -> Vec<Point<i32>> {
 
 /// Load test data from JSON file
 fn load_test_data() -> TestData {
-    let json_path = "../../geometry-utils/src/clipper/__data__/clipper-offset.json";
+    let json_path = "./__data__/clipper-offset.json";
     let json_content =
         fs::read_to_string(json_path).expect("Failed to read clipper-offset.json test data file");
     serde_json::from_str(&json_content).expect("Failed to parse JSON test data")

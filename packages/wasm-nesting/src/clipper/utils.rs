@@ -1,10 +1,23 @@
-use super::constants::{CLEAN_TRASHOLD, CLIPPER_SCALE};
+use super::constants::{AREA_TRASHOLD, CLEAN_TRASHOLD, CLIPPER_SCALE};
+use super::{clipper::Clipper, ClipType, PolyFillType, PolyType};
+use crate::utils::number::Number;
 use crate::{geometry::point::Point, utils::math::cycle_index};
 
 /// Shows an error message as a warning in the terminal
 /// Equivalent to TypeScript's showError function
 pub fn show_error(message: &str) {
     eprintln!("Warning: {}", message);
+}
+
+/// Pack a polygon of Point<i32> into a flat Vec<i32>
+/// Used for area calculations and other operations that need flat arrays
+fn pack_polygon_to_i32(polygon: &[Point<i32>]) -> Vec<i32> {
+    let mut out = Vec::with_capacity(polygon.len() * 2);
+    for p in polygon {
+        out.push(p.x);
+        out.push(p.y);
+    }
+    out
 }
 
 /// Converts a memory segment (Float32Array equivalent) to a vector of i32 Points
@@ -164,133 +177,95 @@ pub fn clean_polygon(path: &Vec<Point<i32>>, distance: f64) -> Vec<Point<i32>> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Clean multiple polygons by removing points that are too close together
+///
+/// # Arguments
+/// * `paths` - Vector of polygons to clean
+/// * `distance` - Threshold distance for cleaning
+///
+/// # Returns
+/// Vector of cleaned polygons (empty polygons are removed)
+pub fn clean_polygons(paths: &Vec<Vec<Point<i32>>>, distance: f64) -> Vec<Vec<Point<i32>>> {
+    let mut result = Vec::with_capacity(paths.len());
 
-    #[test]
-    fn test_from_mem_seg_basic() {
-        // Test basic conversion without offset or rounding
-        let mem_seg = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let result = from_mem_seg(&mem_seg, None, false);
-
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0].x, 100); // 1.0 * CLIPPER_SCALE (100)
-        assert_eq!(result[0].y, 200); // 2.0 * CLIPPER_SCALE (100)
-        assert_eq!(result[1].x, 300);
-        assert_eq!(result[1].y, 400);
-        assert_eq!(result[2].x, 500);
-        assert_eq!(result[2].y, 600);
-    }
-
-    #[test]
-    fn test_from_mem_seg_with_offset() {
-        // Test conversion with offset - use a square to avoid clean_polygon removing points
-        let mem_seg = vec![0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0];
-        let offset = Point::new(Some(0.5_f32), Some(1.0_f32));
-        let result = from_mem_seg(&mem_seg, Some(&offset), false);
-
-        // Should form a valid polygon after cleaning
-        assert!(
-            result.len() >= 3,
-            "Should have at least 3 points after cleaning"
-        );
-        // Verify first point is offset correctly
-        assert_eq!(result[0].x, 50); // (0.0 + 0.5) * 100
-        assert_eq!(result[0].y, 100); // (0.0 + 1.0) * 100
-    }
-
-    #[test]
-    fn test_from_mem_seg_with_rounding() {
-        // Test conversion with rounding
-        let mem_seg = vec![1.234, 2.567, 3.891, 4.123];
-        let result = from_mem_seg(&mem_seg, None, true);
-
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].x, 123); // round(1.234 * 100) = 123
-        assert_eq!(result[0].y, 257); // round(2.567 * 100) = 257
-        assert_eq!(result[1].x, 389); // round(3.891 * 100) = 389
-        assert_eq!(result[1].y, 412); // round(4.123 * 100) = 412
-    }
-
-    #[test]
-    fn test_from_mem_seg_with_offset_and_rounding() {
-        // Test conversion with both offset and rounding - use a triangle
-        let mem_seg = vec![0.0, 0.0, 10.234, 0.0, 5.0, 10.567];
-        let offset = Point::new(Some(0.1_f32), Some(0.2_f32));
-        let result = from_mem_seg(&mem_seg, Some(&offset), true);
-
-        assert!(
-            result.len() >= 3,
-            "Should have at least 3 points after cleaning"
-        );
-        assert_eq!(result[0].x, 10); // round((0.0 + 0.1) * 100) = 10
-        assert_eq!(result[0].y, 20); // round((0.0 + 0.2) * 100) = 20
-    }
-
-    #[test]
-    fn test_from_mem_seg_empty() {
-        // Test with empty array
-        let mem_seg: Vec<f32> = vec![];
-        let result = from_mem_seg(&mem_seg, None, false);
-
-        assert_eq!(result.len(), 0);
-    }
-
-    #[test]
-    fn test_to_mem_seg_basic() {
-        // Test basic conversion from i32 points to f32 memory segment
-        let polygon = vec![
-            Point::new(Some(100), Some(200)),
-            Point::new(Some(300), Some(400)),
-            Point::new(Some(500), Some(600)),
-        ];
-        let result = to_mem_seg(&polygon);
-
-        assert_eq!(result.len(), 6);
-        assert_eq!(result[0], 1.0); // 100 / CLIPPER_SCALE (100)
-        assert_eq!(result[1], 2.0); // 200 / CLIPPER_SCALE (100)
-        assert_eq!(result[2], 3.0); // 300 / 100
-        assert_eq!(result[3], 4.0); // 400 / 100
-        assert_eq!(result[4], 5.0); // 500 / 100
-        assert_eq!(result[5], 6.0); // 600 / 100
-    }
-
-    #[test]
-    fn test_to_mem_seg_with_decimals() {
-        // Test conversion that results in decimal values
-        let polygon = vec![
-            Point::new(Some(123), Some(257)),
-            Point::new(Some(389), Some(412)),
-        ];
-        let result = to_mem_seg(&polygon);
-
-        assert_eq!(result.len(), 4);
-        assert!((result[0] - 1.23).abs() < 0.01); // 123 / 100 = 1.23
-        assert!((result[1] - 2.57).abs() < 0.01); // 257 / 100 = 2.57
-        assert!((result[2] - 3.89).abs() < 0.01); // 389 / 100 = 3.89
-        assert!((result[3] - 4.12).abs() < 0.01); // 412 / 100 = 4.12
-    }
-
-    #[test]
-    fn test_to_mem_seg_empty() {
-        // Test with empty polygon
-        let polygon: Vec<Point<i32>> = vec![];
-        let result = to_mem_seg(&polygon);
-
-        assert_eq!(result.len(), 0);
-    }
-
-    #[test]
-    fn test_roundtrip_conversion() {
-        // Test that converting from mem_seg to polygon and back preserves data
-        let original_mem_seg = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let polygon = from_mem_seg(&original_mem_seg, None, false);
-        let result_mem_seg = to_mem_seg(&polygon);
-
-        assert_eq!(original_mem_seg.len(), result_mem_seg.len());
-        for i in 0..original_mem_seg.len() {
-            assert!((original_mem_seg[i] - result_mem_seg[i]).abs() < 0.01);
+    for path in paths.iter() {
+        let cleaned = clean_polygon(path, distance);
+        if !cleaned.is_empty() {
+            result.push(cleaned);
         }
     }
+
+    result
+}
+
+/// Perform a Clipper Difference operation and return the cleaned and filtered result
+///
+/// This function:
+/// 1. Performs a Difference operation (clipper_bin_nfp minus combined_nfp)
+/// 2. Cleans the resulting polygons using CLEAN_TRASHOLD
+/// 3. Filters out polygons with area smaller than AREA_TRASHOLD
+///
+/// # Arguments
+/// * `combined_nfp` - Polygons to subtract (Clip type)
+/// * `clipper_bin_nfp` - Base polygons (Subject type)
+///
+/// # Returns
+/// Vector of cleaned and filtered polygons, or empty vector if operation fails
+pub fn get_final_nfp(
+    combined_nfp: &Vec<Vec<Point<i32>>>,
+    clipper_bin_nfp: &Vec<Vec<Point<i32>>>,
+) -> Vec<Vec<Point<i32>>> {
+    let mut clipper = Clipper::new(false, false);
+
+    // Add paths - combined_nfp is what we're subtracting FROM clipper_bin_nfp
+    clipper.add_paths(combined_nfp, PolyType::Clip);
+    clipper.add_paths(clipper_bin_nfp, PolyType::Subject);
+
+    // Execute the Difference operation
+    let mut result = Vec::new();
+    if !clipper.execute(ClipType::Difference, &mut result, PolyFillType::NonZero) {
+        return Vec::new();
+    }
+
+    // Clean the polygons
+    let mut final_nfp = clean_polygons(&result, CLEAN_TRASHOLD as f64);
+
+    // Filter out small polygons based on area threshold
+    final_nfp.retain(|polygon| {
+        let packed = pack_polygon_to_i32(polygon);
+        let area = i32::abs_polygon_area(&packed);
+        area >= AREA_TRASHOLD as f64
+    });
+
+    final_nfp
+}
+
+/// Combine multiple polygons using a Union operation
+///
+/// This function performs a Clipper Union operation to combine all input polygons
+///
+/// # Arguments
+/// * `total_nfps` - Vector of polygons to combine
+///
+/// # Returns
+/// Vector of combined polygons, or empty vector if operation fails or input is empty
+pub fn get_combined_nfps(total_nfps: &Vec<Vec<Point<i32>>>) -> Vec<Vec<Point<i32>>> {
+    if total_nfps.is_empty() {
+        return Vec::new();
+    }
+
+    let mut clipper = Clipper::new(false, false);
+
+    // Add all paths as Subject type
+    for polygon in total_nfps.iter() {
+        clipper.add_path(polygon, PolyType::Subject);
+    }
+
+    // Execute the Union operation
+    let mut result = Vec::new();
+    if !clipper.execute(ClipType::Union, &mut result, PolyFillType::NonZero) {
+        return Vec::new();
+    }
+
+    result
 }

@@ -16,7 +16,7 @@ pub fn to_rotation_index(angle: u16, rotation_split: u16) -> u16 {
 }
 
 #[inline(always)]
-fn cast_int64(a: f64) -> i64 {
+pub fn cast_int64(a: f64) -> i64 {
     if a < 0.0 {
         a.ceil() as i64
     } else {
@@ -36,6 +36,24 @@ fn split_to_16bits(value: i64) -> [u16; 4] {
     }
 
     result
+}
+
+/// Returns the sign of a number as an i32, matching JavaScript's Math.sign()
+/// Returns:
+/// - 1 if x > 0
+/// - -1 if x < 0  
+/// - 0 if x == 0
+///
+/// This is different from f64::signum() which returns 1.0 for positive zero
+#[inline(always)]
+fn sign(x: f64) -> i32 {
+    if x > 0.0 {
+        1
+    } else if x < 0.0 {
+        -1
+    } else {
+        0
+    }
 }
 
 #[inline(always)]
@@ -63,7 +81,10 @@ fn mul_int128(x: f64, y: f64) -> [u32; 5] {
         result[i] = result[i].wrapping_add(result[i - 1] >> 16);
     }
 
-    result[0] = 1 + ((x.signum() * y.signum()) as u32);
+    // BUGFIX: Use sign() function that returns 0 for zero, matching JavaScript's Math.sign()
+    // Rust's f64::signum() returns 1.0 for positive zero, which causes incorrect results
+    // when comparing slopes where one or both values are zero
+    result[0] = (1 + (sign(x) * sign(y))) as u32;
 
     result
 }

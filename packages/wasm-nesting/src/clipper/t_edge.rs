@@ -761,11 +761,16 @@ impl TEdge {
     }
 
     pub fn get_intersect_x(&self, curr_index: usize, next_index: usize, bot_y: i32) -> i32 {
-        let index = if self.dx(curr_index).abs() > self.dx(next_index).abs() {
+        let curr_dx_abs = self.dx(curr_index).abs();
+        let next_dx_abs = self.dx(next_index).abs();
+        // Use the edge with LARGER dx_abs (more vertical/less horizontal)
+        // because we need to calculate x at a specific y
+        let index = if curr_dx_abs < next_dx_abs {
             next_index
         } else {
             curr_index
         };
+
         self.top_x(index, bot_y)
     }
 
@@ -922,13 +927,40 @@ impl TEdge {
     }
 
     fn top_x(&self, index: usize, y: i32) -> i32 {
-        if y == self.get_y(index, EdgeSide::Top) {
+        let result = if y == self.get_y(index, EdgeSide::Top) {
             self.get_x(index, EdgeSide::Top)
         } else {
             self.get_x(index, EdgeSide::Bottom)
                 + (self.dx(index) * (y - self.get_y(index, EdgeSide::Bottom)) as f64)
                     .clipper_rounded() as i32
+        };
+
+        if y == 54833 && result == 36218 {
+            let top_y = self.get_y(index, EdgeSide::Top);
+            let top_x = self.get_x(index, EdgeSide::Top);
+            let bot_y = self.get_y(index, EdgeSide::Bottom);
+            let bot_x = self.get_x(index, EdgeSide::Bottom);
+            let dx = self.dx(index);
+            eprintln!("\\ntop_x: index={}, y={}, result={}", index, y, result);
+            eprintln!(
+                "  Top=({}, {}), Bot=({}, {}), dx={}",
+                top_x, top_y, bot_x, bot_y, dx
+            );
+            eprintln!("  y == top_y: {}", y == top_y);
+            if y != top_y {
+                let calc = bot_x as f64 + (dx * (y - bot_y) as f64);
+                eprintln!(
+                    "  Calculation: {} + ({} * {}) = {}",
+                    bot_x,
+                    dx,
+                    y - bot_y,
+                    calc
+                );
+                eprintln!("  Rounded: {}", calc.clipper_rounded());
+            }
         }
+
+        result
     }
 
     fn get_contributing(&self, index: usize) -> bool {
@@ -1467,13 +1499,11 @@ impl TEdge {
     }
 
     fn check_min_join(&self, curr_index: usize, prev_index: usize, point: &Point<i32>) -> bool {
-        unsafe {
-            prev_index != UNASSIGNED
-                && self.is_filled(prev_index)
-                && self.top_x(prev_index, point.y) == self.top_x(curr_index, point.y)
-                && self.slopes_equal(curr_index, prev_index)
-                && !self.is_wind_deleta_empty(curr_index)
-        }
+        prev_index != UNASSIGNED
+            && self.is_filled(prev_index)
+            && self.top_x(prev_index, point.y) == self.top_x(curr_index, point.y)
+            && self.slopes_equal(curr_index, prev_index)
+            && !self.is_wind_deleta_empty(curr_index)
     }
 
     fn slopes_equal(&self, e1_index: usize, e2_index: usize) -> bool {

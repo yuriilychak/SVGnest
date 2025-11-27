@@ -470,7 +470,7 @@ mod tests {
     use super::*;
 
     const TEST_DATA: &str =
-        include_str!("../../../../geometry-utils/src/clipper/__data__/out-rec.json");
+        include_str!("../.././__data__/out-rec.json");
 
     #[test]
     fn test_out_rec_from_json_data() {

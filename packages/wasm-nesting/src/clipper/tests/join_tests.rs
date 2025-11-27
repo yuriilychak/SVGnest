@@ -303,8 +303,7 @@ fn parse_test_data(json_content: &str) -> Vec<TestSuite> {
 mod tests {
     use super::*;
 
-    const TEST_DATA: &str =
-        include_str!("../../../../geometry-utils/src/clipper/__data__/join.json");
+    const TEST_DATA: &str = include_str!("../.././__data__/join.json");
 
     #[test]
     fn test_join_from_json_data() {

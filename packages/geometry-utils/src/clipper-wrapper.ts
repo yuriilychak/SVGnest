@@ -1,10 +1,9 @@
-import { PolyFillType, PolyType, ClipType, absArea, cleanPolygon, cleanPolygons, Clipper } from './clipper';
 import type { BoundRect, NestConfig, Point, Polygon, PolygonNode } from './types';
 import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
-import { clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
+import { clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm, polygon_area_i32 } from 'wasm-nesting';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -204,7 +203,7 @@ export default class ClipperWrapper {
             result.push(PointI32.from(point));
         }
 
-        return cleanTrashold !== -1 ? cleanPolygon(result, cleanTrashold) : result;
+        return cleanTrashold !== -1 ? ClipperWrapper.cleanPolygon(result, cleanTrashold) : result;
     }
 
     public static toMemSeg(polygon: Point<Int32Array>[], memSeg: Float32Array = null): Float32Array {
@@ -221,21 +220,25 @@ export default class ClipperWrapper {
         return result;
     }
 
-    public static applyNfps(clipper: Clipper, nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): void {
+    public static applyNfps(nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): Point<Int32Array>[][] {
         const nfpWrapper: NFPWrapper = new NFPWrapper(nfpBuffer);
         const nfpCount: number = nfpWrapper.count;
         let clone: Point<Int32Array>[] = null;
         let memSeg: Float32Array = null;
         let i: number = 0;
 
+        const result: Point<Int32Array>[][] = [];
+
         for (i = 0; i < nfpCount; ++i) {
             memSeg = nfpWrapper.getNFPMemSeg(i);
             clone = ClipperWrapper.fromMemSeg(memSeg, offset);
 
-            if (absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
-                clipper.addPath(clone, PolyType.Subject);
+            if (ClipperWrapper.absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
+                result.push(clone);
             }
         }
+
+        return result;
     }
 
     public static nfpToClipper(nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
@@ -260,9 +263,10 @@ export default class ClipperWrapper {
         placement: number[]
     ): Point<Int32Array>[][] | null {
         const tmpPoint: Point<Float32Array> = PointF32.create();
-        let clipper = new Clipper(false, false);
         let i: number = 0;
         let key: number = 0;
+
+        let totalNfps: Point<Int32Array>[][] = [];
 
         for (i = 0; i < placed.length; ++i) {
             key = generateNFPCacheKey(placeContent.rotations, false, placed[i], path);
@@ -273,37 +277,140 @@ export default class ClipperWrapper {
 
             tmpPoint.fromMemSeg(placement, i);
 
-            ClipperWrapper.applyNfps(clipper, placeContent.nfpCache.get(key), tmpPoint);
+            totalNfps = totalNfps.concat(
+                ClipperWrapper.applyNfps(placeContent.nfpCache.get(key), tmpPoint)
+            );
         }
 
-        const combinedNfp: Point<Int32Array>[][] = [];
+            const wasmRes = get_combined_nfps_wasm(
+                ClipperWrapper.serializePolygons(totalNfps)
+            );
 
-        if (!clipper.execute(ClipType.Union, combinedNfp, PolyFillType.NonZero)) {
+            const combinedNfp = ClipperWrapper.deserializePolygons(wasmRes);
+
+
+        if (combinedNfp.length === 0) {
             return null;
         }
 
         // difference with bin polygon
-        let finalNfp: Point<Int32Array>[][] = [];
         const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(binNfp);
 
-        clipper = new Clipper(false, false);
-        clipper.addPaths(combinedNfp, PolyType.Clip);
-        clipper.addPaths(clipperBinNfp, PolyType.Subject);
+        const wasmResult = get_final_nfp_wasm(
+            ClipperWrapper.serializePolygons(combinedNfp),
+            ClipperWrapper.serializePolygons(clipperBinNfp)
+        )
 
-        if (!clipper.execute(ClipType.Difference, finalNfp, PolyFillType.NonZero)) {
-            return null;
+        const finalNfp = ClipperWrapper.deserializePolygons(wasmResult);
+
+
+        return finalNfp.length === 0 ? null : finalNfp;
+    }
+
+    /**
+     * Serialize polygons to a flat Int32Array
+     * Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+     * 
+     * @param polygons - Array of polygons to serialize
+     * @returns Flat Int32Array containing polygon count, sizes, and coordinates
+     */
+    public static serializePolygons(polygons: Point<Int32Array>[][]): Int32Array {
+        const polygonCount = polygons.length;
+
+        if (polygonCount === 0) {
+            return new Int32Array([0]);
         }
 
-        finalNfp = cleanPolygons(finalNfp, ClipperWrapper.CLEAN_TRASHOLD);
+        // Calculate total size needed
+        let totalCoords = 0;
+        for (let i = 0; i < polygonCount; ++i) {
+            totalCoords += polygons[i].length * 2; // x, y for each point
+        }
 
-        for (i = 0; i < finalNfp.length; ++i) {
-            if (absArea(finalNfp[i]) < ClipperWrapper.AREA_TRASHOLD) {
-                finalNfp.splice(i, 1);
-                --i;
+        const result = new Int32Array(1 + polygonCount + totalCoords);
+        let index = 0;
+
+        // Write polygon count
+        result[index++] = polygonCount;
+
+        // Write sizes
+        for (let i = 0; i < polygonCount; ++i) {
+            result[index++] = polygons[i].length * 2; // Size in coordinates (x, y pairs)
+        }
+
+        // Write coordinates
+        for (let i = 0; i < polygonCount; ++i) {
+            const polygon = polygons[i];
+            for (let j = 0; j < polygon.length; ++j) {
+                result[index++] = polygon[j].x;
+                result[index++] = polygon[j].y;
             }
         }
 
-        return finalNfp.length === 0 ? null : finalNfp;
+        return result;
+    }
+
+    /**
+     * Deserialize polygons from a flat Int32Array
+     * Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+     * 
+     * @param data - Flat Int32Array containing serialized polygon data
+     * @returns Array of polygons
+     */
+    public static deserializePolygons(data: Int32Array): Point<Int32Array>[][] {
+        if (data.length === 0) {
+            return [];
+        }
+
+        const polygonCount = data[0];
+        if (polygonCount === 0 || data.length < 1 + polygonCount) {
+            return [];
+        }
+
+        const result: Point<Int32Array>[][] = [];
+        let dataIndex = 1 + polygonCount; // Skip count + all sizes
+
+        for (let i = 0; i < polygonCount; ++i) {
+            const size = data[1 + i];
+            const pointCount = size / 2;
+
+            if (dataIndex + size > data.length) {
+                // Invalid data - not enough coordinates
+                break;
+            }
+
+            const polygon: Point<Int32Array>[] = [];
+            for (let j = 0; j < pointCount; ++j) {
+                const x = data[dataIndex + j * 2];
+                const y = data[dataIndex + j * 2 + 1];
+                polygon.push(PointI32.create(x, y));
+            }
+
+            result.push(polygon);
+            dataIndex += size;
+        }
+
+        return result;
+    }
+
+    private static cleanPolygon(path: Point<Int32Array>[], distance: number): Point<Int32Array>[] {
+        const polyData = new Int32Array(path.reduce<number[]>((acc: number[], point: Point<Int32Array>) => acc.concat([point.x, point.y]), []));
+        const cleanedData = clean_polygon_wasm(polyData, distance);
+        const pointCount = cleanedData.length / 2;
+
+        const result: Point<Int32Array>[] = new Array(pointCount);
+
+        for (let i = 0; i < pointCount; i++) {
+            result[i] = PointI32.create(cleanedData[i * 2], cleanedData[i * 2 + 1]);
+        }
+
+        return result;
+    }
+
+    private static absArea(poly: Point<Int32Array>[]): number {
+        const polyData = new Int32Array(poly.reduce<number[]>((acc: number[], point: Point<Int32Array>) => acc.concat([point.x, point.y]), []));
+    
+        return Math.abs(polygon_area_i32(polyData));
     }
 
     private static CLIPPER_SCALE: number = 100;
