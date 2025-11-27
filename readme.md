@@ -10,6 +10,7 @@
 -   Optimized concave flow. Now it faster then original. Original flow removed.
 -   Isolated and refactored js-clipper logic to avoid of full lib usage (it decrease package size twice).
 -   Rewrote js-clipper from dynamic lists to Data locality pattern structure.
+-   Fully ported js-clipper to Rust.
 -   Migrated part of pair flow to Rust with WASM (speed-up packing time near 10 times).
 -   Migrated UI to React.
 

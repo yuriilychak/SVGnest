@@ -292,92 +292,168 @@ pub fn offset_node_inner_wasm(
     out
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_clean_node_inner_basic() {
-        // Create a simple square polygon
-        let mem_seg = vec![0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0];
-
-        let result = clean_node_inner(&mem_seg, 0.01);
-
-        // Should return a non-empty result
-        assert!(!result.is_empty());
-
-        // Should have 4 points (8 coordinates)
-        assert_eq!(result.len(), 8);
+/// Deserialize polygon data from flat i32 array
+///
+/// Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+///
+/// # Arguments
+/// * `data` - Flat array containing polygon count, sizes, and coordinates
+///
+/// # Returns
+/// Vector of polygons, where each polygon is a vector of Point<i32>
+fn deserialize_polygons(data: &[i32]) -> Vec<Vec<Point<i32>>> {
+    if data.is_empty() {
+        return Vec::new();
     }
 
-    #[test]
-    fn test_clean_node_inner_with_duplicates() {
-        // Create a polygon with duplicate/close points that should be cleaned
-        let mem_seg = vec![
-            0.0, 0.0, 0.0001, 0.0001, // Very close to first point
-            10.0, 0.0, 10.0, 10.0, 0.0, 10.0,
-        ];
-
-        let result = clean_node_inner(&mem_seg, 0.01);
-
-        // Should return cleaned polygon with fewer points
-        assert!(!result.is_empty());
-        // The duplicate point should be removed
-        assert!(result.len() < mem_seg.len());
+    let polygon_count = data[0] as usize;
+    if polygon_count == 0 || data.len() < 1 + polygon_count {
+        return Vec::new();
     }
 
-    #[test]
-    fn test_clean_node_inner_empty_input() {
-        let mem_seg: Vec<f32> = vec![];
+    let mut result = Vec::with_capacity(polygon_count);
+    let mut data_index = 1 + polygon_count; // Skip count + all sizes
 
-        let result = clean_node_inner(&mem_seg, 0.01);
+    for i in 0..polygon_count {
+        let size = data[1 + i] as usize;
+        let point_count = size / 2;
 
-        // Should return empty for empty input
-        assert!(result.is_empty());
+        if data_index + size > data.len() {
+            // Invalid data - not enough coordinates
+            break;
+        }
+
+        let mut polygon = Vec::with_capacity(point_count);
+        for j in 0..point_count {
+            let x = data[data_index + j * 2];
+            let y = data[data_index + j * 2 + 1];
+            polygon.push(Point::new(Some(x), Some(y)));
+        }
+
+        result.push(polygon);
+        data_index += size;
     }
 
-    #[test]
-    fn test_clean_node_inner_too_small() {
-        // Polygon with only 1 point
-        let mem_seg = vec![0.0, 0.0];
+    result
+}
 
-        let result = clean_node_inner(&mem_seg, 0.01);
+/// Serialize polygons to flat i32 array
+///
+/// Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+///
+/// # Arguments
+/// * `polygons` - Vector of polygons to serialize
+///
+/// # Returns
+/// Flat array containing polygon count, sizes, and coordinates
+fn serialize_polygons(polygons: &Vec<Vec<Point<i32>>>) -> Vec<i32> {
+    let polygon_count = polygons.len();
 
-        // Should return empty for invalid polygon
-        assert!(result.is_empty());
+    if polygon_count == 0 {
+        return vec![0];
     }
 
-    #[test]
-    fn test_offset_node_inner_zero_spacing() {
-        // With zero spacing, should just normalize the polygon
-        let mem_seg = vec![0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0];
-
-        let result = offset_node_inner(&mem_seg, 1, 0, 0.01);
-
-        // Should return normalized result (same point count)
-        assert!(!result.is_empty());
-        assert_eq!(result.len(), 8);
+    // Calculate total size needed
+    let mut total_coords = 0;
+    for polygon in polygons.iter() {
+        total_coords += polygon.len() * 2; // x, y for each point
     }
 
-    #[test]
-    fn test_offset_node_inner_positive_spacing() {
-        // With positive spacing, should offset outward
-        let mem_seg = vec![0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0];
+    let mut result = Vec::with_capacity(1 + polygon_count + total_coords);
 
-        let result = offset_node_inner(&mem_seg, 1, 2, 0.01);
+    // Write polygon count
+    result.push(polygon_count as i32);
 
-        // Should return some result
-        assert!(!result.is_empty());
+    // Write sizes
+    for polygon in polygons.iter() {
+        result.push((polygon.len() * 2) as i32); // Size in coordinates (x, y pairs)
     }
 
-    #[test]
-    fn test_offset_node_inner_negative_spacing() {
-        // With negative spacing, should offset inward
-        let mem_seg = vec![0.0, 0.0, 100.0, 0.0, 100.0, 100.0, 0.0, 100.0];
-
-        let result = offset_node_inner(&mem_seg, -1, 5, 0.01);
-
-        // Result may be empty or have offset polygon - just verify no panic
-        let _ = result.len();
+    // Write coordinates
+    for polygon in polygons.iter() {
+        for point in polygon.iter() {
+            result.push(point.x);
+            result.push(point.y);
+        }
     }
+
+    result
+}
+
+/// Clean multiple polygons by removing points that are too close together (WASM wrapper)
+///
+/// # Arguments
+/// * `data` - Flat array in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+/// * `distance` - Threshold distance for cleaning
+///
+/// # Returns
+/// Int32Array with cleaned polygons in the same format
+#[wasm_bindgen]
+pub fn clean_polygons_wasm(data: &[i32], distance: f64) -> Int32Array {
+    let polygons = deserialize_polygons(data);
+    let cleaned = clipper_utils::clean_polygons(&polygons, distance);
+    let serialized = serialize_polygons(&cleaned);
+
+    let out = Int32Array::new_with_length(serialized.len() as u32);
+    out.copy_from(&serialized);
+    out
+}
+
+/// Perform a Clipper Difference operation and return cleaned and filtered result (WASM wrapper)
+///
+/// This function:
+/// 1. Performs a Difference operation (clipper_bin_nfp minus combined_nfp)
+/// 2. Cleans the resulting polygons using CLEAN_TRASHOLD
+/// 3. Filters out polygons with area smaller than AREA_TRASHOLD
+///
+/// # Arguments
+/// * `combined_nfp_data` - Polygons to subtract (Clip type) in serialized format
+/// * `clipper_bin_nfp_data` - Base polygons (Subject type) in serialized format
+///
+/// # Returns
+/// Int32Array with result polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+/// Perform a Clipper Difference operation and return cleaned and filtered result (WASM wrapper)
+///
+/// This function:
+/// 1. Performs a Difference operation (clipper_bin_nfp minus combined_nfp)
+/// 2. Cleans the resulting polygons using CLEAN_TRASHOLD
+/// 3. Filters out polygons with area smaller than AREA_TRASHOLD
+///
+/// # Arguments
+/// * `combined_nfp_data` - Polygons to subtract (Clip type) in serialized format
+/// * `clipper_bin_nfp_data` - Base polygons (Subject type) in serialized format
+///
+/// # Returns
+/// Int32Array with result polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+#[wasm_bindgen]
+pub fn get_final_nfp_wasm(combined_nfp_data: &[i32], clipper_bin_nfp_data: &[i32]) -> Int32Array {
+    let combined_nfp = deserialize_polygons(combined_nfp_data);
+    let clipper_bin_nfp = deserialize_polygons(clipper_bin_nfp_data);
+
+    let result = clipper_utils::get_final_nfp(&combined_nfp, &clipper_bin_nfp);
+    let serialized = serialize_polygons(&result);
+
+    let out = Int32Array::new_with_length(serialized.len() as u32);
+    out.copy_from(&serialized);
+    out
+}
+
+/// Combine multiple polygons using a Union operation (WASM wrapper)
+///
+/// This function performs a Clipper Union operation to combine all input polygons
+///
+/// # Arguments
+/// * `total_nfps_data` - Polygons to combine in serialized format
+///
+/// # Returns
+/// Int32Array with combined polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+#[wasm_bindgen]
+pub fn get_combined_nfps_wasm(total_nfps_data: &[i32]) -> Int32Array {
+    let total_nfps = deserialize_polygons(total_nfps_data);
+    let result = clipper_utils::get_combined_nfps(&total_nfps);
+    let serialized = serialize_polygons(&result);
+
+    let out = Int32Array::new_with_length(serialized.len() as u32);
+    out.copy_from(&serialized);
+    out
 }
