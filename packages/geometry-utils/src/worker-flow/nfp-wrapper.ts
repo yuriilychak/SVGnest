@@ -1,6 +1,5 @@
 import { join_u16_to_u32, get_u16_from_u32 } from 'wasm-nesting';
 import { writeUint32ToF32 } from "../helpers";
-
 export default class NFPWrapper {
     private _buffer: ArrayBuffer;
 

@@ -2,7 +2,6 @@ import { THREAD_TYPE } from '../types';
 import { pairData } from './pair-flow';
 import { placePaths } from './place-flow';
 import { WorkerConfig } from './types';
-import PairContent from './pair-content';
 import PlaceContent from './place-content';
 import { PolygonF64, PolygonF32, PointPoolF64, PointPoolF32 } from '../geometry';
 import { WORKER_CONFIG_POLY_COUNT } from './ constants';
@@ -11,7 +10,6 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
     if (!config.isInit) {
         config.buffer = new ArrayBuffer(8192 * Float64Array.BYTES_PER_ELEMENT);
         config.isInit = true;
-        config.pairContent = new PairContent();
         config.placeContent = new PlaceContent();
 
         const pool32 = new PointPoolF32(config.buffer);
@@ -33,7 +31,7 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
     const view: DataView = new DataView(buffer);
     const dataType: THREAD_TYPE = view.getUint32(0) as THREAD_TYPE;
     const isPair: boolean = dataType === THREAD_TYPE.PAIR;
-    const result: ArrayBuffer = isPair ? pairData(buffer, config) : placePaths(buffer, config);
+    const result: ArrayBuffer = isPair ? pairData(buffer) : placePaths(buffer, config);
 
     let i: number = 0;
 
@@ -42,9 +40,7 @@ export default function calculate(config: WorkerConfig, buffer: ArrayBuffer): Ar
         config.f64.polygons[i].clean();
     }
     
-    if (isPair) {
-        config.pairContent.clean();
-    } else {
+    if (!isPair) {
         config.placeContent.clean();
     }
 

@@ -1,5 +1,4 @@
 import PlaceContent from './place-content';
-import PairContent from './pair-content';
 import type { Point, PointPool, Polygon, TypedArray } from '../types';
 
 export type TypedConfig<T extends TypedArray = Float64Array> = {
@@ -14,7 +13,6 @@ export type WorkerConfig = {
     isInit: boolean;
     buffer: ArrayBuffer;
     placeContent: PlaceContent;
-    pairContent: PairContent;
 };
 
 export type SegmentCheck<T extends TypedArray = Float64Array> = {

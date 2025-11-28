@@ -3,7 +3,7 @@ import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
-import { clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm, polygon_area_i32 } from 'wasm-nesting';
+import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm, polygon_area_i32 } from 'wasm-nesting';
 
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -221,24 +221,7 @@ export default class ClipperWrapper {
     }
 
     public static applyNfps(nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): Point<Int32Array>[][] {
-        const nfpWrapper: NFPWrapper = new NFPWrapper(nfpBuffer);
-        const nfpCount: number = nfpWrapper.count;
-        let clone: Point<Int32Array>[] = null;
-        let memSeg: Float32Array = null;
-        let i: number = 0;
-
-        const result: Point<Int32Array>[][] = [];
-
-        for (i = 0; i < nfpCount; ++i) {
-            memSeg = nfpWrapper.getNFPMemSeg(i);
-            clone = ClipperWrapper.fromMemSeg(memSeg, offset);
-
-            if (ClipperWrapper.absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
-                result.push(clone);
-            }
-        }
-
-        return result;
+        return ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(nfpBuffer), offset.x, offset.y));
     }
 
     public static nfpToClipper(nfpWrapper: NFPWrapper): Point<Int32Array>[][] {

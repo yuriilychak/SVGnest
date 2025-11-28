@@ -6,6 +6,7 @@ pub mod constants;
 pub mod geometry;
 pub mod nest_config;
 pub mod nesting;
+pub mod polygon_node;
 pub mod utils;
 
 use crate::nesting::pair_flow::pair_data;
@@ -66,6 +67,16 @@ pub fn cycle_index_wasm(index: usize, size: usize, offset: isize) -> usize {
 #[wasm_bindgen]
 pub fn to_rotation_index_wasm(angle: u16, rotation_split: u16) -> u16 {
     to_rotation_index(angle, rotation_split)
+}
+
+#[wasm_bindgen]
+pub fn read_uint32_from_f32_wasm(array: &[f32], index: usize) -> u32 {
+    read_uint32_from_f32(array, index)
+}
+
+#[wasm_bindgen]
+pub fn write_uint32_to_f32_wasm(array: &mut [f32], index: usize, value: u32) {
+    write_uint32_to_f32(array, index, value);
 }
 
 #[wasm_bindgen]
@@ -456,4 +467,155 @@ pub fn get_combined_nfps_wasm(total_nfps_data: &[i32]) -> Int32Array {
     let out = Int32Array::new_with_length(serialized.len() as u32);
     out.copy_from(&serialized);
     out
+}
+
+/// Apply NFPs with offset and filter by area threshold (WASM wrapper)
+///
+/// # Arguments
+/// * `nfp_buffer` - Float32Array containing serialized NFP data
+/// * `offset_x` - X coordinate of the offset point
+/// * `offset_y` - Y coordinate of the offset point
+///
+/// # Returns
+/// Int32Array with filtered polygons in format: [polygon_count, size1, size2, ..., x0, y0, x1, y1, ...]
+#[wasm_bindgen]
+pub fn apply_nfps_wasm(nfp_buffer: &[f32], offset_x: f32, offset_y: f32) -> Int32Array {
+    let offset = Point::new(Some(offset_x), Some(offset_y));
+    let result = clipper_utils::apply_nfps(nfp_buffer.to_vec(), &offset);
+    let serialized = serialize_polygons(&result);
+
+    let out = Int32Array::new_with_length(serialized.len() as u32);
+    out.copy_from(&serialized);
+    out
+}
+
+/// Serialize polygon nodes to a byte buffer (WASM wrapper)
+///
+/// This function takes an array of polygon nodes in a specific format and serializes them
+/// to a Uint8Array buffer. The input format is:
+/// For each node: [source, rotation, point_count, ...mem_seg_values, children_count, ...children]
+///
+/// # Arguments
+/// * `nodes_data` - Float32Array containing flattened polygon node data
+/// * `offset` - Initial offset in the output buffer
+///
+/// # Returns
+/// Uint8Array containing the serialized polygon nodes
+#[wasm_bindgen]
+pub fn serialize_polygon_nodes_wasm(
+    nodes_data: &[f32],
+    offset: usize,
+) -> web_sys::js_sys::Uint8Array {
+    // Parse the input data into PolygonNode structures
+    fn parse_nodes(data: &[f32], index: &mut usize) -> Vec<polygon_node::PolygonNode> {
+        let mut nodes = Vec::new();
+
+        while *index < data.len() {
+            if *index + 3 > data.len() {
+                break;
+            }
+
+            let source = data[*index] as i32;
+            *index += 1;
+            let rotation = data[*index];
+            *index += 1;
+            let point_count = data[*index] as usize;
+            *index += 1;
+
+            let mem_seg_length = point_count * 2;
+            if *index + mem_seg_length > data.len() {
+                break;
+            }
+
+            let mem_seg = data[*index..*index + mem_seg_length].to_vec();
+            *index += mem_seg_length;
+
+            if *index >= data.len() {
+                break;
+            }
+
+            let children_count = data[*index] as usize;
+            *index += 1;
+
+            let mut node = polygon_node::PolygonNode::new(source, rotation, mem_seg);
+
+            if children_count > 0 {
+                node.children = parse_nodes(data, index);
+                if node.children.len() != children_count {
+                    // Invalid data structure
+                    break;
+                }
+            }
+
+            nodes.push(node);
+        }
+
+        nodes
+    }
+
+    let mut index = 0;
+    let nodes = parse_nodes(nodes_data, &mut index);
+    let serialized = polygon_node::PolygonNode::serialize(&nodes, offset);
+
+    let out = web_sys::js_sys::Uint8Array::new_with_length(serialized.len() as u32);
+    out.copy_from(&serialized);
+    out
+}
+
+/// Deserialize polygon nodes from a byte buffer (WASM wrapper)
+///
+/// # Arguments
+/// * `buffer` - Uint8Array containing serialized polygon node data
+/// * `offset` - Initial offset in the buffer
+///
+/// # Returns
+/// Float32Array containing flattened polygon node data in format:
+/// For each node: [source, rotation, point_count, ...mem_seg_values, children_count, ...children]
+#[wasm_bindgen]
+pub fn deserialize_polygon_nodes_wasm(buffer: &[u8], offset: usize) -> Float32Array {
+    fn flatten_nodes(nodes: &[polygon_node::PolygonNode], output: &mut Vec<f32>) {
+        for node in nodes {
+            output.push(node.source as f32);
+            output.push(node.rotation);
+            output.push((node.mem_seg.len() >> 1) as f32); // point_count
+            output.extend_from_slice(&node.mem_seg);
+            output.push(node.children.len() as f32);
+            flatten_nodes(&node.children, output);
+        }
+    }
+
+    let nodes = polygon_node::PolygonNode::deserialize(buffer, offset);
+    let mut flattened = Vec::new();
+    flatten_nodes(&nodes, &mut flattened);
+
+    let out = Float32Array::new_with_length(flattened.len() as u32);
+    out.copy_from(&flattened);
+    out
+}
+
+/// Generate NFP cache key from two polygon nodes (WASM wrapper)
+///
+/// # Arguments
+/// * `rotation_split` - Number of rotation splits (used to calculate rotation index)
+/// * `inside` - Whether this is an inside NFP
+/// * `source1` - Source ID of first polygon
+/// * `rotation1` - Rotation of first polygon
+/// * `source2` - Source ID of second polygon
+/// * `rotation2` - Rotation of second polygon
+///
+/// # Returns
+/// u32 cache key packed with polygon sources, rotation indices, and inside flag
+#[wasm_bindgen]
+pub fn generate_nfp_cache_key_wasm(
+    rotation_split: u16,
+    inside: bool,
+    source1: i32,
+    rotation1: f32,
+    source2: i32,
+    rotation2: f32,
+) -> u32 {
+    let polygon1 = polygon_node::PolygonNode::new(source1, rotation1, Vec::new());
+    let polygon2 = polygon_node::PolygonNode::new(source2, rotation2, Vec::new());
+
+    polygon_node::PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
 }

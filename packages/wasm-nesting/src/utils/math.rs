@@ -105,3 +105,63 @@ pub fn slopes_equal(v1: f64, v2: f64, v3: f64, v4: f64, use_full_range: bool) ->
         cast_int64(v1 * v2) - cast_int64(v3 * v4) == 0
     }
 }
+
+/// Reads a u32 value from a f32 array by reinterpreting the bytes at the given index.
+/// This is equivalent to TypeScript's readUint32FromF32 using DataView.getUint32 with little-endian.
+#[inline(always)]
+pub fn read_uint32_from_f32(array: &[f32], index: usize) -> u32 {
+    // In Rust, we can use f32::to_bits() to get the u32 representation
+    // or use from_le_bytes if we need explicit little-endian conversion
+    array[index].to_bits()
+}
+
+/// Writes a u32 value to a f32 array by reinterpreting the bytes at the given index.
+/// This is equivalent to TypeScript's writeUint32ToF32 using DataView.setUint32 with little-endian.
+#[inline(always)]
+pub fn write_uint32_to_f32(array: &mut [f32], index: usize, value: u32) {
+    // Convert u32 to f32 by reinterpreting the bits
+    array[index] = f32::from_bits(value);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read_write_uint32_from_f32() {
+        let mut array = vec![0.0f32; 10];
+
+        // Write some u32 values
+        write_uint32_to_f32(&mut array, 0, 42);
+        write_uint32_to_f32(&mut array, 1, 12345);
+        write_uint32_to_f32(&mut array, 2, u32::MAX);
+        write_uint32_to_f32(&mut array, 3, 0);
+
+        // Read them back and verify
+        assert_eq!(read_uint32_from_f32(&array, 0), 42);
+        assert_eq!(read_uint32_from_f32(&array, 1), 12345);
+        assert_eq!(read_uint32_from_f32(&array, 2), u32::MAX);
+        assert_eq!(read_uint32_from_f32(&array, 3), 0);
+    }
+
+    #[test]
+    fn test_roundtrip_uint32_f32_conversion() {
+        let test_values = [0u32, 1, 100, 1000, 65535, 16777216, u32::MAX / 2, u32::MAX];
+        let mut array = vec![0.0f32; test_values.len()];
+
+        // Write all values
+        for (i, &value) in test_values.iter().enumerate() {
+            write_uint32_to_f32(&mut array, i, value);
+        }
+
+        // Read them back and verify they match
+        for (i, &expected) in test_values.iter().enumerate() {
+            let actual = read_uint32_from_f32(&array, i);
+            assert_eq!(
+                actual, expected,
+                "Mismatch at index {}: expected {}, got {}",
+                i, expected, actual
+            );
+        }
+    }
+}
