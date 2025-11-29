@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys::{Float32Array, Int32Array};
+use web_sys::js_sys::{Float32Array, Int32Array, Uint32Array};
 
 pub mod clipper;
 pub mod constants;
@@ -618,4 +618,86 @@ pub fn generate_nfp_cache_key_wasm(
     let polygon2 = PolygonNode::new(source2, rotation2, Vec::new());
 
     PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
+}
+
+/// Get placement result from placements and path items (WASM wrapper)
+///
+/// This function takes placement data (x,y positions) and path items (polygon identifiers)
+/// and packs them into a compact Float32Array format for efficient transfer.
+///
+/// # Arguments
+/// * `placements_buffer` - Float32Array containing flattened placements data
+///   Format: [count, size1, ...placements1..., size2, ...placements2..., ...]
+/// * `path_items_buffer` - Uint32Array containing flattened path items data
+///   Format: [count, size1, ...items1..., size2, ...items2..., ...]
+/// * `fitness` - Fitness score for this result
+///
+/// # Returns
+/// Float32Array with format:
+/// - [0]: fitness score
+/// - [1]: placement count
+/// - [2..2+count]: merged size/offset info for each placement
+/// - [remaining]: packed path items and placements data
+#[wasm_bindgen]
+pub fn get_result_wasm(
+    placements_buffer: &[f32],
+    path_items_buffer: &[u32],
+    fitness: f32,
+) -> Float32Array {
+    // Deserialize placements
+    let mut placements: Vec<Vec<f32>> = Vec::new();
+    let mut offset = 0;
+
+    if placements_buffer.len() > 0 {
+        let count = placements_buffer[0] as usize;
+        offset = 1;
+
+        for _ in 0..count {
+            if offset >= placements_buffer.len() {
+                break;
+            }
+            let size = placements_buffer[offset] as usize;
+            offset += 1;
+
+            if offset + size > placements_buffer.len() {
+                break;
+            }
+
+            let placement = placements_buffer[offset..offset + size].to_vec();
+            placements.push(placement);
+            offset += size;
+        }
+    }
+
+    // Deserialize path items
+    let mut path_items: Vec<Vec<u32>> = Vec::new();
+    offset = 0;
+
+    if path_items_buffer.len() > 0 {
+        let count = path_items_buffer[0] as usize;
+        offset = 1;
+
+        for _ in 0..count {
+            if offset >= path_items_buffer.len() {
+                break;
+            }
+            let size = path_items_buffer[offset] as usize;
+            offset += 1;
+
+            if offset + size > path_items_buffer.len() {
+                break;
+            }
+
+            let items = path_items_buffer[offset..offset + size].to_vec();
+            path_items.push(items);
+            offset += size;
+        }
+    }
+
+    // Call get_result from place_flow module
+    let result = crate::nesting::place_flow::get_result(&placements, &path_items, fitness);
+
+    let out = Float32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
 }

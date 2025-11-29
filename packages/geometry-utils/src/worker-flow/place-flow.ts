@@ -1,8 +1,7 @@
-import { join_u16_to_u32, get_u16_from_u32 } from 'wasm-nesting';
+import { get_result_wasm } from 'wasm-nesting';
 import type { Point, PointPool, Polygon, PolygonNode, TypedArray } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { almostEqual, writeUint32ToF32 } from '../helpers';
-import { NFP_INFO_START_INDEX } from '../constants';
+import { almostEqual } from '../helpers';
 import { WorkerConfig } from './types';
 import PlaceContent from './place-content';
 import NFPWrapper from './nfp-wrapper';
@@ -32,42 +31,60 @@ function fillPointMemSeg<T extends TypedArray = Float32Array>(
     return prevValue + pointCount;
 }
 
-function getResult(placements: number[][], pathItems: number[][], fitness: number): ArrayBuffer {
-    const placementCount: number = pathItems.length;
-    const info: Uint32Array = new Uint32Array(placementCount);
-    let totalSize: number = NFP_INFO_START_INDEX + placementCount;
-    let mergedSize: number = 0;
-    let offset: number = 0;
-    let size: number = 0;
-    let i: number = 0;
-    let j: number = 0;
-
-    for (i = 0; i < placementCount; ++i) {
-        size = pathItems[i].length;
-        mergedSize = join_u16_to_u32(size, totalSize)
-        info[i] = mergedSize;
-        totalSize += size * 3;
+/**
+ * Serialize number[][] to Float32Array with format: [count, size1, ...data1..., size2, ...data2..., ...]
+ */
+function serializePlacementsToFloat32Array(placements: number[][]): Float32Array {
+    const count = placements.length;
+    let totalLength = 1; // For count
+    for (const placement of placements) {
+        totalLength += 1 + placement.length; // size + data
     }
 
-    const result = new Float32Array(totalSize);
+    const buffer = new Float32Array(totalLength);
+    buffer[0] = count;
+    let offset = 1;
 
-    result[0] = fitness;
-    result[1] = placementCount;
-
-    for (i = 0; i < placementCount; ++i) {
-        mergedSize = info[i];
-        offset = get_u16_from_u32(mergedSize, 1);
-        size = get_u16_from_u32(mergedSize, 0);
-        writeUint32ToF32(result, NFP_INFO_START_INDEX + i, mergedSize);
-
-        for (j = 0; j < size; ++j) {
-            writeUint32ToF32(result, offset + j, pathItems[i][j]);
+    for (const placement of placements) {
+        buffer[offset++] = placement.length;
+        for (const value of placement) {
+            buffer[offset++] = value;
         }
-
-        result.set(placements[i], offset + size);
     }
 
-    return result.buffer;
+    return buffer;
+}
+
+/**
+ * Serialize number[][] to Uint32Array with format: [count, size1, ...data1..., size2, ...data2..., ...]
+ */
+function serializePathItemsToUint32Array(pathItems: number[][]): Uint32Array {
+    const count = pathItems.length;
+    let totalLength = 1; // For count
+    for (const pathItem of pathItems) {
+        totalLength += 1 + pathItem.length; // size + data
+    }
+
+    const buffer = new Uint32Array(totalLength);
+    buffer[0] = count;
+    let offset = 1;
+
+    for (const pathItem of pathItems) {
+        buffer[offset++] = pathItem.length;
+        for (const value of pathItem) {
+            buffer[offset++] = value;
+        }
+    }
+
+    return buffer;
+}
+
+function getResult(placements: number[][], pathItems: number[][], fitness: number): ArrayBuffer {
+    const placementsBuffer = serializePlacementsToFloat32Array(placements);
+    const pathItemsBuffer = serializePathItemsToUint32Array(pathItems);
+    const result = get_result_wasm(placementsBuffer, pathItemsBuffer, fitness);
+
+    return result.buffer as ArrayBuffer;
 }
 
 export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuffer {
