@@ -207,20 +207,6 @@ export default class ClipperWrapper {
         return cleanTrashold !== -1 ? ClipperWrapper.cleanPolygon(result, cleanTrashold) : result;
     }
 
-    public static toMemSeg(polygon: Point<Int32Array>[], memSeg: Float32Array = null): Float32Array {
-        const pointCount: number = polygon.length;
-        const result: Float32Array = memSeg ? memSeg : new Float32Array(pointCount << 1);
-        const tempPoint: PointF32 = PointF32.create();
-        let i: number = 0;
-
-        for (i = 0; i < pointCount; ++i) {
-            tempPoint.update(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE);
-            tempPoint.fill(result, i);
-        }
-
-        return result;
-    }
-
     public static applyNfps(nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): Point<Int32Array>[][] {
         return ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(nfpBuffer), offset.x, offset.y));
     }
@@ -391,7 +377,7 @@ export default class ClipperWrapper {
         return result;
     }
 
-    private static CLIPPER_SCALE: number = 100;
+    public static CLIPPER_SCALE: number = 100;
 
     public static AREA_TRASHOLD: number = 0.1 * ClipperWrapper.CLIPPER_SCALE * ClipperWrapper.CLIPPER_SCALE;
 

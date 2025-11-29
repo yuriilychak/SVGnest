@@ -1,5 +1,5 @@
 import { set_bits_u32, get_u16_from_u32, almost_equal, generate_nfp_cache_key_wasm } from 'wasm-nesting';
-import { NFP_KEY_INDICES, TOL_F32, TOL_F64 } from './constants';
+import { TOL_F32, TOL_F64 } from './constants';
 import { NestConfig, NFPCache, PolygonNode } from './types';
 
 export function getUint16(source: number, index: number): number {

@@ -4,19 +4,17 @@ import type { CalculateConfig } from '../types';
 declare function importScripts(...urls: string[]): void;
 
 declare module geometryUtils {
-    export function calculate(config: CalculateConfig, data: ArrayBuffer): ArrayBuffer;
+    export function calculate(data: ArrayBuffer): ArrayBuffer;
 }
 
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1wasm-nesting`));
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));
 
-const config: CalculateConfig = { isInit: false, pointPool: null };
-
 let isWasmInitialized = false;
 
 const trigger = (event: MessageEvent<ArrayBuffer>) => {
     if (isWasmInitialized) {
-        const buffer = geometryUtils.calculate(config, event.data);
+        const buffer = geometryUtils.calculate(event.data);
 
         //@ts-ignore
         self.postMessage(buffer, [buffer]);
