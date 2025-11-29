@@ -18,49 +18,10 @@ impl NestContent {
     pub fn init(&mut self, buffer: &[f32], node_offset: usize) {
         let nest_data = buffer[1].to_bits().swap_bytes();
         let root_count = buffer[node_offset].to_bits().swap_bytes() as usize;
-        let (mut nodes, _) = Self::deserialize_nodes(buffer, node_offset + 1, root_count);
+        let (mut nodes, _) = PolygonNode::deserialize_nodes(buffer, node_offset + 1, root_count);
 
         self.nest_config.deserialize(nest_data);
         self.nodes.append(&mut nodes);
-    }
-
-    fn deserialize_nodes(
-        buffer: &[f32],
-        mut idx: usize,
-        count: usize,
-    ) -> (Vec<PolygonNode>, usize) {
-        let mut nodes = Vec::with_capacity(count);
-
-        for _ in 0..count {
-            let raw_source = buffer[idx].to_bits().swap_bytes();
-            let source = raw_source.wrapping_sub(1) as u32;
-            idx += 1;
-
-            let rotation = buffer[idx];
-            idx += 1;
-
-            let seg_size = (buffer[idx].to_bits().swap_bytes() as usize) << 1;
-            idx += 1;
-
-            let mem_seg = buffer[idx..idx + seg_size].to_vec().into_boxed_slice();
-            idx += seg_size;
-
-            let child_count = buffer[idx].to_bits().swap_bytes() as usize;
-            idx += 1;
-
-            let (children, new_idx) = Self::deserialize_nodes(buffer, idx, child_count);
-            idx = new_idx;
-
-            nodes.push(PolygonNode {
-                source,
-                seg_size,
-                rotation,
-                mem_seg,
-                children,
-            });
-        }
-
-        (nodes, idx)
     }
 
     pub fn clean(&mut self) {

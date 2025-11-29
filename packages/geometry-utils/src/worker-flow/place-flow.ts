@@ -151,7 +151,7 @@ export function placePaths(buffer: ArrayBuffer, config: WorkerConfig): ArrayBuff
 
             finalNfp = ClipperWrapper.getFinalNfps(placeContent, placed, node, binNfp, placement);
 
-            if (finalNfp === null) {
+            if (finalNfp.length === 0) {
                 continue;
             }
 

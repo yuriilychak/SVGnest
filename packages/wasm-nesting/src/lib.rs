@@ -6,10 +6,10 @@ pub mod constants;
 pub mod geometry;
 pub mod nest_config;
 pub mod nesting;
-pub mod polygon_node;
 pub mod utils;
 
 use crate::nesting::pair_flow::pair_data;
+use crate::nesting::polygon_node::PolygonNode;
 
 use crate::clipper::clipper::Clipper;
 use crate::clipper::clipper_offset::ClipperOffset;
@@ -507,7 +507,7 @@ pub fn serialize_polygon_nodes_wasm(
     offset: usize,
 ) -> web_sys::js_sys::Uint8Array {
     // Parse the input data into PolygonNode structures
-    fn parse_nodes(data: &[f32], index: &mut usize) -> Vec<polygon_node::PolygonNode> {
+    fn parse_nodes(data: &[f32], index: &mut usize) -> Vec<PolygonNode> {
         let mut nodes = Vec::new();
 
         while *index < data.len() {
@@ -537,7 +537,7 @@ pub fn serialize_polygon_nodes_wasm(
             let children_count = data[*index] as usize;
             *index += 1;
 
-            let mut node = polygon_node::PolygonNode::new(source, rotation, mem_seg);
+            let mut node = PolygonNode::new(source, rotation, mem_seg);
 
             if children_count > 0 {
                 node.children = parse_nodes(data, index);
@@ -555,7 +555,7 @@ pub fn serialize_polygon_nodes_wasm(
 
     let mut index = 0;
     let nodes = parse_nodes(nodes_data, &mut index);
-    let serialized = polygon_node::PolygonNode::serialize(&nodes, offset);
+    let serialized = PolygonNode::serialize(&nodes, offset);
 
     let out = web_sys::js_sys::Uint8Array::new_with_length(serialized.len() as u32);
     out.copy_from(&serialized);
@@ -573,7 +573,7 @@ pub fn serialize_polygon_nodes_wasm(
 /// For each node: [source, rotation, point_count, ...mem_seg_values, children_count, ...children]
 #[wasm_bindgen]
 pub fn deserialize_polygon_nodes_wasm(buffer: &[u8], offset: usize) -> Float32Array {
-    fn flatten_nodes(nodes: &[polygon_node::PolygonNode], output: &mut Vec<f32>) {
+    fn flatten_nodes(nodes: &[PolygonNode], output: &mut Vec<f32>) {
         for node in nodes {
             output.push(node.source as f32);
             output.push(node.rotation);
@@ -584,7 +584,7 @@ pub fn deserialize_polygon_nodes_wasm(buffer: &[u8], offset: usize) -> Float32Ar
         }
     }
 
-    let nodes = polygon_node::PolygonNode::deserialize(buffer, offset);
+    let nodes = PolygonNode::deserialize(buffer, offset);
     let mut flattened = Vec::new();
     flatten_nodes(&nodes, &mut flattened);
 
@@ -607,15 +607,15 @@ pub fn deserialize_polygon_nodes_wasm(buffer: &[u8], offset: usize) -> Float32Ar
 /// u32 cache key packed with polygon sources, rotation indices, and inside flag
 #[wasm_bindgen]
 pub fn generate_nfp_cache_key_wasm(
-    rotation_split: u16,
+    rotation_split: u32,
     inside: bool,
     source1: i32,
     rotation1: f32,
     source2: i32,
     rotation2: f32,
 ) -> u32 {
-    let polygon1 = polygon_node::PolygonNode::new(source1, rotation1, Vec::new());
-    let polygon2 = polygon_node::PolygonNode::new(source2, rotation2, Vec::new());
+    let polygon1 = PolygonNode::new(source1, rotation1, Vec::new());
+    let polygon2 = PolygonNode::new(source2, rotation2, Vec::new());
 
-    polygon_node::PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
+    PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
 }

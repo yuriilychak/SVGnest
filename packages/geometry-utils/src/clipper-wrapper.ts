@@ -3,8 +3,9 @@ import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
-import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm, polygon_area_i32 } from 'wasm-nesting';
+import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm } from 'wasm-nesting';
 
+type f32 = number;
 export default class ClipperWrapper {
     private configuration: NestConfig;
 
@@ -243,8 +244,8 @@ export default class ClipperWrapper {
         placed: PolygonNode[],
         path: PolygonNode,
         binNfp: NFPWrapper,
-        placement: number[]
-    ): Point<Int32Array>[][] | null {
+        placement: f32[]
+    ): Point<Int32Array>[][] {
         const tmpPoint: Point<Float32Array> = PointF32.create();
         let i: number = 0;
         let key: number = 0;
@@ -261,7 +262,7 @@ export default class ClipperWrapper {
             tmpPoint.fromMemSeg(placement, i);
 
             totalNfps = totalNfps.concat(
-                ClipperWrapper.applyNfps(placeContent.nfpCache.get(key), tmpPoint)
+                ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(placeContent.nfpCache.get(key)), tmpPoint.x, tmpPoint.y))
             );
         }
 
@@ -273,7 +274,7 @@ export default class ClipperWrapper {
 
 
         if (combinedNfp.length === 0) {
-            return null;
+            return [];
         }
 
         // difference with bin polygon
@@ -287,7 +288,7 @@ export default class ClipperWrapper {
         const finalNfp = ClipperWrapper.deserializePolygons(wasmResult);
 
 
-        return finalNfp.length === 0 ? null : finalNfp;
+        return finalNfp;
     }
 
     /**
@@ -388,12 +389,6 @@ export default class ClipperWrapper {
         }
 
         return result;
-    }
-
-    private static absArea(poly: Point<Int32Array>[]): number {
-        const polyData = new Int32Array(poly.reduce<number[]>((acc: number[], point: Point<Int32Array>) => acc.concat([point.x, point.y]), []));
-    
-        return Math.abs(polygon_area_i32(polyData));
     }
 
     private static CLIPPER_SCALE: number = 100;
