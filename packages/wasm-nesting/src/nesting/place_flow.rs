@@ -37,7 +37,7 @@ fn fill_point_mem_seg(node: &PolygonNode, offset: &Point<f32>) -> Vec<f32> {
 }
 
 pub fn get_placement_data(
-    final_nfp: &[Vec<Point<i32>>],
+    final_nfp: &Vec<Vec<Point<i32>>>,
     placed: &[PolygonNode],
     node: &PolygonNode,
     placement: &[f32],
@@ -52,7 +52,7 @@ pub fn get_placement_data(
 
     for nfp in final_nfp {
         let nfp_size = nfp.len();
-        let mem_seg1 = to_mem_seg(nfp);
+        let mem_seg1 = to_mem_seg(&nfp);
         let mut polygon1 = Polygon::<f32>::new();
         unsafe { polygon1.bind(mem_seg1.into_boxed_slice(), 0, nfp_size) };
 

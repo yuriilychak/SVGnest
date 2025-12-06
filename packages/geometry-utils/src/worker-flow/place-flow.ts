@@ -1,4 +1,4 @@
-import { get_result_wasm } from 'wasm-nesting';
+import { get_result_wasm, calculate_bounds_f32, abs_polygon_area } from 'wasm-nesting';
 import type { Point, Polygon, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { almostEqual } from '../helpers';
@@ -49,16 +49,13 @@ function getPlacementData(
     let minX = NaN;
     let curArea = 0;
     let nfpSize = 0;
-    const polygon1 = new PolygonF32();
-    const polygon2 = new PolygonF32();
     const tmpPoint = PointF32.create();
 
     for (let j = 0; j < finalNfp.length; ++j) {
         nfpSize = finalNfp[j].length;
         const memSeg1 = toMemSeg(finalNfp[j]);
-        polygon1.bind(memSeg1, 0, nfpSize);
 
-        if (polygon1.absArea < 2) {
+        if (abs_polygon_area(memSeg1) < 2) {
             continue;
         }
 
@@ -70,15 +67,15 @@ function getPlacementData(
                 buffer = buffer.concat(fillPointMemSeg(placed[m], tmpPoint));
             }
 
-            tmpPoint.update(polygon1.at(k)).sub(firstPoint);
+            tmpPoint.fromMemSeg(memSeg1, k).sub(firstPoint);
 
             buffer = buffer.concat(fillPointMemSeg(node, tmpPoint));
 
             const memSeg2 = new Float32Array(buffer);
 
-            polygon2.bind(memSeg2);
+            const bounds = calculate_bounds_f32(memSeg2, 0, memSeg2.length >> 1);
             // weigh width more, to help compress in direction of gravity
-            curArea = polygon2.size.x * 2 + polygon2.size.y;
+            curArea = bounds[2] * 2 + bounds[3];
 
             if (
                 Number.isNaN(minArea) ||
@@ -86,7 +83,7 @@ function getPlacementData(
                 (almostEqual(minArea, curArea) && (Number.isNaN(minX) || tmpPoint.x < minX))
             ) {
                 minArea = curArea;
-                minWidth = polygon2.size.x;
+                minWidth = bounds[2];
                 positionX = tmpPoint.x;
                 positionY = tmpPoint.y;
                 minX = tmpPoint.x;
@@ -232,7 +229,7 @@ export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
                 continue;
             }
 
-            const placementData = getPlacementData(finalNfp, placed, node, placement, firstPoint, 0);
+            const placementData = getPlacementData(finalNfp, placed, node, placement, firstPoint, positionY);
 
             minWidth = placementData[0];
             positionY = placementData[1];

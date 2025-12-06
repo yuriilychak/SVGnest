@@ -50,6 +50,39 @@ pub trait Number:
             data.swap(i2 + 1, j2 + 1);
         }
     }
+    fn calculate_bounds(polygon: &[Self], offset: usize, size: usize) -> [Self; 4] {
+        if size < 3 {
+            return [Self::zero(), Self::zero(), Self::zero(), Self::zero()];
+        }
+
+        let start = offset;
+        let end = offset + (size << 1);
+
+        let mut min_x = polygon[start];
+        let mut min_y = polygon[start + 1];
+        let mut max_x = min_x;
+        let mut max_y = min_y;
+
+        for i in 1..size {
+            let idx = start + (i << 1);
+            if idx + 1 >= end {
+                break;
+            }
+
+            let x = polygon[idx];
+            let y = polygon[idx + 1];
+
+            min_x = min_x.min_num(x);
+            min_y = min_y.min_num(y);
+            max_x = max_x.max_num(x);
+            max_y = max_y.max_num(y);
+        }
+
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+
+        [min_x, min_y, width, height]
+    }
 }
 
 impl Number for f64 {

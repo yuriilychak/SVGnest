@@ -129,18 +129,116 @@ impl PolygonNode {
 
     /// Deserialize PolygonNodes from a byte buffer
     pub fn deserialize(buffer: &[u8], offset: usize) -> Vec<PolygonNode> {
-        // Convert byte buffer to f32 buffer
-        let f32_buffer = unsafe {
-            std::slice::from_raw_parts(
-                buffer.as_ptr() as *const f32,
-                buffer.len() / std::mem::size_of::<f32>(),
-            )
-        };
+        if buffer.len() < offset + 4 {
+            return Vec::new();
+        }
 
-        let f32_offset = offset / std::mem::size_of::<f32>();
-        let root_count = f32_buffer[f32_offset].to_bits().swap_bytes() as usize;
-        let (nodes, _) = Self::deserialize_nodes(f32_buffer, f32_offset + 1, root_count);
-        nodes
+        // Read node count from byte buffer (little-endian u32)
+        let count_bytes = [
+            buffer[offset],
+            buffer[offset + 1],
+            buffer[offset + 2],
+            buffer[offset + 3],
+        ];
+        let root_count = u32::from_le_bytes(count_bytes) as usize;
+
+        if root_count == 0 {
+            return Vec::new();
+        }
+
+        // Deserialize nodes
+        Self::deserialize_nodes_from_bytes(buffer, offset + 4, root_count).0
+    }
+
+    /// Deserialize nodes directly from byte buffer
+    fn deserialize_nodes_from_bytes(
+        buffer: &[u8],
+        mut idx: usize,
+        count: usize,
+    ) -> (Vec<PolygonNode>, usize) {
+        let mut nodes = Vec::with_capacity(count);
+
+        for _ in 0..count {
+            if idx + 12 > buffer.len() {
+                break; // Not enough data
+            }
+
+            // Read source (u32, little-endian)
+            let source_bytes = [
+                buffer[idx],
+                buffer[idx + 1],
+                buffer[idx + 2],
+                buffer[idx + 3],
+            ];
+            let source = u32::from_le_bytes(source_bytes).wrapping_sub(1);
+            idx += 4;
+
+            // Read rotation (f32, little-endian)
+            let rotation_bytes = [
+                buffer[idx],
+                buffer[idx + 1],
+                buffer[idx + 2],
+                buffer[idx + 3],
+            ];
+            let rotation = f32::from_le_bytes(rotation_bytes);
+            idx += 4;
+
+            // Read mem_seg length (u32, little-endian) - number of points
+            let seg_len_bytes = [
+                buffer[idx],
+                buffer[idx + 1],
+                buffer[idx + 2],
+                buffer[idx + 3],
+            ];
+            let point_count = u32::from_le_bytes(seg_len_bytes) as usize;
+            let seg_size = point_count << 1; // Convert to number of floats
+            idx += 4;
+
+            // Read mem_seg data
+            if idx + seg_size * 4 > buffer.len() {
+                break; // Not enough data
+            }
+
+            let mut mem_seg = Vec::with_capacity(seg_size);
+            for _ in 0..seg_size {
+                let f32_bytes = [
+                    buffer[idx],
+                    buffer[idx + 1],
+                    buffer[idx + 2],
+                    buffer[idx + 3],
+                ];
+                mem_seg.push(f32::from_le_bytes(f32_bytes));
+                idx += 4;
+            }
+
+            if idx + 4 > buffer.len() {
+                break; // Not enough data for child count
+            }
+
+            // Read children count (u32, little-endian)
+            let child_count_bytes = [
+                buffer[idx],
+                buffer[idx + 1],
+                buffer[idx + 2],
+                buffer[idx + 3],
+            ];
+            let child_count = u32::from_le_bytes(child_count_bytes) as usize;
+            idx += 4;
+
+            // Recursively deserialize children
+            let (children, new_idx) = Self::deserialize_nodes_from_bytes(buffer, idx, child_count);
+            idx = new_idx;
+
+            nodes.push(PolygonNode {
+                source,
+                seg_size,
+                rotation,
+                mem_seg: mem_seg.into_boxed_slice(),
+                children,
+            });
+        }
+
+        (nodes, idx)
     }
 
     /// Generate NFP cache key from two polygon nodes

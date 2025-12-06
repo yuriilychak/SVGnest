@@ -118,35 +118,38 @@ impl<T: Number> Polygon<T> {
 
         self.calculate_bounds_dirty = false;
 
-        let mut min_point = Point::from(self.first());
-        let mut max_point = Point::from(self.last());
+        if let Some(ref buf) = self.buffer {
+            // Use Number::calculate_bounds to get [x, y, width, height]
+            let bounds = T::calculate_bounds(buf, self.offset, self.point_count);
 
-        self.closed = min_point.almost_equal(&max_point as *const Point<T>, None);
+            let min_point = Point::new(Some(bounds[0]), Some(bounds[1]));
+            let size_point = Point::new(Some(bounds[2]), Some(bounds[3]));
 
-        for i in 0..self.point_count {
-            let pt = self.at(i);
-            min_point.min(pt);
-            max_point.max(pt);
-        }
+            // Check if polygon is closed
+            let first = Point::from(self.first());
+            let last = Point::from(self.last());
+            self.closed = first.almost_equal(&last as *const Point<T>, None);
 
-        self.rectangle = true;
+            // Check if polygon is a rectangle
+            self.rectangle = true;
+            let max_x = bounds[0] + bounds[2];
+            let max_y = bounds[1] + bounds[3];
 
-        for i in 0..self.point_count {
-            let pt = self.at(i);
+            for i in 0..self.point_count {
+                let pt = self.at(i);
+                let px = (*pt).x;
+                let py = (*pt).y;
 
-            if !(((*pt).almost_equal_x(&min_point as *const Point<T>, None)
-                || (*pt).almost_equal_x(&max_point as *const Point<T>, None))
-                && ((*pt).almost_equal_y(&min_point as *const Point<T>, None)
-                    || (*pt).almost_equal_y(&max_point as *const Point<T>, None)))
-            {
-                self.rectangle = false;
-                break;
+                if !((px.almost_equal(bounds[0], None) || px.almost_equal(max_x, None))
+                    && (py.almost_equal(bounds[1], None) || py.almost_equal(max_y, None)))
+                {
+                    self.rectangle = false;
+                    break;
+                }
             }
-        }
 
-        // max_point = max - min
-        max_point.sub(&min_point);
-        self.bounds.update(&min_point, &max_point);
+            self.bounds.update(&min_point, &size_point);
+        }
     }
 
     pub fn close(&mut self) {
@@ -162,11 +165,7 @@ impl<T: Number> Polygon<T> {
             return;
         }
 
-        Number::reverse_polygon(
-            self.buffer.as_mut().unwrap(),
-            self.offset,
-            self.point_count,
-        );
+        Number::reverse_polygon(self.buffer.as_mut().unwrap(), self.offset, self.point_count);
     }
 
     pub unsafe fn normalize(&mut self) -> Option<Box<[T]>> {

@@ -35,6 +35,27 @@ pub fn polygon_area_i32(points: &[i32]) -> f64 {
 }
 
 #[wasm_bindgen]
+pub fn abs_polygon_area(points: &[f32]) -> f64 {
+    return Number::abs_polygon_area(points);
+}
+
+#[wasm_bindgen]
+pub fn calculate_bounds_f32(polygon: &[f32], offset: usize, size: usize) -> Float32Array {
+    let bounds = f32::calculate_bounds(polygon, offset, size);
+    let out = Float32Array::new_with_length(4);
+    out.copy_from(&bounds);
+    out
+}
+
+#[wasm_bindgen]
+pub fn calculate_bounds_i32(polygon: &[i32], offset: usize, size: usize) -> Int32Array {
+    let bounds = i32::calculate_bounds(polygon, offset, size);
+    let out = Int32Array::new_with_length(4);
+    out.copy_from(&bounds);
+    out
+}
+
+#[wasm_bindgen]
 pub fn almost_equal(a: f64, b: f64, tolerance: f64) -> bool {
     a.almost_equal(b, Some(tolerance))
 }
@@ -707,8 +728,7 @@ pub fn get_result_wasm(
 /// Arguments:
 /// - final_nfp_buffer: Flattened array containing final NFP polygons
 ///   Format: [polygon_count, polygon1_size, ...polygon1_points_as_i32..., polygon2_size, ...]
-/// - placed_buffer: Serialized PolygonNode array for placed polygons
-/// - node_buffer: Serialized PolygonNode for the current node
+/// - nodes_buffer: Serialized PolygonNode array (placed nodes + current node as last element)
 /// - placement_buffer: Float32Array of placement positions (x, y pairs)
 /// - first_point_x: X coordinate of first point
 /// - first_point_y: Y coordinate of first point
@@ -718,8 +738,7 @@ pub fn get_result_wasm(
 #[wasm_bindgen]
 pub fn get_placement_data_wasm(
     final_nfp_buffer: &[i32],
-    placed_buffer: &[f32],
-    node_buffer: &[f32],
+    nodes_buffer: &[u8],
     placement_buffer: &[f32],
     first_point_x: f32,
     first_point_y: f32,
@@ -728,64 +747,49 @@ pub fn get_placement_data_wasm(
     use crate::geometry::point::Point;
     use crate::nesting::polygon_node::PolygonNode;
 
-    // Deserialize final_nfp
-    let mut final_nfp: Vec<Vec<Point<i32>>> = Vec::new();
-    let mut offset = 0;
+    // Deserialize final_nfp using existing deserialize_polygons
+    let final_nfp = deserialize_polygons(final_nfp_buffer);
 
-    if final_nfp_buffer.len() > 0 {
-        let polygon_count = final_nfp_buffer[0] as usize;
-        offset = 1;
+    // Deserialize all nodes (placed + current node)
+    let all_nodes = if nodes_buffer.len() > 0 {
+        let nodes = PolygonNode::deserialize(nodes_buffer, 0);
 
-        for _ in 0..polygon_count {
-            if offset >= final_nfp_buffer.len() {
-                break;
-            }
-            let point_count = final_nfp_buffer[offset] as usize;
-            offset += 1;
-
-            let mut polygon = Vec::new();
-            for _ in 0..point_count {
-                if offset + 1 >= final_nfp_buffer.len() {
-                    break;
-                }
-                let x = final_nfp_buffer[offset];
-                let y = final_nfp_buffer[offset + 1];
-                polygon.push(Point::new(Some(x), Some(y)));
-                offset += 2;
-            }
-            final_nfp.push(polygon);
+        if nodes.is_empty() {
+            // Handle error - at least one node is required
+            let out = Float32Array::new_with_length(2);
+            let result = vec![0.0, input_y];
+            out.copy_from(&result);
+            return out;
         }
-    }
 
-    // Deserialize placed nodes
-    let placed = if placed_buffer.len() > 0 {
-        let count = placed_buffer[0].to_bits().swap_bytes() as usize;
-        let (nodes, _) = PolygonNode::deserialize_nodes(placed_buffer, 1, count);
         nodes
     } else {
-        Vec::new()
-    };
-
-    // Deserialize node
-    let (node_vec, _) = if node_buffer.len() > 0 {
-        let (nodes, idx) = PolygonNode::deserialize_nodes(node_buffer, 1, 1);
-        (nodes, idx)
-    } else {
-        // Handle error - node is required
+        // Handle error - nodes are required
         let out = Float32Array::new_with_length(2);
-        let result = vec![0.0, 0.0];
+        let result = vec![0.0, input_y];
         out.copy_from(&result);
         return out;
     };
 
-    let node = &node_vec[0];
+    // Split nodes: last one is the current node, rest are placed nodes
+    let node_count = all_nodes.len();
+    if node_count == 0 {
+        // Handle error
+        let out = Float32Array::new_with_length(2);
+        let result = vec![0.0, input_y];
+        out.copy_from(&result);
+        return out;
+    }
+
+    let placed = &all_nodes[..node_count - 1];
+    let node = &all_nodes[node_count - 1];
 
     let first_point = Point::new(Some(first_point_x), Some(first_point_y));
 
     // Call get_placement_data
     let result = crate::nesting::place_flow::get_placement_data(
         &final_nfp,
-        &placed,
+        placed,
         node,
         placement_buffer,
         &first_point,
