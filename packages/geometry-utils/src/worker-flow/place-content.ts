@@ -2,15 +2,16 @@ import { get_bits_u32, join_u16_to_u32, to_rotation_index_wasm } from 'wasm-nest
 import { generateNFPCacheKey, getPolygonNode } from '../helpers';
 import { NFPCache, PolygonNode } from '../types';
 import WorkerContent from './worker-content';
+import { f32, u32 } from './types';
 
 export default class PlaceContent extends WorkerContent {
     private _nfpCache: NFPCache = null;
 
-    private _area: number = 0;
+    private _area: f32 = 0;
 
     private _emptyNode: PolygonNode;
 
-    private _rotations: number = 0;
+    private _rotations: u32 = 0;
 
     constructor() {
         super();

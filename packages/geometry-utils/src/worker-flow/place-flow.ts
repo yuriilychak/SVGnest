@@ -1,10 +1,11 @@
-import { get_result_wasm, get_placement_data_wasm, get_first_placement_wasm } from 'wasm-nesting';
+import { get_result_wasm, get_placement_data_wasm, get_first_placement_wasm, init_place_content_debug_wasm } from 'wasm-nesting';
 import type { Point, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { serializePolygonNodes } from '../helpers';
 import PlaceContent from './place-content';
 import NFPWrapper from './nfp-wrapper';
 import { PointF32 } from '../geometry';
+
 
 function getPlacementData(
     finalNfp: Point<Int32Array>[][],

@@ -800,3 +800,47 @@ pub fn get_first_placement_wasm(
     out.copy_from(&result);
     out
 }
+
+/// WASM wrapper for PlaceContent initialization with debug information
+///
+/// Arguments:
+/// - buffer: Uint8Array containing serialized PlaceContent data
+///
+/// Returns: Uint32Array with format:
+/// [node_count, node_size1, node_size2, ..., node_sizeN, key1, size1, key2, size2, ..., keyN, sizeN]
+#[wasm_bindgen]
+pub fn init_place_content_debug_wasm(buffer: &[u8]) -> web_sys::js_sys::Uint32Array {
+    use crate::nesting::place_content::PlaceContent;
+
+    let mut place_content = PlaceContent::new();
+    place_content.init(buffer);
+
+    let node_count = place_content.node_count();
+    let nfp_cache = place_content.nfp_cache();
+
+    // Calculate total size: 1 (node_count) + node_count (sizes) + nfp_cache.len() * 2 (key, size pairs)
+    let total_size = 1 + node_count + nfp_cache.len() * 2;
+    let mut result = Vec::with_capacity(total_size);
+
+    // Add node count
+    result.push(node_count as u32);
+
+    // Add node sizes
+    for i in 0..node_count {
+        let node = place_content.node_at(i);
+        result.push(node.mem_seg.len() as u32);
+    }
+
+    // Add NFP cache entries (key, size pairs)
+    let mut entries: Vec<_> = nfp_cache.iter().collect();
+    entries.sort_by_key(|(k, _)| *k);
+
+    for (key, value) in entries {
+        result.push(*key);
+        result.push(value.len() as u32);
+    }
+
+    let out = web_sys::js_sys::Uint32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
+}

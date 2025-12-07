@@ -24,6 +24,21 @@ impl NestContent {
         self.nodes.append(&mut nodes);
     }
 
+    /// Initialize from f32 buffer (for PlaceContent)
+    /// Buffer contains only the nodes section starting with node count
+    pub fn init_from_f32(&mut self, buffer: &[f32], nest_config: u32) {
+        self.nest_config.deserialize(nest_config);
+
+        if buffer.is_empty() {
+            return;
+        }
+
+        // Read node count (big-endian u32, matching TypeScript DataView)
+        let root_count = buffer[0].to_bits().swap_bytes() as usize;
+        let (nodes, _) = PolygonNode::deserialize_nodes(buffer, 1, root_count);
+        self.nodes = nodes;
+    }
+
     pub fn clean(&mut self) {
         self.nodes.clear();
     }

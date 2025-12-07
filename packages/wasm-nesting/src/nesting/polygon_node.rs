@@ -151,6 +151,7 @@ impl PolygonNode {
     }
 
     /// Deserialize nodes directly from byte buffer
+    /// Matches TypeScript WorkerContent.deserializeNodes (DataView big-endian)
     fn deserialize_nodes_from_bytes(
         buffer: &[u8],
         mut idx: usize,
@@ -163,38 +164,40 @@ impl PolygonNode {
                 break; // Not enough data
             }
 
-            // Read source (u32, little-endian)
+            // Read source (u32, big-endian, matching TypeScript DataView) - subtract 1
             let source_bytes = [
                 buffer[idx],
                 buffer[idx + 1],
                 buffer[idx + 2],
                 buffer[idx + 3],
             ];
-            let source = u32::from_le_bytes(source_bytes).wrapping_sub(1) as i32;
+            let source = u32::from_be_bytes(source_bytes).wrapping_sub(1) as i32;
             idx += 4;
 
-            // Read rotation (f32, little-endian)
+            // Read rotation (f32, big-endian, matching TypeScript DataView)
             let rotation_bytes = [
                 buffer[idx],
                 buffer[idx + 1],
                 buffer[idx + 2],
                 buffer[idx + 3],
             ];
-            let rotation = f32::from_le_bytes(rotation_bytes);
+            let rotation = f32::from_be_bytes(rotation_bytes);
             idx += 4;
 
-            // Read mem_seg length (u32, little-endian) - number of points
+            // Read mem_seg length (u32, big-endian) - number of points
             let seg_len_bytes = [
                 buffer[idx],
                 buffer[idx + 1],
                 buffer[idx + 2],
                 buffer[idx + 3],
             ];
-            let point_count = u32::from_le_bytes(seg_len_bytes) as usize;
+            let point_count = u32::from_be_bytes(seg_len_bytes) as usize;
             let seg_size = point_count << 1; // Convert to number of floats
             idx += 4;
 
-            // Read mem_seg data
+            // Read mem_seg data (Float32Array is created from buffer, so native endian)
+            // But the buffer was written by TypeScript which uses system endian for typed arrays
+            // Since x86/ARM are little-endian, Float32Array data is little-endian
             if idx + seg_size * 4 > buffer.len() {
                 break; // Not enough data
             }
@@ -207,6 +210,7 @@ impl PolygonNode {
                     buffer[idx + 2],
                     buffer[idx + 3],
                 ];
+                // Float32Array data is little-endian (native byte order on x86/ARM)
                 mem_seg.push(f32::from_le_bytes(f32_bytes));
                 idx += 4;
             }
@@ -215,14 +219,14 @@ impl PolygonNode {
                 break; // Not enough data for child count
             }
 
-            // Read children count (u32, little-endian)
+            // Read children count (u32, big-endian, matching TypeScript DataView)
             let child_count_bytes = [
                 buffer[idx],
                 buffer[idx + 1],
                 buffer[idx + 2],
                 buffer[idx + 3],
             ];
-            let child_count = u32::from_le_bytes(child_count_bytes) as usize;
+            let child_count = u32::from_be_bytes(child_count_bytes) as usize;
             idx += 4;
 
             // Recursively deserialize children
@@ -272,7 +276,7 @@ impl PolygonNode {
         result
     }
 
-    fn to_rotation_index(rotation: f32, rotation_split: u32) -> u32 {
+    pub fn to_rotation_index(rotation: f32, rotation_split: u32) -> u32 {
         const ROTATION_STEP: f32 = 360.0;
         let split = rotation_split as f32;
         let step = ROTATION_STEP / split;
