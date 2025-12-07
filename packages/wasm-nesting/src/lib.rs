@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys::{Float32Array, Int32Array, Uint32Array};
+use web_sys::js_sys::{Float32Array, Int32Array};
 
 pub mod clipper;
 pub mod constants;
@@ -771,6 +771,30 @@ pub fn get_placement_data_wasm(
         &first_point,
         input_y,
     );
+
+    let out = Float32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
+}
+
+/// WASM wrapper for get_first_placement function
+///
+/// Arguments:
+/// - nfp_buffer: Uint8Array buffer containing serialized NFP data (ArrayBuffer)
+/// - first_point_x: X coordinate of first point
+/// - first_point_y: Y coordinate of first point
+///
+/// Returns: Float32Array with [positionX, positionY]
+#[wasm_bindgen]
+pub fn get_first_placement_wasm(
+    nfp_buffer: &[u8],
+    first_point_x: f32,
+    first_point_y: f32,
+) -> Float32Array {
+    use crate::geometry::point::Point;
+
+    let first_point = Point::new(Some(first_point_x), Some(first_point_y));
+    let result = crate::nesting::place_flow::get_first_placement(nfp_buffer, &first_point);
 
     let out = Float32Array::new_with_length(result.len() as u32);
     out.copy_from(&result);

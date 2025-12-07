@@ -1,4 +1,4 @@
-import { get_result_wasm, get_placement_data_wasm } from 'wasm-nesting';
+import { get_result_wasm, get_placement_data_wasm, get_first_placement_wasm } from 'wasm-nesting';
 import type { Point, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { serializePolygonNodes } from '../helpers';
@@ -84,27 +84,7 @@ function serializePathItemsToUint32Array(pathItems: number[][]): Uint32Array {
 }
 
 function getFirstPlacement(binNfp: NFPWrapper, firstPoint: Point<Float32Array>): Float32Array {
-    const tmpPoint = PointF32.create();
-    const binNfpCount = binNfp.count;
-    let positionX: number = NaN;
-    let positionY: number = NaN;
-    // first placement, put it on the left
-    for (let i = 0; i < binNfpCount; ++i) {
-        const memSeg = binNfp.getNFPMemSeg(i);
-        const nfpSize = memSeg.length >> 1;
-
-        for (let j = 0; j < nfpSize; ++j) {
-            tmpPoint.fromMemSeg(memSeg, j).sub(firstPoint);
-
-            if (Number.isNaN(positionX) || tmpPoint.x < positionX) {
-                positionX = tmpPoint.x;
-                positionY = tmpPoint.y;
-            }
-        }
-    }
-
-    return new Float32Array([positionX, positionY]);
-
+    return get_first_placement_wasm(new Uint8Array(binNfp.buffer), firstPoint.x, firstPoint.y);
 }
 
 function getResult(placements: number[][], pathItems: number[][], fitness: number): ArrayBuffer {

@@ -1,6 +1,5 @@
 use crate::clipper::constants::CLIPPER_SCALE;
 use crate::geometry::point::Point;
-use crate::geometry::polygon::Polygon;
 use crate::nesting::polygon_node::PolygonNode;
 use crate::utils::almost_equal::AlmostEqual;
 use crate::utils::bit_ops::join_u16;
@@ -34,6 +33,77 @@ fn fill_point_mem_seg(node: &PolygonNode, offset: &Point<f32>) -> Vec<f32> {
     }
 
     result
+}
+
+/// Get first placement position by finding leftmost point in bin NFP
+/// Takes byte buffer (ArrayBuffer representation) instead of f32 buffer
+pub fn get_first_placement(nfp_buffer: &[u8], first_point: &Point<f32>) -> Vec<f32> {
+    let mut position_x = f32::NAN;
+    let mut position_y = f32::NAN;
+
+    // Read NFP count from buffer (little-endian u32 at byte offset 4)
+    if nfp_buffer.len() < 8 {
+        return vec![position_x, position_y];
+    }
+
+    let nfp_count =
+        u32::from_le_bytes([nfp_buffer[4], nfp_buffer[5], nfp_buffer[6], nfp_buffer[7]]) as usize;
+
+    let mut byte_offset = NFP_INFO_START_INDEX * 4; // Convert to byte offset
+
+    for _ in 0..nfp_count {
+        if byte_offset + 4 > nfp_buffer.len() {
+            break;
+        }
+
+        // Read compressed info (offset and size)
+        let compressed_info = u32::from_le_bytes([
+            nfp_buffer[byte_offset],
+            nfp_buffer[byte_offset + 1],
+            nfp_buffer[byte_offset + 2],
+            nfp_buffer[byte_offset + 3],
+        ]);
+        byte_offset += 4;
+
+        use crate::utils::bit_ops::get_u16;
+        let data_offset = get_u16(compressed_info, 1) as usize * 4; // Convert to byte offset
+        let size = get_u16(compressed_info, 0) as usize;
+        let point_count = size >> 1;
+
+        if data_offset + size * 4 > nfp_buffer.len() {
+            continue;
+        }
+
+        for j in 0..point_count {
+            let x_offset = data_offset + (j << 1) * 4;
+            let y_offset = x_offset + 4;
+
+            if y_offset + 4 > nfp_buffer.len() {
+                break;
+            }
+
+            let x = f32::from_le_bytes([
+                nfp_buffer[x_offset],
+                nfp_buffer[x_offset + 1],
+                nfp_buffer[x_offset + 2],
+                nfp_buffer[x_offset + 3],
+            ]) - first_point.x;
+
+            let y = f32::from_le_bytes([
+                nfp_buffer[y_offset],
+                nfp_buffer[y_offset + 1],
+                nfp_buffer[y_offset + 2],
+                nfp_buffer[y_offset + 3],
+            ]) - first_point.y;
+
+            if position_x.is_nan() || x < position_x {
+                position_x = x;
+                position_y = y;
+            }
+        }
+    }
+
+    vec![position_x, position_y]
 }
 
 pub fn get_placement_data(
