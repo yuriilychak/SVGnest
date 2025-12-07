@@ -728,7 +728,8 @@ pub fn get_result_wasm(
 /// Arguments:
 /// - final_nfp_buffer: Flattened array containing final NFP polygons
 ///   Format: [polygon_count, polygon1_size, ...polygon1_points_as_i32..., polygon2_size, ...]
-/// - nodes_buffer: Serialized PolygonNode array (placed nodes + current node as last element)
+/// - nodes_buffer: Float32Array buffer containing serialized PolygonNode data
+///   Format: [node_count, ...node_data...] (placed nodes + current node as last element)
 /// - placement_buffer: Float32Array of placement positions (x, y pairs)
 /// - first_point_x: X coordinate of first point
 /// - first_point_y: Y coordinate of first point
@@ -738,7 +739,7 @@ pub fn get_result_wasm(
 #[wasm_bindgen]
 pub fn get_placement_data_wasm(
     final_nfp_buffer: &[i32],
-    nodes_buffer: &[u8],
+    nodes_buffer: &[f32],
     placement_buffer: &[f32],
     first_point_x: f32,
     first_point_y: f32,
@@ -750,37 +751,12 @@ pub fn get_placement_data_wasm(
     // Deserialize final_nfp using existing deserialize_polygons
     let final_nfp = deserialize_polygons(final_nfp_buffer);
 
-    // Deserialize all nodes (placed + current node)
-    let all_nodes = if nodes_buffer.len() > 0 {
-        let nodes = PolygonNode::deserialize(nodes_buffer, 0);
-
-        if nodes.is_empty() {
-            // Handle error - at least one node is required
-            let out = Float32Array::new_with_length(2);
-            let result = vec![0.0, input_y];
-            out.copy_from(&result);
-            return out;
-        }
-
-        nodes
-    } else {
-        // Handle error - nodes are required
-        let out = Float32Array::new_with_length(2);
-        let result = vec![0.0, input_y];
-        out.copy_from(&result);
-        return out;
-    };
+    // Read node count from first item and deserialize all nodes (placed + current node)
+    let node_count = nodes_buffer[0].to_bits().swap_bytes() as usize;
+    let (all_nodes, _) = PolygonNode::deserialize_nodes(nodes_buffer, 1, node_count);
 
     // Split nodes: last one is the current node, rest are placed nodes
     let node_count = all_nodes.len();
-    if node_count == 0 {
-        // Handle error
-        let out = Float32Array::new_with_length(2);
-        let result = vec![0.0, input_y];
-        out.copy_from(&result);
-        return out;
-    }
-
     let placed = &all_nodes[..node_count - 1];
     let node = &all_nodes[node_count - 1];
 

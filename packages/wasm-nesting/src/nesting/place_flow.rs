@@ -49,15 +49,14 @@ pub fn get_placement_data(
     let mut min_width = 0.0f32;
     let mut min_area = f32::NAN;
     let mut min_x = f32::NAN;
+    let mut cur_area: f32;
+    let mut tmp_point = Point::<f32>::new(None, None);
 
-    for nfp in final_nfp {
-        let nfp_size = nfp.len();
-        let mem_seg1 = to_mem_seg(&nfp);
-        let mut polygon1 = Polygon::<f32>::new();
-        unsafe { polygon1.bind(mem_seg1.into_boxed_slice(), 0, nfp_size) };
+    for j in 0..final_nfp.len() {
+        let nfp_size = final_nfp[j].len();
+        let mem_seg1 = to_mem_seg(&final_nfp[j]);
 
-        let abs_area = unsafe { polygon1.abs_area() };
-        if abs_area < 2.0 {
+        if f32::abs_polygon_area(&mem_seg1) < 2.0 {
             continue;
         }
 
@@ -65,22 +64,22 @@ pub fn get_placement_data(
             let mut buffer = Vec::new();
 
             for m in 0..placed.len() {
-                let tmp_point = Point::new(Some(placement[m << 1]), Some(placement[(m << 1) + 1]));
+                tmp_point.x = placement[m << 1];
+                tmp_point.y = placement[(m << 1) + 1];
                 buffer.extend(fill_point_mem_seg(&placed[m], &tmp_point));
             }
 
-            let pt = unsafe { polygon1.at(k) };
-            let mut tmp_point = unsafe { Point::from(pt) };
-            unsafe { tmp_point.sub(first_point) };
+            tmp_point.x = mem_seg1[k << 1] - first_point.x;
+            tmp_point.y = mem_seg1[(k << 1) + 1] - first_point.y;
 
             buffer.extend(fill_point_mem_seg(node, &tmp_point));
 
             let mem_seg2 = buffer.into_boxed_slice();
-            let mut polygon2 = Polygon::<f32>::new();
-            unsafe { polygon2.bind(mem_seg2, 0, 0) };
+            let point_count = mem_seg2.len() >> 1;
 
-            let size = unsafe { polygon2.size() };
-            let cur_area = unsafe { (*size).x * 2.0 + (*size).y };
+            let bounds = f32::calculate_bounds(&mem_seg2, 0, point_count);
+            // weigh width more, to help compress in direction of gravity
+            cur_area = bounds[2] * 2.0 + bounds[3];
 
             if min_area.is_nan()
                 || cur_area < min_area
@@ -88,7 +87,7 @@ pub fn get_placement_data(
                     && (min_x.is_nan() || tmp_point.x < min_x))
             {
                 min_area = cur_area;
-                min_width = unsafe { (*size).x };
+                min_width = bounds[2];
                 position_x = tmp_point.x;
                 position_y = tmp_point.y;
                 min_x = tmp_point.x;

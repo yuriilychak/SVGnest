@@ -1,38 +1,10 @@
-import { get_result_wasm, calculate_bounds_f32, abs_polygon_area } from 'wasm-nesting';
-import type { Point, Polygon, PolygonNode } from '../types';
+import { get_result_wasm, get_placement_data_wasm } from 'wasm-nesting';
+import type { Point, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { almostEqual } from '../helpers';
+import { serializePolygonNodes } from '../helpers';
 import PlaceContent from './place-content';
 import NFPWrapper from './nfp-wrapper';
-import { PointPoolF32, PolygonF32, PointF32 } from '../geometry';
-
-function toMemSeg(polygon: Point<Int32Array>[]): Float32Array {
-    const pointCount: number = polygon.length;
-    const result: Float32Array = new Float32Array(pointCount << 1);
-    const tempPoint: Point<Float32Array> = PointF32.create();
-
-    for (let i = 0; i < pointCount; ++i) {
-        tempPoint.update(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE);
-        tempPoint.fill(result, i);
-    }
-
-    return result;
-}
-
-function fillPointMemSeg(
-    node: PolygonNode,
-    offset: Point<Float32Array>,
-): number[] {
-    const result = [];
-    const pointCount = node.memSeg.length >> 1;
-
-    for (let i = 0; i < pointCount; ++i) {
-        result.push(node.memSeg[i << 1] + offset.x);
-        result.push(node.memSeg[(i << 1) + 1] + offset.y);
-    }
-
-    return result;
-}
+import { PointF32 } from '../geometry';
 
 function getPlacementData(
     finalNfp: Point<Int32Array>[][],
@@ -42,56 +14,25 @@ function getPlacementData(
     firstPoint: Point<Float32Array>,
     inputY: number
 ): Float32Array {
-    let positionX = NaN;
-    let positionY = inputY;
-    let minWidth = 0;
-    let minArea = NaN;
-    let minX = NaN;
-    let curArea = 0;
-    let nfpSize = 0;
-    const tmpPoint = PointF32.create();
+    // Serialize finalNfp using ClipperWrapper
+    const finalNfpSerialized = ClipperWrapper.serializePolygons(finalNfp);
 
-    for (let j = 0; j < finalNfp.length; ++j) {
-        nfpSize = finalNfp[j].length;
-        const memSeg1 = toMemSeg(finalNfp[j]);
+    // Serialize nodes (placed + current node)
+    const allNodes = [...placed, node];
+    const nodesBuffer = new Float32Array(serializePolygonNodes(allNodes));
 
-        if (abs_polygon_area(memSeg1) < 2) {
-            continue;
-        }
+    // Create placement buffer
+    const placementBuffer = new Float32Array(placement);
 
-        for (let k = 0; k < nfpSize; ++k) {
-            let buffer: number[] = [];
-
-            for (let m = 0; m < placed.length; ++m) {
-                tmpPoint.fromMemSeg(placement, m);
-                buffer = buffer.concat(fillPointMemSeg(placed[m], tmpPoint));
-            }
-
-            tmpPoint.fromMemSeg(memSeg1, k).sub(firstPoint);
-
-            buffer = buffer.concat(fillPointMemSeg(node, tmpPoint));
-
-            const memSeg2 = new Float32Array(buffer);
-
-            const bounds = calculate_bounds_f32(memSeg2, 0, memSeg2.length >> 1);
-            // weigh width more, to help compress in direction of gravity
-            curArea = bounds[2] * 2 + bounds[3];
-
-            if (
-                Number.isNaN(minArea) ||
-                curArea < minArea ||
-                (almostEqual(minArea, curArea) && (Number.isNaN(minX) || tmpPoint.x < minX))
-            ) {
-                minArea = curArea;
-                minWidth = bounds[2];
-                positionX = tmpPoint.x;
-                positionY = tmpPoint.y;
-                minX = tmpPoint.x;
-            }
-        }
-    }
-
-    return new Float32Array(!Number.isNaN(positionX) ? [minWidth, positionY, positionX] : [minWidth, positionY]);
+    // Call WASM function
+    return get_placement_data_wasm(
+        finalNfpSerialized,
+        nodesBuffer,
+        placementBuffer,
+        firstPoint.x,
+        firstPoint.y,
+        inputY
+    );
 }
 
 /**
@@ -142,6 +83,30 @@ function serializePathItemsToUint32Array(pathItems: number[][]): Uint32Array {
     return buffer;
 }
 
+function getFirstPlacement(binNfp: NFPWrapper, firstPoint: Point<Float32Array>): Float32Array {
+    const tmpPoint = PointF32.create();
+    const binNfpCount = binNfp.count;
+    let positionX: number = NaN;
+    let positionY: number = NaN;
+    // first placement, put it on the left
+    for (let i = 0; i < binNfpCount; ++i) {
+        const memSeg = binNfp.getNFPMemSeg(i);
+        const nfpSize = memSeg.length >> 1;
+
+        for (let j = 0; j < nfpSize; ++j) {
+            tmpPoint.fromMemSeg(memSeg, j).sub(firstPoint);
+
+            if (Number.isNaN(positionX) || tmpPoint.x < positionX) {
+                positionX = tmpPoint.x;
+                positionY = tmpPoint.y;
+            }
+        }
+    }
+
+    return new Float32Array([positionX, positionY]);
+
+}
+
 function getResult(placements: number[][], pathItems: number[][], fitness: number): ArrayBuffer {
     const placementsBuffer = serializePlacementsToFloat32Array(placements);
     const pathItemsBuffer = serializePathItemsToUint32Array(pathItems);
@@ -152,29 +117,20 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
 
 export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
     const placeContent: PlaceContent = new PlaceContent().init(buffer);
-    const pointPool = new PointPoolF32();
-    const pointIndices: number = pointPool.alloc(2);
-    const tmpPoint: Point<Float32Array> = pointPool.get(pointIndices, 0);
-    const firstPoint: Point<Float32Array> = pointPool.get(pointIndices, 1);
+    const firstPoint: Point<Float32Array> = PointF32.create();
     const placements: number[][] = [];
     const pathItems: number[][] = [];
     let node: PolygonNode = null;
     let placement: number[] = [];
     let pathItem: number[] = [];
-    let positionX: number = 0;
     let positionY: number = 0;
     let fitness: number = 0;
     let minWidth: number = 0;
     let placed: PolygonNode[] = [];
     let binNfp: NFPWrapper = new NFPWrapper();
     let finalNfp: Point<Int32Array>[][] = null;
-    let nfpSize: number = 0;
-    let binNfpCount: number = 0;
     let pathKey: number = 0;
     let i: number = 0;
-    let j: number = 0;
-    let k: number = 0;
-    let m: number = 0;
 
     while (placeContent.nodeCount > 0) {
         placed = [];
@@ -195,29 +151,14 @@ export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
                 continue;
             }
 
-            positionX = NaN;
-
-            binNfpCount = binNfp.count;
-
             if (placed.length === 0) {
-                const polygon1: Polygon<Float32Array> = new PolygonF32();
-                // first placement, put it on the left
-                for (j = 0; j < binNfpCount; ++j) {
-                    polygon1.bind(binNfp.getNFPMemSeg(j));
+                const placementData = getFirstPlacement(binNfp, firstPoint);
 
-                    for (k = 0; k < polygon1.length; ++k) {
-                        tmpPoint.update(polygon1.at(k)).sub(firstPoint);
-
-                        if (Number.isNaN(positionX) || tmpPoint.x < positionX) {
-                            positionX = tmpPoint.x;
-                            positionY = tmpPoint.y;
-                        }
-                    }
-                }
+                positionY = placementData[1];
 
                 pathItem.push(pathKey);
-                placement.push(positionX);
-                placement.push(positionY);
+                placement.push(placementData[0]);
+                placement.push(placementData[1]);
                 placed.push(node);
 
                 continue;
@@ -261,8 +202,6 @@ export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
 
     // there were parts that couldn't be placed
     fitness += placeContent.nodeCount << 1;
-
-    pointPool.malloc(pointIndices);
 
     return getResult(placements, pathItems, fitness);
 }
