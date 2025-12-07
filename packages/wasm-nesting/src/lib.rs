@@ -844,3 +844,17 @@ pub fn init_place_content_debug_wasm(buffer: &[u8]) -> web_sys::js_sys::Uint32Ar
     out.copy_from(&result);
     out
 }
+
+/// WASM wrapper for place_paths function
+///
+/// Arguments:
+/// - buffer: Uint8Array containing serialized PlaceContent data
+///
+/// Returns: Float32Array containing placement result
+#[wasm_bindgen]
+pub fn place_paths_wasm(buffer: &[u8]) -> Float32Array {
+    let result = crate::nesting::place_flow::place_paths(buffer);
+    let out = Float32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
+}

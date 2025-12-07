@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PolygonNode {
     pub source: i32,
     pub rotation: f32,

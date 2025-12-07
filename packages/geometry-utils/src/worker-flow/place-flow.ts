@@ -1,4 +1,4 @@
-import { get_result_wasm, get_placement_data_wasm, get_first_placement_wasm, init_place_content_debug_wasm } from 'wasm-nesting';
+import { get_result_wasm, get_placement_data_wasm, get_first_placement_wasm, init_place_content_debug_wasm, place_paths_wasm } from 'wasm-nesting';
 import type { Point, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { serializePolygonNodes } from '../helpers';
@@ -185,4 +185,9 @@ export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
     fitness += placeContent.nodeCount << 1;
 
     return getResult(placements, pathItems, fitness);
+}
+
+export function placePathsRust(buffer: ArrayBuffer): ArrayBuffer {
+    const result = place_paths_wasm(new Uint8Array(buffer));
+    return result.buffer as ArrayBuffer;
 }

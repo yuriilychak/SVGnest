@@ -1,5 +1,8 @@
 use crate::clipper::constants::CLIPPER_SCALE;
+use crate::clipper::utils::{apply_nfps, get_combined_nfps, get_final_nfp};
 use crate::geometry::point::Point;
+use crate::nesting::nfp_wrapper::NFPWrapper;
+use crate::nesting::place_content::PlaceContent;
 use crate::nesting::polygon_node::PolygonNode;
 use crate::utils::almost_equal::AlmostEqual;
 use crate::utils::bit_ops::join_u16;
@@ -172,6 +175,91 @@ pub fn get_placement_data(
     }
 }
 
+/// Convert NFPWrapper to clipper format (Vec<Vec<Point<i32>>>)
+fn nfp_to_clipper(nfp_wrapper: &NFPWrapper) -> Vec<Vec<Point<i32>>> {
+    let nfp_count = nfp_wrapper.count();
+    let mut result = Vec::with_capacity(nfp_count);
+
+    for i in 0..nfp_count {
+        let mem_seg = nfp_wrapper.get_nfp_mem_seg(i);
+        let point_count = mem_seg.len() >> 1;
+        let mut polygon = Vec::with_capacity(point_count);
+
+        for j in 0..point_count {
+            let x = (mem_seg[j << 1] * CLIPPER_SCALE as f32).round() as i32;
+            let y = (mem_seg[(j << 1) + 1] * CLIPPER_SCALE as f32).round() as i32;
+            polygon.push(Point { x, y });
+        }
+
+        result.push(polygon);
+    }
+
+    result
+}
+
+/// Get final NFPs by combining placed nodes' NFPs and subtracting from bin NFP
+/// Rust port of ClipperWrapper.getFinalNfps
+pub fn get_final_nfps(
+    place_content: &PlaceContent,
+    placed: &[PolygonNode],
+    path: &PolygonNode,
+    bin_nfp: &NFPWrapper,
+    placement: &[f32],
+) -> Vec<Vec<Point<i32>>> {
+    let mut total_nfps: Vec<Vec<Point<i32>>> = Vec::new();
+
+    // Collect and apply all NFPs from placed nodes
+    for (i, placed_node) in placed.iter().enumerate() {
+        let key = PolygonNode::generate_nfp_cache_key(
+            place_content.rotations(),
+            false,
+            placed_node,
+            path,
+        );
+
+        if let Some(nfp_cache_value) = place_content.nfp_cache().get(&key) {
+            // Convert Vec<u8> to Vec<f32>
+            let f32_count = nfp_cache_value.len() / 4;
+            let mut f32_buffer = Vec::with_capacity(f32_count);
+
+            for j in 0..f32_count {
+                let offset = j * 4;
+                f32_buffer.push(f32::from_le_bytes([
+                    nfp_cache_value[offset],
+                    nfp_cache_value[offset + 1],
+                    nfp_cache_value[offset + 2],
+                    nfp_cache_value[offset + 3],
+                ]));
+            }
+
+            // Get offset point from placement
+            let offset_x = placement[i << 1];
+            let offset_y = placement[(i << 1) + 1];
+            let offset = Point {
+                x: offset_x,
+                y: offset_y,
+            };
+
+            // Apply NFPs with offset and add to total
+            let applied = apply_nfps(f32_buffer, &offset);
+            total_nfps.extend(applied);
+        }
+    }
+
+    // Combine all NFPs using union
+    let combined_nfp = get_combined_nfps(&total_nfps);
+
+    if combined_nfp.is_empty() {
+        return Vec::new();
+    }
+
+    // Convert bin NFP to clipper format
+    let clipper_bin_nfp = nfp_to_clipper(bin_nfp);
+
+    // Get final NFP by subtracting combined NFP from bin NFP
+    get_final_nfp(&combined_nfp, &clipper_bin_nfp)
+}
+
 pub fn get_result(placements: &[Vec<f32>], path_items: &[Vec<u32>], fitness: f32) -> Vec<f32> {
     let placement_count = path_items.len();
     let mut info = vec![0u32; placement_count];
@@ -207,4 +295,119 @@ pub fn get_result(placements: &[Vec<f32>], path_items: &[Vec<u32>], fitness: f32
     }
 
     result
+}
+
+/// Port of TypeScript placePaths function
+/// Main placement algorithm that packs polygons into bins
+pub fn place_paths(buffer: &[u8]) -> Vec<f32> {
+    let mut place_content = PlaceContent::new();
+    place_content.init(buffer);
+
+    let mut first_point = Point::<f32> { x: 0.0, y: 0.0 };
+    let mut placements: Vec<Vec<f32>> = Vec::new();
+    let mut path_items: Vec<Vec<u32>> = Vec::new();
+    let mut placement: Vec<f32> = Vec::new();
+    let mut path_item: Vec<u32> = Vec::new();
+    let mut position_y: f32 = 0.0;
+    let mut fitness: f32 = 0.0;
+    let mut min_width: f32 = 0.0;
+    let mut placed: Vec<PolygonNode> = Vec::new();
+
+    while place_content.node_count() > 0 {
+        placed.clear();
+        placement.clear();
+        path_item.clear();
+        fitness += 1.0; // add 1 for each new bin opened (lower fitness is better)
+
+        let node_count = place_content.node_count();
+
+        for i in 0..node_count {
+            let node = place_content.node_at(i).clone();
+
+            // Get first point from node's mem_seg
+            if node.mem_seg.len() >= 2 {
+                first_point.x = node.mem_seg[0];
+                first_point.y = node.mem_seg[1];
+            }
+
+            let path_key = place_content.get_path_key(i);
+
+            // Get bin NFP
+            let bin_nfp_option = place_content.get_bin_nfp(i);
+            if bin_nfp_option.is_none() {
+                continue;
+            }
+
+            let bin_nfp_bytes = bin_nfp_option.unwrap();
+            let bin_nfp = NFPWrapper::new(bin_nfp_bytes);
+
+            // Part unplaceable, skip
+            if bin_nfp.is_broken() || place_content.get_nfp_error(&placed, &node) {
+                continue;
+            }
+
+            if placed.is_empty() {
+                let placement_data = get_first_placement(bin_nfp_bytes, &first_point);
+
+                if placement_data.len() >= 2 {
+                    position_y = placement_data[1];
+
+                    path_item.push(path_key);
+                    placement.push(placement_data[0]);
+                    placement.push(placement_data[1]);
+                    placed.push(node.clone());
+                }
+
+                continue;
+            }
+
+            // Get final NFP
+            let final_nfp = get_final_nfps(&place_content, &placed, &node, &bin_nfp, &placement);
+
+            if final_nfp.is_empty() {
+                continue;
+            }
+
+            // Get placement data
+            let placement_data = get_placement_data(
+                &final_nfp,
+                &placed,
+                &node,
+                &placement,
+                &first_point,
+                position_y,
+            );
+
+            min_width = placement_data[0];
+            position_y = placement_data[1];
+
+            if placement_data.len() == 3 {
+                placed.push(node.clone());
+                path_item.push(path_key);
+                placement.push(placement_data[2]);
+                placement.push(placement_data[1]);
+            }
+        }
+
+        if min_width != 0.0 {
+            fitness += min_width / place_content.area();
+        }
+
+        // Remove placed nodes
+        for placed_node in &placed {
+            place_content.remove_node(placed_node);
+        }
+
+        if placement.is_empty() {
+            break; // something went wrong
+        }
+
+        placements.push(placement.clone());
+        path_items.push(path_item.clone());
+    }
+
+    // There were parts that couldn't be placed
+    fitness += (place_content.node_count() << 1) as f32;
+
+    get_result(&placements, &path_items, fitness)
 }
