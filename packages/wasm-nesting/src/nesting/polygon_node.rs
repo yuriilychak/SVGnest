@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct PolygonNode {
-    pub source: u32,
+    pub source: i32,
     pub rotation: f32,
     pub seg_size: usize,
     pub mem_seg: Box<[f32]>,
@@ -17,7 +17,7 @@ impl PolygonNode {
 
         for _ in 0..count {
             let raw_source = buffer[idx].to_bits().swap_bytes();
-            let source = raw_source.wrapping_sub(1) as u32;
+            let source = raw_source.wrapping_sub(1) as i32;
             idx += 1;
 
             let rotation = buffer[idx];
@@ -59,7 +59,7 @@ impl PolygonNode {
     fn serialize_nodes_internal(nodes: &[PolygonNode], buffer: &mut [u8], offset: usize) -> usize {
         nodes.iter().fold(offset, |mut result, node| {
             // Write source (u32)
-            let source_bytes = (node.source + 1).to_le_bytes();
+            let source_bytes = ((node.source + 1) as u32).to_le_bytes();
             buffer[result..result + 4].copy_from_slice(&source_bytes);
             result += std::mem::size_of::<u32>();
 
@@ -114,7 +114,7 @@ impl PolygonNode {
     pub fn new(source: i32, rotation: f32, mem_seg: Vec<f32>) -> Self {
         let seg_size = mem_seg.len();
         PolygonNode {
-            source: source as u32,
+            source,
             rotation,
             seg_size,
             mem_seg: mem_seg.into_boxed_slice(),
@@ -170,7 +170,7 @@ impl PolygonNode {
                 buffer[idx + 2],
                 buffer[idx + 3],
             ];
-            let source = u32::from_le_bytes(source_bytes).wrapping_sub(1);
+            let source = u32::from_le_bytes(source_bytes).wrapping_sub(1) as i32;
             idx += 4;
 
             // Read rotation (f32, little-endian)
