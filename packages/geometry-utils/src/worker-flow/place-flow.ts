@@ -1,4 +1,4 @@
-import { get_result_wasm, get_placement_data_wasm, get_first_placement_wasm, place_paths_wasm, apply_nfps_wasm, get_combined_nfps_wasm, get_final_nfp_wasm } from 'wasm-nesting';
+import { get_result_wasm, get_placement_data_wasm, get_nfp_cache_value, get_first_placement_wasm, place_paths_wasm, apply_nfps_wasm, get_combined_nfps_wasm, get_final_nfp_wasm } from 'wasm-nesting';
 import type { Point, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
 import { generateNFPCacheKey, serializePolygonNodes } from '../helpers';
@@ -96,29 +96,23 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
     return result.buffer as ArrayBuffer;
 }
 
-function getFinalNfps(
-        placeContent: PlaceContent,
-        placed: PolygonNode[],
-        path: PolygonNode,
-        binNfp: NFPWrapper,
-        placement: f32[]
-    ): Point < Int32Array > [][] {
+function calculateCombinedNfps(
+    placeContent: PlaceContent,
+    placed: PolygonNode[],
+    path: PolygonNode,
+    placement: f32[]
+): Point<Int32Array>[][] {
     const tmpPoint: Point<Float32Array> = PointF32.create();
-    let i: number = 0;
-    let key: number = 0;
-
     let totalNfps: Point<Int32Array>[][] = [];
 
-    for (i = 0; i < placed.length; ++i) {
-        key = generateNFPCacheKey(placeContent.rotations, false, placed[i], path);
+    for (let i = 0; i < placed.length; ++i) {
+        const key = generateNFPCacheKey(placeContent.rotations, false, placed[i], path);
 
         if (!placeContent.nfpCache.has(key)) {
             continue;
         }
 
         tmpPoint.fromMemSeg(placement, i);
-
-        // console.log(get_nfp_cache_value(key, new Uint8Array(placeContent.buffer)), new Float32Array(placeContent.nfpCache.get(key)));
 
         totalNfps = totalNfps.concat(
             ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(placeContent.nfpCache.get(key)), tmpPoint.x, tmpPoint.y))
@@ -129,7 +123,17 @@ function getFinalNfps(
         ClipperWrapper.serializePolygons(totalNfps)
     );
 
-    const combinedNfp = ClipperWrapper.deserializePolygons(wasmRes);
+    return ClipperWrapper.deserializePolygons(wasmRes);
+}
+
+function getFinalNfps(
+        placeContent: PlaceContent,
+        placed: PolygonNode[],
+        path: PolygonNode,
+        binNfp: NFPWrapper,
+        placement: f32[]
+    ): Point < Int32Array > [][] {
+    const combinedNfp = calculateCombinedNfps(placeContent, placed, path, placement);
 
 
     if (combinedNfp.length === 0) {
