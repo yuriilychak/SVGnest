@@ -1,11 +1,8 @@
 import type { BoundRect, NestConfig, Point, Polygon, PolygonNode } from './types';
-import { generateNFPCacheKey, getPolygonNode } from './helpers';
-import PlaceContent from './worker-flow/place-content';
+import { getPolygonNode } from './helpers';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
-import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm, get_nfp_cache_value } from 'wasm-nesting';
-
-type f32 = number;
+import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
 export default class ClipperWrapper {
     private configuration: NestConfig;
 
@@ -223,60 +220,6 @@ export default class ClipperWrapper {
         }
 
         return result;
-    }
-
-    public static getFinalNfps(
-        placeContent: PlaceContent,
-        placed: PolygonNode[],
-        path: PolygonNode,
-        binNfp: NFPWrapper,
-        placement: f32[]
-    ): Point<Int32Array>[][] {
-        const tmpPoint: Point<Float32Array> = PointF32.create();
-        let i: number = 0;
-        let key: number = 0;
-
-        let totalNfps: Point<Int32Array>[][] = [];
-
-        for (i = 0; i < placed.length; ++i) {
-            key = generateNFPCacheKey(placeContent.rotations, false, placed[i], path);
-
-            if (!placeContent.nfpCache.has(key)) {
-                continue;
-            }
-
-            tmpPoint.fromMemSeg(placement, i);
-
-            // console.log(get_nfp_cache_value(key, new Uint8Array(placeContent.buffer)), new Float32Array(placeContent.nfpCache.get(key)));
-
-            totalNfps = totalNfps.concat(
-                ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(placeContent.nfpCache.get(key)), tmpPoint.x, tmpPoint.y))
-            );
-        }
-
-        const wasmRes = get_combined_nfps_wasm(
-            ClipperWrapper.serializePolygons(totalNfps)
-        );
-
-        const combinedNfp = ClipperWrapper.deserializePolygons(wasmRes);
-
-
-        if (combinedNfp.length === 0) {
-            return [];
-        }
-
-        // difference with bin polygon
-        const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(binNfp);
-
-        const wasmResult = get_final_nfp_wasm(
-            ClipperWrapper.serializePolygons(combinedNfp),
-            ClipperWrapper.serializePolygons(clipperBinNfp)
-        )
-
-        const finalNfp = ClipperWrapper.deserializePolygons(wasmResult);
-
-
-        return finalNfp;
     }
 
     /**
