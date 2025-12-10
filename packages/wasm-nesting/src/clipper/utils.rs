@@ -1,5 +1,6 @@
 use super::constants::{AREA_TRASHOLD, CLEAN_TRASHOLD, CLIPPER_SCALE};
 use super::{clipper::Clipper, ClipType, PolyFillType, PolyType};
+use crate::nesting::nfp_wrapper::NFPWrapper;
 use crate::utils::number::Number;
 use crate::{geometry::point::Point, utils::math::cycle_index};
 
@@ -265,6 +266,41 @@ pub fn get_combined_nfps(total_nfps: &Vec<Vec<Point<i32>>>) -> Vec<Vec<Point<i32
     let mut result = Vec::new();
     if !clipper.execute(ClipType::Union, &mut result, PolyFillType::NonZero) {
         return Vec::new();
+    }
+
+    result
+}
+
+/// Apply NFPs with offset and filter by area threshold
+///
+/// This function:
+/// 1. Creates an NFPWrapper from the provided buffer
+/// 2. Extracts NFP polygons from the NFPWrapper
+/// 3. Converts each NFP to clipper coordinates with the given offset
+/// 4. Filters out polygons with area smaller than AREA_TRASHOLD
+///
+/// # Arguments
+/// * `nfp_buffer` - Buffer containing serialized NFP data (Vec<f32>)
+/// * `offset` - Offset point to apply to all NFP polygons (in f32 coordinates)
+///
+/// # Returns
+/// Vector of polygons (each polygon is a Vec<Point<i32>>) that meet the area threshold
+pub fn apply_nfps(nfp_buffer: Vec<f32>, offset: &Point<f32>) -> Vec<Vec<Point<i32>>> {
+    let nfp_wrapper = NFPWrapper::new(&nfp_buffer);
+    let nfp_count = nfp_wrapper.count();
+    let mut result = Vec::with_capacity(nfp_count);
+
+    for i in 0..nfp_count {
+        let mem_seg = nfp_wrapper.get_nfp_mem_seg(i);
+        let clone = from_mem_seg(&mem_seg, Some(offset), false);
+
+        // Calculate area and check threshold
+        let packed = pack_polygon_to_i32(&clone);
+        let area = i32::abs_polygon_area(&packed);
+
+        if area > AREA_TRASHOLD as f64 {
+            result.push(clone);
+        }
     }
 
     result

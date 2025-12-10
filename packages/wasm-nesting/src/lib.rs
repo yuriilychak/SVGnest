@@ -9,6 +9,7 @@ pub mod nesting;
 pub mod utils;
 
 use crate::nesting::pair_flow::pair_data;
+use crate::nesting::polygon_node::PolygonNode;
 
 use crate::clipper::clipper::Clipper;
 use crate::clipper::clipper_offset::ClipperOffset;
@@ -29,11 +30,6 @@ pub fn polygon_area(points: &[f32]) -> f64 {
 }
 
 #[wasm_bindgen]
-pub fn polygon_area_i32(points: &[i32]) -> f64 {
-    return Number::polygon_area(points);
-}
-
-#[wasm_bindgen]
 pub fn almost_equal(a: f64, b: f64, tolerance: f64) -> bool {
     a.almost_equal(b, Some(tolerance))
 }
@@ -44,18 +40,8 @@ pub fn set_bits_u32(source: u32, value: u16, index: u8, bit_count: u8) -> u32 {
 }
 
 #[wasm_bindgen]
-pub fn get_bits_u32(source: u32, index: u8, num_bits: u8) -> u16 {
-    get_bits(source, index, num_bits)
-}
-
-#[wasm_bindgen]
 pub fn get_u16_from_u32(source: u32, index: u8) -> u16 {
     get_u16(source, index)
-}
-
-#[wasm_bindgen]
-pub fn join_u16_to_u32(value1: u16, value2: u16) -> u32 {
-    join_u16(value1, value2)
 }
 
 #[wasm_bindgen]
@@ -64,24 +50,8 @@ pub fn cycle_index_wasm(index: usize, size: usize, offset: isize) -> usize {
 }
 
 #[wasm_bindgen]
-pub fn to_rotation_index_wasm(angle: u16, rotation_split: u16) -> u16 {
-    to_rotation_index(angle, rotation_split)
-}
-
-#[wasm_bindgen]
 pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
     value.mid_value(left, right)
-}
-
-#[wasm_bindgen]
-pub fn pair_data_f32(buff: &[f32]) -> Float32Array {
-    let serialzed: Vec<f32> = unsafe { pair_data(buff) };
-
-    let out = Float32Array::new_with_length(serialzed.len() as u32);
-
-    out.copy_from(&serialzed);
-
-    out
 }
 
 fn from_i32_mem_seg(mem_seg: &[i32]) -> Vec<Point<i32>> {
@@ -380,57 +350,19 @@ fn serialize_polygons(polygons: &Vec<Vec<Point<i32>>>) -> Vec<i32> {
     result
 }
 
-/// Clean multiple polygons by removing points that are too close together (WASM wrapper)
+/// Apply NFPs with offset and filter by area threshold (WASM wrapper)
 ///
 /// # Arguments
-/// * `data` - Flat array in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-/// * `distance` - Threshold distance for cleaning
+/// * `nfp_buffer` - Float32Array containing serialized NFP data
+/// * `offset_x` - X coordinate of the offset point
+/// * `offset_y` - Y coordinate of the offset point
 ///
 /// # Returns
-/// Int32Array with cleaned polygons in the same format
+/// Int32Array with filtered polygons in format: [polygon_count, size1, size2, ..., x0, y0, x1, y1, ...]
 #[wasm_bindgen]
-pub fn clean_polygons_wasm(data: &[i32], distance: f64) -> Int32Array {
-    let polygons = deserialize_polygons(data);
-    let cleaned = clipper_utils::clean_polygons(&polygons, distance);
-    let serialized = serialize_polygons(&cleaned);
-
-    let out = Int32Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
-    out
-}
-
-/// Perform a Clipper Difference operation and return cleaned and filtered result (WASM wrapper)
-///
-/// This function:
-/// 1. Performs a Difference operation (clipper_bin_nfp minus combined_nfp)
-/// 2. Cleans the resulting polygons using CLEAN_TRASHOLD
-/// 3. Filters out polygons with area smaller than AREA_TRASHOLD
-///
-/// # Arguments
-/// * `combined_nfp_data` - Polygons to subtract (Clip type) in serialized format
-/// * `clipper_bin_nfp_data` - Base polygons (Subject type) in serialized format
-///
-/// # Returns
-/// Int32Array with result polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-/// Perform a Clipper Difference operation and return cleaned and filtered result (WASM wrapper)
-///
-/// This function:
-/// 1. Performs a Difference operation (clipper_bin_nfp minus combined_nfp)
-/// 2. Cleans the resulting polygons using CLEAN_TRASHOLD
-/// 3. Filters out polygons with area smaller than AREA_TRASHOLD
-///
-/// # Arguments
-/// * `combined_nfp_data` - Polygons to subtract (Clip type) in serialized format
-/// * `clipper_bin_nfp_data` - Base polygons (Subject type) in serialized format
-///
-/// # Returns
-/// Int32Array with result polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-#[wasm_bindgen]
-pub fn get_final_nfp_wasm(combined_nfp_data: &[i32], clipper_bin_nfp_data: &[i32]) -> Int32Array {
-    let combined_nfp = deserialize_polygons(combined_nfp_data);
-    let clipper_bin_nfp = deserialize_polygons(clipper_bin_nfp_data);
-
-    let result = clipper_utils::get_final_nfp(&combined_nfp, &clipper_bin_nfp);
+pub fn apply_nfps_wasm(nfp_buffer: &[f32], offset_x: f32, offset_y: f32) -> Int32Array {
+    let offset = Point::new(Some(offset_x), Some(offset_y));
+    let result = clipper_utils::apply_nfps(nfp_buffer.to_vec(), &offset);
     let serialized = serialize_polygons(&result);
 
     let out = Int32Array::new_with_length(serialized.len() as u32);
@@ -438,22 +370,50 @@ pub fn get_final_nfp_wasm(combined_nfp_data: &[i32], clipper_bin_nfp_data: &[i32
     out
 }
 
-/// Combine multiple polygons using a Union operation (WASM wrapper)
-///
-/// This function performs a Clipper Union operation to combine all input polygons
+/// Generate NFP cache key from two polygon nodes (WASM wrapper)
 ///
 /// # Arguments
-/// * `total_nfps_data` - Polygons to combine in serialized format
+/// * `rotation_split` - Number of rotation splits (used to calculate rotation index)
+/// * `inside` - Whether this is an inside NFP
+/// * `source1` - Source ID of first polygon
+/// * `rotation1` - Rotation of first polygon
+/// * `source2` - Source ID of second polygon
+/// * `rotation2` - Rotation of second polygon
 ///
 /// # Returns
-/// Int32Array with combined polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+/// u32 cache key packed with polygon sources, rotation indices, and inside flag
 #[wasm_bindgen]
-pub fn get_combined_nfps_wasm(total_nfps_data: &[i32]) -> Int32Array {
-    let total_nfps = deserialize_polygons(total_nfps_data);
-    let result = clipper_utils::get_combined_nfps(&total_nfps);
-    let serialized = serialize_polygons(&result);
+pub fn generate_nfp_cache_key_wasm(
+    rotation_split: u32,
+    inside: bool,
+    source1: i32,
+    rotation1: f32,
+    source2: i32,
+    rotation2: f32,
+) -> u32 {
+    let polygon1 = PolygonNode::new(source1, rotation1, Vec::new());
+    let polygon2 = PolygonNode::new(source2, rotation2, Vec::new());
 
-    let out = Int32Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
+    PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
+}
+
+/// WASM wrapper for calculate function
+///
+/// Main calculation function that routes to either pair_data or place_paths
+/// based on the thread type in the buffer.
+///
+/// Port of TypeScript calculate function from worker-flow/index.ts
+///
+/// Arguments:
+/// - buffer: Uint8Array where first 4 bytes (u32 big-endian) indicate thread type
+///   - 0 = PAIR (calls pair_data)
+///   - 1 = PLACEMENT (calls place_paths)
+///
+/// Returns: Float32Array containing result from either pair_data or place_paths
+#[wasm_bindgen]
+pub fn calculate_wasm(buffer: &[u8]) -> Float32Array {
+    let result = crate::nesting::calculate::calculate(buffer);
+    let out = Float32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
     out
 }

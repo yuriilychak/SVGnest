@@ -1,6 +1,6 @@
 import { mid_value_f64 } from 'wasm-nesting';
 import { ANGLE_CACHE, TOL_F64 } from '../../constants';
-import { almostEqual, clipperRound, slopesEqual } from '../../helpers';
+import { almostEqual, clipperRound } from '../../helpers';
 import type { Point, TypedArray } from '../../types';
 
 export default abstract class PointBase<T extends TypedArray> implements Point<T> {
@@ -288,10 +288,6 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
             (Pt1a.x === Pt2a.x && Pt1b.x === Pt2b.x) ||
             (Pt1a.x === Pt2b.x && Pt1b.x === Pt2a.x)
         );
-    }
-
-    public static slopesEqual(pt1: Point, pt2: Point, pt3: Point, useFullRange: boolean): boolean {
-        return slopesEqual(pt1.y - pt2.y, pt2.x - pt3.x, pt1.x - pt2.x, pt2.y - pt3.y, useFullRange);
     }
 
 

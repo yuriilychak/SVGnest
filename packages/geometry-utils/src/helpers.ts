@@ -1,5 +1,5 @@
-import { set_bits_u32, get_u16_from_u32, almost_equal, to_rotation_index_wasm } from 'wasm-nesting';
-import { NFP_KEY_INDICES, TOL_F32, TOL_F64 } from './constants';
+import { set_bits_u32, get_u16_from_u32, almost_equal, generate_nfp_cache_key_wasm } from 'wasm-nesting';
+import { TOL_F32, TOL_F64 } from './constants';
 import { NestConfig, NFPCache, PolygonNode } from './types';
 
 export function getUint16(source: number, index: number): number {
@@ -13,7 +13,7 @@ export function almostEqual(a: number, b: number = 0, tolerance: number = TOL_F6
 export function almostEqualF32(a: number, b: number = 0, tolerance: number = TOL_F32): boolean {
     const diff = Math.fround(Math.abs(a - b));
     const scale = Math.fround(Math.max(Math.abs(a), Math.abs(b), 1));
-    
+
     return diff <= tolerance * scale;
 }
 
@@ -23,18 +23,14 @@ export function generateNFPCacheKey(
     polygon1: PolygonNode,
     polygon2: PolygonNode
 ): number {
-    const rotationIndex1 = to_rotation_index_wasm(polygon1.rotation, rotationSplit);
-    const rotationIndex2 = to_rotation_index_wasm(polygon2.rotation, rotationSplit);
-    const data = new Uint8Array([polygon1.source + 1, polygon2.source + 1, rotationIndex1, rotationIndex2, inside ? 1 : 0]);
-    const elementCount: number = data.length;
-    let result: number = 0;
-    let i: number = 0;
-
-    for (i = 0; i < elementCount; ++i) {
-        result = set_bits_u32(result, data[i], NFP_KEY_INDICES[i], NFP_KEY_INDICES[i + 1] - NFP_KEY_INDICES[i]);
-    }
-
-    return result;
+    return generate_nfp_cache_key_wasm(
+        rotationSplit,
+        inside,
+        polygon1.source,
+        polygon1.rotation,
+        polygon2.source,
+        polygon2.rotation
+    );
 }
 
 export function getPolygonNode(source: number, memSeg: Float32Array): PolygonNode {
@@ -129,80 +125,21 @@ export function clipperRound(a: number): number {
     return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
 }
 
-export function castInt64(a: number): number {
-    return a < 0 ? Math.ceil(a) : Math.floor(a);
-}
-
-function splitTo16Bits(value: number): Uint16Array {
-    const mask: number = 0xffff;
-    const splitSize: number = 4;
-    const result = new Uint16Array(splitSize);
-    let currentValue: number = Math.abs(value << 0);
-    let i: number = 0;
-
-    for (i = 0; i < splitSize; ++i) {
-        result[i] = currentValue & mask;
-        currentValue = currentValue >>> 16;
-    }
-
-    return result;
-}
-
-function mulInt128(x: number, y: number): Uint32Array {
-    const xParts: Uint16Array = splitTo16Bits(x);
-    const yParts: Uint16Array = splitTo16Bits(y);
-    const result = new Uint32Array(5);
-    const mask: number = 0xffffffff;
-    let i: number = 0;
-
-    result[0] = 0;
-    result[1] = (xParts[0] * yParts[0]) & mask;
-    result[2] = (xParts[1] * yParts[0] + xParts[0] * yParts[1]) & mask;
-    result[3] = (xParts[2] * yParts[0] + xParts[0] * yParts[2] + xParts[1] * yParts[1]) & mask;
-    result[4] = (xParts[3] * yParts[3] + xParts[3] * yParts[0] + xParts[2] * yParts[1]) & mask;
-
-    for (i = 4; i > 0; --i) {
-        result[i] += result[i - 1] >>> 16;
-    }
-
-    result[0] = 1 + Math.sign(x) * Math.sign(y);
-
-    return result;
-}
-
-function equalityInt128(left: Uint32Array, right: Uint32Array): boolean {
-    const iterationCount: number = left.length;
-    let i: number = 0;
-
-    for (i = 0; i < iterationCount; ++i) {
-        if (left[i] !== right[i]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-export function slopesEqual(value1: number, value2: number, value3: number, value4: number, useFullRange: boolean): boolean {
-    return useFullRange
-        ? equalityInt128(mulInt128(value1, value2), mulInt128(value3, value4))
-        : castInt64(value1 * value2) - castInt64(value3 * value4) === 0;
-}
 
 function getByteOffset(array: Float32Array, index: number): number {
     return (array.byteOffset >>> 0) + index * Float32Array.BYTES_PER_ELEMENT;
 }
 
 export function readUint32FromF32(array: Float32Array, index: number): number {
-    const byteOffset = getByteOffset(array, index); 
+    const byteOffset = getByteOffset(array, index);
     const view = new DataView(array.buffer);
 
-    return view.getUint32(byteOffset, true); 
+    return view.getUint32(byteOffset, true);
 }
 
 export function writeUint32ToF32(array: Float32Array, index: number, value: number): void {
-    const byteOffset = getByteOffset(array, index); 
+    const byteOffset = getByteOffset(array, index);
     const view = new DataView(array.buffer);
 
-    view.setUint32(byteOffset, value >>> 0, true); 
+    view.setUint32(byteOffset, value >>> 0, true);
 }

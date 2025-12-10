@@ -1,10 +1,7 @@
 import type { BoundRect, NestConfig, Point, Polygon, PolygonNode } from './types';
-import { generateNFPCacheKey, getPolygonNode } from './helpers';
-import PlaceContent from './worker-flow/place-content';
+import { getPolygonNode } from './helpers';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
-import NFPWrapper from './worker-flow/nfp-wrapper';
-import { clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm, polygon_area_i32 } from 'wasm-nesting';
-
+import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
 export default class ClipperWrapper {
     private configuration: NestConfig;
 
@@ -206,105 +203,8 @@ export default class ClipperWrapper {
         return cleanTrashold !== -1 ? ClipperWrapper.cleanPolygon(result, cleanTrashold) : result;
     }
 
-    public static toMemSeg(polygon: Point<Int32Array>[], memSeg: Float32Array = null): Float32Array {
-        const pointCount: number = polygon.length;
-        const result: Float32Array = memSeg ? memSeg : new Float32Array(pointCount << 1);
-        const tempPoint: PointF32 = PointF32.create();
-        let i: number = 0;
-
-        for (i = 0; i < pointCount; ++i) {
-            tempPoint.update(polygon[i]).scaleDown(ClipperWrapper.CLIPPER_SCALE);
-            tempPoint.fill(result, i);
-        }
-
-        return result;
-    }
-
     public static applyNfps(nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): Point<Int32Array>[][] {
-        const nfpWrapper: NFPWrapper = new NFPWrapper(nfpBuffer);
-        const nfpCount: number = nfpWrapper.count;
-        let clone: Point<Int32Array>[] = null;
-        let memSeg: Float32Array = null;
-        let i: number = 0;
-
-        const result: Point<Int32Array>[][] = [];
-
-        for (i = 0; i < nfpCount; ++i) {
-            memSeg = nfpWrapper.getNFPMemSeg(i);
-            clone = ClipperWrapper.fromMemSeg(memSeg, offset);
-
-            if (ClipperWrapper.absArea(clone) > ClipperWrapper.AREA_TRASHOLD) {
-                result.push(clone);
-            }
-        }
-
-        return result;
-    }
-
-    public static nfpToClipper(nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
-        const nfpCount: number = nfpWrapper.count;
-        const result = [];
-        let memSeg: Float32Array = null;
-        let i: number = 0;
-
-        for (i = 0; i < nfpCount; ++i) {
-            memSeg = nfpWrapper.getNFPMemSeg(i)
-            result.push(ClipperWrapper.fromMemSeg(memSeg, null, true));
-        }
-
-        return result;
-    }
-
-    public static getFinalNfps(
-        placeContent: PlaceContent,
-        placed: PolygonNode[],
-        path: PolygonNode,
-        binNfp: NFPWrapper,
-        placement: number[]
-    ): Point<Int32Array>[][] | null {
-        const tmpPoint: Point<Float32Array> = PointF32.create();
-        let i: number = 0;
-        let key: number = 0;
-
-        let totalNfps: Point<Int32Array>[][] = [];
-
-        for (i = 0; i < placed.length; ++i) {
-            key = generateNFPCacheKey(placeContent.rotations, false, placed[i], path);
-
-            if (!placeContent.nfpCache.has(key)) {
-                continue;
-            }
-
-            tmpPoint.fromMemSeg(placement, i);
-
-            totalNfps = totalNfps.concat(
-                ClipperWrapper.applyNfps(placeContent.nfpCache.get(key), tmpPoint)
-            );
-        }
-
-            const wasmRes = get_combined_nfps_wasm(
-                ClipperWrapper.serializePolygons(totalNfps)
-            );
-
-            const combinedNfp = ClipperWrapper.deserializePolygons(wasmRes);
-
-
-        if (combinedNfp.length === 0) {
-            return null;
-        }
-
-        // difference with bin polygon
-        const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(binNfp);
-
-        const wasmResult = get_final_nfp_wasm(
-            ClipperWrapper.serializePolygons(combinedNfp),
-            ClipperWrapper.serializePolygons(clipperBinNfp)
-        )
-
-        const finalNfp = ClipperWrapper.deserializePolygons(wasmResult);
-
-
-        return finalNfp.length === 0 ? null : finalNfp;
+        return ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(nfpBuffer), offset.x, offset.y));
     }
 
     /**
@@ -407,13 +307,7 @@ export default class ClipperWrapper {
         return result;
     }
 
-    private static absArea(poly: Point<Int32Array>[]): number {
-        const polyData = new Int32Array(poly.reduce<number[]>((acc: number[], point: Point<Int32Array>) => acc.concat([point.x, point.y]), []));
-    
-        return Math.abs(polygon_area_i32(polyData));
-    }
-
-    private static CLIPPER_SCALE: number = 100;
+    public static CLIPPER_SCALE: number = 100;
 
     public static AREA_TRASHOLD: number = 0.1 * ClipperWrapper.CLIPPER_SCALE * ClipperWrapper.CLIPPER_SCALE;
 
