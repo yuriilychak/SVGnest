@@ -180,13 +180,12 @@ fn nfp_to_clipper(nfp_wrapper: &NFPWrapper) -> Vec<Vec<Point<i32>>> {
     result
 }
 
-/// Get final NFPs by combining placed nodes' NFPs and subtracting from bin NFP
-/// Rust port of ClipperWrapper.getFinalNfps
-pub fn get_final_nfps(
+/// Calculate combined NFPs from placed nodes
+/// Rust port of calculateCombinedNfps from TypeScript
+pub fn calculate_combined_nfps(
     place_content: &PlaceContent,
     placed: &[PolygonNode],
     path: &PolygonNode,
-    bin_nfp: &NFPWrapper,
     placement: &[f32],
 ) -> Vec<Vec<Point<i32>>> {
     let mut total_nfps: Vec<Vec<Point<i32>>> = Vec::new();
@@ -216,7 +215,20 @@ pub fn get_final_nfps(
     }
 
     // Combine all NFPs using union
-    let combined_nfp = get_combined_nfps(&total_nfps);
+    get_combined_nfps(&total_nfps)
+}
+
+/// Get final NFPs by combining placed nodes' NFPs and subtracting from bin NFP
+/// Rust port of ClipperWrapper.getFinalNfps
+pub fn get_final_nfps(
+    place_content: &PlaceContent,
+    placed: &[PolygonNode],
+    path: &PolygonNode,
+    bin_nfp: &NFPWrapper,
+    placement: &[f32],
+) -> Vec<Vec<Point<i32>>> {
+    // Calculate combined NFP
+    let combined_nfp = calculate_combined_nfps(place_content, placed, path, placement);
 
     if combined_nfp.is_empty() {
         return Vec::new();

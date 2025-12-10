@@ -30,32 +30,6 @@ pub fn polygon_area(points: &[f32]) -> f64 {
 }
 
 #[wasm_bindgen]
-pub fn polygon_area_i32(points: &[i32]) -> f64 {
-    return Number::polygon_area(points);
-}
-
-#[wasm_bindgen]
-pub fn abs_polygon_area(points: &[f32]) -> f64 {
-    return Number::abs_polygon_area(points);
-}
-
-#[wasm_bindgen]
-pub fn calculate_bounds_f32(polygon: &[f32], offset: usize, size: usize) -> Float32Array {
-    let bounds = f32::calculate_bounds(polygon, offset, size);
-    let out = Float32Array::new_with_length(4);
-    out.copy_from(&bounds);
-    out
-}
-
-#[wasm_bindgen]
-pub fn calculate_bounds_i32(polygon: &[i32], offset: usize, size: usize) -> Int32Array {
-    let bounds = i32::calculate_bounds(polygon, offset, size);
-    let out = Int32Array::new_with_length(4);
-    out.copy_from(&bounds);
-    out
-}
-
-#[wasm_bindgen]
 pub fn almost_equal(a: f64, b: f64, tolerance: f64) -> bool {
     a.almost_equal(b, Some(tolerance))
 }
@@ -88,16 +62,6 @@ pub fn cycle_index_wasm(index: usize, size: usize, offset: isize) -> usize {
 #[wasm_bindgen]
 pub fn to_rotation_index_wasm(angle: u16, rotation_split: u16) -> u16 {
     to_rotation_index(angle, rotation_split)
-}
-
-#[wasm_bindgen]
-pub fn read_uint32_from_f32_wasm(array: &[f32], index: usize) -> u32 {
-    read_uint32_from_f32(array, index)
-}
-
-#[wasm_bindgen]
-pub fn write_uint32_to_f32_wasm(array: &mut [f32], index: usize, value: u32) {
-    write_uint32_to_f32(array, index, value);
 }
 
 #[wasm_bindgen]
@@ -412,84 +376,6 @@ fn serialize_polygons(polygons: &Vec<Vec<Point<i32>>>) -> Vec<i32> {
     result
 }
 
-/// Clean multiple polygons by removing points that are too close together (WASM wrapper)
-///
-/// # Arguments
-/// * `data` - Flat array in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-/// * `distance` - Threshold distance for cleaning
-///
-/// # Returns
-/// Int32Array with cleaned polygons in the same format
-#[wasm_bindgen]
-pub fn clean_polygons_wasm(data: &[i32], distance: f64) -> Int32Array {
-    let polygons = deserialize_polygons(data);
-    let cleaned = clipper_utils::clean_polygons(&polygons, distance);
-    let serialized = serialize_polygons(&cleaned);
-
-    let out = Int32Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
-    out
-}
-
-/// Perform a Clipper Difference operation and return cleaned and filtered result (WASM wrapper)
-///
-/// This function:
-/// 1. Performs a Difference operation (clipper_bin_nfp minus combined_nfp)
-/// 2. Cleans the resulting polygons using CLEAN_TRASHOLD
-/// 3. Filters out polygons with area smaller than AREA_TRASHOLD
-///
-/// # Arguments
-/// * `combined_nfp_data` - Polygons to subtract (Clip type) in serialized format
-/// * `clipper_bin_nfp_data` - Base polygons (Subject type) in serialized format
-///
-/// # Returns
-/// Int32Array with result polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-/// Perform a Clipper Difference operation and return cleaned and filtered result (WASM wrapper)
-///
-/// This function:
-/// 1. Performs a Difference operation (clipper_bin_nfp minus combined_nfp)
-/// 2. Cleans the resulting polygons using CLEAN_TRASHOLD
-/// 3. Filters out polygons with area smaller than AREA_TRASHOLD
-///
-/// # Arguments
-/// * `combined_nfp_data` - Polygons to subtract (Clip type) in serialized format
-/// * `clipper_bin_nfp_data` - Base polygons (Subject type) in serialized format
-///
-/// # Returns
-/// Int32Array with result polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-#[wasm_bindgen]
-pub fn get_final_nfp_wasm(combined_nfp_data: &[i32], clipper_bin_nfp_data: &[i32]) -> Int32Array {
-    let combined_nfp = deserialize_polygons(combined_nfp_data);
-    let clipper_bin_nfp = deserialize_polygons(clipper_bin_nfp_data);
-
-    let result = clipper_utils::get_final_nfp(&combined_nfp, &clipper_bin_nfp);
-    let serialized = serialize_polygons(&result);
-
-    let out = Int32Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
-    out
-}
-
-/// Combine multiple polygons using a Union operation (WASM wrapper)
-///
-/// This function performs a Clipper Union operation to combine all input polygons
-///
-/// # Arguments
-/// * `total_nfps_data` - Polygons to combine in serialized format
-///
-/// # Returns
-/// Int32Array with combined polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-#[wasm_bindgen]
-pub fn get_combined_nfps_wasm(total_nfps_data: &[i32]) -> Int32Array {
-    let total_nfps = deserialize_polygons(total_nfps_data);
-    let result = clipper_utils::get_combined_nfps(&total_nfps);
-    let serialized = serialize_polygons(&result);
-
-    let out = Int32Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
-    out
-}
-
 /// Apply NFPs with offset and filter by area threshold (WASM wrapper)
 ///
 /// # Arguments
@@ -508,165 +394,6 @@ pub fn apply_nfps_wasm(nfp_buffer: &[f32], offset_x: f32, offset_y: f32) -> Int3
     let out = Int32Array::new_with_length(serialized.len() as u32);
     out.copy_from(&serialized);
     out
-}
-
-/// Get NFP cache value by key (WASM wrapper)
-///
-/// # Arguments
-/// * `key` - NFP cache key to look up
-/// * `buffer` - Uint8Array containing the full place content buffer
-///
-/// # Returns
-/// Float32Array containing the NFP data for the given key, or empty array if key not found
-#[wasm_bindgen]
-pub fn get_nfp_cache_value(key: u32, buffer: &[u8]) -> Float32Array {
-    use crate::nesting::place_content::PlaceContent;
-
-    // Initialize PlaceContent from buffer
-    let mut place_content = PlaceContent::new();
-    place_content.init(buffer);
-
-    // Get value from NFP cache
-    let nfp_cache = place_content.nfp_cache();
-
-    if let Some(f32_values) = nfp_cache.get(&key) {
-        let out = Float32Array::new_with_length(f32_values.len() as u32);
-        out.copy_from(f32_values);
-        out
-    } else {
-        Float32Array::new_with_length(0)
-    }
-}
-
-/// Serialize polygon nodes to a byte buffer (WASM wrapper)
-///
-/// This function takes an array of polygon nodes in a specific format and serializes them
-/// to a Uint8Array buffer. The input format is:
-/// For each node: [source, rotation, point_count, ...mem_seg_values, children_count, ...children]
-///
-/// # Arguments
-/// * `nodes_data` - Float32Array containing flattened polygon node data
-/// * `offset` - Initial offset in the output buffer
-///
-/// # Returns
-/// Uint8Array containing the serialized polygon nodes
-#[wasm_bindgen]
-pub fn serialize_polygon_nodes_wasm(
-    nodes_data: &[f32],
-    offset: usize,
-) -> web_sys::js_sys::Uint8Array {
-    // Parse the input data into PolygonNode structures
-    fn parse_nodes(data: &[f32], index: &mut usize) -> Vec<PolygonNode> {
-        let mut nodes = Vec::new();
-
-        while *index < data.len() {
-            if *index + 3 > data.len() {
-                break;
-            }
-
-            let source = data[*index] as i32;
-            *index += 1;
-            let rotation = data[*index];
-            *index += 1;
-            let point_count = data[*index] as usize;
-            *index += 1;
-
-            let mem_seg_length = point_count * 2;
-            if *index + mem_seg_length > data.len() {
-                break;
-            }
-
-            let mem_seg = data[*index..*index + mem_seg_length].to_vec();
-            *index += mem_seg_length;
-
-            if *index >= data.len() {
-                break;
-            }
-
-            let children_count = data[*index] as usize;
-            *index += 1;
-
-            let mut node = PolygonNode::new(source, rotation, mem_seg);
-
-            if children_count > 0 {
-                node.children = parse_nodes(data, index);
-                if node.children.len() != children_count {
-                    // Invalid data structure
-                    break;
-                }
-            }
-
-            nodes.push(node);
-        }
-
-        nodes
-    }
-
-    let mut index = 0;
-    let nodes = parse_nodes(nodes_data, &mut index);
-    let serialized = PolygonNode::serialize(&nodes, offset);
-
-    let out = web_sys::js_sys::Uint8Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
-    out
-}
-
-/// Deserialize polygon nodes from a byte buffer (WASM wrapper)
-///
-/// # Arguments
-/// * `buffer` - Uint8Array containing serialized polygon node data
-/// * `offset` - Initial offset in the buffer
-///
-/// # Returns
-/// Float32Array containing flattened polygon node data in format:
-/// For each node: [source, rotation, point_count, ...mem_seg_values, children_count, ...children]
-#[wasm_bindgen]
-pub fn deserialize_polygon_nodes_wasm(buffer: &[u8], offset: usize) -> Float32Array {
-    fn flatten_nodes(nodes: &[PolygonNode], output: &mut Vec<f32>) {
-        for node in nodes {
-            output.push(node.source as f32);
-            output.push(node.rotation);
-            output.push((node.mem_seg.len() >> 1) as f32); // point_count
-            output.extend_from_slice(&node.mem_seg);
-            output.push(node.children.len() as f32);
-            flatten_nodes(&node.children, output);
-        }
-    }
-
-    let nodes = PolygonNode::deserialize(buffer, offset);
-    let mut flattened = Vec::new();
-    flatten_nodes(&nodes, &mut flattened);
-
-    let out = Float32Array::new_with_length(flattened.len() as u32);
-    out.copy_from(&flattened);
-    out
-}
-
-/// Generate NFP cache key from two polygon nodes (WASM wrapper)
-///
-/// # Arguments
-/// * `rotation_split` - Number of rotation splits (used to calculate rotation index)
-/// * `inside` - Whether this is an inside NFP
-/// * `source1` - Source ID of first polygon
-/// * `rotation1` - Rotation of first polygon
-/// * `source2` - Source ID of second polygon
-/// * `rotation2` - Rotation of second polygon
-///
-/// # Returns
-/// u32 cache key packed with polygon sources, rotation indices, and inside flag
-#[wasm_bindgen]
-pub fn generate_nfp_cache_key_wasm(
-    rotation_split: u32,
-    inside: bool,
-    source1: i32,
-    rotation1: f32,
-    source2: i32,
-    rotation2: f32,
-) -> u32 {
-    let polygon1 = PolygonNode::new(source1, rotation1, Vec::new());
-    let polygon2 = PolygonNode::new(source2, rotation2, Vec::new());
-
-    PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
 }
 
 /// Get placement result from placements and path items (WASM wrapper)
@@ -805,6 +532,85 @@ pub fn get_placement_data_wasm(
     out
 }
 
+/// Generate NFP cache key from two polygon nodes (WASM wrapper)
+///
+/// # Arguments
+/// * `rotation_split` - Number of rotation splits (used to calculate rotation index)
+/// * `inside` - Whether this is an inside NFP
+/// * `source1` - Source ID of first polygon
+/// * `rotation1` - Rotation of first polygon
+/// * `source2` - Source ID of second polygon
+/// * `rotation2` - Rotation of second polygon
+///
+/// # Returns
+/// u32 cache key packed with polygon sources, rotation indices, and inside flag
+#[wasm_bindgen]
+pub fn generate_nfp_cache_key_wasm(
+    rotation_split: u32,
+    inside: bool,
+    source1: i32,
+    rotation1: f32,
+    source2: i32,
+    rotation2: f32,
+) -> u32 {
+    let polygon1 = PolygonNode::new(source1, rotation1, Vec::new());
+    let polygon2 = PolygonNode::new(source2, rotation2, Vec::new());
+
+    PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
+}
+
+/// WASM wrapper for get_final_nfps function
+///
+/// Arguments:
+/// - buffer: Uint8Array containing serialized PlaceContent data
+/// - nodes_buffer: Float32Array buffer containing serialized PolygonNode data (placed nodes + path node as last)
+/// - bin_nfp_buffer: Float32Array buffer containing serialized bin NFP data
+/// - placement_buffer: Float32Array of placement positions (x, y pairs)
+///
+/// Returns: Int32Array with final NFP polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
+#[wasm_bindgen]
+pub fn get_final_nfps_wasm(
+    buffer: &[u8],
+    nodes_buffer: &[f32],
+    bin_nfp_buffer: &[f32],
+    placement_buffer: &[f32],
+) -> Int32Array {
+    use crate::nesting::nfp_wrapper::NFPWrapper;
+    use crate::nesting::place_content::PlaceContent;
+    use crate::nesting::polygon_node::PolygonNode;
+
+    // Initialize PlaceContent from buffer
+    let mut place_content = PlaceContent::new();
+    place_content.init(buffer);
+
+    // Read node count from first item and deserialize all nodes (placed + path node)
+    let node_count = nodes_buffer[0].to_bits().swap_bytes() as usize;
+    let (all_nodes, _) = PolygonNode::deserialize_nodes(nodes_buffer, 1, node_count);
+
+    // Split nodes: last one is the path node, rest are placed nodes
+    let node_count = all_nodes.len();
+    let placed = &all_nodes[..node_count - 1];
+    let path = &all_nodes[node_count - 1];
+
+    // Create NFPWrapper from bin NFP buffer
+    let bin_nfp = NFPWrapper::new(bin_nfp_buffer);
+
+    // Call get_final_nfps
+    let result = crate::nesting::place_flow::get_final_nfps(
+        &place_content,
+        placed,
+        path,
+        &bin_nfp,
+        placement_buffer,
+    );
+
+    // Serialize result
+    let serialized = serialize_polygons(&result);
+    let out = Int32Array::new_with_length(serialized.len() as u32);
+    out.copy_from(&serialized);
+    out
+}
+
 /// WASM wrapper for get_first_placement function
 ///
 /// Arguments:
@@ -825,50 +631,6 @@ pub fn get_first_placement_wasm(
     let result = crate::nesting::place_flow::get_first_placement(nfp_buffer, &first_point);
 
     let out = Float32Array::new_with_length(result.len() as u32);
-    out.copy_from(&result);
-    out
-}
-
-/// WASM wrapper for PlaceContent initialization with debug information
-///
-/// Arguments:
-/// - buffer: Uint8Array containing serialized PlaceContent data
-///
-/// Returns: Uint32Array with format:
-/// [node_count, node_size1, node_size2, ..., node_sizeN, key1, size1, key2, size2, ..., keyN, sizeN]
-#[wasm_bindgen]
-pub fn init_place_content_debug_wasm(buffer: &[u8]) -> web_sys::js_sys::Uint32Array {
-    use crate::nesting::place_content::PlaceContent;
-
-    let mut place_content = PlaceContent::new();
-    place_content.init(buffer);
-
-    let node_count = place_content.node_count();
-    let nfp_cache = place_content.nfp_cache();
-
-    // Calculate total size: 1 (node_count) + node_count (sizes) + nfp_cache.len() * 2 (key, size pairs)
-    let total_size = 1 + node_count + nfp_cache.len() * 2;
-    let mut result = Vec::with_capacity(total_size);
-
-    // Add node count
-    result.push(node_count as u32);
-
-    // Add node sizes
-    for i in 0..node_count {
-        let node = place_content.node_at(i);
-        result.push(node.mem_seg.len() as u32);
-    }
-
-    // Add NFP cache entries (key, size pairs)
-    let mut entries: Vec<_> = nfp_cache.iter().collect();
-    entries.sort_by_key(|(k, _)| *k);
-
-    for (key, value) in entries {
-        result.push(*key);
-        result.push(value.len() as u32);
-    }
-
-    let out = web_sys::js_sys::Uint32Array::new_with_length(result.len() as u32);
     out.copy_from(&result);
     out
 }

@@ -20,7 +20,8 @@ impl PolygonNode {
             let source = raw_source.wrapping_sub(1) as i32;
             idx += 1;
 
-            let rotation = buffer[idx];
+            // Rotation is also stored in big-endian by DataView.setFloat32()
+            let rotation = f32::from_bits(buffer[idx].to_bits().swap_bytes());
             idx += 1;
 
             let seg_size = (buffer[idx].to_bits().swap_bytes() as usize) << 1;

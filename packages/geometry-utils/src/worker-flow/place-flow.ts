@@ -1,11 +1,12 @@
-import { get_result_wasm, get_placement_data_wasm, get_nfp_cache_value, get_first_placement_wasm, place_paths_wasm, apply_nfps_wasm, get_combined_nfps_wasm, get_final_nfp_wasm } from 'wasm-nesting';
+import { get_result_wasm, get_placement_data_wasm, get_first_placement_wasm, place_paths_wasm, get_final_nfps_wasm } from 'wasm-nesting';
 import type { Point, PolygonNode } from '../types';
 import ClipperWrapper from '../clipper-wrapper';
-import { generateNFPCacheKey, serializePolygonNodes } from '../helpers';
+import { serializePolygonNodes } from '../helpers';
 import PlaceContent from './place-content';
 import NFPWrapper from './nfp-wrapper';
 import { PointF32 } from '../geometry';
 import { f32 } from './types';
+
 
 function getPlacementData(
     finalNfp: Point<Int32Array>[][],
@@ -96,62 +97,29 @@ function getResult(placements: number[][], pathItems: number[][], fitness: numbe
     return result.buffer as ArrayBuffer;
 }
 
-function calculateCombinedNfps(
+function getFinalNfps(
     placeContent: PlaceContent,
     placed: PolygonNode[],
     path: PolygonNode,
+    binNfp: NFPWrapper,
     placement: f32[]
 ): Point<Int32Array>[][] {
-    const tmpPoint: Point<Float32Array> = PointF32.create();
-    let totalNfps: Point<Int32Array>[][] = [];
+    // Serialize nodes (placed + path node)
+    const allNodes = [...placed, path];
+    const nodesBuffer = new Float32Array(serializePolygonNodes(allNodes));
 
-    for (let i = 0; i < placed.length; ++i) {
-        const key = generateNFPCacheKey(placeContent.rotations, false, placed[i], path);
+    // Create placement buffer
+    const placementBuffer = new Float32Array(placement);
 
-        if (!placeContent.nfpCache.has(key)) {
-            continue;
-        }
-
-        tmpPoint.fromMemSeg(placement, i);
-
-        totalNfps = totalNfps.concat(
-            ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(placeContent.nfpCache.get(key)), tmpPoint.x, tmpPoint.y))
-        );
-    }
-
-    const wasmRes = get_combined_nfps_wasm(
-        ClipperWrapper.serializePolygons(totalNfps)
+    // Call WASM function
+    const result = get_final_nfps_wasm(
+        new Uint8Array(placeContent.buffer),
+        nodesBuffer,
+        new Float32Array(binNfp.buffer),
+        placementBuffer
     );
 
-    return ClipperWrapper.deserializePolygons(wasmRes);
-}
-
-function getFinalNfps(
-        placeContent: PlaceContent,
-        placed: PolygonNode[],
-        path: PolygonNode,
-        binNfp: NFPWrapper,
-        placement: f32[]
-    ): Point < Int32Array > [][] {
-    const combinedNfp = calculateCombinedNfps(placeContent, placed, path, placement);
-
-
-    if (combinedNfp.length === 0) {
-        return [];
-    }
-
-    // difference with bin polygon
-    const clipperBinNfp: Point<Int32Array>[][] = ClipperWrapper.nfpToClipper(binNfp);
-
-    const wasmResult = get_final_nfp_wasm(
-        ClipperWrapper.serializePolygons(combinedNfp),
-        ClipperWrapper.serializePolygons(clipperBinNfp)
-    )
-
-    const finalNfp = ClipperWrapper.deserializePolygons(wasmResult);
-
-
-    return finalNfp;
+    return ClipperWrapper.deserializePolygons(result);
 }
 
 export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
@@ -177,7 +145,7 @@ export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
         pathItem = [];
         ++fitness; // add 1 for each new bin opened (lower fitness is better)
 
-        for (i = 0; i < placeContent.nodeCount; ++i) {
+        for (let i = 0; i < placeContent.nodeCount; ++i) {
             node = placeContent.nodeAt(i);
             firstPoint.fromMemSeg(node.memSeg);
             pathKey = placeContent.getPathKey(i);
@@ -242,7 +210,9 @@ export function placePaths(buffer: ArrayBuffer): ArrayBuffer {
     // there were parts that couldn't be placed
     fitness += placeContent.nodeCount << 1;
 
-    return getResult(placements, pathItems, fitness);
+    const result = getResult(placements, pathItems, fitness);
+
+    return result;
 }
 
 export function placePathsRust(buffer: ArrayBuffer): ArrayBuffer {
