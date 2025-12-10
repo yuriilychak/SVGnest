@@ -510,6 +510,34 @@ pub fn apply_nfps_wasm(nfp_buffer: &[f32], offset_x: f32, offset_y: f32) -> Int3
     out
 }
 
+/// Get NFP cache value by key (WASM wrapper)
+///
+/// # Arguments
+/// * `key` - NFP cache key to look up
+/// * `buffer` - Uint8Array containing the full place content buffer
+///
+/// # Returns
+/// Float32Array containing the NFP data for the given key, or empty array if key not found
+#[wasm_bindgen]
+pub fn get_nfp_cache_value(key: u32, buffer: &[u8]) -> Float32Array {
+    use crate::nesting::place_content::PlaceContent;
+
+    // Initialize PlaceContent from buffer
+    let mut place_content = PlaceContent::new();
+    place_content.init(buffer);
+
+    // Get value from NFP cache
+    let nfp_cache = place_content.nfp_cache();
+
+    if let Some(f32_values) = nfp_cache.get(&key) {
+        let out = Float32Array::new_with_length(f32_values.len() as u32);
+        out.copy_from(f32_values);
+        out
+    } else {
+        Float32Array::new_with_length(0)
+    }
+}
+
 /// Serialize polygon nodes to a byte buffer (WASM wrapper)
 ///
 /// This function takes an array of polygon nodes in a specific format and serializes them
@@ -780,14 +808,14 @@ pub fn get_placement_data_wasm(
 /// WASM wrapper for get_first_placement function
 ///
 /// Arguments:
-/// - nfp_buffer: Uint8Array buffer containing serialized NFP data (ArrayBuffer)
+/// - nfp_buffer: Float32Array buffer containing serialized NFP data
 /// - first_point_x: X coordinate of first point
 /// - first_point_y: Y coordinate of first point
 ///
 /// Returns: Float32Array with [positionX, positionY]
 #[wasm_bindgen]
 pub fn get_first_placement_wasm(
-    nfp_buffer: &[u8],
+    nfp_buffer: &[f32],
     first_point_x: f32,
     first_point_y: f32,
 ) -> Float32Array {

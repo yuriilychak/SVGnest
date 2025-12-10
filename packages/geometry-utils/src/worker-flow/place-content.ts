@@ -13,6 +13,8 @@ export default class PlaceContent extends WorkerContent {
 
     private _rotations: u32 = 0;
 
+    public buffer: ArrayBuffer = null;
+
     constructor() {
         super();
         this._emptyNode = getPolygonNode(-1, new Float32Array(0));
@@ -28,6 +30,8 @@ export default class PlaceContent extends WorkerContent {
         this._rotations = get_bits_u32(nestConfig, 9, 5);
         this._area = view.getFloat32(Uint32Array.BYTES_PER_ELEMENT * 2);
         this._nfpCache = PlaceContent.deserializeBufferToMap(buffer, Uint32Array.BYTES_PER_ELEMENT * 4, mapBufferSize);
+
+        this.buffer = buffer;
 
         return this;
     }

@@ -85,7 +85,7 @@ function serializePathItemsToUint32Array(pathItems: number[][]): Uint32Array {
 }
 
 function getFirstPlacement(binNfp: NFPWrapper, firstPoint: Point<Float32Array>): Float32Array {
-    return get_first_placement_wasm(new Uint8Array(binNfp.buffer), firstPoint.x, firstPoint.y);
+    return get_first_placement_wasm(new Float32Array(binNfp.buffer), firstPoint.x, firstPoint.y);
 }
 
 function getResult(placements: number[][], pathItems: number[][], fitness: number): ArrayBuffer {

@@ -39,65 +39,48 @@ fn fill_point_mem_seg(node: &PolygonNode, offset: &Point<f32>) -> Vec<f32> {
 }
 
 /// Get first placement position by finding leftmost point in bin NFP
-/// Takes byte buffer (ArrayBuffer representation) instead of f32 buffer
-pub fn get_first_placement(nfp_buffer: &[u8], first_point: &Point<f32>) -> Vec<f32> {
+/// Takes f32 buffer directly from nfp_cache
+pub fn get_first_placement(nfp_buffer: &[f32], first_point: &Point<f32>) -> Vec<f32> {
     let mut position_x = f32::NAN;
     let mut position_y = f32::NAN;
 
-    // Read NFP count from buffer (little-endian u32 at byte offset 4)
-    if nfp_buffer.len() < 8 {
+    // Read NFP count from buffer (u32 bits at index 1)
+    if nfp_buffer.len() < 2 {
         return vec![position_x, position_y];
     }
 
-    let nfp_count =
-        u32::from_le_bytes([nfp_buffer[4], nfp_buffer[5], nfp_buffer[6], nfp_buffer[7]]) as usize;
+    let nfp_count = nfp_buffer[1].to_bits() as usize;
 
-    let mut byte_offset = NFP_INFO_START_INDEX * 4; // Convert to byte offset
+    let mut offset = NFP_INFO_START_INDEX;
 
     for _ in 0..nfp_count {
-        if byte_offset + 4 > nfp_buffer.len() {
+        if offset >= nfp_buffer.len() {
             break;
         }
 
         // Read compressed info (offset and size)
-        let compressed_info = u32::from_le_bytes([
-            nfp_buffer[byte_offset],
-            nfp_buffer[byte_offset + 1],
-            nfp_buffer[byte_offset + 2],
-            nfp_buffer[byte_offset + 3],
-        ]);
-        byte_offset += 4;
+        let compressed_info = nfp_buffer[offset].to_bits();
+        offset += 1;
 
         use crate::utils::bit_ops::get_u16;
-        let data_offset = get_u16(compressed_info, 1) as usize * 4; // Convert to byte offset
+        let data_offset = get_u16(compressed_info, 1) as usize;
         let size = get_u16(compressed_info, 0) as usize;
         let point_count = size >> 1;
 
-        if data_offset + size * 4 > nfp_buffer.len() {
+        if data_offset + size > nfp_buffer.len() {
             continue;
         }
 
         for j in 0..point_count {
-            let x_offset = data_offset + (j << 1) * 4;
-            let y_offset = x_offset + 4;
+            let x_offset = data_offset + (j << 1);
+            let y_offset = x_offset + 1;
 
-            if y_offset + 4 > nfp_buffer.len() {
+            if y_offset >= nfp_buffer.len() {
                 break;
             }
 
-            let x = f32::from_le_bytes([
-                nfp_buffer[x_offset],
-                nfp_buffer[x_offset + 1],
-                nfp_buffer[x_offset + 2],
-                nfp_buffer[x_offset + 3],
-            ]) - first_point.x;
-
-            let y = f32::from_le_bytes([
-                nfp_buffer[y_offset],
-                nfp_buffer[y_offset + 1],
-                nfp_buffer[y_offset + 2],
-                nfp_buffer[y_offset + 3],
-            ]) - first_point.y;
+            let x = nfp_buffer[x_offset] - first_point.x;
+            let y = nfp_buffer[y_offset] - first_point.y;
 
             if position_x.is_nan() || x < position_x {
                 position_x = x;
@@ -218,20 +201,6 @@ pub fn get_final_nfps(
         );
 
         if let Some(nfp_cache_value) = place_content.nfp_cache().get(&key) {
-            // Convert Vec<u8> to Vec<f32>
-            let f32_count = nfp_cache_value.len() / 4;
-            let mut f32_buffer = Vec::with_capacity(f32_count);
-
-            for j in 0..f32_count {
-                let offset = j * 4;
-                f32_buffer.push(f32::from_le_bytes([
-                    nfp_cache_value[offset],
-                    nfp_cache_value[offset + 1],
-                    nfp_cache_value[offset + 2],
-                    nfp_cache_value[offset + 3],
-                ]));
-            }
-
             // Get offset point from placement
             let offset_x = placement[i << 1];
             let offset_y = placement[(i << 1) + 1];
@@ -241,7 +210,7 @@ pub fn get_final_nfps(
             };
 
             // Apply NFPs with offset and add to total
-            let applied = apply_nfps(f32_buffer, &offset);
+            let applied = apply_nfps(nfp_cache_value.clone(), &offset);
             total_nfps.extend(applied);
         }
     }
@@ -338,8 +307,8 @@ pub fn place_paths(buffer: &[u8]) -> Vec<f32> {
                 continue;
             }
 
-            let bin_nfp_bytes = bin_nfp_option.unwrap();
-            let bin_nfp = NFPWrapper::new(bin_nfp_bytes);
+            let bin_nfp_f32 = bin_nfp_option.unwrap();
+            let bin_nfp = NFPWrapper::new(bin_nfp_f32);
 
             // Part unplaceable, skip
             if bin_nfp.is_broken() || place_content.get_nfp_error(&placed, &node) {
@@ -347,7 +316,7 @@ pub fn place_paths(buffer: &[u8]) -> Vec<f32> {
             }
 
             if placed.is_empty() {
-                let placement_data = get_first_placement(bin_nfp_bytes, &first_point);
+                let placement_data = get_first_placement(bin_nfp_f32, &first_point);
 
                 if placement_data.len() >= 2 {
                     position_y = placement_data[1];

@@ -286,10 +286,7 @@ pub fn get_combined_nfps(total_nfps: &Vec<Vec<Point<i32>>>) -> Vec<Vec<Point<i32
 /// # Returns
 /// Vector of polygons (each polygon is a Vec<Point<i32>>) that meet the area threshold
 pub fn apply_nfps(nfp_buffer: Vec<f32>, offset: &Point<f32>) -> Vec<Vec<Point<i32>>> {
-    // Convert f32 buffer to byte buffer for NFPWrapper
-    let byte_buffer: Vec<u8> = nfp_buffer.iter().flat_map(|&f| f.to_le_bytes()).collect();
-
-    let nfp_wrapper = NFPWrapper::new(&byte_buffer);
+    let nfp_wrapper = NFPWrapper::new(&nfp_buffer);
     let nfp_count = nfp_wrapper.count();
     let mut result = Vec::with_capacity(nfp_count);
 

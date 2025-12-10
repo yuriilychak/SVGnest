@@ -2,17 +2,17 @@ use crate::utils::bit_ops::{get_u16, join_u16};
 
 /// Rust port of NFPWrapper class from TypeScript
 /// Handles serialization and deserialization of NFP (No-Fit Polygon) data
-/// Works with ArrayBuffer representation (byte slice) like the TypeScript version
+/// Works with f32 slice directly from nfp_cache
 pub struct NFPWrapper<'a> {
-    buffer: &'a [u8],
+    buffer: &'a [f32],
 }
 
 impl<'a> NFPWrapper<'a> {
     const NFP_INFO_START_INDEX: usize = 2;
-    const MIN_BUFFER_SIZE: usize = 3 * 4; // 3 u32 values * 4 bytes each
+    const MIN_BUFFER_SIZE: usize = 3; // 3 f32 values (key, count, info)
 
-    /// Creates a new NFPWrapper from a byte buffer
-    pub fn new(buffer: &'a [u8]) -> Self {
+    /// Creates a new NFPWrapper from a f32 buffer
+    pub fn new(buffer: &'a [f32]) -> Self {
         Self { buffer }
     }
 
@@ -24,47 +24,29 @@ impl<'a> NFPWrapper<'a> {
         }
 
         let compressed_info = self.get_uint32(Self::NFP_INFO_START_INDEX + index);
-        let offset = get_u16(compressed_info, 1) as usize * 4; // Convert f32 index to byte offset
+        let offset = get_u16(compressed_info, 1) as usize;
         let size = get_u16(compressed_info, 0) as usize;
 
-        if offset + size * 4 > self.buffer.len() {
+        if offset + size > self.buffer.len() {
             return Vec::new();
         }
 
-        // Read f32 values from buffer
-        let mut result = Vec::with_capacity(size);
-        for i in 0..size {
-            let byte_offset = offset + i * 4;
-            let bytes = [
-                self.buffer[byte_offset],
-                self.buffer[byte_offset + 1],
-                self.buffer[byte_offset + 2],
-                self.buffer[byte_offset + 3],
-            ];
-            result.push(f32::from_le_bytes(bytes));
-        }
-
-        result
+        // Return slice as Vec
+        self.buffer[offset..offset + size].to_vec()
     }
 
-    /// Reads a u32 value from the buffer at the specified index (little-endian)
+    /// Reads a u32 value from the buffer at the specified index by reinterpreting f32 bits
     #[inline]
     fn get_uint32(&self, index: usize) -> u32 {
-        let byte_offset = index * 4;
-        if byte_offset + 4 > self.buffer.len() {
+        if index >= self.buffer.len() {
             return 0;
         }
 
-        u32::from_le_bytes([
-            self.buffer[byte_offset],
-            self.buffer[byte_offset + 1],
-            self.buffer[byte_offset + 2],
-            self.buffer[byte_offset + 3],
-        ])
+        self.buffer[index].to_bits()
     }
 
     /// Returns a reference to the internal buffer
-    pub fn buffer(&self) -> &[u8] {
+    pub fn buffer(&self) -> &[f32] {
         self.buffer
     }
 
@@ -89,8 +71,8 @@ impl<'a> NFPWrapper<'a> {
     /// * `nfp_arrays` - Vector of NFP polygon data (each as a Vec<f32>)
     ///
     /// # Returns
-    /// A Vec<u8> containing the serialized data (ArrayBuffer representation)
-    pub fn serialize(key: u32, nfp_arrays: &[Vec<f32>]) -> Vec<u8> {
+    /// A Vec<f32> containing the serialized data
+    pub fn serialize(key: u32, nfp_arrays: &[Vec<f32>]) -> Vec<f32> {
         let nfp_count = nfp_arrays.len();
         let mut info = vec![0u32; nfp_count];
         let mut total_size = Self::NFP_INFO_START_INDEX + nfp_count;
@@ -102,23 +84,19 @@ impl<'a> NFPWrapper<'a> {
             total_size += size;
         }
 
-        // Create result buffer (total_size * 4 bytes per f32)
-        let mut result = vec![0u8; total_size * 4];
+        // Create result buffer
+        let mut result = vec![0.0f32; total_size];
 
-        // Write header (key and nfp_count as little-endian u32)
-        result[0..4].copy_from_slice(&key.to_le_bytes());
-        result[4..8].copy_from_slice(&(nfp_count as u32).to_le_bytes());
+        // Write header (key and nfp_count as u32 bits reinterpreted as f32)
+        result[0] = f32::from_bits(key);
+        result[1] = f32::from_bits(nfp_count as u32);
 
         // Write NFP info and data
         for (i, nfp_array) in nfp_arrays.iter().enumerate() {
-            let info_offset = (Self::NFP_INFO_START_INDEX + i) * 4;
-            result[info_offset..info_offset + 4].copy_from_slice(&info[i].to_le_bytes());
+            result[Self::NFP_INFO_START_INDEX + i] = f32::from_bits(info[i]);
 
-            let data_offset = get_u16(info[i], 1) as usize * 4; // Convert to byte offset
-            for (j, &value) in nfp_array.iter().enumerate() {
-                let byte_offset = data_offset + j * 4;
-                result[byte_offset..byte_offset + 4].copy_from_slice(&value.to_le_bytes());
-            }
+            let data_offset = get_u16(info[i], 1) as usize;
+            result[data_offset..data_offset + nfp_array.len()].copy_from_slice(nfp_array);
         }
 
         result

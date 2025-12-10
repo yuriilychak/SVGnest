@@ -3,7 +3,7 @@ import { generateNFPCacheKey, getPolygonNode } from './helpers';
 import PlaceContent from './worker-flow/place-content';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
 import NFPWrapper from './worker-flow/nfp-wrapper';
-import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm } from 'wasm-nesting';
+import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm, get_final_nfp_wasm, get_combined_nfps_wasm, get_nfp_cache_value } from 'wasm-nesting';
 
 type f32 = number;
 export default class ClipperWrapper {
@@ -247,16 +247,18 @@ export default class ClipperWrapper {
 
             tmpPoint.fromMemSeg(placement, i);
 
+            // console.log(get_nfp_cache_value(key, new Uint8Array(placeContent.buffer)), new Float32Array(placeContent.nfpCache.get(key)));
+
             totalNfps = totalNfps.concat(
                 ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(placeContent.nfpCache.get(key)), tmpPoint.x, tmpPoint.y))
             );
         }
 
-            const wasmRes = get_combined_nfps_wasm(
-                ClipperWrapper.serializePolygons(totalNfps)
-            );
+        const wasmRes = get_combined_nfps_wasm(
+            ClipperWrapper.serializePolygons(totalNfps)
+        );
 
-            const combinedNfp = ClipperWrapper.deserializePolygons(wasmRes);
+        const combinedNfp = ClipperWrapper.deserializePolygons(wasmRes);
 
 
         if (combinedNfp.length === 0) {

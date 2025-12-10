@@ -7,7 +7,7 @@ use std::collections::HashMap;
 /// Manages placement content including NFP cache and nodes
 pub struct PlaceContent {
     nest_content: NestContent,
-    nfp_cache: HashMap<u32, Vec<u8>>,
+    nfp_cache: HashMap<u32, Vec<f32>>,
     area: f32,
     empty_node: PolygonNode,
     rotations: u32,
@@ -73,7 +73,7 @@ impl PlaceContent {
     }
 
     /// Get bin NFP for a node at given index
-    pub fn get_bin_nfp(&self, index: usize) -> Option<&[u8]> {
+    pub fn get_bin_nfp(&self, index: usize) -> Option<&[f32]> {
         if index >= self.nest_content.node_count() {
             return None;
         }
@@ -118,11 +118,12 @@ impl PlaceContent {
     /// Deserialize buffer to NFP cache map
     /// Map format: [key (u32 BE), length (u32 BE), value (bytes), key, length, value, ...]
     /// Matches TypeScript PlaceContent.deserializeBufferToMap (DataView big-endian)
+    /// Converts byte values to f32 during deserialization
     fn deserialize_buffer_to_map(
         buffer: &[u8],
         initial_offset: usize,
         buffer_size: usize,
-    ) -> HashMap<u32, Vec<u8>> {
+    ) -> HashMap<u32, Vec<f32>> {
         let mut map = HashMap::new();
         let result_offset = initial_offset + buffer_size;
         let mut offset = initial_offset;
@@ -146,10 +147,22 @@ impl PlaceContent {
             ]) as usize;
             offset += 4;
 
-            // Read value bytes
+            // Read value bytes and convert to f32
             if offset + length <= buffer.len() {
-                let value = buffer[offset..offset + length].to_vec();
-                map.insert(key, value);
+                let f32_count = length / 4;
+                let mut f32_values = Vec::with_capacity(f32_count);
+
+                for i in 0..f32_count {
+                    let byte_offset = offset + (i * 4);
+                    f32_values.push(f32::from_le_bytes([
+                        buffer[byte_offset],
+                        buffer[byte_offset + 1],
+                        buffer[byte_offset + 2],
+                        buffer[byte_offset + 3],
+                    ]));
+                }
+
+                map.insert(key, f32_values);
                 offset += length;
             } else {
                 break;
@@ -157,6 +170,20 @@ impl PlaceContent {
         }
 
         map
+    }
+
+    /// Public static method to deserialize NFP cache from buffer
+    /// Reads map_buffer_size from bytes 12-16 and deserializes the map
+    pub fn deserialize_nfp_cache(buffer: &[u8]) -> HashMap<u32, Vec<f32>> {
+        if buffer.len() < 16 {
+            return HashMap::new();
+        }
+
+        // Read map_buffer_size from bytes 12-16 (big-endian u32, matching TypeScript DataView)
+        let map_buffer_size =
+            u32::from_be_bytes([buffer[12], buffer[13], buffer[14], buffer[15]]) as usize;
+
+        Self::deserialize_buffer_to_map(buffer, 16, map_buffer_size)
     }
 
     /// Convert byte buffer to f32 buffer (matching TypeScript Float32Array view)
@@ -185,7 +212,7 @@ impl PlaceContent {
         self.rotations
     }
 
-    pub fn nfp_cache(&self) -> &HashMap<u32, Vec<u8>> {
+    pub fn nfp_cache(&self) -> &HashMap<u32, Vec<f32>> {
         &self.nfp_cache
     }
 
