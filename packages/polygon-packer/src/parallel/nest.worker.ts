@@ -1,20 +1,20 @@
-import type { CalculateConfig } from '../types';
+
 
 // Use importScripts to load the external script
 declare function importScripts(...urls: string[]): void;
 
-declare module geometryUtils {
-    export function calculate(data: ArrayBuffer): ArrayBuffer;
+declare module WasmNesting {
+    export function calculate_wasm(data: Uint8Array): Float32Array;
 }
 
+
 importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1wasm-nesting`));
-importScripts(self.location.href.replace(/^(.*\/)[^\/]+(?=\.js$)/, `$1geometry-utils`));
 
 let isWasmInitialized = false;
 
 const trigger = (event: MessageEvent<ArrayBuffer>) => {
     if (isWasmInitialized) {
-        const buffer = geometryUtils.calculate(event.data);
+        const buffer = WasmNesting.calculate_wasm(new Uint8Array(event.data)).buffer as ArrayBuffer;
 
         //@ts-ignore
         self.postMessage(buffer, [buffer]);

@@ -40,28 +40,13 @@ pub fn set_bits_u32(source: u32, value: u16, index: u8, bit_count: u8) -> u32 {
 }
 
 #[wasm_bindgen]
-pub fn get_bits_u32(source: u32, index: u8, num_bits: u8) -> u16 {
-    get_bits(source, index, num_bits)
-}
-
-#[wasm_bindgen]
 pub fn get_u16_from_u32(source: u32, index: u8) -> u16 {
     get_u16(source, index)
 }
 
 #[wasm_bindgen]
-pub fn join_u16_to_u32(value1: u16, value2: u16) -> u32 {
-    join_u16(value1, value2)
-}
-
-#[wasm_bindgen]
 pub fn cycle_index_wasm(index: usize, size: usize, offset: isize) -> usize {
     cycle_index(index, size, offset)
-}
-
-#[wasm_bindgen]
-pub fn to_rotation_index_wasm(angle: u16, rotation_split: u16) -> u16 {
-    to_rotation_index(angle, rotation_split)
 }
 
 #[wasm_bindgen]
@@ -396,142 +381,6 @@ pub fn apply_nfps_wasm(nfp_buffer: &[f32], offset_x: f32, offset_y: f32) -> Int3
     out
 }
 
-/// Get placement result from placements and path items (WASM wrapper)
-///
-/// This function takes placement data (x,y positions) and path items (polygon identifiers)
-/// and packs them into a compact Float32Array format for efficient transfer.
-///
-/// # Arguments
-/// * `placements_buffer` - Float32Array containing flattened placements data
-///   Format: [count, size1, ...placements1..., size2, ...placements2..., ...]
-/// * `path_items_buffer` - Uint32Array containing flattened path items data
-///   Format: [count, size1, ...items1..., size2, ...items2..., ...]
-/// * `fitness` - Fitness score for this result
-///
-/// # Returns
-/// Float32Array with format:
-/// - [0]: fitness score
-/// - [1]: placement count
-/// - [2..2+count]: merged size/offset info for each placement
-/// - [remaining]: packed path items and placements data
-#[wasm_bindgen]
-pub fn get_result_wasm(
-    placements_buffer: &[f32],
-    path_items_buffer: &[u32],
-    fitness: f32,
-) -> Float32Array {
-    // Deserialize placements
-    let mut placements: Vec<Vec<f32>> = Vec::new();
-    let mut offset = 0;
-
-    if placements_buffer.len() > 0 {
-        let count = placements_buffer[0] as usize;
-        offset = 1;
-
-        for _ in 0..count {
-            if offset >= placements_buffer.len() {
-                break;
-            }
-            let size = placements_buffer[offset] as usize;
-            offset += 1;
-
-            if offset + size > placements_buffer.len() {
-                break;
-            }
-
-            let placement = placements_buffer[offset..offset + size].to_vec();
-            placements.push(placement);
-            offset += size;
-        }
-    }
-
-    // Deserialize path items
-    let mut path_items: Vec<Vec<u32>> = Vec::new();
-    offset = 0;
-
-    if path_items_buffer.len() > 0 {
-        let count = path_items_buffer[0] as usize;
-        offset = 1;
-
-        for _ in 0..count {
-            if offset >= path_items_buffer.len() {
-                break;
-            }
-            let size = path_items_buffer[offset] as usize;
-            offset += 1;
-
-            if offset + size > path_items_buffer.len() {
-                break;
-            }
-
-            let items = path_items_buffer[offset..offset + size].to_vec();
-            path_items.push(items);
-            offset += size;
-        }
-    }
-
-    // Call get_result from place_flow module
-    let result = crate::nesting::place_flow::get_result(&placements, &path_items, fitness);
-
-    let out = Float32Array::new_with_length(result.len() as u32);
-    out.copy_from(&result);
-    out
-}
-
-/// WASM wrapper for get_placement_data function
-///
-/// Arguments:
-/// - final_nfp_buffer: Flattened array containing final NFP polygons
-///   Format: [polygon_count, polygon1_size, ...polygon1_points_as_i32..., polygon2_size, ...]
-/// - nodes_buffer: Float32Array buffer containing serialized PolygonNode data
-///   Format: [node_count, ...node_data...] (placed nodes + current node as last element)
-/// - placement_buffer: Float32Array of placement positions (x, y pairs)
-/// - first_point_x: X coordinate of first point
-/// - first_point_y: Y coordinate of first point
-/// - input_y: Input Y position
-///
-/// Returns: Float32Array with [minWidth, positionY] or [minWidth, positionY, positionX]
-#[wasm_bindgen]
-pub fn get_placement_data_wasm(
-    final_nfp_buffer: &[i32],
-    nodes_buffer: &[f32],
-    placement_buffer: &[f32],
-    first_point_x: f32,
-    first_point_y: f32,
-    input_y: f32,
-) -> Float32Array {
-    use crate::geometry::point::Point;
-    use crate::nesting::polygon_node::PolygonNode;
-
-    // Deserialize final_nfp using existing deserialize_polygons
-    let final_nfp = deserialize_polygons(final_nfp_buffer);
-
-    // Read node count from first item and deserialize all nodes (placed + current node)
-    let node_count = nodes_buffer[0].to_bits().swap_bytes() as usize;
-    let (all_nodes, _) = PolygonNode::deserialize_nodes(nodes_buffer, 1, node_count);
-
-    // Split nodes: last one is the current node, rest are placed nodes
-    let node_count = all_nodes.len();
-    let placed = &all_nodes[..node_count - 1];
-    let node = &all_nodes[node_count - 1];
-
-    let first_point = Point::new(Some(first_point_x), Some(first_point_y));
-
-    // Call get_placement_data
-    let result = crate::nesting::place_flow::get_placement_data(
-        &final_nfp,
-        placed,
-        node,
-        placement_buffer,
-        &first_point,
-        input_y,
-    );
-
-    let out = Float32Array::new_with_length(result.len() as u32);
-    out.copy_from(&result);
-    out
-}
-
 /// Generate NFP cache key from two polygon nodes (WASM wrapper)
 ///
 /// # Arguments
@@ -559,82 +408,6 @@ pub fn generate_nfp_cache_key_wasm(
     PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
 }
 
-/// WASM wrapper for get_final_nfps function
-///
-/// Arguments:
-/// - buffer: Uint8Array containing serialized PlaceContent data
-/// - nodes_buffer: Float32Array buffer containing serialized PolygonNode data (placed nodes + path node as last)
-/// - bin_nfp_buffer: Float32Array buffer containing serialized bin NFP data
-/// - placement_buffer: Float32Array of placement positions (x, y pairs)
-///
-/// Returns: Int32Array with final NFP polygons in format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-#[wasm_bindgen]
-pub fn get_final_nfps_wasm(
-    buffer: &[u8],
-    nodes_buffer: &[f32],
-    bin_nfp_buffer: &[f32],
-    placement_buffer: &[f32],
-) -> Int32Array {
-    use crate::nesting::nfp_wrapper::NFPWrapper;
-    use crate::nesting::place_content::PlaceContent;
-    use crate::nesting::polygon_node::PolygonNode;
-
-    // Initialize PlaceContent from buffer
-    let mut place_content = PlaceContent::new();
-    place_content.init(buffer);
-
-    // Read node count from first item and deserialize all nodes (placed + path node)
-    let node_count = nodes_buffer[0].to_bits().swap_bytes() as usize;
-    let (all_nodes, _) = PolygonNode::deserialize_nodes(nodes_buffer, 1, node_count);
-
-    // Split nodes: last one is the path node, rest are placed nodes
-    let node_count = all_nodes.len();
-    let placed = &all_nodes[..node_count - 1];
-    let path = &all_nodes[node_count - 1];
-
-    // Create NFPWrapper from bin NFP buffer
-    let bin_nfp = NFPWrapper::new(bin_nfp_buffer);
-
-    // Call get_final_nfps
-    let result = crate::nesting::place_flow::get_final_nfps(
-        &place_content,
-        placed,
-        path,
-        &bin_nfp,
-        placement_buffer,
-    );
-
-    // Serialize result
-    let serialized = serialize_polygons(&result);
-    let out = Int32Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
-    out
-}
-
-/// WASM wrapper for get_first_placement function
-///
-/// Arguments:
-/// - nfp_buffer: Float32Array buffer containing serialized NFP data
-/// - first_point_x: X coordinate of first point
-/// - first_point_y: Y coordinate of first point
-///
-/// Returns: Float32Array with [positionX, positionY]
-#[wasm_bindgen]
-pub fn get_first_placement_wasm(
-    nfp_buffer: &[f32],
-    first_point_x: f32,
-    first_point_y: f32,
-) -> Float32Array {
-    use crate::geometry::point::Point;
-
-    let first_point = Point::new(Some(first_point_x), Some(first_point_y));
-    let result = crate::nesting::place_flow::get_first_placement(nfp_buffer, &first_point);
-
-    let out = Float32Array::new_with_length(result.len() as u32);
-    out.copy_from(&result);
-    out
-}
-
 /// WASM wrapper for place_paths function
 ///
 /// Arguments:
@@ -644,6 +417,27 @@ pub fn get_first_placement_wasm(
 #[wasm_bindgen]
 pub fn place_paths_wasm(buffer: &[u8]) -> Float32Array {
     let result = crate::nesting::place_flow::place_paths(buffer);
+    let out = Float32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
+}
+
+/// WASM wrapper for calculate function
+///
+/// Main calculation function that routes to either pair_data or place_paths
+/// based on the thread type in the buffer.
+///
+/// Port of TypeScript calculate function from worker-flow/index.ts
+///
+/// Arguments:
+/// - buffer: Uint8Array where first 4 bytes (u32 big-endian) indicate thread type
+///   - 0 = PAIR (calls pair_data)
+///   - 1 = PLACEMENT (calls place_paths)
+///
+/// Returns: Float32Array containing result from either pair_data or place_paths
+#[wasm_bindgen]
+pub fn calculate_wasm(buffer: &[u8]) -> Float32Array {
+    let result = crate::nesting::calculate::calculate(buffer);
     let out = Float32Array::new_with_length(result.len() as u32);
     out.copy_from(&result);
     out
