@@ -54,17 +54,6 @@ pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
     value.mid_value(left, right)
 }
 
-#[wasm_bindgen]
-pub fn pair_data_f32(buff: &[f32]) -> Float32Array {
-    let serialzed: Vec<f32> = unsafe { pair_data(buff) };
-
-    let out = Float32Array::new_with_length(serialzed.len() as u32);
-
-    out.copy_from(&serialzed);
-
-    out
-}
-
 fn from_i32_mem_seg(mem_seg: &[i32]) -> Vec<Point<i32>> {
     debug_assert!(
         mem_seg.len() % 2 == 0,
@@ -406,20 +395,6 @@ pub fn generate_nfp_cache_key_wasm(
     let polygon2 = PolygonNode::new(source2, rotation2, Vec::new());
 
     PolygonNode::generate_nfp_cache_key(rotation_split, inside, &polygon1, &polygon2)
-}
-
-/// WASM wrapper for place_paths function
-///
-/// Arguments:
-/// - buffer: Uint8Array containing serialized PlaceContent data
-///
-/// Returns: Float32Array containing placement result
-#[wasm_bindgen]
-pub fn place_paths_wasm(buffer: &[u8]) -> Float32Array {
-    let result = crate::nesting::place_flow::place_paths(buffer);
-    let out = Float32Array::new_with_length(result.len() as u32);
-    out.copy_from(&result);
-    out
 }
 
 /// WASM wrapper for calculate function
