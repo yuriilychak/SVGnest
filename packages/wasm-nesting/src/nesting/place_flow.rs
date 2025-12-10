@@ -293,9 +293,11 @@ pub fn place_paths(buffer: &[u8]) -> Vec<f32> {
     let mut fitness: f32 = 0.0;
     let mut min_width: f32 = 0.0;
     let mut placed: Vec<PolygonNode> = Vec::new();
+    let mut placed_indices: Vec<usize> = Vec::new(); // Track indices to remove
 
     while place_content.node_count() > 0 {
         placed.clear();
+        placed_indices.clear();
         placement.clear();
         path_item.clear();
         fitness += 1.0; // add 1 for each new bin opened (lower fitness is better)
@@ -337,6 +339,7 @@ pub fn place_paths(buffer: &[u8]) -> Vec<f32> {
                     placement.push(placement_data[0]);
                     placement.push(placement_data[1]);
                     placed.push(node.clone());
+                    placed_indices.push(i);
                 }
 
                 continue;
@@ -364,6 +367,7 @@ pub fn place_paths(buffer: &[u8]) -> Vec<f32> {
 
             if placement_data.len() == 3 {
                 placed.push(node.clone());
+                placed_indices.push(i);
                 path_item.push(path_key);
                 placement.push(placement_data[2]);
                 placement.push(placement_data[1]);
@@ -374,9 +378,9 @@ pub fn place_paths(buffer: &[u8]) -> Vec<f32> {
             fitness += min_width / place_content.area();
         }
 
-        // Remove placed nodes
-        for placed_node in &placed {
-            place_content.remove_node(placed_node);
+        // Remove placed nodes (remove from highest index to lowest to maintain index validity)
+        for i in (0..placed_indices.len()).rev() {
+            place_content.remove_node_at(placed_indices[i]);
         }
 
         if placement.is_empty() {

@@ -112,7 +112,9 @@ impl PlaceContent {
         let node = self.nest_content.node_at(index);
         let rotation_index = PolygonNode::to_rotation_index(node.rotation, self.rotations);
 
-        join_u16(node.source as u16, rotation_index as u16)
+        // Match TypeScript: join_u16_to_u32(rotation_index, source)
+        // rotation_index in lower bits, source in upper bits
+        join_u16(rotation_index as u16, node.source as u16)
     }
 
     /// Deserialize buffer to NFP cache map
@@ -229,13 +231,18 @@ impl PlaceContent {
     }
 
     pub fn remove_node(&mut self, node: &PolygonNode) {
-        // Find and remove node by comparing source
+        // Find and remove node by comparing source and rotation
         for i in 0..self.nest_content.node_count() {
-            if self.nest_content.node_at(i).source == node.source {
+            let current_node = self.nest_content.node_at(i);
+            if current_node.source == node.source && current_node.rotation == node.rotation {
                 self.nest_content.remove_node(i);
                 break;
             }
         }
+    }
+
+    pub fn remove_node_at(&mut self, index: usize) {
+        self.nest_content.remove_node(index);
     }
 }
 

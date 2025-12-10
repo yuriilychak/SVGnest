@@ -1,7 +1,6 @@
 import type { BoundRect, NestConfig, Point, Polygon, PolygonNode } from './types';
 import { getPolygonNode } from './helpers';
 import { PointF32, PointI32, PolygonF32 } from './geometry';
-import NFPWrapper from './worker-flow/nfp-wrapper';
 import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
 export default class ClipperWrapper {
     private configuration: NestConfig;
@@ -206,20 +205,6 @@ export default class ClipperWrapper {
 
     public static applyNfps(nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): Point<Int32Array>[][] {
         return ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(nfpBuffer), offset.x, offset.y));
-    }
-
-    public static nfpToClipper(nfpWrapper: NFPWrapper): Point<Int32Array>[][] {
-        const nfpCount: number = nfpWrapper.count;
-        const result = [];
-        let memSeg: Float32Array = null;
-        let i: number = 0;
-
-        for (i = 0; i < nfpCount; ++i) {
-            memSeg = nfpWrapper.getNFPMemSeg(i)
-            result.push(ClipperWrapper.fromMemSeg(memSeg, null, true));
-        }
-
-        return result;
     }
 
     /**
