@@ -8,7 +8,8 @@
         "build": "lerna run build --stream",
         "watch": "lerna run watch --parallel",
         "lint": "lerna run lint",
-        "lint:fix": "lerna run lint:fix"
+        "lint:fix": "lerna run lint:fix",
+        "dev": "node dev-server.js 8080 ."
     },
     "repository": {
         "type": "git",
