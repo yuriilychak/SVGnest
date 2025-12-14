@@ -1,8 +1,9 @@
+import { get_u16_from_u32 } from 'wasm-nesting';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
 import { BoundRectF32, DisplayCallback, NestConfig, PolygonNode } from './types';
-import { getUint16, readUint32FromF32 } from './helpers';
+import { readUint32FromF32 } from './helpers';
 import { PolygonF32 } from './geometry';
 import { generateTree, generateBounds } from './clipper-wrapper';
 
@@ -126,12 +127,12 @@ export default class PolygonPacker {
             for (i = 0; i < placementCount; ++i) {
                 totalArea += binArea;
                 itemData = readUint32FromF32(placementsData, 2 + i);
-                offset = getUint16(itemData, 1);
-                size = getUint16(itemData, 0);
+                offset = get_u16_from_u32(itemData, 1);
+                size = get_u16_from_u32(itemData, 0);
                 placedCount += size;
 
                 for (j = 0; j < size; ++j) {
-                    pathId = getUint16(readUint32FromF32(placementsData, offset + j), 1);
+                    pathId = get_u16_from_u32(readUint32FromF32(placementsData, offset + j), 1);
                     polygon.bind(this.#nodes[pathId].memSeg);
                     placedArea += polygon.absArea;
                 }

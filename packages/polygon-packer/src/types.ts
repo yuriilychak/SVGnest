@@ -87,8 +87,6 @@ export interface Point<T extends TypedArray = TypedArray> {
 
     round(): this;
 
-    clipperRound(): this;
-
     normal(): this
 
     reverse(): this;

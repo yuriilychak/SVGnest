@@ -1,6 +1,5 @@
-import { mid_value_f64 } from 'wasm-nesting';
+import { mid_value_f64, almost_equal } from 'wasm-nesting';
 import { ANGLE_CACHE, TOL_F64 } from '../../constants';
-import { almostEqual, clipperRound } from '../../helpers';
 import type { Point, TypedArray } from '../../types';
 
 export default abstract class PointBase<T extends TypedArray> implements Point<T> {
@@ -135,7 +134,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     public normalize(): this {
         const length: number = this.length;
 
-        if (!almostEqual(length, 1) && !this.isEmpty) {
+        if (!almost_equal(length, 1, TOL_F64) && !this.isEmpty) {
             this.scaleDown(length);
         }
 
@@ -145,13 +144,6 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     public round(): this {
         this.x = Math.round(this.x);
         this.y = Math.round(this.y);
-
-        return this;
-    }
-
-    public clipperRound(): this {
-        this.x = clipperRound(this.x);
-        this.y = clipperRound(this.y);
 
         return this;
     }
@@ -169,11 +161,11 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     }
 
     public almostEqualX(point: Point, tolerance: number = TOL_F64): boolean {
-        return almostEqual(this.x, point.x, tolerance);
+        return almost_equal(this.x, point.x, tolerance);
     }
 
     public almostEqualY(point: Point, tolerance: number = TOL_F64): boolean {
-        return almostEqual(this.y, point.y, tolerance);
+        return almost_equal(this.y, point.y, tolerance);
     }
 
 
@@ -235,7 +227,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         const subA = this.clone().sub(pointA);
         const subAB = this.clone(pointB).sub(pointA);
 
-        if (!almostEqual(subA.cross(subAB))) {
+        if (!almost_equal(subA.cross(subAB), 0, TOL_F64)) {
             return false;
         }
 
@@ -247,7 +239,7 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
 
         const len2 = pointA.len2(pointB);
 
-        return dot < len2 && !almostEqual(dot, len2);
+        return dot < len2 && !almost_equal(dot, len2, TOL_F64);
     }
 
     public get x(): number {

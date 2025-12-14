@@ -1,5 +1,5 @@
+import { almost_equal } from 'wasm-nesting';
 import PointBase from './point-base';
-import { almostEqualF32 } from '../../helpers';
 import type { Point } from '../../types';
 import { TOL_F32 } from '../../constants';
 
@@ -13,11 +13,11 @@ export default class PointF32 extends PointBase<Float32Array> {
     }
 
     public almostEqualX(point: Point, tolerance: number = TOL_F32): boolean {
-        return almostEqualF32(this.x, point.x, tolerance);
+        return almost_equal(this.x, point.x, tolerance);
     }
 
     public almostEqualY(point: Point, tolerance: number = TOL_F32): boolean {
-        return almostEqualF32(this.y, point.y, tolerance);
+        return almost_equal(this.y, point.y, tolerance);
     }
 
     public static create(x: number = 0, y: number = 0): PointF32 {
