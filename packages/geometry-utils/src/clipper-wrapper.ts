@@ -1,47 +1,43 @@
 import type { BoundRect, PolygonNode } from './types';
-import { getPolygonNode, deserializeNodes } from './helpers';
-import { PolygonF32 } from './geometry';
-import { clean_node_inner_wasm, offset_node_inner_wasm, generate_tree_wasm } from 'wasm-nesting';
+import { deserializeNodes } from './helpers';
+import { BoundRectF32 } from './geometry';
+import { generate_tree_wasm, generate_bounds_wasm } from 'wasm-nesting';
 
 export function generateBounds(memSeg: Float32Array, spacing: number, curveTolerance: number): {
     binNode: PolygonNode;
     bounds: BoundRect<Float32Array>;
     resultBounds: BoundRect<Float32Array>;
     area: number;
-} {
+} | null {
     if (memSeg.length < 6) {
         return null;
     }
 
-    const polygon = new PolygonF32();
-    polygon.bind(memSeg);
+    // Call WASM function
+    const result = generate_bounds_wasm(memSeg, spacing, curveTolerance);
 
-    const binNode: PolygonNode = getPolygonNode(-1, memSeg);
-    const bounds: BoundRect<Float32Array> = polygon.exportBounds();
+    if (result.length === 0) {
+        return null;
+    }
 
-    cleanNode(binNode, curveTolerance);
-    offsetNode(binNode, -1, spacing, curveTolerance);
+    // Extract bounds data using BoundRectF32
+    const bounds = new BoundRectF32(result[0], result[1], result[2], result[3]);
+    const resultBounds = new BoundRectF32(result[4], result[5], result[6], result[7]);
+    const area = result[8];
 
-    polygon.bind(binNode.memSeg);
-    polygon.resetPosition();
+    // Deserialize node from remaining bytes
+    const serializedBytes = new Uint8Array(result.buffer, 36).slice(); // Start after 9 floats (36 bytes)
+    const buffer = serializedBytes.buffer as ArrayBuffer;
+    const view = new DataView(buffer, 0);
+    const nodeCount = view.getUint32(0, true); // true = little-endian
+    const nodes = new Array<PolygonNode>(nodeCount);
 
-    const resultBounds = polygon.exportBounds();
-    const area: number = polygon.area;
+
+    deserializeNodes(nodes, view, buffer, 4);
+
+    const binNode = nodes[0];
 
     return { binNode, bounds, resultBounds, area };
-}
-
-function offsetNode(node: PolygonNode, sign: number, spacing: number, curveTolerance: number): void {
-    node.memSeg = offset_node_inner_wasm(node.memSeg, sign, spacing, curveTolerance);
-}
-
-
-function cleanNode(node: PolygonNode, curveTolerance: number): void {
-    const res = clean_node_inner_wasm(node.memSeg, curveTolerance);
-
-    if (res.length) {
-        node.memSeg = res;
-    }
 }
 
 export function generateTree(memSegs: Float32Array[], spacing: number, curveTolerance: number): PolygonNode[] {
