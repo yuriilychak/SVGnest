@@ -1,0 +1,1 @@
+export { default as PolygonF32 } from './polygon-f32';

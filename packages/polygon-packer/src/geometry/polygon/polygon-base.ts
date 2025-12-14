@@ -1,4 +1,4 @@
-import { polygon_area, cycle_index_wasm } from 'wasm-nesting';
+import { polygon_area, abs_polygon_area, cycle_index_wasm } from 'wasm-nesting';
 import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
 
 export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
@@ -280,7 +280,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
     }
 
     public get absArea(): number {
-        return Math.abs(this.area);
+        return abs_polygon_area(Float32Array.from(this.memSeg.slice(this.offset, this.offset + (this.pointCount << 1))));
     }
 
     public get position(): Point<T> {

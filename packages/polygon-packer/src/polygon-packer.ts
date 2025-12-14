@@ -1,9 +1,10 @@
-import { ClipperWrapper, getUint16, readUint32FromF32, PolygonF32 } from 'geometry-utils';
-
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
 import { BoundRectF32, DisplayCallback, NestConfig, PolygonNode } from './types';
+import { getUint16, readUint32FromF32 } from './helpers';
+import { PolygonF32 } from './geometry';
+import { generateTree, generateBounds } from './clipper-wrapper';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();
@@ -39,15 +40,14 @@ export default class PolygonPacker {
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {
-        const clipperWrapper = new ClipperWrapper(configuration);
-        const binData = clipperWrapper.generateBounds(binPolygon);
+        const binData = generateBounds(binPolygon, configuration.spacing, configuration.curveTolerance);
 
         this.#binNode = binData.binNode;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
         this.#isWorking = true;
-        this.#nodes = clipperWrapper.generateTree(polygons);
+        this.#nodes = generateTree(polygons, configuration.spacing, configuration.curveTolerance);
 
         this.launchWorkers(configuration, displayCallback);
 
