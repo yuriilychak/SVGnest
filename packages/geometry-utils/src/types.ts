@@ -7,7 +7,6 @@ export type NestConfig = {
     readonly useHoles: boolean;
 };
 
-export type DisplayCallback = (placement: string, placePerecntage: number, lacedParts: number, partCount: number) => void;
 
 export type PolygonNode = {
     source: number;
@@ -17,11 +16,6 @@ export type PolygonNode = {
 };
 
 export type NFPCache = Map<number, ArrayBuffer>;
-
-export enum THREAD_TYPE {
-    PLACEMENT = 1,
-    PAIR = 0
-}
 
 export type TypedArray = Float32Array | Float64Array | Uint16Array | Uint8Array | Uint32Array | Int16Array | Int8Array | Int32Array;
 
@@ -165,15 +159,4 @@ export interface Polygon<T extends TypedArray = TypedArray> {
 
     readonly size: Point<T>;
 }
-
-export interface PointPool<T extends TypedArray = TypedArray> {
-    alloc(count: number): number;
-
-    malloc(indices: number): void;
-
-    get(indices: number, index: number): Point<T>;
-
-    readonly size: number;
-}
-
 

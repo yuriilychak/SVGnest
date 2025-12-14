@@ -1,14 +1,14 @@
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys::{Float32Array, Int32Array};
+use web_sys::js_sys::{self, Float32Array, Int32Array, Uint8Array};
 
 pub mod clipper;
+pub mod clipper_wrapper;
 pub mod constants;
 pub mod geometry;
 pub mod nest_config;
 pub mod nesting;
 pub mod utils;
 
-use crate::nesting::pair_flow::pair_data;
 use crate::nesting::polygon_node::PolygonNode;
 
 use crate::clipper::clipper::Clipper;
@@ -249,4 +249,29 @@ pub fn calculate_wasm(buffer: &[u8]) -> Float32Array {
     let out = Float32Array::new_with_length(result.len() as u32);
     out.copy_from(&result);
     out
+}
+
+/// Generate polygon tree from flat arrays
+///
+/// Arguments:
+/// - values: Float32Array containing flattened polygon coordinates [x1, y1, x2, y2, ...]
+/// - sizes: Uint16Array containing point counts for each polygon
+/// - spacing: Offset spacing value (u8)
+/// - curve_tolerance: Curve tolerance for cleaning/offsetting (f32)
+///
+/// Returns: Uint8Array containing serialized PolygonNode tree
+#[wasm_bindgen]
+pub fn generate_tree_wasm(
+    values: &[f32],
+    sizes: &[u16],
+    spacing: u8,
+    curve_tolerance: f32,
+) -> Uint8Array {
+    let nodes =
+        clipper_wrapper::generate_tree(values, sizes, spacing as i32, curve_tolerance as f64);
+    let serialized = PolygonNode::serialize_nodes(&nodes, 0);
+
+    let result = Uint8Array::new_with_length(serialized.len() as u32);
+    result.copy_from(&serialized);
+    result
 }

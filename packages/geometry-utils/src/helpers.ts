@@ -81,15 +81,21 @@ export function deserializeNodes(nodes: PolygonNode[], view: DataView, buffer: A
     let i: number = 0;
 
     for (i = 0; i < nodeCount; ++i) {
-        source = view.getUint32(offset) - 1;
+        source = view.getUint32(offset, true) - 1; // true = little-endian
         offset += Uint32Array.BYTES_PER_ELEMENT;
-        rotation = view.getFloat32(offset);
+        rotation = view.getFloat32(offset, true); // true = little-endian
         offset += Uint32Array.BYTES_PER_ELEMENT;
-        memSegLength = view.getUint32(offset) << 1;
+        memSegLength = view.getUint32(offset, true) << 1; // true = little-endian
         offset += Uint32Array.BYTES_PER_ELEMENT;
-        memSeg = new Float32Array(buffer, offset, memSegLength);
-        offset += memSeg.byteLength;
-        childrenCount = view.getUint32(offset);
+
+        // Copy Float32 data to ensure proper alignment
+        memSeg = new Float32Array(memSegLength);
+        for (let j = 0; j < memSegLength; j++) {
+            memSeg[j] = view.getFloat32(offset, true); // true = little-endian
+            offset += Float32Array.BYTES_PER_ELEMENT;
+        }
+
+        childrenCount = view.getUint32(offset, true); // true = little-endian
         offset += Uint32Array.BYTES_PER_ELEMENT;
         children = new Array(childrenCount);
         offset = deserializeNodes(children, view, buffer, offset);
