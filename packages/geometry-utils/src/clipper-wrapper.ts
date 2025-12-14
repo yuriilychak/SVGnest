@@ -3,12 +3,10 @@ import { getPolygonNode } from './helpers';
 import { PointF32, PolygonF32 } from './geometry';
 import { clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
 export default class ClipperWrapper {
-    private configuration: NestConfig;
 
     private polygon: Polygon<Float32Array>;
 
-    constructor(configuration: NestConfig) {
-        this.configuration = configuration;
+    constructor() {
         this.polygon = new PolygonF32();
     }
 
@@ -27,7 +25,7 @@ export default class ClipperWrapper {
         const binNode: PolygonNode = getPolygonNode(-1, memSeg);
         const bounds: BoundRect<Float32Array> = this.polygon.exportBounds();
 
-        this.cleanNode(binNode);
+        this.cleanNode(binNode, curveTolerance);
         this.offsetNode(binNode, -1, spacing, curveTolerance);
 
         this.polygon.bind(binNode.memSeg);
@@ -52,7 +50,7 @@ export default class ClipperWrapper {
             memSeg = memSegs[i];
             node = getPolygonNode(i, memSeg);
 
-            this.cleanNode(node);
+            this.cleanNode(node, curveTolerance);
 
             this.polygon.bind(node.memSeg);
 
@@ -159,9 +157,7 @@ export default class ClipperWrapper {
     }
 
 
-    private cleanNode(node: PolygonNode): void {
-        const { curveTolerance } = this.configuration;
-
+    private cleanNode(node: PolygonNode, curveTolerance: number): void {
         const res = clean_node_inner_wasm(node.memSeg, curveTolerance);
 
         if (res.length) {

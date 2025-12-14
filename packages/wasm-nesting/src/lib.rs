@@ -30,6 +30,11 @@ pub fn polygon_area(points: &[f32]) -> f64 {
 }
 
 #[wasm_bindgen]
+pub fn abs_polygon_area(points: &[f32]) -> f64 {
+    return Number::abs_polygon_area(points);
+}
+
+#[wasm_bindgen]
 pub fn almost_equal(a: f64, b: f64, tolerance: f64) -> bool {
     a.almost_equal(b, Some(tolerance))
 }

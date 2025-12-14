@@ -1,4 +1,4 @@
-import { polygon_area, cycle_index_wasm } from 'wasm-nesting';
+import { polygon_area, abs_polygon_area, cycle_index_wasm } from 'wasm-nesting';
 import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
 
 export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
