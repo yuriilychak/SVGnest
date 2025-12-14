@@ -1,7 +1,7 @@
-import type { BoundRect, NestConfig, Point, Polygon, PolygonNode } from './types';
+import type { BoundRect, NestConfig, Polygon, PolygonNode } from './types';
 import { getPolygonNode } from './helpers';
-import { PointF32, PointI32, PolygonF32 } from './geometry';
-import { apply_nfps_wasm, clean_polygon_wasm, clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
+import { PointF32, PolygonF32 } from './geometry';
+import { clean_node_inner_wasm, offset_node_inner_wasm } from 'wasm-nesting';
 export default class ClipperWrapper {
     private configuration: NestConfig;
 
@@ -12,7 +12,7 @@ export default class ClipperWrapper {
         this.polygon = new PolygonF32();
     }
 
-    public generateBounds(memSeg: Float32Array): {
+    public generateBounds(memSeg: Float32Array, spacing: number, curveTolerance: number): {
         binNode: PolygonNode;
         bounds: BoundRect<Float32Array>;
         resultBounds: BoundRect<Float32Array>;
@@ -28,7 +28,7 @@ export default class ClipperWrapper {
         const bounds: BoundRect<Float32Array> = this.polygon.exportBounds();
 
         this.cleanNode(binNode);
-        this.offsetNode(binNode, -1);
+        this.offsetNode(binNode, -1, spacing, curveTolerance);
 
         this.polygon.bind(binNode.memSeg);
         this.polygon.resetPosition();
@@ -39,9 +39,8 @@ export default class ClipperWrapper {
         return { binNode, bounds, resultBounds, area };
     }
 
-    public generateTree(memSegs: Float32Array[]): PolygonNode[] {
+    public generateTree(memSegs: Float32Array[], spacing: number, curveTolerance: number): PolygonNode[] {
         const point: PointF32 = PointF32.create();
-        const { curveTolerance } = this.configuration;
         const trashold = curveTolerance * curveTolerance;
         const nodes: PolygonNode[] = [];
         const nodeCount: number = memSegs.length;
@@ -49,7 +48,7 @@ export default class ClipperWrapper {
         let node: PolygonNode = null;
         let i: number = 0;
 
-        for (i = 0; i < nodeCount; ++i) {
+        for (let i = 0; i < nodeCount; ++i) {
             memSeg = memSegs[i];
             node = getPolygonNode(i, memSeg);
 
@@ -68,7 +67,7 @@ export default class ClipperWrapper {
         // turn the list into a tree
         this.nestPolygons(point, nodes);
 
-        this.offsetNodes(nodes, 1);
+        this.offsetNodes(nodes, 1, spacing, curveTolerance);
 
         this.simplifyNodes(nodes);
 
@@ -96,21 +95,18 @@ export default class ClipperWrapper {
     // Main function to nest polygons
     private nestPolygons(point: PointF32, nodes: PolygonNode[]): void {
         const parents: PolygonNode[] = [];
-        let i: number = 0;
-        let j: number = 0;
-
         // assign a unique id to each leaf
         let nodeCount: number = nodes.length;
         let outerNode: PolygonNode = null;
         let innerNode: PolygonNode = null;
         let isChild: boolean = false;
 
-        for (i = 0; i < nodeCount; ++i) {
+        for (let i = 0; i < nodeCount; ++i) {
             outerNode = nodes[i];
             isChild = false;
             point.fromMemSeg(outerNode.memSeg);
 
-            for (j = 0; j < nodeCount; ++j) {
+            for (let j = 0; j < nodeCount; ++j) {
                 innerNode = nodes[j];
                 this.polygon.bind(innerNode.memSeg);
 
@@ -126,7 +122,7 @@ export default class ClipperWrapper {
             }
         }
 
-        for (i = 0; i < nodeCount; ++i) {
+        for (let i = 0; i < nodeCount; ++i) {
             if (parents.indexOf(nodes[i]) < 0) {
                 nodes.splice(i, 1);
                 --nodeCount;
@@ -137,7 +133,7 @@ export default class ClipperWrapper {
         const parentCount: number = parents.length;
         let parent: PolygonNode = null;
 
-        for (i = 0; i < parentCount; ++i) {
+        for (let i = 0; i < parentCount; ++i) {
             parent = parents[i];
 
             if (parent.children) {
@@ -146,20 +142,20 @@ export default class ClipperWrapper {
         }
     }
 
-    private offsetNodes(nodes: PolygonNode[], sign: number): void {
+    private offsetNodes(nodes: PolygonNode[], sign: number, spacing: number, curveTolerance: number): void {
         const nodeCont: number = nodes.length;
         let node: PolygonNode = null;
         let i: number = 0;
 
         for (i = 0; i < nodeCont; ++i) {
             node = nodes[i];
-            this.offsetNode(node, sign);
-            this.offsetNodes(node.children, -sign);
+            this.offsetNode(node, sign, spacing, curveTolerance);
+            this.offsetNodes(node.children, -sign, spacing, curveTolerance);
         }
     }
 
-    private offsetNode(node: PolygonNode, sign: number): void {
-        node.memSeg = offset_node_inner_wasm(node.memSeg, sign, this.configuration.spacing, this.configuration.curveTolerance);
+    private offsetNode(node: PolygonNode, sign: number, spacing: number, curveTolerance: number): void {
+        node.memSeg = offset_node_inner_wasm(node.memSeg, sign, spacing, curveTolerance);
     }
 
 
@@ -171,140 +167,6 @@ export default class ClipperWrapper {
         if (res.length) {
             node.memSeg = res;
         }
-    }
-
-    public static fromMemSeg(
-        memSeg: Float32Array,
-        offset: Point<Float32Array> = null,
-        isRound: boolean = false
-    ): Point<Int32Array>[] {
-        const cleanTrashold: number = offset === null ? -1 : ClipperWrapper.CLEAN_TRASHOLD;
-        const pointCount: number = memSeg.length >> 1;
-        const result: PointI32[] = [];
-        const point: PointF32 = PointF32.create();
-        let i: number = 0;
-
-        for (i = 0; i < pointCount; ++i) {
-            point.fromMemSeg(memSeg, i);
-
-            if (offset !== null) {
-                point.add(offset);
-            }
-
-            point.scaleUp(ClipperWrapper.CLIPPER_SCALE);
-
-            if (isRound) {
-                point.round();
-            }
-
-            result.push(PointI32.from(point));
-        }
-
-        return cleanTrashold !== -1 ? ClipperWrapper.cleanPolygon(result, cleanTrashold) : result;
-    }
-
-    public static applyNfps(nfpBuffer: ArrayBuffer, offset: Point<Float32Array>): Point<Int32Array>[][] {
-        return ClipperWrapper.deserializePolygons(apply_nfps_wasm(new Float32Array(nfpBuffer), offset.x, offset.y));
-    }
-
-    /**
-     * Serialize polygons to a flat Int32Array
-     * Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-     * 
-     * @param polygons - Array of polygons to serialize
-     * @returns Flat Int32Array containing polygon count, sizes, and coordinates
-     */
-    public static serializePolygons(polygons: Point<Int32Array>[][]): Int32Array {
-        const polygonCount = polygons.length;
-
-        if (polygonCount === 0) {
-            return new Int32Array([0]);
-        }
-
-        // Calculate total size needed
-        let totalCoords = 0;
-        for (let i = 0; i < polygonCount; ++i) {
-            totalCoords += polygons[i].length * 2; // x, y for each point
-        }
-
-        const result = new Int32Array(1 + polygonCount + totalCoords);
-        let index = 0;
-
-        // Write polygon count
-        result[index++] = polygonCount;
-
-        // Write sizes
-        for (let i = 0; i < polygonCount; ++i) {
-            result[index++] = polygons[i].length * 2; // Size in coordinates (x, y pairs)
-        }
-
-        // Write coordinates
-        for (let i = 0; i < polygonCount; ++i) {
-            const polygon = polygons[i];
-            for (let j = 0; j < polygon.length; ++j) {
-                result[index++] = polygon[j].x;
-                result[index++] = polygon[j].y;
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Deserialize polygons from a flat Int32Array
-     * Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-     * 
-     * @param data - Flat Int32Array containing serialized polygon data
-     * @returns Array of polygons
-     */
-    public static deserializePolygons(data: Int32Array): Point<Int32Array>[][] {
-        if (data.length === 0) {
-            return [];
-        }
-
-        const polygonCount = data[0];
-        if (polygonCount === 0 || data.length < 1 + polygonCount) {
-            return [];
-        }
-
-        const result: Point<Int32Array>[][] = [];
-        let dataIndex = 1 + polygonCount; // Skip count + all sizes
-
-        for (let i = 0; i < polygonCount; ++i) {
-            const size = data[1 + i];
-            const pointCount = size / 2;
-
-            if (dataIndex + size > data.length) {
-                // Invalid data - not enough coordinates
-                break;
-            }
-
-            const polygon: Point<Int32Array>[] = [];
-            for (let j = 0; j < pointCount; ++j) {
-                const x = data[dataIndex + j * 2];
-                const y = data[dataIndex + j * 2 + 1];
-                polygon.push(PointI32.create(x, y));
-            }
-
-            result.push(polygon);
-            dataIndex += size;
-        }
-
-        return result;
-    }
-
-    private static cleanPolygon(path: Point<Int32Array>[], distance: number): Point<Int32Array>[] {
-        const polyData = new Int32Array(path.reduce<number[]>((acc: number[], point: Point<Int32Array>) => acc.concat([point.x, point.y]), []));
-        const cleanedData = clean_polygon_wasm(polyData, distance);
-        const pointCount = cleanedData.length / 2;
-
-        const result: Point<Int32Array>[] = new Array(pointCount);
-
-        for (let i = 0; i < pointCount; i++) {
-            result[i] = PointI32.create(cleanedData[i * 2], cleanedData[i * 2 + 1]);
-        }
-
-        return result;
     }
 
     public static CLIPPER_SCALE: number = 100;

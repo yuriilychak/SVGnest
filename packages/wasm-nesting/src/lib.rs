@@ -54,74 +54,6 @@ pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
     value.mid_value(left, right)
 }
 
-fn from_i32_mem_seg(mem_seg: &[i32]) -> Vec<Point<i32>> {
-    debug_assert!(
-        mem_seg.len() % 2 == 0,
-        "mem_seg length must be even (pairs of x,y)"
-    );
-
-    let count = mem_seg.len() / 2;
-    let mut out = Vec::with_capacity(count);
-
-    for chunk in mem_seg.chunks_exact(2) {
-        let x = chunk[0];
-        let y = chunk[1];
-        out.push(Point::<i32>::new(Some(x), Some(y)));
-    }
-
-    out
-}
-
-pub fn pack_points_to_i32(nested: &[Vec<Point<i32>>]) -> Vec<i32> {
-    let m = nested.len();
-    let total_points: usize = nested.iter().map(|v| v.len()).sum();
-    let header_len = 1 + m; // m count + m offsets
-    let data_len = total_points * 2; // x,y per point
-    let total_len = header_len + data_len;
-
-    // Preallocate once. Fill header first, then data.
-    let mut out = Vec::with_capacity(total_len);
-    out.resize(header_len, 0);
-    out[0] = m as i32;
-
-    // Fill offsets (relative to start of data section).
-    let mut running: usize = 0;
-    for (i, arr) in nested.iter().enumerate() {
-        out[1 + i] = running as i32;
-        running += arr.len() * 2; // each point contributes 2 ints
-    }
-
-    // Append data: [x0,y0, x1,y1, ...]
-    for arr in nested {
-        for p in arr {
-            out.push(p.x);
-            out.push(p.y);
-        }
-    }
-
-    debug_assert_eq!(out.len(), total_len);
-    out
-}
-
-fn pack_polygon_to_i32(polygon: &Vec<Point<i32>>) -> Vec<i32> {
-    let mut out = Vec::with_capacity(polygon.len() * 2);
-    for p in polygon {
-        out.push(p.x);
-        out.push(p.y);
-    }
-    out
-}
-
-#[wasm_bindgen]
-pub fn clean_polygon_wasm(buff: &[i32], distance: f64) -> Int32Array {
-    let polygon = from_i32_mem_seg(buff);
-    let cleaned_polygon = clipper_utils::clean_polygon(&polygon, distance);
-    let packed = pack_polygon_to_i32(&cleaned_polygon);
-    let out = Int32Array::new_with_length(packed.len() as u32);
-    out.copy_from(&packed);
-    out
-}
-
 /// Cleans a polygon by performing a union operation and returning the largest resulting polygon
 ///
 /// # Arguments
@@ -156,9 +88,13 @@ pub fn clean_node_inner(mem_seg: &[f32], curve_tolerance: f64) -> Vec<f32> {
     let mut biggest_area = 0.0f64;
 
     for (i, polygon) in simple.iter().enumerate() {
-        // Convert to flat i32 array for area calculation
-        let packed = pack_polygon_to_i32(polygon);
-        let area = i32::abs_polygon_area(&packed);
+        // Convert to flat array for area calculation
+        let mut flat: Vec<i32> = Vec::with_capacity(polygon.len() * 2);
+        for p in polygon {
+            flat.push(p.x);
+            flat.push(p.y);
+        }
+        let area = i32::abs_polygon_area(&flat);
 
         if area > biggest_area {
             biggest_area = area;
@@ -259,114 +195,6 @@ pub fn offset_node_inner_wasm(
     let result = offset_node_inner(buff, sign, spacing, curve_tolerance);
     let out = Float32Array::new_with_length(result.len() as u32);
     out.copy_from(&result);
-    out
-}
-
-/// Deserialize polygon data from flat i32 array
-///
-/// Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-///
-/// # Arguments
-/// * `data` - Flat array containing polygon count, sizes, and coordinates
-///
-/// # Returns
-/// Vector of polygons, where each polygon is a vector of Point<i32>
-fn deserialize_polygons(data: &[i32]) -> Vec<Vec<Point<i32>>> {
-    if data.is_empty() {
-        return Vec::new();
-    }
-
-    let polygon_count = data[0] as usize;
-    if polygon_count == 0 || data.len() < 1 + polygon_count {
-        return Vec::new();
-    }
-
-    let mut result = Vec::with_capacity(polygon_count);
-    let mut data_index = 1 + polygon_count; // Skip count + all sizes
-
-    for i in 0..polygon_count {
-        let size = data[1 + i] as usize;
-        let point_count = size / 2;
-
-        if data_index + size > data.len() {
-            // Invalid data - not enough coordinates
-            break;
-        }
-
-        let mut polygon = Vec::with_capacity(point_count);
-        for j in 0..point_count {
-            let x = data[data_index + j * 2];
-            let y = data[data_index + j * 2 + 1];
-            polygon.push(Point::new(Some(x), Some(y)));
-        }
-
-        result.push(polygon);
-        data_index += size;
-    }
-
-    result
-}
-
-/// Serialize polygons to flat i32 array
-///
-/// Format: [polygon_count, size1, size2, ..., sizeN, x0, y0, x1, y1, ...]
-///
-/// # Arguments
-/// * `polygons` - Vector of polygons to serialize
-///
-/// # Returns
-/// Flat array containing polygon count, sizes, and coordinates
-fn serialize_polygons(polygons: &Vec<Vec<Point<i32>>>) -> Vec<i32> {
-    let polygon_count = polygons.len();
-
-    if polygon_count == 0 {
-        return vec![0];
-    }
-
-    // Calculate total size needed
-    let mut total_coords = 0;
-    for polygon in polygons.iter() {
-        total_coords += polygon.len() * 2; // x, y for each point
-    }
-
-    let mut result = Vec::with_capacity(1 + polygon_count + total_coords);
-
-    // Write polygon count
-    result.push(polygon_count as i32);
-
-    // Write sizes
-    for polygon in polygons.iter() {
-        result.push((polygon.len() * 2) as i32); // Size in coordinates (x, y pairs)
-    }
-
-    // Write coordinates
-    for polygon in polygons.iter() {
-        for point in polygon.iter() {
-            result.push(point.x);
-            result.push(point.y);
-        }
-    }
-
-    result
-}
-
-/// Apply NFPs with offset and filter by area threshold (WASM wrapper)
-///
-/// # Arguments
-/// * `nfp_buffer` - Float32Array containing serialized NFP data
-/// * `offset_x` - X coordinate of the offset point
-/// * `offset_y` - Y coordinate of the offset point
-///
-/// # Returns
-/// Int32Array with filtered polygons in format: [polygon_count, size1, size2, ..., x0, y0, x1, y1, ...]
-#[wasm_bindgen]
-pub fn apply_nfps_wasm(nfp_buffer: &[f32], offset_x: f32, offset_y: f32) -> Int32Array {
-    let offset = Point::new(Some(offset_x), Some(offset_y));
-    let result = clipper_utils::apply_nfps(nfp_buffer.to_vec(), &offset);
-    let serialized = serialize_polygons(&result);
-
-    let out = Int32Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
     out
 }
 
