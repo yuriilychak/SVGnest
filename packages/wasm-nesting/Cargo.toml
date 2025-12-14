@@ -12,3 +12,10 @@ serde_json = "1.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "s"        # Optimize for size (not as aggressive as "z" to preserve SIMD)
+lto = true             # Enable Link Time Optimization
+codegen-units = 1      # Reduce parallel code generation for better optimization
+panic = "abort"        # Don't include unwinding code
+strip = true           # Strip symbols from binary
