@@ -14,7 +14,7 @@ export default {
         path: path.resolve('../../dist')
     },
     externals: {
-        'geometry-utils': 'geometryUtils'
+        'wasm-nesting': 'WasmNesting' // Treat wasm-nesting as an external dependency
     },
     resolve: { extensions: ['.ts'] },
     devServer: { contentBase: '../../dist', hot: true },

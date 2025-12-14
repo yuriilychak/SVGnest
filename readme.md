@@ -11,15 +11,16 @@
 -   Isolated and refactored js-clipper logic to avoid of full lib usage (it decrease package size twice).
 -   Rewrote js-clipper from dynamic lists to Data locality pattern structure.
 -   Fully ported js-clipper to Rust.
--   Migrated part of pair flow to Rust with WASM (speed-up packing time near 10 times).
+-   Migrated pair and place flows to Rust with WASM (speed-up packing time near 10 times).
 -   Migrated UI to React.
+-   Added dev server for ability to run it without additional plugins.
 
 ## Current TODO's
 
 -   Add node package for ability to run nesting tool from terminal on server-side.
 -   Add es-doc for all files.
--   Migrate geometry calculations to WASM using Rust.
--   Rewrite complex calculations with SIMD usage. 
+-   Migrate geometry calculations to WASM using Rust (in progress).
+-   Extruct gravity argument to configuration for ability to configure it on UI.
 
 ## Why I do it
 

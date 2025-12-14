@@ -1,7 +1,7 @@
-import { generateNFPCacheKey, PolygonF32, serializeConfig, serializeMapToBuffer, serializePolygonNodes } from 'geometry-utils';
-
+import { PolygonF32 } from './geometry';
 import { Phenotype } from './genetic-algorithm';
 import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE } from './types';
+import { serializeMapToBuffer, serializePolygonNodes, serializeConfig, generateNFPCacheKey } from './helpers';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<number, ArrayBuffer>();

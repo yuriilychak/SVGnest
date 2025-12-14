@@ -1,7 +1,7 @@
+import { generate_tree_wasm, generate_bounds_wasm } from 'wasm-nesting';
 import type { BoundRect, PolygonNode } from './types';
 import { deserializeNodes } from './helpers';
 import { BoundRectF32 } from './geometry';
-import { generate_tree_wasm, generate_bounds_wasm } from 'wasm-nesting';
 
 export function generateBounds(memSeg: Float32Array, spacing: number, curveTolerance: number): {
     binNode: PolygonNode;

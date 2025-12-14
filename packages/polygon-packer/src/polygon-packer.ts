@@ -1,9 +1,10 @@
-import { generateTree, generateBounds, getUint16, readUint32FromF32, PolygonF32 } from 'geometry-utils';
-
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
 import NFPStore from './nfp-store';
 import { BoundRectF32, DisplayCallback, NestConfig, PolygonNode } from './types';
+import { getUint16, readUint32FromF32 } from './helpers';
+import { PolygonF32 } from './geometry';
+import { generateTree, generateBounds } from './clipper-wrapper';
 
 export default class PolygonPacker {
     #geneticAlgorithm = new GeneticAlgorithm();

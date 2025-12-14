@@ -1,5 +1,4 @@
-import { PolygonF32 } from 'geometry-utils';
-
+import { PolygonF32 } from '../geometry';
 import { BoundRectF32, NestConfig, PolygonNode } from '../types';
 import Phenotype from './phenotype';
 export default class GeneticAlgorithm {
