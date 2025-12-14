@@ -1,4 +1,4 @@
-import { ClipperWrapper, getUint16, readUint32FromF32, PolygonF32 } from 'geometry-utils';
+import { generateTree, generateBounds, getUint16, readUint32FromF32, PolygonF32 } from 'geometry-utils';
 
 import { GeneticAlgorithm } from './genetic-algorithm';
 import { Parallel } from './parallel';
@@ -39,15 +39,14 @@ export default class PolygonPacker {
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {
-        const clipperWrapper = new ClipperWrapper();
-        const binData = clipperWrapper.generateBounds(binPolygon, configuration.spacing, configuration.curveTolerance);
+        const binData = generateBounds(binPolygon, configuration.spacing, configuration.curveTolerance);
 
         this.#binNode = binData.binNode;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
         this.#isWorking = true;
-        this.#nodes = clipperWrapper.generateTree(polygons, configuration.spacing, configuration.curveTolerance);
+        this.#nodes = generateTree(polygons, configuration.spacing, configuration.curveTolerance);
 
         this.launchWorkers(configuration, displayCallback);
 

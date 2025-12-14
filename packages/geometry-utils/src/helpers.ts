@@ -69,6 +69,36 @@ function serializeNodes(nodes: PolygonNode[], buffer: ArrayBuffer, view: DataVie
     }, offset);
 }
 
+export function deserializeNodes(nodes: PolygonNode[], view: DataView, buffer: ArrayBuffer, initialOffset: number): number {
+    const nodeCount: number = nodes.length;
+    let offset: number = initialOffset;
+    let memSegLength: number = 0;
+    let childrenCount: number = 0;
+    let source: number = 0;
+    let rotation: number = 0;
+    let memSeg: Float32Array = null;
+    let children: PolygonNode[] = null;
+    let i: number = 0;
+
+    for (i = 0; i < nodeCount; ++i) {
+        source = view.getUint32(offset) - 1;
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+        rotation = view.getFloat32(offset);
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+        memSegLength = view.getUint32(offset) << 1;
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+        memSeg = new Float32Array(buffer, offset, memSegLength);
+        offset += memSeg.byteLength;
+        childrenCount = view.getUint32(offset);
+        offset += Uint32Array.BYTES_PER_ELEMENT;
+        children = new Array(childrenCount);
+        offset = deserializeNodes(children, view, buffer, offset);
+        nodes[i] = { source, rotation, memSeg, children };
+    }
+
+    return offset;
+}
+
 export function serializePolygonNodes(nodes: PolygonNode[], offset: number = 0): ArrayBuffer {
     const initialOffset = Uint32Array.BYTES_PER_ELEMENT + offset;
     const totalSize: number = calculateTotalSize(nodes, initialOffset);
