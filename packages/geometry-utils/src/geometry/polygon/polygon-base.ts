@@ -280,7 +280,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
     }
 
     public get absArea(): number {
-        return abs_polygon_area(Float32Array.from(this.memSeg.slice(this.offset, this.offset + (pointCount << 1))));
+        return abs_polygon_area(Float32Array.from(this.memSeg.slice(this.offset, this.offset + (this.pointCount << 1))));
     }
 
     public get position(): Point<T> {
