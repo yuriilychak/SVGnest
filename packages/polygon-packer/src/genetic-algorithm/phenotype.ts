@@ -1,13 +1,11 @@
-import { PolygonNode } from '../types';
-
 export default class Phenotype {
     #rotations: number[];
 
-    #placement: PolygonNode[];
+    #placement: number[];
 
     #fitness: number;
 
-    constructor(placement: PolygonNode[], rotation: number[]) {
+    constructor(placement: number[], rotation: number[]) {
         this.#placement = placement;
         this.#rotations = rotation;
         this.#fitness = 0;
@@ -21,12 +19,11 @@ export default class Phenotype {
         return new Phenotype(this.#placement.slice(), this.#rotations.slice());
     }
 
-    public contains(polygon: PolygonNode): boolean {
-        const id: number = polygon.source;
+    public contains(source: number): boolean {
         const size: number = this.size;
 
         for (let i = 0; i < size; ++i) {
-            if (this.#placement[i].source === id) {
+            if (this.#placement[i] === source) {
                 return true;
             }
         }
@@ -57,7 +54,7 @@ export default class Phenotype {
         }
         // swap current part with next part
 
-        const placement: PolygonNode = this.#placement[index];
+        const placement: number = this.#placement[index];
 
         this.#placement[index] = this.#placement[nextIndex];
         this.#placement[nextIndex] = placement;
@@ -65,7 +62,7 @@ export default class Phenotype {
         return true;
     }
 
-    public get placement(): PolygonNode[] {
+    public get placement(): number[] {
         return this.#placement;
     }
 

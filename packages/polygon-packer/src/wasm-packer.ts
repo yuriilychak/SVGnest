@@ -42,7 +42,8 @@ export default class WasmPacker {
     }
 
     public getPairs(): ArrayBuffer[] {
-        this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binNode, this.#config);
+        const individual = this.#geneticAlgorithm.getIndividual(this.#nodes);
+        this.#nfpStore.init(this.#nodes, individual, this.#binNode, this.#config);
 
         return this.#nfpStore.nfpPairs;
     }
@@ -50,7 +51,7 @@ export default class WasmPacker {
     public getPlacementData(generatedNfp: ArrayBuffer[]): ArrayBuffer[] {
         this.#nfpStore.update(generatedNfp);
 
-        return this.#nfpStore.getPlacementData(this.#binArea);
+        return this.#nfpStore.getPlacementData(this.#nodes, this.#binArea);
     }
 
     public getPlacemehntResult(placements: ArrayBuffer[]) {
@@ -118,11 +119,11 @@ export default class WasmPacker {
     }
 
     public stop(): void {
-            this.#nodes = [];
-            this.#best = null;
-            this.#binNode = null;
-            this.#geneticAlgorithm.clean();
-            this.#nfpStore.clean();
+        this.#nodes = [];
+        this.#best = null;
+        this.#binNode = null;
+        this.#geneticAlgorithm.clean();
+        this.#nfpStore.clean();
     }
 
     public get pairCount(): number {

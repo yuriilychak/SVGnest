@@ -14,28 +14,24 @@ export default class NFPStore {
 
     #configCompressed: number = 0;
 
-    public init(individual: Phenotype, binNode: PolygonNode, config: NestConfig): void {
+    public init(nodes: PolygonNode[], individual: Phenotype, binNode: PolygonNode, config: NestConfig): void {
         this.#configCompressed = serializeConfig(config);
         this.#individual = individual;
         this.#angleSplit = config.rotations;
         this.#nfpPairs = [];
 
-        const nodes: PolygonNode[] = this.#individual.placement;
+        const sources = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
-        const placeCount: number = nodes.length;
         const newCache: NFPCache = new Map<number, ArrayBuffer>();
-        let node: PolygonNode = null;
-        let i: number = 0;
-        let j: number = 0;
 
-        for (i = 0; i < placeCount; ++i) {
-            node = nodes[i];
+        for (let i = 0; i < sources.length; ++i) {
+            const node = nodes[sources[i]];
             node.rotation = rotations[i];
 
             this.updateCache(binNode, node, true, newCache);
 
-            for (j = 0; j < i; ++j) {
-                this.updateCache(nodes[j], node, false, newCache);
+            for (let j = 0; j < i; ++j) {
+                this.updateCache(nodes[sources[j]], node, false, newCache);
             }
         }
 
@@ -86,10 +82,10 @@ export default class NFPStore {
         this.#individual = null;
     }
 
-    public getPlacementData(area: number): ArrayBuffer[] {
+    public getPlacementData(inputNodes: PolygonNode[], area: number): ArrayBuffer[] {
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
-        const nodes = NFPStore.rotateNodes(this.#individual.placement);
+        const nodes = NFPStore.rotateNodes(this.#individual.placement.map(source => inputNodes[source]));
         const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 4 + bufferSize);
         const view = new DataView(buffer);
 
@@ -145,7 +141,7 @@ export default class NFPStore {
 
     private static cloneNodes(nodes: PolygonNode[]): PolygonNode[] {
         const result: PolygonNode[] = [];
-        
+
         for (let i = 0; i < nodes.length; ++i) {
             const node = nodes[i];
 

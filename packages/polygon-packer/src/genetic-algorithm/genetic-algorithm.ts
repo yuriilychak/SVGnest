@@ -29,10 +29,10 @@ export default class GeneticAlgorithm {
             angles.push(this.randomAngle(adam[i]));
         }
 
-        this.#population.push(new Phenotype(adam, angles));
+        this.#population.push(new Phenotype(adam.map(node => node.source), angles));
 
         while (this.#population.length < config.populationSize) {
-            mutant = this.mutate(this.#population[0]);
+            mutant = this.mutate(nodes, this.#population[0]);
             this.#population.push(mutant);
         }
     }
@@ -45,7 +45,7 @@ export default class GeneticAlgorithm {
     }
 
     // returns a mutated individual with the given mutation rate
-    private mutate(individual: Phenotype): Phenotype {
+    private mutate(nodes: PolygonNode[], individual: Phenotype): Phenotype {
         const clone: Phenotype = individual.clone();
         const size: number = clone.size;
         let i: number = 0;
@@ -56,7 +56,7 @@ export default class GeneticAlgorithm {
             }
 
             if (this.getMutate()) {
-                clone.rotation[i] = this.randomAngle(clone.placement[i]);
+                clone.rotation[i] = this.randomAngle(nodes[clone.placement[i]]);
             }
         }
 
@@ -137,7 +137,7 @@ export default class GeneticAlgorithm {
         return 0;
     }
 
-    public get individual(): Phenotype {
+    public getIndividual(nodes: PolygonNode[]): Phenotype {
         // evaluate all members of the population
         for (let i = 0; i < this.#population.length; ++i) {
             if (!this.#population[i].fitness) {
@@ -160,10 +160,10 @@ export default class GeneticAlgorithm {
             const children = this.mate(male, female);
 
             // slightly mutate children
-            result.push(this.mutate(children[0]));
+            result.push(this.mutate(nodes, children[0]));
 
             if (result.length < this.#population.length) {
-                result.push(this.mutate(children[1]));
+                result.push(this.mutate(nodes, children[1]));
             }
         }
 
