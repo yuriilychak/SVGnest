@@ -1,18 +1,18 @@
 import { mid_value_f64, almost_equal } from 'wasm-nesting';
-import { ANGLE_CACHE, TOL_F64 } from '../../constants';
-import type { Point, TypedArray } from '../../types';
+import { ANGLE_CACHE, TOL_F32, TOL_F64 } from '../constants';
+import type { Point, TypedArray } from '../types';
 
-export default abstract class PointBase<T extends TypedArray> implements Point<T> {
-    private memSeg: T;
+export default class PointF32 implements Point<Float32Array> {
+    private memSeg: Float32Array;
 
     private offset: number;
 
-    public constructor(data: T, offset: number = 0) {
+    public constructor(data: Float32Array, offset: number = 0) {
         this.memSeg = data;
         this.offset = offset;
     }
 
-    public bind(data: T, offset: number = 0): this {
+    public bind(data: Float32Array, offset: number = 0): this {
         this.memSeg = data;
         this.offset = offset;
 
@@ -156,19 +156,6 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return this.set(-this.x, -this.y);
     }
 
-    public almostEqual(point: Point, tolerance: number = TOL_F64): boolean {
-        return this.almostEqualX(point, tolerance) && this.almostEqualY(point, tolerance);
-    }
-
-    public almostEqualX(point: Point, tolerance: number = TOL_F64): boolean {
-        return almost_equal(this.x, point.x, tolerance);
-    }
-
-    public almostEqualY(point: Point, tolerance: number = TOL_F64): boolean {
-        return almost_equal(this.y, point.y, tolerance);
-    }
-
-
     public interpolateX(beginPoint: Point, endPoint: Point): number {
         return ((beginPoint.x - endPoint.x) * (this.y - endPoint.y)) / (beginPoint.y - endPoint.y) + endPoint.x;
     }
@@ -177,23 +164,21 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return ((beginPoint.y - endPoint.y) * (this.x - endPoint.x)) / (beginPoint.x - endPoint.x) + endPoint.y;
     }
 
-    public export(): T {
-        return this.memSeg.slice(this.offset, this.offset + 2) as T;
+    public export(): Float32Array {
+        return this.memSeg.slice(this.offset, this.offset + 2) as Float32Array;
     }
 
     public rangeTest(useFullRange: boolean): boolean {
         if (useFullRange) {
-            if (Math.abs(this.x) > PointBase.HIGH_RANGE || Math.abs(this.y) > PointBase.HIGH_RANGE) {
+            if (Math.abs(this.x) > PointF32.HIGH_RANGE || Math.abs(this.y) > PointF32.HIGH_RANGE) {
                 console.warn('Coordinate outside allowed range in rangeTest().');
             }
-        } else if (Math.abs(this.x) > PointBase.LOW_RANGE || Math.abs(this.y) > PointBase.LOW_RANGE) {
+        } else if (Math.abs(this.x) > PointF32.LOW_RANGE || Math.abs(this.y) > PointF32.LOW_RANGE) {
             return this.rangeTest(true);
         }
 
         return useFullRange;
     }
-
-    public abstract clone(point?: Point): PointBase<T>;
 
     public closeTo(point: Point, distSqrd: number): boolean {
         return this.len2(point) <= distSqrd;
@@ -270,6 +255,30 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
         return this.x === 0 && this.y === 0;
     }
 
+    public clone(point: Point = null): PointF32 {
+        return PointF32.from(point !== null ? point : this);
+    }
+
+    public almostEqual(point: Point, tolerance: number = TOL_F32): boolean {
+        return this.almostEqualX(point, tolerance) && this.almostEqualY(point, tolerance);
+    }
+
+    public almostEqualX(point: Point, tolerance: number = TOL_F32): boolean {
+        return almost_equal(this.x, point.x, tolerance);
+    }
+
+    public almostEqualY(point: Point, tolerance: number = TOL_F32): boolean {
+        return almost_equal(this.y, point.y, tolerance);
+    }
+
+    public static create(x: number = 0, y: number = 0): PointF32 {
+        return new PointF32(new Float32Array([x, y]));
+    }
+
+    public static from(point: Point = null): PointF32 {
+        return point !== null ? PointF32.create(point.x, point.y) : PointF32.create();
+    }
+
     public static horzSegmentsOverlap(Pt1a: Point, Pt1b: Point, Pt2a: Point, Pt2b: Point): boolean {
         //precondition: both segments are horizontal
         return (
@@ -291,19 +300,19 @@ export default abstract class PointBase<T extends TypedArray> implements Point<T
     // or null if there are no intersections or other numerical error
     // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
     public static lineIntersect(A: Point, B: Point, E: Point, F: Point): boolean {
-        const [a1, b1, c1] = PointBase.lineEquation(A, B);
-        const [a2, b2, c2] = PointBase.lineEquation(E, F);
+        const [a1, b1, c1] = PointF32.lineEquation(A, B);
+        const [a2, b2, c2] = PointF32.lineEquation(E, F);
         const denom = a1 * b2 - a2 * b1;
         const x = (b1 * c2 - b2 * c1) / denom;
         const y = (a2 * c1 - a1 * c2) / denom;
-    
+
         // lines are colinear
         /* var crossABE = (E.y - A.y) * (B.x - A.x) - (E.x - A.x) * (B.y - A.y);
             var crossABF = (F.y - A.y) * (B.x - A.x) - (F.x - A.x) * (B.y - A.y);
             if(_almostEqual(crossABE,0) && _almostEqual(crossABF,0)){
                 return null;
             }*/
-    
+
         return (isFinite(x) && isFinite(y)) &&
             // coincident points do not count as intersecting
             (A.almostEqualX(B) || mid_value_f64(x, A.x, B.x) <= 0) &&

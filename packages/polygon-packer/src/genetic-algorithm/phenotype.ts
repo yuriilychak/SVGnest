@@ -24,9 +24,8 @@ export default class Phenotype {
     public contains(polygon: PolygonNode): boolean {
         const id: number = polygon.source;
         const size: number = this.size;
-        let i: number = 0;
 
-        for (i = 0; i < size; ++i) {
+        for (let i = 0; i < size; ++i) {
             if (this.#placement[i].source === id) {
                 return true;
             }

@@ -1,26 +1,19 @@
-import { PolygonF32 } from '../geometry';
-import { BoundRectF32, NestConfig, PolygonNode } from '../types';
+import { BoundRectF32, PolygonF32 } from '../geometry';
+import { NestConfig, PolygonNode } from '../types';
 import Phenotype from './phenotype';
 export default class GeneticAlgorithm {
-    #binBounds: BoundRectF32;
+    #binBounds: BoundRectF32 = new BoundRectF32();
 
     #population: Phenotype[] = [];
-
-    #isEmpty: boolean = true;
 
     #rotations: number = 0;
 
     #trashold: number = 0;
 
     public init(nodes: PolygonNode[], bounds: BoundRectF32, config: NestConfig): void {
-        if (!this.#isEmpty) {
-            return;
-        }
-
         this.#rotations = config.rotations;
         this.#trashold = 0.01 * config.mutationRate;
-        this.#isEmpty = false;
-        this.#binBounds = bounds;
+        this.#binBounds.update(bounds.position, bounds.size);
 
         // initiate new GA
         const polygon: PolygonF32 = new PolygonF32();
@@ -42,10 +35,9 @@ export default class GeneticAlgorithm {
         // population is an array of individuals. Each individual is a object representing the
         // order of insertion and the angle each part is rotated
         const angles: number[] = [];
-        let i: number = 0;
         let mutant: Phenotype = null;
 
-        for (i = 0; i < adam.length; ++i) {
+        for (let i = 0; i < adam.length; ++i) {
             angles.push(this.randomAngle(polygon, adam[i]));
         }
 
@@ -56,11 +48,11 @@ export default class GeneticAlgorithm {
             this.#population.push(mutant);
         }
     }
+
     public clean(): void {
-        this.#isEmpty = true;
         this.#rotations = 0;
         this.#trashold = 0;
-        this.#binBounds = null;
+        this.#binBounds.clean();
         this.#population.length = 0;
     }
 

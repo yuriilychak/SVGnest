@@ -1,8 +1,10 @@
 import { polygon_area, abs_polygon_area, cycle_index_wasm } from 'wasm-nesting';
-import type { BoundRect, Point, Polygon, TypedArray } from '../../types';
+import type { BoundRect, Point, Polygon } from '../types';
+import BoundRectF32 from './bound-rect-f32';
+import PointF32 from './point-f32';
 
-export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
-    private memSeg: T;
+export default class PolygonF32 implements Polygon<Float32Array> {
+    private memSeg: Float32Array;
 
     private offset: number;
 
@@ -12,22 +14,22 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
 
     private closedDirty: boolean;
 
-    private point: Point<T>;
+    private point: Point<Float32Array>;
 
     private rectangle: boolean;
 
-    private bounds: BoundRect<T>;
+    private bounds: BoundRect<Float32Array>;
 
-    protected constructor(point: Point<T>, bounds: BoundRect<T>) {
-        this.point = point;
+    constructor() {
+        this.point = PointF32.create();
         this.closed = false;
         this.pointCount = 0;
         this.offset = 0;
         this.rectangle = false;
-        this.bounds = bounds;
+        this.bounds = new BoundRectF32();
     }
 
-    public bind(data: T, offset: number = 0, pointCount: number = data.length >> 1): void {
+    public bind(data: Float32Array, offset: number = 0, pointCount: number = data.length >> 1): void {
         this.closedDirty = false;
         this.rectangle = false;
         this.closed = false;
@@ -61,7 +63,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
         this.calculateBounds();
     }
 
-    public at(index: number): Point<T> | null {
+    public at(index: number): Point<Float32Array> | null {
         if (index >= this.length) {
             return null;
         }
@@ -71,8 +73,8 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
         return this.point.bind(this.memSeg, this.getPointOffset(pointIndex));
     }
 
-    public export(): T {
-        return this.memSeg.slice(this.offset, this.offset + (this.pointCount << 1)) as T;
+    public export(): Float32Array {
+        return this.memSeg.slice(this.offset, this.offset + (this.pointCount << 1)) as Float32Array;
     }
 
     public pointIn(point: Point, offset: Point = null): boolean {
@@ -151,12 +153,12 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
         }
     }
 
-    public exportBounds(): BoundRect<T> {
+    public exportBounds(): BoundRect<Float32Array> {
         return this.bounds.clone();
     }
 
     public resetPosition(): void {
-        const position: Point<T> = this.position.clone();
+        const position: Point<Float32Array> = this.position.clone();
         const binSize = this.length;
         let i: number = 0;
 
@@ -168,10 +170,10 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
     }
 
     // remove duplicate endpoints, ensure counterclockwise winding direction
-    public normalize(): T {
+    public normalize(): Float32Array {
         let pointCount: number = this.pointCount;
-        const first: Point<T> = this.first.clone();
-        const last: Point<T> = this.last.clone();
+        const first: Point<Float32Array> = this.first.clone();
+        const last: Point<Float32Array> = this.last.clone();
 
         while (first.almostEqual(last)) {
             --pointCount;
@@ -180,7 +182,7 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
 
         if (this.pointCount !== pointCount) {
             this.pointCount = pointCount;
-            this.memSeg = this.memSeg.slice(this.offset, this.offset + (pointCount << 1)) as T;
+            this.memSeg = this.memSeg.slice(this.offset, this.offset + (pointCount << 1)) as Float32Array;
         }
 
         if (this.area > 0) {
@@ -199,14 +201,14 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
             return;
         }
 
-        const point1: Point<T> = this.first.clone();
-        const point2: Point<T> = this.last.clone();
+        const point1: Point<Float32Array> = this.first.clone();
+        const point2: Point<Float32Array> = this.last.clone();
 
         this.closed = point1.almostEqual(point2);
 
         const pointCount: number = this.pointCount;
         let i: number = 0;
-        let point: Point<T> = null;
+        let point: Point<Float32Array> = null;
 
         for (i = 0; i < pointCount; ++i) {
             point = this.at(i);
@@ -241,11 +243,11 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
         return this.pointCount + offset;
     }
 
-    public get first(): Point<T> {
+    public get first(): Point<Float32Array> {
         return this.at(0);
     }
 
-    public get last(): Point<T> {
+    public get last(): Point<Float32Array> {
         return this.at(cycle_index_wasm(this.length, this.pointCount, -1));
     }
 
@@ -265,8 +267,8 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
     // a negative area indicates counter-clockwise winding direction
     public get area(): number {
         const pointCount = this.pointCount;
-        const prevPoint: Point<T> = this.point.clone();
-        const currPoint: Point<T> = this.point.clone();
+        const prevPoint: Point<Float32Array> = this.point.clone();
+        const currPoint: Point<Float32Array> = this.point.clone();
         let result: number = 0;
         let i: number = 0;
 
@@ -283,11 +285,11 @@ export default class PolygonBase<T extends TypedArray> implements Polygon<T> {
         return abs_polygon_area(Float32Array.from(this.memSeg.slice(this.offset, this.offset + (this.pointCount << 1))));
     }
 
-    public get position(): Point<T> {
+    public get position(): Point<Float32Array> {
         return this.bounds.position;
     }
 
-    public get size(): Point<T> {
+    public get size(): Point<Float32Array> {
         return this.bounds.size;
     }
 }

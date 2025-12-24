@@ -1,9 +1,9 @@
 import { get_u16_from_u32 } from 'wasm-nesting';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import NFPStore from './nfp-store';
-import { BoundRectF32, NestConfig, PolygonNode } from './types';
+import { NestConfig, PolygonNode } from './types';
 import { readUint32FromF32 } from './helpers';
-import { PolygonF32 } from './geometry';
+import { PolygonF32, BoundRectF32 } from './geometry';
 import { generateTree, generateBounds } from './clipper-wrapper';
 
 export default class WasmPacker {
@@ -39,10 +39,10 @@ export default class WasmPacker {
         this.#binArea = binData.area;
         this.#nodes = generateTree(polygons, configuration.spacing, configuration.curveTolerance);
         this.#config = configuration;
+        this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, this.#config);
     }
 
     public getPairs(): ArrayBuffer[] {
-        this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, this.#config);
         this.#nfpStore.init(this.#geneticAlgorithm.individual, this.#binNode, this.#config);
 
         return this.#nfpStore.nfpPairs;

@@ -7,13 +7,6 @@ export type NestConfig = {
     useHoles: boolean;
 };
 
-export type BoundRectF32 = {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-};
-
 export enum THREAD_TYPE {
     PLACEMENT = 1,
     PAIR = 0
@@ -126,6 +119,8 @@ export interface BoundRect<T extends TypedArray> {
     clone(): BoundRect<T>;
 
     update(position: Point, size: Point): void;
+
+    clean(): void;
 
     readonly position: Point<T>;
 
