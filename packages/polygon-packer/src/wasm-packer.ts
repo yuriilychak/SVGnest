@@ -43,7 +43,7 @@ export default class WasmPacker {
 
     public getPairs(): ArrayBuffer[] {
         const individual = this.#geneticAlgorithm.getIndividual(this.#nodes);
-        this.#nfpStore.init(this.#nodes, individual, this.#binNode, this.#config);
+        this.#nfpStore.init(this.#nodes, this.#binNode, this.#config, individual.source, individual.placement, individual.rotation);
 
         return this.#nfpStore.nfpPairs;
     }
@@ -62,7 +62,8 @@ export default class WasmPacker {
         let i: number = 0;
         let placementsData: Float32Array = new Float32Array(placements[0]);
         let currentPlacement: Float32Array = null;
-        this.#nfpStore.fitness = placementsData[0];
+
+        this.#geneticAlgorithm.updateFitness(this.#nfpStore.phenotypeSource, placementsData[0]);
 
         for (i = 1; i < placements.length; ++i) {
             currentPlacement = new Float32Array(placements[i]);

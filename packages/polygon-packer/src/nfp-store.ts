@@ -1,5 +1,4 @@
 import { rotate_polygon_wasm } from 'wasm-nesting';
-import { Phenotype } from './genetic-algorithm';
 import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE } from './types';
 import { serializeMapToBuffer, serializePolygonNodes, serializeConfig, generateNFPCacheKey } from './helpers';
 
@@ -8,24 +7,25 @@ export default class NFPStore {
 
     #nfpPairs: ArrayBuffer[] = [];
 
-    #individual: Phenotype = null;
+    #sources: number[] = [];
+
+    #phenotypeSource: number = 0;
 
     #angleSplit: number = 0;
 
     #configCompressed: number = 0;
 
-    public init(nodes: PolygonNode[], individual: Phenotype, binNode: PolygonNode, config: NestConfig): void {
+    public init(nodes: PolygonNode[], binNode: PolygonNode, config: NestConfig, phenotypeSource: number, sources: number[], rotations: number[]): void {
         this.#configCompressed = serializeConfig(config);
-        this.#individual = individual;
+        this.#phenotypeSource = phenotypeSource;
+        this.#sources = sources.slice();
         this.#angleSplit = config.rotations;
         this.#nfpPairs = [];
 
-        const sources = this.#individual.placement;
-        const rotations: number[] = this.#individual.rotation;
         const newCache: NFPCache = new Map<number, ArrayBuffer>();
 
-        for (let i = 0; i < sources.length; ++i) {
-            const node = nodes[sources[i]];
+        for (let i = 0; i < this.#sources.length; ++i) {
+            const node = nodes[this.#sources[i]];
             node.rotation = rotations[i];
 
             this.updateCache(binNode, node, true, newCache);
@@ -79,13 +79,16 @@ export default class NFPStore {
     public clean(): void {
         this.#nfpCache.clear();
         this.#nfpPairs = [];
-        this.#individual = null;
+        this.#sources = [];
+        this.#phenotypeSource = 0;
+        this.#angleSplit = 0;
+        this.#configCompressed = 0;
     }
 
     public getPlacementData(inputNodes: PolygonNode[], area: number): ArrayBuffer[] {
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
-        const nodes = NFPStore.rotateNodes(this.#individual.placement.map(source => inputNodes[source]));
+        const nodes = NFPStore.rotateNodes(this.#sources.map(source => inputNodes[source]));
         const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 4 + bufferSize);
         const view = new DataView(buffer);
 
@@ -104,15 +107,11 @@ export default class NFPStore {
     }
 
     public get placementCount(): number {
-        return this.#individual.placement.length;
+        return this.#sources.length;
     }
 
-    public get fitness(): number {
-        return this.#individual.fitness;
-    }
-
-    public set fitness(value: number) {
-        this.#individual.fitness = value;
+    public get phenotypeSource(): number {
+        return this.#phenotypeSource;
     }
 
     private static rotateNodes(nodes: PolygonNode[]): PolygonNode[] {
@@ -132,9 +131,8 @@ export default class NFPStore {
         rootNode.memSeg = rotate_polygon_wasm(rootNode.memSeg, rotation);
 
         const childCount: number = rootNode.children.length;
-        let i: number = 0;
 
-        for (i = 0; i < childCount; ++i) {
+        for (let i = 0; i < childCount; ++i) {
             NFPStore.rotateNode(rootNode.children[i], rotation);
         }
     }

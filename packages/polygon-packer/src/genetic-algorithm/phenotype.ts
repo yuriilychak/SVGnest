@@ -1,22 +1,25 @@
 export default class Phenotype {
+    #source: number;
+
     #rotations: number[];
 
     #placement: number[];
 
     #fitness: number;
 
-    constructor(placement: number[], rotation: number[]) {
+    constructor(source: number, placement: number[], rotation: number[]) {
+        this.#source = source;
         this.#placement = placement;
         this.#rotations = rotation;
         this.#fitness = 0;
     }
 
-    public cut(cutPoint: number): Phenotype {
-        return new Phenotype(this.#placement.slice(0, cutPoint), this.#rotations.slice(0, cutPoint));
+    public cut(source: number, cutPoint: number): Phenotype {
+        return new Phenotype(source, this.#placement.slice(0, cutPoint), this.#rotations.slice(0, cutPoint));
     }
 
-    public clone(): Phenotype {
-        return new Phenotype(this.#placement.slice(), this.#rotations.slice());
+    public clone(source: number): Phenotype {
+        return new Phenotype(source, this.#placement.slice(), this.#rotations.slice());
     }
 
     public contains(source: number): boolean {
@@ -84,5 +87,9 @@ export default class Phenotype {
 
     public set fitness(value: number) {
         this.#fitness = value;
+    }
+
+    public get source(): number {
+        return this.#source;
     }
 }

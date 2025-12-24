@@ -11,6 +11,8 @@ export default class GeneticAlgorithm {
 
     #trashold: number = 0;
 
+    #currentSource: number = 0;
+
     public init(nodes: PolygonNode[], bounds: BoundRectF32, config: NestConfig): void {
         this.#rotations = config.rotations;
         this.#trashold = 0.01 * config.mutationRate;
@@ -29,7 +31,9 @@ export default class GeneticAlgorithm {
             angles.push(this.randomAngle(adam[i]));
         }
 
-        this.#population.push(new Phenotype(adam.map(node => node.source), angles));
+        this.#population.push(new Phenotype(this.#currentSource, adam.map(node => node.source), angles));
+
+        this.#currentSource += 1;
 
         while (this.#population.length < config.populationSize) {
             mutant = this.mutate(nodes, this.#population[0]);
@@ -42,11 +46,14 @@ export default class GeneticAlgorithm {
         this.#trashold = 0;
         this.#binBounds.clean();
         this.#population.length = 0;
+        this.#currentSource = 0;
     }
 
     // returns a mutated individual with the given mutation rate
     private mutate(nodes: PolygonNode[], individual: Phenotype): Phenotype {
-        const clone: Phenotype = individual.clone();
+        const clone: Phenotype = individual.clone(this.#currentSource);
+
+        this.#currentSource += 1;
         const size: number = clone.size;
         let i: number = 0;
 
@@ -66,8 +73,9 @@ export default class GeneticAlgorithm {
     // single point crossover
     private mate(male: Phenotype, female: Phenotype): Phenotype[] {
         const cutPoint: number = male.cutPoint;
-        const result: Phenotype[] = [male.cut(cutPoint), female.cut(cutPoint)];
+        const result: Phenotype[] = [male.cut(this.#currentSource, cutPoint), female.cut(this.#currentSource + 1, cutPoint)];
 
+        this.#currentSource += 2;
         result[0].mate(female);
         result[1].mate(male);
 
@@ -170,6 +178,17 @@ export default class GeneticAlgorithm {
         this.#population = result;
 
         return this.#population[1];
+    }
+
+    public updateFitness(source: number, fitness: number): void {
+        const size: number = this.#population.length;
+
+        for (let i = 0; i < size; ++i) {
+            if (this.#population[i].source === source) {
+                this.#population[i].fitness = fitness;  
+                break;
+            }
+        }
     }
 
     private getMutate(): boolean {
