@@ -1,9 +1,9 @@
-import { get_u16_from_u32 } from 'wasm-nesting';
+import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import NFPStore from './nfp-store';
 import { NestConfig, PolygonNode } from './types';
 import { readUint32FromF32 } from './helpers';
-import { PolygonF32, BoundRectF32 } from './geometry';
+import { BoundRectF32 } from './geometry';
 import { generateTree, generateBounds } from './clipper-wrapper';
 
 export default class WasmPacker {
@@ -80,7 +80,6 @@ export default class WasmPacker {
             this.#best = placementsData;
 
             const binArea: number = Math.abs(this.#binArea);
-            const polygon: PolygonF32 = new PolygonF32();
             const placementCount = placementsData[1];
             let placedCount: number = 0;
             let placedArea: number = 0;
@@ -101,8 +100,7 @@ export default class WasmPacker {
 
                 for (j = 0; j < size; ++j) {
                     pathId = get_u16_from_u32(readUint32FromF32(placementsData, offset + j), 1);
-                    polygon.bind(this.#nodes[pathId].memSeg);
-                    placedArea += polygon.absArea;
+                    placedArea += abs_polygon_area(this.#nodes[pathId].memSeg);
                 }
             }
 

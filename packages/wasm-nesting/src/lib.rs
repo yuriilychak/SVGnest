@@ -28,6 +28,24 @@ pub fn abs_polygon_area(points: &[f32]) -> f64 {
 }
 
 #[wasm_bindgen]
+pub fn rotate_polygon_wasm(polygon: &[f32], angle: f32) -> Float32Array {
+    let mut result = polygon.to_vec();
+    f32::rotate_polygon(&mut result, angle);
+    let out = Float32Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
+}
+
+#[wasm_bindgen]
+pub fn calculate_bounds_wasm(polygon: &[f32]) -> Float32Array {
+    let size = polygon.len() >> 1;
+    let bounds = f32::calculate_bounds(polygon, 0, size);
+    let out = Float32Array::new_with_length(4);
+    out.copy_from(&bounds);
+    out
+}
+
+#[wasm_bindgen]
 pub fn almost_equal(a: f64, b: f64, tolerance: f64) -> bool {
     a.almost_equal(b, Some(tolerance))
 }

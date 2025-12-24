@@ -1,50 +1,34 @@
-import type { BoundRect, Point } from '../types';
-import PointF32 from './point-f32';
+import type { BoundRect } from '../types';
 
 export default class BoundRectF32 implements BoundRect<Float32Array> {
-    private _memSeg: Float32Array;
+    public x: number;
 
-    private _position: Point<Float32Array>;
+    public y: number;
 
-    private _size: Point<Float32Array>;
+    public width: number;
+
+    public height: number;
 
     constructor(x: number = 0, y: number = 0, width: number = 0, height: number = 0) {
-        this._memSeg = new Float32Array([x, y, width, height]);
-        this._position = new PointF32(this._memSeg, 0);
-        this._size = new PointF32(this._memSeg, 2);
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
     }
 
-    public update(position: Point<Float32Array>, size: Point<Float32Array>): void {
-        this._position.update(position);
-        this._size.update(size);
-    }
+    public from(rect: BoundRectF32): void {
+        this.x = rect.x;
+        this.y = rect.y;
+        this.width = rect.width;
+        this.height = rect.height;
 
-    public get position(): Point<Float32Array> {
-        return this._position;
-    }
-
-    public get size(): Point<Float32Array> {
-        return this._size;
-    }
-
-    public get x(): number {
-        return this._position.x;
-    }
-
-    public get y(): number {
-        return this._position.y;
-    }
-
-    public get width(): number {
-        return this._size.x;
-    }
-
-    public get height(): number {
-        return this._size.y;
     }
 
     public clean(): void {
-        this._memSeg.fill(0);
+        this.x = 0;
+        this.y = 0;
+        this.width = 0;
+        this.height = 0
     }
 
     public clone(): BoundRectF32 {

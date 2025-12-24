@@ -1,4 +1,4 @@
-import { PolygonF32 } from './geometry';
+import { rotate_polygon_wasm } from 'wasm-nesting';
 import { Phenotype } from './genetic-algorithm';
 import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE } from './types';
 import { serializeMapToBuffer, serializePolygonNodes, serializeConfig, generateNFPCacheKey } from './helpers';
@@ -20,7 +20,6 @@ export default class NFPStore {
         this.#angleSplit = config.rotations;
         this.#nfpPairs = [];
 
-        const polygon: PolygonF32 = new PolygonF32();
         const nodes: PolygonNode[] = this.#individual.placement;
         const rotations: number[] = this.#individual.rotation;
         const placeCount: number = nodes.length;
@@ -33,10 +32,10 @@ export default class NFPStore {
             node = nodes[i];
             node.rotation = rotations[i];
 
-            this.updateCache(polygon, binNode, node, true, newCache);
+            this.updateCache(binNode, node, true, newCache);
 
             for (j = 0; j < i; ++j) {
-                this.updateCache(polygon, nodes[j], node, false, newCache);
+                this.updateCache(nodes[j], node, false, newCache);
             }
         }
 
@@ -63,11 +62,11 @@ export default class NFPStore {
         }
     }
 
-    private updateCache(polygon: PolygonF32, node1: PolygonNode, node2: PolygonNode, inside: boolean, newCache: NFPCache): void {
+    private updateCache(node1: PolygonNode, node2: PolygonNode, inside: boolean, newCache: NFPCache): void {
         const key: number = generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
 
         if (!this.#nfpCache.has(key)) {
-            const nodes = NFPStore.rotateNodes(polygon, [node1, node2]);
+            const nodes = NFPStore.rotateNodes([node1, node2]);
             const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 3);
             const view: DataView = new DataView(buffer);
 
@@ -88,10 +87,9 @@ export default class NFPStore {
     }
 
     public getPlacementData(area: number): ArrayBuffer[] {
-        const polygon: PolygonF32 = new PolygonF32();
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
-        const nodes = NFPStore.rotateNodes(polygon, this.#individual.placement);
+        const nodes = NFPStore.rotateNodes(this.#individual.placement);
         const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 4 + bufferSize);
         const view = new DataView(buffer);
 
@@ -121,28 +119,27 @@ export default class NFPStore {
         this.#individual.fitness = value;
     }
 
-    private static rotateNodes(polygon: PolygonF32, nodes: PolygonNode[]): PolygonNode[] {
+    private static rotateNodes(nodes: PolygonNode[]): PolygonNode[] {
         const result: PolygonNode[] = NFPStore.cloneNodes(nodes);
 
         const nodeCount: number = result.length;
         let i: number = 0;
 
         for (i = 0; i < nodeCount; ++i) {
-            NFPStore.rotateNode(polygon, result[i], result[i].rotation);
+            NFPStore.rotateNode(result[i], result[i].rotation);
         }
 
         return result;
     }
 
-    private static rotateNode(polygon: PolygonF32, rootNode: PolygonNode, rotation: number): void {
-        polygon.bind(rootNode.memSeg);
-        polygon.rotate(rotation);
+    private static rotateNode(rootNode: PolygonNode, rotation: number): void {
+        rootNode.memSeg = rotate_polygon_wasm(rootNode.memSeg, rotation);
 
         const childCount: number = rootNode.children.length;
         let i: number = 0;
 
         for (i = 0; i < childCount; ++i) {
-            NFPStore.rotateNode(polygon, rootNode.children[i], rotation);
+            NFPStore.rotateNode(rootNode.children[i], rotation);
         }
     }
 

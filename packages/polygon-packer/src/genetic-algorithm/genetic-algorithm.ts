@@ -1,5 +1,5 @@
-import { abs_polygon_area } from 'wasm-nesting';
-import { BoundRectF32, PolygonF32 } from '../geometry';
+import { abs_polygon_area, rotate_polygon_wasm, calculate_bounds_wasm } from 'wasm-nesting';
+import { BoundRectF32 } from '../geometry';
 import { NestConfig, PolygonNode } from '../types';
 import Phenotype from './phenotype';
 export default class GeneticAlgorithm {
@@ -14,10 +14,9 @@ export default class GeneticAlgorithm {
     public init(nodes: PolygonNode[], bounds: BoundRectF32, config: NestConfig): void {
         this.#rotations = config.rotations;
         this.#trashold = 0.01 * config.mutationRate;
-        this.#binBounds.update(bounds.position, bounds.size);
+        this.#binBounds.from(bounds);
 
         // initiate new GA
-        const polygon: PolygonF32 = new PolygonF32();
         const adam: PolygonNode[] = nodes.slice();
 
         adam.sort((a, b) => abs_polygon_area(b.memSeg) - abs_polygon_area(a.memSeg));
@@ -27,7 +26,7 @@ export default class GeneticAlgorithm {
         let mutant: Phenotype = null;
 
         for (let i = 0; i < adam.length; ++i) {
-            angles.push(this.randomAngle(polygon, adam[i]));
+            angles.push(this.randomAngle(adam[i]));
         }
 
         this.#population.push(new Phenotype(adam, angles));
@@ -47,7 +46,6 @@ export default class GeneticAlgorithm {
 
     // returns a mutated individual with the given mutation rate
     private mutate(individual: Phenotype): Phenotype {
-        const polygon: PolygonF32 = new PolygonF32();
         const clone: Phenotype = individual.clone();
         const size: number = clone.size;
         let i: number = 0;
@@ -58,7 +56,7 @@ export default class GeneticAlgorithm {
             }
 
             if (this.getMutate()) {
-                clone.rotation[i] = this.randomAngle(polygon, clone.placement[i]);
+                clone.rotation[i] = this.randomAngle(clone.placement[i]);
             }
         }
 
@@ -107,7 +105,7 @@ export default class GeneticAlgorithm {
     }
 
     // returns a random angle of insertion
-    private randomAngle(polygon: PolygonF32, node: PolygonNode): number {
+    private randomAngle(node: PolygonNode): number {
         const lastIndex: number = this.#rotations - 1;
         const angles: number[] = [];
         const step: number = 360 / this.#rotations;
@@ -127,11 +125,11 @@ export default class GeneticAlgorithm {
         }
 
         for (i = 0; i < this.#rotations; ++i) {
-            polygon.bind(node.memSeg.slice());
-            polygon.rotate(angles[i]);
+            const rotated = rotate_polygon_wasm(node.memSeg, angles[i]);
+            const bounds = calculate_bounds_wasm(rotated);
 
             // don't use obviously bad angles where the part doesn't fit in the bin
-            if (polygon.size.x < this.#binBounds.width && polygon.size.y < this.#binBounds.height) {
+            if (bounds[2] < this.#binBounds.width && bounds[3] < this.#binBounds.height) {
                 return angles[i];
             }
         }
