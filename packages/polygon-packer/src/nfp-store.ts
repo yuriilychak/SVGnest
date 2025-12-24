@@ -145,12 +145,9 @@ export default class NFPStore {
 
     private static cloneNodes(nodes: PolygonNode[]): PolygonNode[] {
         const result: PolygonNode[] = [];
-        const nodeCount: number = nodes.length;
-        let node: PolygonNode = null;
-        let i: number = 0;
-
-        for (i = 0; i < nodeCount; ++i) {
-            node = nodes[i];
+        
+        for (let i = 0; i < nodes.length; ++i) {
+            const node = nodes[i];
 
             result.push({
                 ...node,

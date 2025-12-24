@@ -138,11 +138,8 @@ export default class GeneticAlgorithm {
     }
 
     public get individual(): Phenotype {
-        const populationSize: number = this.#population.length;
-        let i: number = 0;
-
         // evaluate all members of the population
-        for (i = 0; i < populationSize; ++i) {
+        for (let i = 0; i < this.#population.length; ++i) {
             if (!this.#population[i].fitness) {
                 return this.#population[i];
             }
@@ -154,22 +151,18 @@ export default class GeneticAlgorithm {
 
         // fittest individual is preserved in the new generation (elitism)
         const result: Phenotype[] = [this.#population[0]];
-        const currentSize: number = this.#population.length;
-        let male: Phenotype = null;
-        let female: Phenotype = null;
-        let children: Phenotype[] = null;
 
-        while (result.length < currentSize) {
-            male = this.randomWeightedIndividual();
-            female = this.randomWeightedIndividual(male);
+        while (result.length < this.#population.length) {
+            const male = this.randomWeightedIndividual();
+            const female = this.randomWeightedIndividual(male);
 
             // each mating produces two children
-            children = this.mate(male, female);
+            const children = this.mate(male, female);
 
             // slightly mutate children
             result.push(this.mutate(children[0]));
 
-            if (result.length < currentSize) {
+            if (result.length < this.#population.length) {
                 result.push(this.mutate(children[1]));
             }
         }
