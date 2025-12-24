@@ -3,7 +3,9 @@ import { BoundRectF32 } from '../geometry';
 import { f32, isize, NestConfig, PolygonNode, u16, usize, u8 } from '../types';
 import Phenotype from './phenotype';
 export default class GeneticAlgorithm {
-    #binBounds: BoundRectF32 = new BoundRectF32();
+    #binWidth: f32 = 0;
+
+    #binHeight: f32 = 0;
 
     #population: Phenotype[] = [];
 
@@ -16,7 +18,8 @@ export default class GeneticAlgorithm {
     public init(nodes: PolygonNode[], bounds: BoundRectF32, config: NestConfig): void {
         this.#rotations = config.rotations;
         this.#trashold = 0.01 * config.mutationRate;
-        this.#binBounds.from(bounds);
+        this.#binWidth = bounds.width
+        this.#binHeight = bounds.height;
 
         // initiate new GA
         const adam: PolygonNode[] = nodes.slice();
@@ -44,7 +47,8 @@ export default class GeneticAlgorithm {
     public clean(): void {
         this.#rotations = 0;
         this.#trashold = 0;
-        this.#binBounds.clean();
+        this.#binWidth = 0;
+        this.#binHeight = 0;
         this.#population.length = 0;
         this.#currentSource = 0;
     }
@@ -132,7 +136,7 @@ export default class GeneticAlgorithm {
             const bounds = calculate_bounds_wasm(rotated);
 
             // don't use obviously bad angles where the part doesn't fit in the bin
-            if (bounds[2] < this.#binBounds.width && bounds[3] < this.#binBounds.height) {
+            if (bounds[2] < this.#binWidth && bounds[3] < this.#binHeight) {
                 return angles[i];
             }
         }
