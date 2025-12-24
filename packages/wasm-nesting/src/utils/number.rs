@@ -39,6 +39,27 @@ pub trait Number:
     fn abs_polygon_area(points: &[Self]) -> f64 {
         Self::polygon_area(points).abs()
     }
+    fn rotate_polygon(polygon: &mut [Self], angle: Self) {
+        let len = polygon.len();
+        if len < 2 || len & 1 != 0 {
+            return;
+        }
+
+        // Convert degrees to radians
+        let angle_f64 = angle.to_f64().unwrap_or(0.0) * std::f64::consts::PI / 180.0;
+        let sin = Self::from_f64(angle_f64.sin()).unwrap();
+        let cos = Self::from_f64(angle_f64.cos()).unwrap();
+
+        let point_count = len >> 1;
+        for i in 0..point_count {
+            let idx = i << 1;
+            let x = polygon[idx];
+            let y = polygon[idx + 1];
+
+            polygon[idx] = x * cos - y * sin;
+            polygon[idx + 1] = x * sin + y * cos;
+        }
+    }
     fn reverse_polygon(data: &mut [Self], offset: usize, point_count: usize) {
         let half = point_count >> 1;
         let last = point_count - 1;

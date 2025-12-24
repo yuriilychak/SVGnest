@@ -43,6 +43,11 @@ impl<T: Number> BoundRect<T> {
         self.size.y
     }
 
+    pub unsafe fn clean(&mut self) {
+        self.position.set(T::zero(), T::zero());
+        self.size.set(T::zero(), T::zero());
+    }
+
     // Якщо треба clone (глибоке копіювання)
     pub unsafe fn clone(&self) -> Self {
         Self::new(self.x(), self.y(), self.width(), self.height())

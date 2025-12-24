@@ -1,21 +1,5 @@
-import { set_bits_u32, get_u16_from_u32, almost_equal, generate_nfp_cache_key_wasm } from 'wasm-nesting';
-import { TOL_F32, TOL_F64 } from './constants';
+import { set_bits_u32, generate_nfp_cache_key_wasm } from 'wasm-nesting';
 import { NestConfig, NFPCache, PolygonNode } from './types';
-
-export function getUint16(source: number, index: number): number {
-    return get_u16_from_u32(source, index);
-}
-
-export function almostEqual(a: number, b: number = 0, tolerance: number = TOL_F64): boolean {
-    return almost_equal(a, b, tolerance);
-}
-
-export function almostEqualF32(a: number, b: number = 0, tolerance: number = TOL_F32): boolean {
-    const diff = Math.fround(Math.abs(a - b));
-    const scale = Math.fround(Math.max(Math.abs(a), Math.abs(b), 1));
-
-    return diff <= tolerance * scale;
-}
 
 export function generateNFPCacheKey(
     rotationSplit: number,
@@ -31,10 +15,6 @@ export function generateNFPCacheKey(
         polygon2.source,
         polygon2.rotation
     );
-}
-
-export function getPolygonNode(source: number, memSeg: Float32Array): PolygonNode {
-    return { source, rotation: 0, memSeg, children: [] };
 }
 
 function calculateTotalSize(nodes: PolygonNode[], initialSize: number): number {
@@ -157,11 +137,6 @@ export function serializeMapToBuffer(map: NFPCache): ArrayBuffer {
     return resultBuffer;
 }
 
-export function clipperRound(a: number): number {
-    return a < 0 ? -Math.round(Math.abs(a)) : Math.round(a);
-}
-
-
 function getByteOffset(array: Float32Array, index: number): number {
     return (array.byteOffset >>> 0) + index * Float32Array.BYTES_PER_ELEMENT;
 }
@@ -171,11 +146,4 @@ export function readUint32FromF32(array: Float32Array, index: number): number {
     const view = new DataView(array.buffer);
 
     return view.getUint32(byteOffset, true);
-}
-
-export function writeUint32ToF32(array: Float32Array, index: number, value: number): void {
-    const byteOffset = getByteOffset(array, index);
-    const view = new DataView(array.buffer);
-
-    view.setUint32(byteOffset, value >>> 0, true);
 }
