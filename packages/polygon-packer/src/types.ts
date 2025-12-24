@@ -54,3 +54,17 @@ export type PolygonNode = {
 export type CalculateConfig = { pointPool: unknown; isInit: boolean };
 
 export type TypedArray = Float32Array | Float64Array | Uint16Array | Uint8Array | Uint32Array | Int16Array | Int8Array | Int32Array;
+
+export type f32 = number;
+
+export type u32 = number;
+
+export type i32 = number;
+
+export type u16 = number;
+
+export type usize = number;
+
+export type isize = number;
+
+export type u8 = number;

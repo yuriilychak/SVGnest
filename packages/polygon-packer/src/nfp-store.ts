@@ -1,28 +1,28 @@
 import { rotate_polygon_wasm } from 'wasm-nesting';
-import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE } from './types';
+import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE, i32, u16, u32, u8, usize, f32 } from './types';
 import { serializeMapToBuffer, serializePolygonNodes, serializeConfig, generateNFPCacheKey } from './helpers';
 
 export default class NFPStore {
-    #nfpCache: NFPCache = new Map<number, ArrayBuffer>();
+    #nfpCache: NFPCache = new Map<u32, ArrayBuffer>();
 
     #nfpPairs: ArrayBuffer[] = [];
 
-    #sources: number[] = [];
+    #sources: i32[] = [];
 
-    #phenotypeSource: number = 0;
+    #phenotypeSource: u16 = 0;
 
-    #angleSplit: number = 0;
+    #angleSplit: u8 = 0;
 
-    #configCompressed: number = 0;
+    #configCompressed: u32 = 0;
 
-    public init(nodes: PolygonNode[], binNode: PolygonNode, config: NestConfig, phenotypeSource: number, sources: number[], rotations: number[]): void {
+    public init(nodes: PolygonNode[], binNode: PolygonNode, config: NestConfig, phenotypeSource: u16, sources: i32[], rotations: u16[]): void {
         this.#configCompressed = serializeConfig(config);
         this.#phenotypeSource = phenotypeSource;
         this.#sources = sources.slice();
         this.#angleSplit = config.rotations;
         this.#nfpPairs = [];
 
-        const newCache: NFPCache = new Map<number, ArrayBuffer>();
+        const newCache: NFPCache = new Map<u32, ArrayBuffer>();
 
         for (let i = 0; i < this.#sources.length; ++i) {
             const node = nodes[this.#sources[i]];
@@ -40,13 +40,12 @@ export default class NFPStore {
     }
 
     public update(nfps: ArrayBuffer[]): void {
-        const nfpCount: number = nfps.length;
+        const nfpCount: usize = nfps.length;
 
         if (nfpCount !== 0) {
-            let i: number = 0;
-            let view: DataView = null;
+            let view: DataView;
 
-            for (i = 0; i < nfpCount; ++i) {
+            for (let i = 0; i < nfpCount; ++i) {
                 view = new DataView(nfps[i]);
 
                 if (nfps[i].byteLength > Float64Array.BYTES_PER_ELEMENT << 1) {
@@ -59,7 +58,7 @@ export default class NFPStore {
     }
 
     private updateCache(node1: PolygonNode, node2: PolygonNode, inside: boolean, newCache: NFPCache): void {
-        const key: number = generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
+        const key: u32 = generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
 
         if (!this.#nfpCache.has(key)) {
             const nodes = NFPStore.rotateNodes([node1, node2]);
@@ -85,7 +84,7 @@ export default class NFPStore {
         this.#configCompressed = 0;
     }
 
-    public getPlacementData(inputNodes: PolygonNode[], area: number): ArrayBuffer[] {
+    public getPlacementData(inputNodes: PolygonNode[], area: f32): ArrayBuffer[] {
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
         const nodes = NFPStore.rotateNodes(this.#sources.map(source => inputNodes[source]));
@@ -106,31 +105,30 @@ export default class NFPStore {
         return this.#nfpPairs;
     }
 
-    public get placementCount(): number {
+    public get placementCount(): usize {
         return this.#sources.length;
     }
 
-    public get phenotypeSource(): number {
+    public get phenotypeSource(): u16 {
         return this.#phenotypeSource;
     }
 
     private static rotateNodes(nodes: PolygonNode[]): PolygonNode[] {
         const result: PolygonNode[] = NFPStore.cloneNodes(nodes);
 
-        const nodeCount: number = result.length;
-        let i: number = 0;
+        const nodeCount: usize = result.length;
 
-        for (i = 0; i < nodeCount; ++i) {
+        for (let i = 0; i < nodeCount; ++i) {
             NFPStore.rotateNode(result[i], result[i].rotation);
         }
 
         return result;
     }
 
-    private static rotateNode(rootNode: PolygonNode, rotation: number): void {
+    private static rotateNode(rootNode: PolygonNode, rotation: u16): void {
         rootNode.memSeg = rotate_polygon_wasm(rootNode.memSeg, rotation);
 
-        const childCount: number = rootNode.children.length;
+        const childCount: usize = rootNode.children.length;
 
         for (let i = 0; i < childCount; ++i) {
             NFPStore.rotateNode(rootNode.children[i], rotation);

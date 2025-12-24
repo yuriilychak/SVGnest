@@ -1,29 +1,31 @@
+import { f32, u16, i32, usize } from "../types";
+
 export default class Phenotype {
-    #source: number;
+    #source: u16;
 
-    #rotations: number[];
+    #rotations: u16[];
 
-    #placement: number[];
+    #placement: i32[];
 
-    #fitness: number;
+    #fitness: f32;
 
-    constructor(source: number, placement: number[], rotation: number[]) {
+    constructor(source: u16, placement: i32[], rotation: u16[]) {
         this.#source = source;
         this.#placement = placement;
         this.#rotations = rotation;
         this.#fitness = 0;
     }
 
-    public cut(source: number, cutPoint: number): Phenotype {
+    public cut(source: u16, cutPoint: usize): Phenotype {
         return new Phenotype(source, this.#placement.slice(0, cutPoint), this.#rotations.slice(0, cutPoint));
     }
 
-    public clone(source: number): Phenotype {
+    public clone(source: u16): Phenotype {
         return new Phenotype(source, this.#placement.slice(), this.#rotations.slice());
     }
 
-    public contains(source: number): boolean {
-        const size: number = this.size;
+    public contains(source: u16): boolean {
+        const size: usize = this.size;
 
         for (let i = 0; i < size; ++i) {
             if (this.#placement[i] === source) {
@@ -35,11 +37,10 @@ export default class Phenotype {
     }
 
     public mate(phenotype: Phenotype): void {
-        let i: number = 0;
         let placement = phenotype.placement[0];
         let rotation = phenotype.rotation[0];
 
-        for (i = 0; i < phenotype.size; ++i) {
+        for (let i = 0; i < phenotype.size; ++i) {
             placement = phenotype.placement[i];
             rotation = phenotype.rotation[i];
 
@@ -49,7 +50,8 @@ export default class Phenotype {
             }
         }
     }
-    public swap(index: number): boolean {
+
+    public swap(index: usize): boolean {
         const nextIndex = index + 1;
 
         if (nextIndex === this.size) {
@@ -65,31 +67,31 @@ export default class Phenotype {
         return true;
     }
 
-    public get placement(): number[] {
+    public get placement(): i32[] {
         return this.#placement;
     }
 
-    public get rotation(): number[] {
+    public get rotation(): u16[] {
         return this.#rotations;
     }
 
-    public get cutPoint(): number {
+    public get cutPoint(): usize {
         return Math.round(Math.min(Math.max(Math.random(), 0.1), 0.9) * (this.#placement.length - 1));
     }
 
-    public get size(): number {
+    public get size(): usize {
         return this.#placement.length;
     }
 
-    public get fitness(): number {
+    public get fitness(): f32 {
         return this.#fitness;
     }
 
-    public set fitness(value: number) {
+    public set fitness(value: f32) {
         this.#fitness = value;
     }
 
-    public get source(): number {
+    public get source(): u16 {
         return this.#source;
     }
 }
