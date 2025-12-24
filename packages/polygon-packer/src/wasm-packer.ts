@@ -59,13 +59,12 @@ export default class WasmPacker {
             return null;
         }
 
-        let i: number = 0;
         let placementsData: Float32Array = new Float32Array(placements[0]);
         let currentPlacement: Float32Array = null;
 
         this.#geneticAlgorithm.updateFitness(this.#nfpStore.phenotypeSource, placementsData[0]);
 
-        for (i = 1; i < placements.length; ++i) {
+        for (let i = 1; i < placements.length; ++i) {
             currentPlacement = new Float32Array(placements[i]);
             if (currentPlacement[0] < placementsData[0]) {
                 placementsData = currentPlacement;
@@ -89,17 +88,15 @@ export default class WasmPacker {
             let itemData: number = 0;
             let offset: number = 0;
             let size: number = 0;
-            let i: number = 0;
-            let j: number = 0;
 
-            for (i = 0; i < placementCount; ++i) {
+            for (let i = 0; i < placementCount; ++i) {
                 totalArea += binArea;
                 itemData = readUint32FromF32(placementsData, 2 + i);
                 offset = get_u16_from_u32(itemData, 1);
                 size = get_u16_from_u32(itemData, 0);
                 placedCount += size;
 
-                for (j = 0; j < size; ++j) {
+                for (let j = 0; j < size; ++j) {
                     pathId = get_u16_from_u32(readUint32FromF32(placementsData, offset + j), 1);
                     placedArea += abs_polygon_area(this.#nodes[pathId].memSeg);
                 }
