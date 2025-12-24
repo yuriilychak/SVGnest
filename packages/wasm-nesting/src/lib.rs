@@ -4,6 +4,7 @@ use web_sys::js_sys::{Float32Array, Uint8Array};
 pub mod clipper;
 pub mod clipper_wrapper;
 pub mod constants;
+pub mod genetic_algorithm;
 pub mod geometry;
 pub mod nest_config;
 pub mod nesting;
