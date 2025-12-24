@@ -51,7 +51,7 @@ export default class PolygonPacker {
     }
 
     private onPair(generatedNfp: ArrayBuffer[], displayCallback: DisplayCallback): void {
-        const placements = this.#wasmPacker.getPlacementData(generatedNfp);
+        const placements = [this.#wasmPacker.getPlacementData(generatedNfp).buffer];
 
         this.#paralele.start(
             placements,
@@ -61,11 +61,11 @@ export default class PolygonPacker {
     }
 
     private onPlacement(placements: ArrayBuffer[], displayCallback: DisplayCallback): void {
-        const placementResult = this.#wasmPacker.getPlacemehntResult(placements);
-
-        if (placementResult === null) {
+        if (placements.length === 0) {
             return;
         }
+
+        const placementResult = this.#wasmPacker.getPlacemehntResult(placements);
 
         const { result, placePerecntage, numPlacedParts, numParts } = placementResult;
         

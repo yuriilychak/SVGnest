@@ -1,7 +1,7 @@
 import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import NFPStore from './nfp-store';
-import { NestConfig, PolygonNode } from './types';
+import { f32, NestConfig, PolygonNode } from './types';
 import { readUint32FromF32, generateTree, generateBounds } from './helpers';
 import { BoundRectF32 } from './geometry';
 
@@ -10,7 +10,7 @@ export default class WasmPacker {
 
     #binNode: PolygonNode = null;
 
-    #binArea: number = 0;
+    #binArea: f32 = 0;
 
     #binBounds: BoundRectF32 = null;
 
@@ -48,17 +48,13 @@ export default class WasmPacker {
         return this.#nfpStore.nfpPairs;
     }
 
-    public getPlacementData(generatedNfp: ArrayBuffer[]): ArrayBuffer[] {
+    public getPlacementData(generatedNfp: ArrayBuffer[]): Uint8Array {
         this.#nfpStore.update(generatedNfp);
 
         return this.#nfpStore.getPlacementData(this.#nodes, this.#binArea);
     }
 
     public getPlacemehntResult(placements: ArrayBuffer[]) {
-        if (placements.length === 0) {
-            return null;
-        }
-
         let placementsData: Float32Array = new Float32Array(placements[0]);
         let currentPlacement: Float32Array = null;
 

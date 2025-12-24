@@ -84,7 +84,7 @@ export default class NFPStore {
         this.#configCompressed = 0;
     }
 
-    public getPlacementData(inputNodes: PolygonNode[], area: f32): ArrayBuffer[] {
+    public getPlacementData(inputNodes: PolygonNode[], area: f32): Uint8Array {
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
         const nodes = NFPStore.rotateNodes(this.#sources.map(source => inputNodes[source]));
@@ -98,7 +98,7 @@ export default class NFPStore {
 
         new Uint8Array(buffer, Uint32Array.BYTES_PER_ELEMENT * 4).set(new Uint8Array(nfpBuffer));
 
-        return [buffer];
+        return new Uint8Array(buffer);
     }
 
     public get nfpPairs(): ArrayBuffer[] {

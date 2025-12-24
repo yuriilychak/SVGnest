@@ -111,7 +111,7 @@ impl NFPStore {
         self.config_compressed = 0;
     }
 
-    pub fn get_placement_data(&self, input_nodes: &[PolygonNode], area: f32) -> Vec<Vec<u8>> {
+    pub fn get_placement_data(&self, input_nodes: &[PolygonNode], area: f32) -> Vec<u8> {
         let nfp_buffer = Self::serialize_map_to_buffer(&self.nfp_cache);
         let buffer_size = nfp_buffer.len();
         let nodes: Vec<PolygonNode> = self
@@ -132,7 +132,7 @@ impl NFPStore {
         // Copy NFP cache buffer
         buffer[16..16 + buffer_size].copy_from_slice(&nfp_buffer);
 
-        vec![buffer]
+        buffer
     }
 
     pub fn nfp_pairs(&self) -> &[Vec<u8>] {
