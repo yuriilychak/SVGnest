@@ -1,3 +1,4 @@
+import { abs_polygon_area } from 'wasm-nesting';
 import { BoundRectF32, PolygonF32 } from '../geometry';
 import { NestConfig, PolygonNode } from '../types';
 import Phenotype from './phenotype';
@@ -18,20 +19,8 @@ export default class GeneticAlgorithm {
         // initiate new GA
         const polygon: PolygonF32 = new PolygonF32();
         const adam: PolygonNode[] = nodes.slice();
-        let areaA: number = 0;
-        let areaB: number = 0;
 
-        adam.sort((a, b) => {
-            polygon.bind(a.memSeg);
-
-            areaA = polygon.absArea;
-
-            polygon.bind(b.memSeg);
-
-            areaB = polygon.absArea;
-
-            return areaB - areaA;
-        });
+        adam.sort((a, b) => abs_polygon_area(b.memSeg) - abs_polygon_area(a.memSeg));
         // population is an array of individuals. Each individual is a object representing the
         // order of insertion and the angle each part is rotated
         const angles: number[] = [];
