@@ -70,19 +70,14 @@ export type NestConfig = {
     useHoles: boolean;
 };
 
-export type PolygonNode = {
-    source: number;
-    children: PolygonNode[];
-};
-
-export type FlattenedData = { nodes: PolygonNode[]; holes: number[] };
+export type FlattenedData = { sources: number[]; holes: number[] };
 
 export type SourceItem = {
     source: number;
     children: SourceItem[];
-} 
+}
 
-export type IPlacementWrapper = {
+export type PlacementWrapper = {
     readonly placePercentage: number;
     readonly numPlacedParts: number;
     readonly numParts: number;
@@ -94,4 +89,15 @@ export type IPlacementWrapper = {
     readonly hasResult: boolean;
     readonly sources: SourceItem[];
     readonly placementsData: Float32Array;
+    readonly placementCount: number;
+    readonly offset: number;
+    readonly size: number;
+    readonly id: number;
+    readonly rotation: number;
+    readonly x: number;
+    readonly y: number;
+    readonly flattnedChildren: FlattenedData | null
+
+    bindPlacement(index: number): void;
+    bindData(index: number): number;
 }

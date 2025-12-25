@@ -1,10 +1,9 @@
 import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
-import { FlattenedData, NestConfig, PolygonNode, SVG_TAG, IPlacementWrapper } from './types';
-import { convertElement, flattenTree } from './helpers';
+import { FlattenedData, NestConfig, SVG_TAG, PlacementWrapper } from './types';
+import { convertElement } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
-import PlacementWrapper from './placement-wrapper';
 
 export default class SVGParser {
     #svgRoot: INode = null;
@@ -52,18 +51,17 @@ export default class SVGParser {
     }
 
     // returns an array of SVG elements that represent the placement, for export or rendering
-    public applyPlacement(placementWrapper: IPlacementWrapper): string {
+    public applyPlacement(placementWrapper: PlacementWrapper): string {
         const sources = placementWrapper.sources;
-        const placement: PlacementWrapper = new PlacementWrapper(placementWrapper.placementsData, placementWrapper.angleSplit);
         const clone: INode[] = [];
         const partCount: number = this.#parts.length;
         const svgList: INode[] = [];
         let i: number = 0;
         let j: number = 0;
         let k: number = 0;
+        let source = 0;
         let newSvg: INode = null;
         let binClone: INode = null;
-        let node: PolygonNode = null;
         let partGroup: INode = null;
         let flattened: FlattenedData = null;
         let c: INode = null;
@@ -72,7 +70,7 @@ export default class SVGParser {
             clone.push(JSON.parse(JSON.stringify(this.#parts[i])) as INode);
         }
 
-        for (i = 0; i < placement.placementCount; ++i) {
+        for (i = 0; i < placementWrapper.placementCount; ++i) {
             binClone = JSON.parse(JSON.stringify(this.#bin)) as INode;
             binClone.attributes.id = 'exportRoot';
             binClone.attributes.transform = `translate(${-placementWrapper.boundsX} ${-placementWrapper.boundsY})`;
@@ -89,11 +87,11 @@ export default class SVGParser {
                 children: [binClone]
             };
 
-            placement.bindPlacement(i);
+            placementWrapper.bindPlacement(i);
 
-            for (j = 0; j < placement.size; ++j) {
-                placement.bindData(j);
-                node = sources[placement.id];
+            for (j = 0; j < placementWrapper.size; ++j) {
+                source = placementWrapper.bindData(j);
+                node = sources[placementWrapper.id];
 
                 partGroup = {
                     name: 'g',
@@ -101,20 +99,20 @@ export default class SVGParser {
                     value: '',
                     // the original path could have transforms and stuff on it, so apply our transforms on a group
                     attributes: {
-                        transform: `translate(${placement.x} ${placement.y}) rotate(${placement.rotation})`,
+                        transform: `translate(${placementWrapper.x} ${placementWrapper.y}) rotate(${placementWrapper.rotation})`,
                         id: 'exportContent'
                     },
-                    children: [clone[node.source]]
+                    children: [clone[source]]
                 };
 
-                if (node.children && node.children.length > 0) {
-                    flattened = flattenTree(node.children, true);
+                flattened = placementWrapper.flattnedChildren;
 
-                    for (k = 0; k < flattened.nodes.length; ++k) {
-                        c = clone[flattened.nodes[k].source];
+                if (flattened !== null) {
+                    for (k = 0; k < flattened.sources.length; ++k) {
+                        c = clone[flattened.sources[k]];
                         // add class to indicate hole
                         if (
-                            flattened.holes.includes(flattened.nodes[k].source) &&
+                            flattened.holes.includes(flattened.sources[k]) &&
                             (!c.attributes.class || c.attributes.class.indexOf('hole') < 0)
                         ) {
                             c.attributes.class = `${c.attributes.class} hole`;

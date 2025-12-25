@@ -57,6 +57,8 @@ export type PolygonNode = {
     children: PolygonNode[];
 };
 
+export type FlattenedData = { sources: number[]; holes: number[] };
+
 export type CalculateConfig = { pointPool: unknown; isInit: boolean };
 
 export type TypedArray = Float32Array | Float64Array | Uint16Array | Uint8Array | Uint32Array | Int16Array | Int8Array | Int32Array;

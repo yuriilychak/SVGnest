@@ -1,13 +1,89 @@
-import { IPlacementWrapper, SourceItem } from './types';
+import { readUint32FromF32 } from './helpers';
+import { IPlacementWrapper, SourceItem, FlattenedData } from './types';
 
 export default class PlacementWrapper implements IPlacementWrapper {
     #buffer: ArrayBuffer;
 
     #view: DataView;
 
+    #placement: number;
+
+    #memSeg: Float32Array;
+
+    #offset: number;
+
+    #size: number;
+
+    #pointData: number;
+
+    #pointOffset: number;
+
+    #placementCount: number;
+
+    #angleSplit: number;
+
+    #sources: SourceItem[];
+
     constructor(buffer: ArrayBuffer) {
         this.#buffer = buffer;
         this.#view = new DataView(this.#buffer);
+        this.#memSeg = this.placementsData;
+        this.#angleSplit = this.angleSplit;
+        this.#placementCount = this.#memSeg[1];
+        this.#memSeg = this.#memSeg;
+        this.#sources = this.sources;
+        this.#placement = 0;
+        this.#offset = 0;
+        this.#size = 0;
+        this.#pointData = 0;
+        this.#pointOffset = 0;
+    }
+
+    public bindPlacement(index: number): void {
+        this.#placement = readUint32FromF32(this.#memSeg, 2 + index);
+        this.#offset = this.#placement >>> 16;
+        this.#size = this.#placement & ((1 << 16) - 1);
+    }
+
+    public bindData(index: number): number {
+        this.#pointData = readUint32FromF32(this.#memSeg, this.#offset + index);
+        this.#pointOffset = this.#offset + this.#size + (index << 1);
+
+        return this.#sources[this.id].source;
+    }
+
+    public get flattnedChildren(): FlattenedData | null {
+        const source = this.#sources[this.id];
+        
+        return source.children.length ? PlacementWrapper.flattenTree(source.children, true) : null;
+    }
+
+    public get placementCount(): number {
+        return this.#placementCount;
+    }
+
+    public get offset(): number {
+        return this.#offset;
+    }
+
+    public get size(): number {
+        return this.#size;
+    }
+
+    public get id(): number {
+        return this.#pointData >>> 16;
+    }
+
+    public get rotation(): number {
+        return Math.round(((this.#pointData & ((1 << 16) - 1)) * 360) / this.#angleSplit);
+    }
+
+    public get x(): number {
+        return this.#memSeg[this.#pointOffset];
+    }
+
+    public get y(): number {
+        return this.#memSeg[this.#pointOffset + 1];
     }
 
     get placePercentage(): number {
@@ -134,5 +210,33 @@ export default class PlacementWrapper implements IPlacementWrapper {
         const result = PlacementWrapper.deserializeSourceItemsInternal(view, Uint16Array.BYTES_PER_ELEMENT, count);
 
         return result.items;
+    }
+
+    private static flattenTree(
+        nodes: SourceItem[],
+        hole: boolean,
+        result: FlattenedData = { sources: [], holes: [] }
+    ): FlattenedData {
+        const nodeCount = nodes.length;
+        let node: SourceItem;
+        let children: SourceItem[];
+
+        for (let i = 0; i < nodeCount; ++i) {
+            node = nodes[i];
+
+            if (hole) {
+                result.holes.push(node.source);
+            }
+
+            children = node.children;
+
+            result.sources.push(node.source);
+
+            if (children && children.length > 0) {
+                PlacementWrapper.flattenTree(children, !hole, result);
+            }
+        }
+
+        return result;
     }
 }
