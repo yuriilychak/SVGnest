@@ -2,7 +2,7 @@ import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import NFPStore from './nfp-store';
 import { f32, NestConfig, PolygonNode, SourceItem } from './types';
-import { readUint32FromF32, generateTree, generateBounds, deserializeConfig, convertPolygonNodesToSourceItems, serializeSourceItems } from './helpers';
+import { readUint32FromF32, generateTree, generateBounds, deserializeConfig } from './helpers';
 import { BoundRectF32 } from './geometry';
 
 export default class WasmPacker {
@@ -121,7 +121,7 @@ export default class WasmPacker {
             this.#config.rotations,
             result !== null,
             this.#binBounds,
-            result ? convertPolygonNodesToSourceItems(this.#nodes) : [],
+            result ? WasmPacker.convertPolygonNodesToSourceItems(this.#nodes) : [],
             result ? result.placementsData : new Float32Array(0)
         );
 
@@ -152,7 +152,7 @@ export default class WasmPacker {
         placementsData: Float32Array
     ): Uint8Array {
         // Serialize sources to get the size
-        const serializedSources = serializeSourceItems(sources);
+        const serializedSources = WasmPacker.serializeSourceItems(sources);
         const sourcesSize = serializedSources.byteLength;
         const placementsDataSize = placementsData.byteLength;
 
@@ -208,6 +208,61 @@ export default class WasmPacker {
 
         // Write placements data
         new Uint8Array(buffer, offset, placementsDataSize).set(new Uint8Array(placementsData.buffer));
+
+        return new Uint8Array(buffer);
+    }
+
+private static convertPolygonNodesToSourceItems(nodes: PolygonNode[]): SourceItem[] {
+    return nodes.map(node => WasmPacker.convertPolygonNodeToSourceItem(node));
+}
+
+private static convertPolygonNodeToSourceItem(node: PolygonNode): SourceItem {
+    return {
+        source: node.source,
+        children: node.children.map(child => WasmPacker.convertPolygonNodeToSourceItem(child))
+    };
+}
+
+private static calculateSourceItemsSize(items: SourceItem[]): number {
+    return items.reduce((total, item) => {
+        // Each item: u16 (source) + u16 (children count) = 4 bytes
+        const itemSize = Uint16Array.BYTES_PER_ELEMENT * 2;
+        return total + itemSize + WasmPacker.calculateSourceItemsSize(item.children);
+    }, 0);
+}
+
+private static serializeSourceItemsInternal(items: SourceItem[], view: DataView, offset: number): number {
+    let currentOffset = offset;
+
+    for (const item of items) {
+        // Write source (u16)
+        view.setUint16(currentOffset, item.source, true);
+        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
+
+        // Write children count (u16)
+        view.setUint16(currentOffset, item.children.length, true);
+        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
+
+        // Recursively serialize children
+        currentOffset = WasmPacker.serializeSourceItemsInternal(item.children, view, currentOffset);
+    }
+
+    return currentOffset;
+}
+
+    private static serializeSourceItems(items: SourceItem[]): Uint8Array {
+        // Calculate total size: u16 (count) + items data
+        const itemsSize = WasmPacker.calculateSourceItemsSize(items);
+        const totalSize = Uint16Array.BYTES_PER_ELEMENT + itemsSize;
+
+        const buffer = new ArrayBuffer(totalSize);
+        const view = new DataView(buffer);
+
+        // Write items count
+        view.setUint16(0, items.length, true);
+
+        // Serialize items
+        WasmPacker.serializeSourceItemsInternal(items, view, Uint16Array.BYTES_PER_ELEMENT);
 
         return new Uint8Array(buffer);
     }

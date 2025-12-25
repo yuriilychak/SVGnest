@@ -1,5 +1,4 @@
-import { IPlacementWrapper, SourceItem } from "./types";
-import { deserializeSourceItems } from "./helpers";
+import { IPlacementWrapper, SourceItem } from './types';
 
 export default class PlacementWrapper implements IPlacementWrapper {
     #buffer: ArrayBuffer;
@@ -71,7 +70,7 @@ export default class PlacementWrapper implements IPlacementWrapper {
         // Sources segment starts at offset 34
         const sourcesData = new Uint8Array(this.#buffer, 34, sourcesSize);
 
-        return deserializeSourceItems(sourcesData);
+        return PlacementWrapper.deserializeSourceItems(sourcesData);
     }
 
     get placementsData(): Float32Array {
@@ -91,10 +90,49 @@ export default class PlacementWrapper implements IPlacementWrapper {
         const placementsOffset = 34 + sourcesSize;
 
         // Create Float32Array view of the placements data
-        return new Float32Array(
-            this.#buffer,
-            placementsOffset,
-            placementsDataSize / Float32Array.BYTES_PER_ELEMENT
-        );
+        return new Float32Array(this.#buffer, placementsOffset, placementsDataSize / Float32Array.BYTES_PER_ELEMENT);
+    }
+
+    private static deserializeSourceItemsInternal(
+        view: DataView,
+        offset: number,
+        count: number
+    ): { items: SourceItem[]; nextOffset: number } {
+        const items: SourceItem[] = [];
+        let currentOffset = offset;
+
+        for (let i = 0; i < count; ++i) {
+            // Read source (u16)
+            const source = view.getUint16(currentOffset, true);
+            currentOffset += Uint16Array.BYTES_PER_ELEMENT;
+
+            // Read children count (u16)
+            const childrenCount = view.getUint16(currentOffset, true);
+            currentOffset += Uint16Array.BYTES_PER_ELEMENT;
+
+            // Recursively deserialize children
+            const childrenResult = PlacementWrapper.deserializeSourceItemsInternal(view, currentOffset, childrenCount);
+
+            items.push({
+                source,
+                children: childrenResult.items
+            });
+
+            currentOffset = childrenResult.nextOffset;
+        }
+
+        return { items, nextOffset: currentOffset };
+    }
+
+    private static deserializeSourceItems(data: Uint8Array): SourceItem[] {
+        const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+
+        // Read items count
+        const count = view.getUint16(0, true);
+
+        // Deserialize items
+        const result = PlacementWrapper.deserializeSourceItemsInternal(view, Uint16Array.BYTES_PER_ELEMENT, count);
+
+        return result.items;
     }
 }

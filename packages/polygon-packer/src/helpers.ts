@@ -1,5 +1,5 @@
 import { set_bits_u32, generate_nfp_cache_key_wasm, generate_tree_wasm, generate_bounds_wasm } from 'wasm-nesting';
-import { BoundRect, NestConfig, NFPCache, PolygonNode, SourceItem } from './types';
+import { BoundRect, NestConfig, NFPCache, PolygonNode } from './types';
 import { BoundRectF32 } from './geometry';
 
 export function generateNFPCacheKey(
@@ -17,101 +17,6 @@ export function generateNFPCacheKey(
         polygon2.rotation
     );
 }
-
-export function convertPolygonNodesToSourceItems(nodes: PolygonNode[]): SourceItem[] {
-    return nodes.map(node => convertPolygonNodeToSourceItem(node));
-}
-
-function convertPolygonNodeToSourceItem(node: PolygonNode): SourceItem {
-    return {
-        source: node.source,
-        children: node.children.map(child => convertPolygonNodeToSourceItem(child))
-    };
-}
-
-function calculateSourceItemsSize(items: SourceItem[]): number {
-    return items.reduce((total, item) => {
-        // Each item: u16 (source) + u16 (children count) = 4 bytes
-        const itemSize = Uint16Array.BYTES_PER_ELEMENT * 2;
-        return total + itemSize + calculateSourceItemsSize(item.children);
-    }, 0);
-}
-
-function serializeSourceItemsInternal(items: SourceItem[], view: DataView, offset: number): number {
-    let currentOffset = offset;
-
-    for (const item of items) {
-        // Write source (u16)
-        view.setUint16(currentOffset, item.source, true);
-        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
-
-        // Write children count (u16)
-        view.setUint16(currentOffset, item.children.length, true);
-        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
-
-        // Recursively serialize children
-        currentOffset = serializeSourceItemsInternal(item.children, view, currentOffset);
-    }
-
-    return currentOffset;
-}
-
-export function serializeSourceItems(items: SourceItem[]): Uint8Array {
-    // Calculate total size: u16 (count) + items data
-    const itemsSize = calculateSourceItemsSize(items);
-    const totalSize = Uint16Array.BYTES_PER_ELEMENT + itemsSize;
-
-    const buffer = new ArrayBuffer(totalSize);
-    const view = new DataView(buffer);
-
-    // Write items count
-    view.setUint16(0, items.length, true);
-
-    // Serialize items
-    serializeSourceItemsInternal(items, view, Uint16Array.BYTES_PER_ELEMENT);
-
-    return new Uint8Array(buffer);
-}
-
-function deserializeSourceItemsInternal(view: DataView, offset: number, count: number): { items: SourceItem[], nextOffset: number } {
-    const items: SourceItem[] = [];
-    let currentOffset = offset;
-
-    for (let i = 0; i < count; i++) {
-        // Read source (u16)
-        const source = view.getUint16(currentOffset, true);
-        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
-
-        // Read children count (u16)
-        const childrenCount = view.getUint16(currentOffset, true);
-        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
-
-        // Recursively deserialize children
-        const childrenResult = deserializeSourceItemsInternal(view, currentOffset, childrenCount);
-
-        items.push({
-            source,
-            children: childrenResult.items
-        });
-
-        currentOffset = childrenResult.nextOffset;
-    }
-
-    return { items, nextOffset: currentOffset };
-}
-
-export function deserializeSourceItems(data: Uint8Array): SourceItem[] {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-
-    // Read items count
-    const count = view.getUint16(0, true);
-
-    // Deserialize items
-    const result = deserializeSourceItemsInternal(view, Uint16Array.BYTES_PER_ELEMENT, count);
-
-    return result.items;
-}
-
 
 function calculateTotalSize(nodes: PolygonNode[], initialSize: number): number {
     return nodes.reduce<number>((result: number, node: PolygonNode) => {
