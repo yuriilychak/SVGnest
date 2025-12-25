@@ -29,7 +29,7 @@ export default class PolygonPacker {
         const polygonData: f32[] = [];
         let size: usize = 0;
 
-        for(let i = 0; i < allPolygons.length; ++i) {
+        for (let i = 0; i < allPolygons.length; ++i) {
             size = allPolygons[i].length;
             sizes.push(size as u16);
 
@@ -82,11 +82,10 @@ export default class PolygonPacker {
         }
 
         const placementResult = this.#wasmPacker.getPlacemehntResult(placements);
-
-        const { result, placePerecntage, numPlacedParts, numParts } = placementResult;
+        const placementWrapper = new PlacementWrapper(placementResult.buffer);
 
         if (this.#isWorking) {
-            displayCallback(result, placePerecntage, numPlacedParts, numParts);
+            displayCallback(placementWrapper);
             this.launchWorkers(displayCallback);
         }
     }

@@ -103,6 +103,25 @@ export type ReducerAction = {
     payload: unknown;
 };
 
+export type SourceItem = {
+    source: number;
+    children: SourceItem[];
+} 
+
+export type PlacementWrapper = {
+    readonly placePercentage: number;
+    readonly numPlacedParts: number;
+    readonly numParts: number;
+    readonly boundsX: number;
+    readonly boundsY: number;
+    readonly boundsWidth: number;
+    readonly boundsHeight: number;
+    readonly angleSplit: number;
+    readonly hasResult: boolean;
+    readonly sources: SourceItem[];
+    readonly placementsData: Float32Array;
+}
+
 export enum PREDEFINED_ID {
     SVG_WRAPPER = 'svgWrapper',
     FILE_SAVER = 'fileSaver',

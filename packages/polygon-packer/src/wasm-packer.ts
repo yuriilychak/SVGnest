@@ -1,8 +1,8 @@
 import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import NFPStore from './nfp-store';
-import { f32, NestConfig, PolygonNode } from './types';
-import { readUint32FromF32, generateTree, generateBounds, deserializeConfig, serializePolygonNodes, deserializeNodes } from './helpers';
+import { f32, NestConfig, PolygonNode, SourceItem } from './types';
+import { readUint32FromF32, generateTree, generateBounds, deserializeConfig, convertPolygonNodesToSourceItems, serializeSourceItems } from './helpers';
 import { BoundRectF32 } from './geometry';
 
 export default class WasmPacker {
@@ -111,15 +111,22 @@ export default class WasmPacker {
             numParts = this.#nfpStore.placementCount;
             numPlacedParts = placedCount;
             placePerecntage = placedArea / totalArea;
-            result = {
-                placementsData,
-                nodes: this.#nodes,
-                bounds: this.#binBounds,
-                angleSplit: this.#config.rotations
-            };
+            result = { placementsData };
         }
 
-        return { result, placePerecntage, numPlacedParts, numParts };
+        const serializedResult = WasmPacker.serializePlacementResult(
+            placePerecntage,
+            numPlacedParts,
+            numParts,
+            this.#config.rotations,
+            result !== null,
+            this.#binBounds,
+            result ? convertPolygonNodesToSourceItems(this.#nodes) : [],
+            result ? result.placementsData : new Float32Array(0)
+        );
+
+
+        return serializedResult;
     }
 
     public stop(): void {
@@ -132,5 +139,76 @@ export default class WasmPacker {
 
     public get pairCount(): number {
         return this.#nfpStore.nfpPairs.length;
+    }
+
+    static serializePlacementResult(
+        placePercentage: number,
+        numPlacedParts: number,
+        numParts: number,
+        angleSplit: number,
+        hasResult: boolean,
+        bounds: BoundRectF32,
+        sources: SourceItem[],
+        placementsData: Float32Array
+    ): Uint8Array {
+        // Serialize sources to get the size
+        const serializedSources = serializeSourceItems(sources);
+        const sourcesSize = serializedSources.byteLength;
+        const placementsDataSize = placementsData.byteLength;
+
+        // Calculate total buffer size:
+        // placePercentage (4) + numPlacedParts (2) + numParts (2) + angleSplit (1) + hasResult (1)
+        // + boundsX (4) + boundsY (4) + boundsWidth (4) + boundsHeight (4)
+        // + sourcesSize (4) + placementsDataSize (4)
+        // + serializedSources + serializedPlacementsData
+        const headerSize = 4 + 2 + 2 + 1 + 1 + 4 + 4 + 4 + 4 + 4 + 4;
+        const totalSize = headerSize + sourcesSize + placementsDataSize;
+
+        const buffer = new ArrayBuffer(totalSize);
+        const view = new DataView(buffer);
+        let offset = 0;
+
+        // Write header
+        view.setFloat32(offset, placePercentage, true);
+        offset += 4;
+
+        view.setUint16(offset, numPlacedParts, true);
+        offset += 2;
+
+        view.setUint16(offset, numParts, true);
+        offset += 2;
+
+        view.setUint8(offset, angleSplit);
+        offset += 1;
+
+        view.setUint8(offset, hasResult ? 1 : 0);
+        offset += 1;
+
+        view.setFloat32(offset, bounds.x, true);
+        offset += 4;
+
+        view.setFloat32(offset, bounds.y, true);
+        offset += 4;
+
+        view.setFloat32(offset, bounds.width, true);
+        offset += 4;
+
+        view.setFloat32(offset, bounds.height, true);
+        offset += 4;
+
+        view.setUint32(offset, sourcesSize, true);
+        offset += 4;
+
+        view.setUint32(offset, placementsDataSize, true);
+        offset += 4;
+
+        // Write serialized sources
+        new Uint8Array(buffer, offset, sourcesSize).set(serializedSources);
+        offset += sourcesSize;
+
+        // Write placements data
+        new Uint8Array(buffer, offset, placementsDataSize).set(new Uint8Array(placementsData.buffer));
+
+        return new Uint8Array(buffer);
     }
 }

@@ -1,9 +1,8 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
-import type { PlacementData } from 'polygon-packer';
 
 import { BUTTON_TO_REDUCER_ACTION, INITIAL_STATE, VIEW_BOX_ATTRIBUTES } from './constants';
 import reducer from './reducer';
-import { PREDEFINED_ID, REDUCER_ACTION, SETTING_ID } from './types';
+import { PlacementWrapper, PREDEFINED_ID, REDUCER_ACTION, SETTING_ID } from './types';
 import { getModifiedButtons } from './helpers';
 import { BUTTON_ACTION } from '../types';
 
@@ -141,15 +140,19 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const handleProgress = useCallback((percent: number) => handleDispatch(REDUCER_ACTION.PROGRESS, percent), [handleDispatch]);
 
     const handleRenderSvg = useCallback(
-        (placementData: PlacementData, efficiency: number, placed: number, total: number) => {
+        (placmentWrapper: PlacementWrapper) => {
             let action = REDUCER_ACTION.NEW_ITERATION;
             let data = null;
 
-            if (placementData) {
-                const svgList: string = svgParser.applyPlacement(placementData);
+            if (placmentWrapper.hasResult) {
+                const svgList: string = svgParser.applyPlacement(placmentWrapper);
                 svgWrapper.current.innerHTML = svgList;
                 action = REDUCER_ACTION.UPDATE_STATISTICS;
-                data = { efficiency, placed, total };
+                data = {
+                    efficiency: placmentWrapper.placePercentage,
+                    placed: placmentWrapper.numPlacedParts,
+                    total: placmentWrapper.numParts
+                };
             }
 
             handleDispatch(action, data);

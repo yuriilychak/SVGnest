@@ -72,9 +72,26 @@ export type NestConfig = {
 
 export type PolygonNode = {
     source: number;
-    rotation: number;
-    memSeg: Float32Array;
     children: PolygonNode[];
 };
 
 export type FlattenedData = { nodes: PolygonNode[]; holes: number[] };
+
+export type SourceItem = {
+    source: number;
+    children: SourceItem[];
+} 
+
+export type IPlacementWrapper = {
+    readonly placePercentage: number;
+    readonly numPlacedParts: number;
+    readonly numParts: number;
+    readonly boundsX: number;
+    readonly boundsY: number;
+    readonly boundsWidth: number;
+    readonly boundsHeight: number;
+    readonly angleSplit: number;
+    readonly hasResult: boolean;
+    readonly sources: SourceItem[];
+    readonly placementsData: Float32Array;
+}

@@ -1,7 +1,7 @@
 import { INode, stringify } from 'svgson';
 
 import formatSVG from './format-svg';
-import { FlattenedData, NestConfig, PolygonNode, SVG_TAG } from './types';
+import { FlattenedData, NestConfig, PolygonNode, SVG_TAG, IPlacementWrapper } from './types';
 import { convertElement, flattenTree } from './helpers';
 import SHAPE_BUILDERS from './shape-builders';
 import PlacementWrapper from './placement-wrapper';
@@ -52,18 +52,9 @@ export default class SVGParser {
     }
 
     // returns an array of SVG elements that represent the placement, for export or rendering
-    public applyPlacement({
-        placementsData,
-        nodes,
-        bounds,
-        angleSplit
-    }: {
-        placementsData: Float32Array;
-        nodes: PolygonNode[];
-        bounds: { x: number; y: number; width: number; height: number };
-        angleSplit: number;
-    }): string {
-        const placement: PlacementWrapper = new PlacementWrapper(placementsData, angleSplit);
+    public applyPlacement(placementWrapper: IPlacementWrapper): string {
+        const sources = placementWrapper.sources;
+        const placement: PlacementWrapper = new PlacementWrapper(placementWrapper.placementsData, placementWrapper.angleSplit);
         const clone: INode[] = [];
         const partCount: number = this.#parts.length;
         const svgList: INode[] = [];
@@ -84,16 +75,16 @@ export default class SVGParser {
         for (i = 0; i < placement.placementCount; ++i) {
             binClone = JSON.parse(JSON.stringify(this.#bin)) as INode;
             binClone.attributes.id = 'exportRoot';
-            binClone.attributes.transform = `translate(${-bounds.x} ${-bounds.y})`;
+            binClone.attributes.transform = `translate(${-placementWrapper.boundsX} ${-placementWrapper.boundsY})`;
 
             newSvg = {
                 name: 'svg',
                 type: 'element',
                 value: '',
                 attributes: {
-                    viewBox: `0 0 ${bounds.width} ${bounds.height}`,
-                    width: `${bounds.width}px`,
-                    height: `${bounds.height}px`
+                    viewBox: `0 0 ${placementWrapper.boundsWidth} ${placementWrapper.boundsHeight}`,
+                    width: `${placementWrapper.boundsWidth}px`,
+                    height: `${placementWrapper.boundsHeight}px`
                 },
                 children: [binClone]
             };
@@ -102,7 +93,7 @@ export default class SVGParser {
 
             for (j = 0; j < placement.size; ++j) {
                 placement.bindData(j);
-                node = nodes[placement.id];
+                node = sources[placement.id];
 
                 partGroup = {
                     name: 'g',

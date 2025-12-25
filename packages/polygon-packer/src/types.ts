@@ -30,19 +30,25 @@ export interface BoundRect<T extends TypedArray> {
     readonly height: number;
 }
 
-export type PlacementData = {
-    placementsData: Float32Array;
-    nodes: PolygonNode[];
-    bounds: BoundRect<Float32Array>;
-    angleSplit: number;
-};
+export type SourceItem = {
+    source: u16;
+    children: SourceItem[];
+} 
+export interface IPlacementWrapper {
+    readonly placePercentage: number; 
+    readonly numPlacedParts: number; 
+    readonly numParts: number;
+    readonly boundsX: number;
+    readonly boundsY: number;
+    readonly boundsWidth: number;
+    readonly boundsHeight: number;
+    readonly angleSplit: number;
+    readonly hasResult: boolean;
+    readonly sources: SourceItem[];
+    readonly placementsData: Float32Array;
+}
 
-export type DisplayCallback = (
-    placementsData: PlacementData,
-    placePerecntage: number,
-    lacedParts: number,
-    partCount: number
-) => void;
+export type DisplayCallback = (placementWrapper: IPlacementWrapper) => void;
 
 export type PolygonNode = {
     source: number;
