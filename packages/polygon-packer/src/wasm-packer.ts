@@ -51,11 +51,36 @@ export default class WasmPacker {
         this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, this.#config);
     }
 
-    public getPairs(): ArrayBuffer[] {
+    public getPairs(): Uint8Array {
         const individual = this.#geneticAlgorithm.getIndividual(this.#nodes);
         this.#nfpStore.init(this.#nodes, this.#binNode, this.#config, individual.source, individual.placement, individual.rotation);
 
-        return this.#nfpStore.nfpPairs;
+        const pairs = this.#nfpStore.nfpPairs;
+
+        // Serialize pairs: count (u32) + [size (u32) + data] for each pair
+        let totalSize = 4; // count
+        for (const pair of pairs) {
+            totalSize += 4 + pair.byteLength; // size + data
+        }
+
+        const buffer = new ArrayBuffer(totalSize);
+        const view = new DataView(buffer);
+        let offset = 0;
+
+        // Write count
+        view.setUint32(offset, pairs.length, true);
+        offset += 4;
+
+        // Write each pair
+        for (const pair of pairs) {
+            view.setUint32(offset, pair.byteLength, true);
+            offset += 4;
+
+            new Uint8Array(buffer, offset, pair.byteLength).set(new Uint8Array(pair));
+            offset += pair.byteLength;
+        }
+
+        return new Uint8Array(buffer);
     }
 
     public getPlacementData(generatedNfp: ArrayBuffer[]): Uint8Array {
@@ -212,43 +237,43 @@ export default class WasmPacker {
         return new Uint8Array(buffer);
     }
 
-private static convertPolygonNodesToSourceItems(nodes: PolygonNode[]): SourceItem[] {
-    return nodes.map(node => WasmPacker.convertPolygonNodeToSourceItem(node));
-}
-
-private static convertPolygonNodeToSourceItem(node: PolygonNode): SourceItem {
-    return {
-        source: node.source,
-        children: node.children.map(child => WasmPacker.convertPolygonNodeToSourceItem(child))
-    };
-}
-
-private static calculateSourceItemsSize(items: SourceItem[]): number {
-    return items.reduce((total, item) => {
-        // Each item: u16 (source) + u16 (children count) = 4 bytes
-        const itemSize = Uint16Array.BYTES_PER_ELEMENT * 2;
-        return total + itemSize + WasmPacker.calculateSourceItemsSize(item.children);
-    }, 0);
-}
-
-private static serializeSourceItemsInternal(items: SourceItem[], view: DataView, offset: number): number {
-    let currentOffset = offset;
-
-    for (const item of items) {
-        // Write source (u16)
-        view.setUint16(currentOffset, item.source, true);
-        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
-
-        // Write children count (u16)
-        view.setUint16(currentOffset, item.children.length, true);
-        currentOffset += Uint16Array.BYTES_PER_ELEMENT;
-
-        // Recursively serialize children
-        currentOffset = WasmPacker.serializeSourceItemsInternal(item.children, view, currentOffset);
+    private static convertPolygonNodesToSourceItems(nodes: PolygonNode[]): SourceItem[] {
+        return nodes.map(node => WasmPacker.convertPolygonNodeToSourceItem(node));
     }
 
-    return currentOffset;
-}
+    private static convertPolygonNodeToSourceItem(node: PolygonNode): SourceItem {
+        return {
+            source: node.source,
+            children: node.children.map(child => WasmPacker.convertPolygonNodeToSourceItem(child))
+        };
+    }
+
+    private static calculateSourceItemsSize(items: SourceItem[]): number {
+        return items.reduce((total, item) => {
+            // Each item: u16 (source) + u16 (children count) = 4 bytes
+            const itemSize = Uint16Array.BYTES_PER_ELEMENT * 2;
+            return total + itemSize + WasmPacker.calculateSourceItemsSize(item.children);
+        }, 0);
+    }
+
+    private static serializeSourceItemsInternal(items: SourceItem[], view: DataView, offset: number): number {
+        let currentOffset = offset;
+
+        for (const item of items) {
+            // Write source (u16)
+            view.setUint16(currentOffset, item.source, true);
+            currentOffset += Uint16Array.BYTES_PER_ELEMENT;
+
+            // Write children count (u16)
+            view.setUint16(currentOffset, item.children.length, true);
+            currentOffset += Uint16Array.BYTES_PER_ELEMENT;
+
+            // Recursively serialize children
+            currentOffset = WasmPacker.serializeSourceItemsInternal(item.children, view, currentOffset);
+        }
+
+        return currentOffset;
+    }
 
     private static serializeSourceItems(items: SourceItem[]): Uint8Array {
         // Calculate total size: u16 (count) + items data

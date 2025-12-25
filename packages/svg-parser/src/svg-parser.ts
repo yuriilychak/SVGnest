@@ -91,7 +91,6 @@ export default class SVGParser {
 
             for (j = 0; j < placementWrapper.size; ++j) {
                 source = placementWrapper.bindData(j);
-                node = sources[placementWrapper.id];
 
                 partGroup = {
                     name: 'g',

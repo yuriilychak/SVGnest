@@ -15,6 +15,31 @@ export default class PolygonPacker {
 
     #paralele: Parallel = new Parallel();
 
+    static deserializePairs(data: Uint8Array): ArrayBuffer[] {
+        const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+        let offset = 0;
+
+        // Read count
+        const count = view.getUint32(offset, true);
+        offset += 4;
+
+        const pairs: ArrayBuffer[] = [];
+
+        // Read each pair
+        for (let i = 0; i < count; i++) {
+            const size = view.getUint32(offset, true);
+            offset += 4;
+
+            const pairData = new ArrayBuffer(size);
+            new Uint8Array(pairData).set(new Uint8Array(data.buffer, data.byteOffset + offset, size));
+            offset += size;
+
+            pairs.push(pairData);
+        }
+
+        return pairs;
+    }
+
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     public start(
@@ -53,7 +78,8 @@ export default class PolygonPacker {
     };
 
     launchWorkers(displayCallback: DisplayCallback) {
-        const pairs = this.#wasmPacker.getPairs();
+        const serializedPairs = this.#wasmPacker.getPairs();
+        const pairs = PolygonPacker.deserializePairs(serializedPairs);
         this.#paralele.start(
             pairs,
             (generatedNfp: ArrayBuffer[]) => this.onPair(generatedNfp, displayCallback),
