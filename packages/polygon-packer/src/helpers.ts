@@ -113,6 +113,24 @@ export function serializeConfig(config: NestConfig): number {
     return result;
 }
 
+export function deserializeConfig(value: number): NestConfig {
+    const curveTolerance = ((value >> 0) & 0xF) / 10;
+    const spacing = (value >> 4) & 0x1F;
+    const rotations = (value >> 9) & 0x1F;
+    const populationSize = (value >> 14) & 0x7F;
+    const mutationRate = (value >> 21) & 0x7F;
+    const useHoles = Boolean((value >> 28) & 0x1);
+
+    return {
+        curveTolerance,
+        spacing,
+        rotations,
+        populationSize,
+        mutationRate,
+        useHoles
+    };
+}
+
 export function serializeMapToBuffer(map: NFPCache): ArrayBuffer {
     const totalSize: number = Array.from(map.values()).reduce(
         (acc, buffer) => acc + (Uint32Array.BYTES_PER_ELEMENT << 1) + buffer.byteLength,

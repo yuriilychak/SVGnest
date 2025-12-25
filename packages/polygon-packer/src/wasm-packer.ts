@@ -2,7 +2,7 @@ import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
 import { GeneticAlgorithm } from './genetic-algorithm';
 import NFPStore from './nfp-store';
 import { f32, NestConfig, PolygonNode } from './types';
-import { readUint32FromF32, generateTree, generateBounds } from './helpers';
+import { readUint32FromF32, generateTree, generateBounds, deserializeConfig, serializePolygonNodes, deserializeNodes } from './helpers';
 import { BoundRectF32 } from './geometry';
 
 export default class WasmPacker {
@@ -26,18 +26,28 @@ export default class WasmPacker {
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     public init(
-        configuration: NestConfig,
-        polygons: Float32Array[],
-        binPolygon: Float32Array,
+        configuration: number,
+        polygonData: Float32Array,
+        sizes: Uint16Array,
     ): void {
-        const binData = generateBounds(binPolygon, configuration.spacing, configuration.curveTolerance);
+        let offset = 0;
+        const polygons: Float32Array[] = [];
+
+        sizes.forEach((size: number) => {
+            polygons.push(polygonData.subarray(offset, offset + size));
+            offset += size;
+        });
+
+        const binPolygon = polygons.pop();
+        this.#config = deserializeConfig(configuration);
+        const binData = generateBounds(binPolygon, this.#config.spacing, this.#config.curveTolerance);
 
         this.#binNode = binData.binNode;
         this.#binBounds = binData.bounds;
         this.#resultBounds = binData.resultBounds;
         this.#binArea = binData.area;
-        this.#nodes = generateTree(polygons, configuration.spacing, configuration.curveTolerance);
-        this.#config = configuration;
+        this.#nodes = generateTree(polygons, this.#config.spacing, this.#config.curveTolerance);
+
         this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, this.#config);
     }
 
@@ -54,7 +64,7 @@ export default class WasmPacker {
         return this.#nfpStore.getPlacementData(this.#nodes, this.#binArea);
     }
 
-    public getPlacemehntResult(placements: ArrayBuffer[]) {
+    public getPlacemehntResult(placements: ArrayBuffer[]): Uint8Array {
         let placementsData: Float32Array = new Float32Array(placements[0]);
         let currentPlacement: Float32Array = null;
 

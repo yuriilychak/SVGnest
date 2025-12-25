@@ -1,5 +1,7 @@
+import { serializeConfig } from './helpers';
 import { Parallel } from './parallel';
-import { DisplayCallback, NestConfig } from './types';
+import PlacementWrapper from './placement-wrapper';
+import { DisplayCallback, f32, NestConfig, u16, u32, usize } from './types';
 import WasmPacker from './wasm-packer';
 
 export default class PolygonPacker {
@@ -9,7 +11,7 @@ export default class PolygonPacker {
 
     #progress: number = 0;
 
-    #workerTimer: number = 0;
+    #workerTimer: u32 = 0;
 
     #paralele: Parallel = new Parallel();
 
@@ -22,14 +24,28 @@ export default class PolygonPacker {
         progressCallback: (progress: number) => void,
         displayCallback: DisplayCallback
     ): void {
-        this.#wasmPacker.init(configuration, polygons, binPolygon);
+        const allPolygons = polygons.concat([binPolygon]);
+        const sizes: u16[] = [];
+        const polygonData: f32[] = [];
+        let size: usize = 0;
+
+        for(let i = 0; i < allPolygons.length; ++i) {
+            size = allPolygons[i].length;
+            sizes.push(size as u16);
+
+            for (let j = 0; j < size; ++j) {
+                polygonData.push(allPolygons[i][j]);
+            }
+        }
+
+        this.#wasmPacker.init(serializeConfig(configuration), new Float32Array(polygonData), new Uint16Array(sizes));
         this.#isWorking = true;
 
         this.launchWorkers(displayCallback);
 
         this.#workerTimer = setInterval(() => {
             progressCallback(this.#progress);
-        }, 100) as unknown as number;
+        }, 100) as unknown as u32;
     }
 
     private onSpawn = (spawnCount: number): void => {
@@ -68,7 +84,7 @@ export default class PolygonPacker {
         const placementResult = this.#wasmPacker.getPlacemehntResult(placements);
 
         const { result, placePerecntage, numPlacedParts, numParts } = placementResult;
-        
+
         if (this.#isWorking) {
             displayCallback(result, placePerecntage, numPlacedParts, numParts);
             this.launchWorkers(displayCallback);
