@@ -9,6 +9,7 @@ pub mod geometry;
 pub mod nest_config;
 pub mod nesting;
 pub mod utils;
+pub mod wasm_packer;
 
 use crate::nesting::polygon_node::PolygonNode;
 
