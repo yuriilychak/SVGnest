@@ -14,6 +14,13 @@ impl<T: Number> BoundRect<T> {
         Self { position, size }
     }
 
+    pub fn from_array(arr: &[T]) -> Self {
+        if arr.len() < 4 {
+            return Self::new(T::zero(), T::zero(), T::zero(), T::zero());
+        }
+        Self::new(arr[0], arr[1], arr[2], arr[3])
+    }
+
     pub unsafe fn update(&mut self, position: *const Point<T>, size: *const Point<T>) {
         self.position.update(position);
         self.size.update(size);

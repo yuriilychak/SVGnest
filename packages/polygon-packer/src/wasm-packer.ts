@@ -6,7 +6,6 @@ import { readUint32FromF32, generateTree, generateBounds, deserializeConfig } fr
 import { BoundRectF32 } from './geometry';
 
 export default class WasmPacker {
-    #geneticAlgorithm = new GeneticAlgorithm();
 
     #binNode: PolygonNode = null;
 
@@ -48,11 +47,11 @@ export default class WasmPacker {
         this.#binArea = binData.area;
         this.#nodes = generateTree(polygons, this.#config.spacing, this.#config.curveTolerance);
 
-        this.#geneticAlgorithm.init(this.#nodes, this.#resultBounds, this.#config);
+        GeneticAlgorithm.instance.init(this.#nodes, this.#resultBounds, this.#config);
     }
 
     public getPairs(): Uint8Array {
-        const individual = this.#geneticAlgorithm.getIndividual(this.#nodes);
+        const individual = GeneticAlgorithm.instance.getIndividual(this.#nodes);
         this.#nfpStore.init(this.#nodes, this.#binNode, this.#config, individual.source, individual.placement, individual.rotation);
 
         const pairs = this.#nfpStore.nfpPairs;
@@ -93,7 +92,7 @@ export default class WasmPacker {
         let placementsData: Float32Array = new Float32Array(placements[0]);
         let currentPlacement: Float32Array = null;
 
-        this.#geneticAlgorithm.updateFitness(this.#nfpStore.phenotypeSource, placementsData[0]);
+        GeneticAlgorithm.instance.updateFitness(this.#nfpStore.phenotypeSource, placementsData[0]);
 
         for (let i = 1; i < placements.length; ++i) {
             currentPlacement = new Float32Array(placements[i]);
@@ -158,7 +157,7 @@ export default class WasmPacker {
         this.#nodes = [];
         this.#best = null;
         this.#binNode = null;
-        this.#geneticAlgorithm.clean();
+        GeneticAlgorithm.instance.clean();
         this.#nfpStore.clean();
     }
 

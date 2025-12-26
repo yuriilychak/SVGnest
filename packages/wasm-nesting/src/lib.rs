@@ -199,3 +199,144 @@ pub fn generate_bounds_wasm(mem_seg: &[f32], spacing: i32, curve_tolerance: f32)
         None => Float32Array::new_with_length(0),
     }
 }
+
+/// Initialize the singleton GeneticAlgorithm
+///
+/// Arguments:
+/// - nodes_data: Uint8Array containing serialized PolygonNode data
+/// - bounds: Float32Array [x, y, width, height]
+/// - config: Serialized NestConfig (u32)
+#[wasm_bindgen]
+pub fn genetic_algorithm_init(nodes_data: &[u8], bounds: &[f32], config: u32) {
+    use crate::genetic_algorithm::GeneticAlgorithm;
+    use crate::geometry::bound_rect::BoundRect;
+    use crate::nest_config::NestConfig;
+
+    // Convert byte array to f32 array (reinterpret bytes as f32)
+    let f32_len = nodes_data.len() / 4;
+    let nodes_f32: Vec<f32> = (0..f32_len)
+        .map(|i| {
+            let idx = i * 4;
+            f32::from_ne_bytes([
+                nodes_data[idx],
+                nodes_data[idx + 1],
+                nodes_data[idx + 2],
+                nodes_data[idx + 3],
+            ])
+        })
+        .collect();
+
+    // Deserialize nodes using f32 buffer
+    let node_count = nodes_f32[0].to_bits().swap_bytes() as usize;
+    let (nodes, _) = PolygonNode::deserialize_nodes(&nodes_f32, 1, node_count);
+
+    // Create bounds - check bounds array length
+    if bounds.len() < 4 {
+        return; // Not enough data
+    }
+    let bound_rect = BoundRect::<f32>::from_array(bounds);
+
+    // Deserialize config
+    let mut nest_config = NestConfig::new();
+    nest_config.deserialize(config);
+
+    // Initialize GA
+    GeneticAlgorithm::with_instance(|ga| {
+        ga.init(&nodes, &bound_rect, &nest_config);
+    });
+}
+
+/// Clean the singleton GeneticAlgorithm
+#[wasm_bindgen]
+pub fn genetic_algorithm_clean() {
+    use crate::genetic_algorithm::GeneticAlgorithm;
+
+    GeneticAlgorithm::with_instance(|ga| {
+        ga.clean();
+    });
+}
+
+/// Get individual from the singleton GeneticAlgorithm
+///
+/// Arguments:
+/// - nodes_data: Uint8Array containing serialized PolygonNode data
+///
+/// Returns: Uint8Array containing serialized Phenotype [source (u16), placement_count (u32), placement[] (i32[]), rotation[] (u16[])]
+#[wasm_bindgen]
+pub fn genetic_algorithm_get_individual(nodes_data: &[u8]) -> Uint8Array {
+    use crate::genetic_algorithm::GeneticAlgorithm;
+
+    // Convert byte array to f32 array (reinterpret bytes as f32)
+    let f32_len = nodes_data.len() / 4;
+    let nodes_f32: Vec<f32> = (0..f32_len)
+        .map(|i| {
+            let idx = i * 4;
+            f32::from_ne_bytes([
+                nodes_data[idx],
+                nodes_data[idx + 1],
+                nodes_data[idx + 2],
+                nodes_data[idx + 3],
+            ])
+        })
+        .collect();
+
+    // Deserialize nodes using f32 buffer
+    let node_count = nodes_f32[0].to_bits().swap_bytes() as usize;
+    let (nodes, _) = PolygonNode::deserialize_nodes(&nodes_f32, 1, node_count);
+
+    let phenotype_opt = GeneticAlgorithm::with_instance(|ga| ga.get_individual(&nodes));
+
+    match phenotype_opt {
+        Some(phenotype) => {
+            // Serialize: source (u16) + placement_count (u32) + placement[] (i32[]) + rotation[] (u16[])
+            let placement = phenotype.placement();
+            let rotation = phenotype.rotation();
+            let placement_count = placement.len() as u32;
+
+            // Calculate total size
+            let total_size =
+                2 + 4 + (placement_count as usize * 4) + (placement_count as usize * 2);
+            let mut buffer = vec![0u8; total_size];
+            let mut offset = 0;
+
+            // Write source (u16)
+            buffer[offset..offset + 2].copy_from_slice(&phenotype.source().to_le_bytes());
+            offset += 2;
+
+            // Write placement count (u32)
+            buffer[offset..offset + 4].copy_from_slice(&placement_count.to_le_bytes());
+            offset += 4;
+
+            // Write placement array (i32[])
+            for &p in placement {
+                buffer[offset..offset + 4].copy_from_slice(&p.to_le_bytes());
+                offset += 4;
+            }
+
+            // Write rotation array (u16[])
+            for &r in rotation {
+                buffer[offset..offset + 2].copy_from_slice(&r.to_le_bytes());
+                offset += 2;
+            }
+
+            let result = Uint8Array::new_with_length(buffer.len() as u32);
+            result.copy_from(&buffer);
+            result
+        }
+        None => Uint8Array::new_with_length(0),
+    }
+}
+
+/// Update fitness in the singleton GeneticAlgorithm
+///
+/// Arguments:
+/// - source: Phenotype source ID (u16)
+/// - fitness: Fitness value (f32)
+#[wasm_bindgen]
+pub fn genetic_algorithm_update_fitness(source: u16, fitness: f32) {
+    use crate::genetic_algorithm::GeneticAlgorithm;
+
+    GeneticAlgorithm::with_instance(|ga| {
+        ga.update_fitness(source, fitness);
+    });
+}

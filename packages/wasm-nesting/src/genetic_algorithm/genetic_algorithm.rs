@@ -4,6 +4,11 @@ use crate::{
     utils::number::Number,
 };
 use rand::Rng;
+use std::cell::RefCell;
+
+thread_local! {
+    static INSTANCE: RefCell<GeneticAlgorithm> = RefCell::new(GeneticAlgorithm::new());
+}
 
 pub struct GeneticAlgorithm {
     bin_width: f32,
@@ -15,7 +20,7 @@ pub struct GeneticAlgorithm {
 }
 
 impl GeneticAlgorithm {
-    pub fn new() -> Self {
+    fn new() -> Self {
         GeneticAlgorithm {
             bin_width: 0.0,
             bin_height: 0.0,
@@ -24,6 +29,13 @@ impl GeneticAlgorithm {
             threshold: 0.0,
             current_source: 0,
         }
+    }
+
+    pub fn with_instance<F, R>(f: F) -> R
+    where
+        F: FnOnce(&mut GeneticAlgorithm) -> R,
+    {
+        INSTANCE.with(|instance| f(&mut instance.borrow_mut()))
     }
 
     pub fn init(&mut self, nodes: &[PolygonNode], bounds: &BoundRect<f32>, config: &NestConfig) {
@@ -171,7 +183,7 @@ impl GeneticAlgorithm {
         0
     }
 
-    pub fn get_individual(&mut self, nodes: &[PolygonNode]) -> Option<&Phenotype> {
+    pub fn get_individual(&mut self, nodes: &[PolygonNode]) -> Option<Phenotype> {
         // Check if all members have been evaluated
         let all_evaluated = self.population.iter().all(|p| p.fitness() > 0.0);
 
@@ -179,7 +191,7 @@ impl GeneticAlgorithm {
             // Find first unevaluated individual
             for i in 0..self.population.len() {
                 if self.population[i].fitness() == 0.0 {
-                    return Some(&self.population[i]);
+                    return Some(self.population[i].clone_with_source(self.population[i].source()));
                 }
             }
         }
@@ -218,7 +230,7 @@ impl GeneticAlgorithm {
         self.population = result;
 
         if self.population.len() > 1 {
-            Some(&self.population[1])
+            Some(self.population[1].clone_with_source(self.population[1].source()))
         } else {
             None
         }

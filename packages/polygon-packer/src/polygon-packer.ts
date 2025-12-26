@@ -5,7 +5,7 @@ import { DisplayCallback, f32, NestConfig, u16, u32, usize } from './types';
 import WasmPacker from './wasm-packer';
 
 export default class PolygonPacker {
-    #wasmPacker = new WasmPacker();
+    #wasmPacker: WasmPacker;
 
     #isWorking: boolean = false;
 
@@ -14,6 +14,10 @@ export default class PolygonPacker {
     #workerTimer: u32 = 0;
 
     #paralele: Parallel = new Parallel();
+
+    constructor() {
+        this.#wasmPacker = new WasmPacker();
+    }
 
     static deserializePairs(data: Uint8Array): ArrayBuffer[] {
         const view = new DataView(data.buffer, data.byteOffset, data.byteLength);

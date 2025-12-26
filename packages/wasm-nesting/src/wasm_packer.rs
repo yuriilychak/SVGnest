@@ -7,7 +7,6 @@ use crate::{
 };
 
 pub struct WasmPacker {
-    genetic_algorithm: GeneticAlgorithm,
     bin_node: Option<PolygonNode>,
     bin_area: f32,
     bin_bounds: Option<BoundRect<f32>>,
@@ -21,7 +20,6 @@ pub struct WasmPacker {
 impl WasmPacker {
     pub fn new() -> Self {
         WasmPacker {
-            genetic_algorithm: GeneticAlgorithm::new(),
             bin_node: None,
             bin_area: 0.0,
             bin_bounds: None,
@@ -69,17 +67,17 @@ impl WasmPacker {
         );
 
         // Initialize genetic algorithm
-        self.genetic_algorithm.init(
-            &self.nodes,
-            self.result_bounds.as_ref().unwrap(),
-            &self.config,
-        );
+        GeneticAlgorithm::with_instance(|ga| {
+            ga.init(
+                &self.nodes,
+                self.result_bounds.as_ref().unwrap(),
+                &self.config,
+            );
+        });
     }
 
     pub fn get_pairs(&mut self) -> Vec<u8> {
-        let individual = self
-            .genetic_algorithm
-            .get_individual(&self.nodes)
+        let individual = GeneticAlgorithm::with_instance(|ga| ga.get_individual(&self.nodes))
             .expect("Failed to get individual");
 
         self.nfp_store.init(
@@ -132,8 +130,9 @@ impl WasmPacker {
         // Convert first placement to f32 slice
         let mut placements_data = Self::bytes_to_f32_vec(&placements[0]);
 
-        self.genetic_algorithm
-            .update_fitness(self.nfp_store.phenotype_source(), placements_data[0]);
+        GeneticAlgorithm::with_instance(|ga| {
+            ga.update_fitness(self.nfp_store.phenotype_source(), placements_data[0]);
+        });
 
         // Find best placement
         for i in 1..placements.len() {
@@ -198,7 +197,9 @@ impl WasmPacker {
         self.nodes.clear();
         self.best = None;
         self.bin_node = None;
-        self.genetic_algorithm.clean();
+        GeneticAlgorithm::with_instance(|ga| {
+            ga.clean();
+        });
         self.nfp_store.clean();
     }
 
