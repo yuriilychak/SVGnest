@@ -35,31 +35,6 @@ export function deserializeConfig(value: number): NestConfig {
     };
 }
 
-export function serializeMapToBuffer(map: NFPCache): ArrayBuffer {
-    const totalSize: number = Array.from(map.values()).reduce(
-        (acc, buffer) => acc + (Uint32Array.BYTES_PER_ELEMENT << 1) + buffer.byteLength,
-        0
-    );
-    const resultBuffer: ArrayBuffer = new ArrayBuffer(totalSize);
-    const view: DataView = new DataView(resultBuffer);
-    const entries = Array.from(map.entries());
-    let length: number = 0;
-
-    entries.reduce((offset, [key, buffer]) => {
-        view.setUint32(offset, key);
-        offset += Uint32Array.BYTES_PER_ELEMENT;
-        length = buffer.byteLength;
-        view.setUint32(offset, length);
-        offset += Uint32Array.BYTES_PER_ELEMENT;
-
-        new Uint8Array(resultBuffer, offset).set(new Uint8Array(buffer));
-
-        return offset + length;
-    }, 0);
-
-    return resultBuffer;
-}
-
 function getByteOffset(array: Float32Array, index: number): number {
     return (array.byteOffset >>> 0) + index * Float32Array.BYTES_PER_ELEMENT;
 }

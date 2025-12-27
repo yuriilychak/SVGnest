@@ -99,22 +99,8 @@ impl NFPStore {
             PolygonNode::generate_nfp_cache_key(self.angle_split as u32, inside, node1, node2);
 
         if !self.nfp_cache.contains_key(&key) {
-            let nodes = PolygonNode::rotate_nodes(&[node1.clone(), node2.clone()]);
-
-            // Serialize directly to f32 (no byte conversion needed)
-            let serialized_f32 = PolygonNode::serialize_f32(&nodes, 0);
-
-            // Create buffer with header + serialized nodes
-            let mut f32_buffer = Vec::with_capacity(3 + serialized_f32.len());
-
-            // Write header as f32 (reinterpreted from u32) in big-endian to match TypeScript DataView default
-            f32_buffer.push(f32::from_bits(THREAD_TYPE_PAIR.swap_bytes()));
-            f32_buffer.push(f32::from_bits(self.config_compressed.swap_bytes()));
-            f32_buffer.push(f32::from_bits(key.swap_bytes()));
-
-            // Append serialized f32 data directly
-            f32_buffer.extend_from_slice(&serialized_f32);
-
+            let nodes = [node1.clone(), node2.clone()];
+            let f32_buffer = Self::generate_pair(key, &nodes, self.config_compressed);
             self.nfp_pairs.push(f32_buffer);
         } else {
             if let Some(cached) = self.nfp_cache.get(&key) {
@@ -134,26 +120,13 @@ impl NFPStore {
 
     pub fn get_placement_data(&self, input_nodes: &[PolygonNode], area: f32) -> Vec<u8> {
         let nfp_buffer = Self::serialize_map_to_buffer(&self.nfp_cache);
-        let buffer_size = nfp_buffer.len();
         let nodes: Vec<PolygonNode> = self
             .sources
             .iter()
             .map(|&source| input_nodes[source as usize].clone())
             .collect();
-        let nodes = PolygonNode::rotate_nodes(&nodes);
-        let header_size = 16; // 4 * u32
-        let mut buffer = PolygonNode::serialize(&nodes, header_size + buffer_size);
 
-        // Write header in big-endian to match TypeScript DataView default
-        buffer[0..4].copy_from_slice(&THREAD_TYPE_PLACEMENT.to_be_bytes());
-        buffer[4..8].copy_from_slice(&self.config_compressed.to_be_bytes());
-        buffer[8..12].copy_from_slice(&area.to_be_bytes());
-        buffer[12..16].copy_from_slice(&(buffer_size as u32).to_be_bytes());
-
-        // Copy NFP cache buffer
-        buffer[16..16 + buffer_size].copy_from_slice(&nfp_buffer);
-
-        buffer
+        Self::generate_placement_data(&nfp_buffer, self.config_compressed, &nodes, area)
     }
 
     pub fn nfp_pairs(&self) -> &[Vec<f32>] {
@@ -196,6 +169,44 @@ impl NFPStore {
         f32_buffer
     }
 
+    /// Generate placement data for genetic algorithm
+    ///
+    /// Takes NFP cache buffer, config, input nodes, and area
+    /// Returns serialized buffer with header + NFP cache + rotated nodes as f32
+    pub fn generate_placement_data(
+        nfp_buffer: &[u8],
+        config: u32,
+        input_nodes: &[PolygonNode],
+        area: f32,
+    ) -> Vec<u8> {
+        let buffer_size = nfp_buffer.len();
+        let nodes = PolygonNode::rotate_nodes(input_nodes);
+
+        // Serialize nodes as f32
+        let nodes_f32 = PolygonNode::serialize_f32(&nodes, 0);
+        let nodes_bytes_len = nodes_f32.len() * std::mem::size_of::<f32>();
+
+        let header_size = 16; // 4 * u32
+        let total_size = header_size + buffer_size + nodes_bytes_len;
+        let mut buffer = vec![0u8; total_size];
+
+        // Write header in big-endian to match TypeScript DataView default
+        buffer[0..4].copy_from_slice(&THREAD_TYPE_PLACEMENT.to_be_bytes());
+        buffer[4..8].copy_from_slice(&config.to_be_bytes());
+        buffer[8..12].copy_from_slice(&area.to_be_bytes());
+        buffer[12..16].copy_from_slice(&(buffer_size as u32).to_be_bytes());
+
+        // Copy NFP cache buffer
+        buffer[16..16 + buffer_size].copy_from_slice(nfp_buffer);
+
+        // Copy serialized nodes as f32 at the end
+        let nodes_bytes =
+            unsafe { std::slice::from_raw_parts(nodes_f32.as_ptr() as *const u8, nodes_bytes_len) };
+        buffer[16 + buffer_size..].copy_from_slice(nodes_bytes);
+
+        buffer
+    }
+
     fn serialize_map_to_buffer(map: &HashMap<u32, Vec<u8>>) -> Vec<u8> {
         // Calculate total size
         let total_size: usize = map
@@ -207,13 +218,13 @@ impl NFPStore {
         let mut offset = 0;
 
         for (key, buffer) in map.iter() {
-            // Write key
-            result[offset..offset + 4].copy_from_slice(&key.to_le_bytes());
+            // Write key in big-endian to match TypeScript DataView default
+            result[offset..offset + 4].copy_from_slice(&key.to_be_bytes());
             offset += 4;
 
-            // Write length
+            // Write length in big-endian to match TypeScript DataView default
             let length = buffer.len() as u32;
-            result[offset..offset + 4].copy_from_slice(&length.to_le_bytes());
+            result[offset..offset + 4].copy_from_slice(&length.to_be_bytes());
             offset += 4;
 
             // Write buffer data

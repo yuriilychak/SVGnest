@@ -1,4 +1,4 @@
-import { generate_nfp_cache_key_wasm, rotate_nodes_wasm } from 'wasm-nesting';
+import { generate_nfp_cache_key_wasm } from 'wasm-nesting';
 import { i32, u16 } from "./types";
 
 export default class PolygonNode {
@@ -58,10 +58,6 @@ export default class PolygonNode {
         PolygonNode.deserializeInner(nodes, view, buffer, 4);
 
         return nodes;
-    }
-
-    public static rotateNodes(nodes: PolygonNode[]): PolygonNode[] {
-        return PolygonNode.deserialize(rotate_nodes_wasm(new Float32Array(PolygonNode.serialize(nodes))).buffer);
     }
 
     private static calculateTotalSize(nodes: PolygonNode[], initialSize: number): number {

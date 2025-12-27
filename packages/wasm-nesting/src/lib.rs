@@ -464,28 +464,6 @@ pub fn nfp_store_get_phenotype_source() -> u16 {
     NFPStore::with_instance(|nfp_store| nfp_store.phenotype_source())
 }
 
-/// Rotate polygon nodes
-///
-/// Takes serialized nodes as Float32Array, deserializes them, rotates them,
-/// and returns the rotated nodes as Uint8Array
-#[wasm_bindgen]
-pub fn rotate_nodes_wasm(nodes_data: &[f32]) -> Uint8Array {
-    use crate::nesting::polygon_node::PolygonNode;
-
-    // Deserialize nodes directly from f32 array
-    let nodes = PolygonNode::deserialize(nodes_data, 0);
-
-    // Rotate nodes
-    let rotated_nodes = PolygonNode::rotate_nodes(&nodes);
-
-    // Serialize rotated nodes
-    let serialized = PolygonNode::serialize(&rotated_nodes, 0);
-
-    // Return as Uint8Array
-    let out = Uint8Array::new_with_length(serialized.len() as u32);
-    out.copy_from(&serialized);
-    out
-}
 
 /// Generate pair data for NFP calculation
 ///
@@ -504,5 +482,31 @@ pub fn nfp_generate_pair(key: u32, config: u32, nodes_data: &[f32]) -> Float32Ar
     // Return as Float32Array
     let out = Float32Array::new_with_length(pair_data.len() as u32);
     out.copy_from(&pair_data);
+    out
+}
+
+/// Generate placement data for genetic algorithm
+///
+/// Takes NFP cache buffer, config, serialized input nodes, and area
+/// Returns Uint8Array with header + NFP cache + rotated nodes
+#[wasm_bindgen]
+pub fn nfp_generate_placement_data(
+    nfp_buffer: &[u8],
+    config: u32,
+    nodes_data: &[f32],
+    area: f32,
+) -> Uint8Array {
+    use crate::nesting::nfp_store::NFPStore;
+    use crate::nesting::polygon_node::PolygonNode;
+
+    // Deserialize nodes directly from f32 array
+    let nodes = PolygonNode::deserialize(nodes_data, 0);
+
+    // Generate placement data
+    let placement_data = NFPStore::generate_placement_data(nfp_buffer, config, &nodes, area);
+
+    // Return as Uint8Array
+    let out = Uint8Array::new_with_length(placement_data.len() as u32);
+    out.copy_from(&placement_data);
     out
 }

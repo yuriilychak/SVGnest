@@ -1,7 +1,7 @@
-import { nfp_generate_pair } from 'wasm-nesting';
+import { nfp_generate_pair, nfp_generate_placement_data } from 'wasm-nesting';
 import { NFPCache, NestConfig, THREAD_TYPE, i32, u16, u32, u8, usize, f32 } from './types';
 import PolygonNode from './polygon-node';
-import { serializeMapToBuffer, serializeConfig } from './helpers';
+import { serializeConfig } from './helpers';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<u32, ArrayBuffer>();
@@ -92,21 +92,11 @@ export default class NFPStore {
     }
 
     public getPlacementData(inputNodes: PolygonNode[], area: f32): Uint8Array {
-        const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
-        const bufferSize = nfpBuffer.byteLength;
-        const inpuNodes = this.#sources.map(source => inputNodes[source])
-        const nodes = PolygonNode.rotateNodes(inpuNodes);
-        const buffer = PolygonNode.serialize(nodes, Uint32Array.BYTES_PER_ELEMENT * 4 + bufferSize);
-        const view = new DataView(buffer);
+        const nfpBuffer = NFPStore.serializeMapToBuffer(this.#nfpCache);
+        const inputNodesArray = this.#sources.map(source => inputNodes[source]);
+        const nfpData = new Uint8Array(nfpBuffer);
 
-        view.setUint32(0, THREAD_TYPE.PLACEMENT);
-        view.setUint32(Uint32Array.BYTES_PER_ELEMENT, this.#configCompressed);
-        view.setFloat32(Uint32Array.BYTES_PER_ELEMENT * 2, area);
-        view.setUint32(Uint32Array.BYTES_PER_ELEMENT * 3, bufferSize);
-
-        new Uint8Array(buffer, Uint32Array.BYTES_PER_ELEMENT * 4).set(new Uint8Array(nfpBuffer));
-
-        return new Uint8Array(buffer);
+        return NFPStore.generatePlacementData(nfpData.slice(), this.#configCompressed, inputNodesArray, area);
     }
 
     public get nfpPairs(): Float32Array[] {
@@ -132,5 +122,37 @@ export default class NFPStore {
         const nodesUint8 = new Float32Array(serialized);
 
         return nfp_generate_pair(key, config, nodesUint8);
+    }
+
+    public static generatePlacementData(nfpBuffer: Uint8Array, config: u32, inputNodes: PolygonNode[], area: f32): Uint8Array {
+        const serialized = PolygonNode.serialize(inputNodes);
+        const nodesFloat32 = new Float32Array(serialized);
+
+        return nfp_generate_placement_data(nfpBuffer, config, nodesFloat32, area);
+    }
+
+    public static serializeMapToBuffer(map: NFPCache): ArrayBuffer {
+        const totalSize: number = Array.from(map.values()).reduce(
+            (acc, buffer) => acc + (Uint32Array.BYTES_PER_ELEMENT << 1) + buffer.byteLength,
+            0
+        );
+        const resultBuffer: ArrayBuffer = new ArrayBuffer(totalSize);
+        const view: DataView = new DataView(resultBuffer);
+        const entries = Array.from(map.entries());
+        let length: number = 0;
+
+        entries.reduce((offset, [key, buffer]) => {
+            view.setUint32(offset, key);
+            offset += Uint32Array.BYTES_PER_ELEMENT;
+            length = buffer.byteLength;
+            view.setUint32(offset, length);
+            offset += Uint32Array.BYTES_PER_ELEMENT;
+
+            new Uint8Array(resultBuffer, offset).set(new Uint8Array(buffer));
+
+            return offset + length;
+        }, 0);
+
+        return resultBuffer;
     }
 }

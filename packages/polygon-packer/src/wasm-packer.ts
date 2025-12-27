@@ -1,6 +1,6 @@
 import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
 import GeneticAlgorithm from './genetic-algorithm';
-import NFPStore from './nfp-store';
+import NFPStore from './nfp-store-wasm';
 import { f32, NestConfig, SourceItem } from './types';
 import { readUint32FromF32, generateTree, generateBounds, deserializeConfig } from './helpers';
 import { BoundRectF32 } from './geometry';
