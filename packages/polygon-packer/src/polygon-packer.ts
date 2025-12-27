@@ -19,29 +19,6 @@ export default class PolygonPacker {
         this.#wasmPacker = new WasmPacker();
     }
 
-    static deserializePairs(data: Float32Array): ArrayBuffer[] {
-        let offset = 0;
-
-        // Read count (as u32 bits from f32)
-        const countBits = new Uint32Array(Float32Array.from([data[offset]]).buffer)[0];
-        offset += 1;
-
-        const pairs: ArrayBuffer[] = [];
-
-        // Read each pair
-        for (let i = 0; i < countBits; i++) {
-            const sizeBits = new Uint32Array(Float32Array.from([data[offset]]).buffer)[0];
-            offset += 1;
-
-            const pairData = data.slice(offset, offset + sizeBits);
-            offset += sizeBits;
-
-            pairs.push(pairData.buffer);
-        }
-
-        return pairs;
-    }
-
     // progressCallback is called when progress is made
     // displayCallback is called when a new placement has been made
     public start(
@@ -131,5 +108,29 @@ export default class PolygonPacker {
         if (isClean) {
             this.#wasmPacker.stop();
         }
+    }
+
+    private static deserializePairs(data: Float32Array): ArrayBuffer[] {
+        let offset: usize = 0;
+        let sliceIndex: usize = 1;
+        let sizeBits: u32 = 0;
+        let pairData: Float32Array = null;
+        const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+        const pairs: ArrayBuffer[] = [];
+        const countBits = view.getUint32(offset, true);
+
+        offset += Float32Array.BYTES_PER_ELEMENT;
+
+        for (let i = 0; i < countBits; ++i) {
+            sizeBits = view.getUint32(offset, true);
+            sliceIndex += 1;
+            pairData = data.slice(sliceIndex, sliceIndex + sizeBits);
+            sliceIndex += sizeBits;
+            offset = sliceIndex * Float32Array.BYTES_PER_ELEMENT;
+
+            pairs.push(pairData.buffer);
+        }
+
+        return pairs;
     }
 }
