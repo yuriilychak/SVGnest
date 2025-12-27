@@ -8,8 +8,9 @@ import {
     nfp_store_get_placement_count,
     nfp_store_get_phenotype_source
 } from 'wasm-nesting';
-import { NestConfig, PolygonNode, i32, u16, f32, usize } from './types';
-import { serializeConfig, serializePolygonNodes } from './helpers';
+import { NestConfig, i32, u16, f32, usize } from './types';
+import { serializeConfig } from './helpers';
+import PolygonNode from './polygon-node';
 
 export default class NFPStore {
     static #instance: NFPStore;
@@ -34,7 +35,7 @@ export default class NFPStore {
     ): void {
         // Combine all nodes + binNode
         const allNodes = [...nodes, binNode];
-        const serializedNodes = serializePolygonNodes(allNodes);
+        const serializedNodes = PolygonNode.serialize(allNodes);
         const nodesUint8 = new Uint8Array(serializedNodes);
 
         // Serialize config
@@ -86,7 +87,7 @@ export default class NFPStore {
 
     public getPlacementData(inputNodes: PolygonNode[], area: f32): Uint8Array {
         // Serialize nodes
-        const serializedNodes = serializePolygonNodes(inputNodes);
+        const serializedNodes = PolygonNode.serialize(inputNodes);
         const nodesUint8 = new Uint8Array(serializedNodes);
 
         // Call WASM

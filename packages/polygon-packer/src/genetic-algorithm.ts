@@ -5,8 +5,9 @@ import {
     genetic_algorithm_update_fitness
 } from 'wasm-nesting';
 import { BoundRectF32 } from './geometry';
-import { i32, NestConfig, PolygonNode, u16 } from './types';
-import { serializeConfig, serializePolygonNodes } from './helpers';
+import { i32, NestConfig, u16 } from './types';
+import { serializeConfig } from './helpers';
+import PolygonNode from './polygon-node';
 
 export default class GeneticAlgorithmWasm {
     static #instance: GeneticAlgorithmWasm;
@@ -23,7 +24,7 @@ export default class GeneticAlgorithmWasm {
 
     public init(nodes: PolygonNode[], bounds: BoundRectF32, config: NestConfig): void {
         // Serialize nodes
-        const serializedNodes = serializePolygonNodes(nodes);
+        const serializedNodes = PolygonNode.serialize(nodes);
         const nodesUint8 = new Uint8Array(serializedNodes);
 
         // Serialize bounds
@@ -42,7 +43,7 @@ export default class GeneticAlgorithmWasm {
 
     public getIndividual(nodes: PolygonNode[]): { source: u16, placement: i32[], rotation: u16[] } | null {
         // Serialize nodes
-        const serializedNodes = serializePolygonNodes(nodes);
+        const serializedNodes = PolygonNode.serialize(nodes);
         const nodesUint8 = new Uint8Array(serializedNodes);
 
         // Call WASM

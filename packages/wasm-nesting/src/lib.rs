@@ -528,3 +528,43 @@ pub fn nfp_store_get_phenotype_source() -> u16 {
 
     NFPStore::with_instance(|nfp_store| nfp_store.phenotype_source())
 }
+
+/// Rotate polygon nodes
+///
+/// Takes serialized nodes as Uint8Array, deserializes them, rotates them,
+/// and returns the rotated nodes as Uint8Array
+#[wasm_bindgen]
+pub fn rotate_nodes_wasm(nodes_data: Uint8Array) -> Uint8Array {
+    use crate::nesting::polygon_node::PolygonNode;
+
+    // Convert Uint8Array to Vec<u8>
+    let nodes_vec = nodes_data.to_vec();
+
+    // Convert bytes to f32 array
+    let f32_len = nodes_vec.len() / 4;
+    let nodes_f32: Vec<f32> = (0..f32_len)
+        .map(|i| {
+            let idx = i * 4;
+            f32::from_ne_bytes([
+                nodes_vec[idx],
+                nodes_vec[idx + 1],
+                nodes_vec[idx + 2],
+                nodes_vec[idx + 3],
+            ])
+        })
+        .collect();
+
+    // Deserialize nodes
+    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+
+    // Rotate nodes
+    let rotated_nodes = PolygonNode::rotate_nodes(&nodes);
+
+    // Serialize rotated nodes
+    let serialized = PolygonNode::serialize(&rotated_nodes, 0);
+
+    // Return as Uint8Array
+    let out = Uint8Array::new_with_length(serialized.len() as u32);
+    out.copy_from(&serialized);
+    out
+}

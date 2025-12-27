@@ -99,7 +99,7 @@ impl NFPStore {
             PolygonNode::generate_nfp_cache_key(self.angle_split as u32, inside, node1, node2);
 
         if !self.nfp_cache.contains_key(&key) {
-            let nodes = Self::rotate_nodes(&[node1.clone(), node2.clone()]);
+            let nodes = PolygonNode::rotate_nodes(&[node1.clone(), node2.clone()]);
             let header_size = 3; // 3 * f32 for header
             let serialized = PolygonNode::serialize(&nodes, 0);
 
@@ -149,7 +149,7 @@ impl NFPStore {
             .iter()
             .map(|&source| input_nodes[source as usize].clone())
             .collect();
-        let nodes = Self::rotate_nodes(&nodes);
+        let nodes = PolygonNode::rotate_nodes(&nodes);
         let header_size = 16; // 4 * u32
         let mut buffer = PolygonNode::serialize(&nodes, header_size + buffer_size);
 
@@ -179,34 +179,6 @@ impl NFPStore {
 
     pub fn phenotype_source(&self) -> u16 {
         self.phenotype_source
-    }
-
-    fn rotate_nodes(nodes: &[PolygonNode]) -> Vec<PolygonNode> {
-        let mut result = Self::clone_nodes(nodes);
-        let node_count = result.len();
-
-        for i in 0..node_count {
-            let rotation = result[i].rotation;
-            Self::rotate_node(&mut result[i], rotation);
-        }
-
-        result
-    }
-
-    fn rotate_node(root_node: &mut PolygonNode, rotation: f32) {
-        let mut mem_seg = root_node.mem_seg.to_vec();
-        f32::rotate_polygon(&mut mem_seg, rotation);
-        root_node.mem_seg = mem_seg.into_boxed_slice();
-
-        let child_count = root_node.children.len();
-
-        for i in 0..child_count {
-            Self::rotate_node(&mut root_node.children[i], rotation);
-        }
-    }
-
-    fn clone_nodes(nodes: &[PolygonNode]) -> Vec<PolygonNode> {
-        nodes.iter().map(|node| node.clone()).collect()
     }
 
     fn serialize_map_to_buffer(map: &HashMap<u32, Vec<u8>>) -> Vec<u8> {

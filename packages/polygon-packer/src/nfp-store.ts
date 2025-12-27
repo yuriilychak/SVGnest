@@ -1,6 +1,6 @@
-import { rotate_polygon_wasm } from 'wasm-nesting';
-import { NFPCache, PolygonNode, NestConfig, THREAD_TYPE, i32, u16, u32, u8, usize, f32 } from './types';
-import { serializeMapToBuffer, serializePolygonNodes, serializeConfig, generateNFPCacheKey } from './helpers';
+import { NFPCache, NestConfig, THREAD_TYPE, i32, u16, u32, u8, usize, f32 } from './types';
+import PolygonNode from './polygon-node';
+import { serializeMapToBuffer, serializeConfig } from './helpers';
 
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<u32, ArrayBuffer>();
@@ -70,11 +70,11 @@ export default class NFPStore {
     }
 
     private updateCache(node1: PolygonNode, node2: PolygonNode, inside: boolean, newCache: NFPCache): void {
-        const key: u32 = generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
+        const key: u32 = PolygonNode.generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
 
         if (!this.#nfpCache.has(key)) {
-            const nodes = NFPStore.rotateNodes([node1, node2]);
-            const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 3);
+            const nodes = PolygonNode.rotateNodes([node1, node2]);
+            const buffer = PolygonNode.serialize(nodes, Uint32Array.BYTES_PER_ELEMENT * 3);
             const view: DataView = new DataView(buffer);
 
             view.setUint32(0, THREAD_TYPE.PAIR);
@@ -99,8 +99,9 @@ export default class NFPStore {
     public getPlacementData(inputNodes: PolygonNode[], area: f32): Uint8Array {
         const nfpBuffer = serializeMapToBuffer(this.#nfpCache);
         const bufferSize = nfpBuffer.byteLength;
-        const nodes = NFPStore.rotateNodes(this.#sources.map(source => inputNodes[source]));
-        const buffer = serializePolygonNodes(nodes, Uint32Array.BYTES_PER_ELEMENT * 4 + bufferSize);
+        const inpuNodes = this.#sources.map(source => inputNodes[source])
+        const nodes = PolygonNode.rotateNodes(inpuNodes);
+        const buffer = PolygonNode.serialize(nodes, Uint32Array.BYTES_PER_ELEMENT * 4 + bufferSize);
         const view = new DataView(buffer);
 
         view.setUint32(0, THREAD_TYPE.PLACEMENT);
@@ -127,43 +128,5 @@ export default class NFPStore {
 
     public get phenotypeSource(): u16 {
         return this.#phenotypeSource;
-    }
-
-    private static rotateNodes(nodes: PolygonNode[]): PolygonNode[] {
-        const result: PolygonNode[] = NFPStore.cloneNodes(nodes);
-
-        const nodeCount: usize = result.length;
-
-        for (let i = 0; i < nodeCount; ++i) {
-            NFPStore.rotateNode(result[i], result[i].rotation);
-        }
-
-        return result;
-    }
-
-    private static rotateNode(rootNode: PolygonNode, rotation: u16): void {
-        rootNode.memSeg = rotate_polygon_wasm(rootNode.memSeg, rotation);
-
-        const childCount: usize = rootNode.children.length;
-
-        for (let i = 0; i < childCount; ++i) {
-            NFPStore.rotateNode(rootNode.children[i], rotation);
-        }
-    }
-
-    private static cloneNodes(nodes: PolygonNode[]): PolygonNode[] {
-        const result: PolygonNode[] = [];
-
-        for (let i = 0; i < nodes.length; ++i) {
-            const node = nodes[i];
-
-            result.push({
-                ...node,
-                memSeg: node.memSeg.slice(),
-                children: NFPStore.cloneNodes(node.children)
-            });
-        }
-
-        return result;
     }
 }

@@ -186,4 +186,47 @@ impl PolygonNode {
         let index = (rotation / step).round() as i32;
         ((index % rotation_split as i32 + rotation_split as i32) % rotation_split as i32) as u32
     }
+
+    /// Rotate multiple polygon nodes
+    ///
+    /// Clones the nodes and applies rotation to each node and its children
+    pub fn rotate_nodes(nodes: &[PolygonNode]) -> Vec<PolygonNode> {
+        let mut result = Self::clone_nodes(nodes);
+
+        for node in result.iter_mut() {
+            let rotation = node.rotation;
+            Self::rotate_node(node, rotation);
+        }
+
+        result
+    }
+
+    /// Rotate a single polygon node and all its children
+    fn rotate_node(root_node: &mut PolygonNode, rotation: f32) {
+        use crate::utils::number::Number;
+
+        // Rotate the polygon's memory segment
+        let mut mem_seg = root_node.mem_seg.to_vec();
+        f32::rotate_polygon(&mut mem_seg, rotation);
+        root_node.mem_seg = mem_seg.into_boxed_slice();
+
+        // Recursively rotate children
+        for child in root_node.children.iter_mut() {
+            Self::rotate_node(child, rotation);
+        }
+    }
+
+    /// Deep clone a slice of polygon nodes
+    fn clone_nodes(nodes: &[PolygonNode]) -> Vec<PolygonNode> {
+        nodes
+            .iter()
+            .map(|node| PolygonNode {
+                source: node.source,
+                rotation: node.rotation,
+                seg_size: node.seg_size,
+                mem_seg: node.mem_seg.clone(),
+                children: Self::clone_nodes(&node.children),
+            })
+            .collect()
+    }
 }
