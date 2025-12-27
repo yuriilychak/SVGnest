@@ -107,10 +107,10 @@ impl NFPStore {
             let f32_count = serialized.len() / 4;
             let mut f32_buffer = Vec::with_capacity(header_size + f32_count);
 
-            // Write header as f32 (reinterpreted from u32)
-            f32_buffer.push(f32::from_bits(THREAD_TYPE_PAIR));
-            f32_buffer.push(f32::from_bits(self.config_compressed));
-            f32_buffer.push(f32::from_bits(key));
+            // Write header as f32 (reinterpreted from u32) in big-endian to match TypeScript DataView default
+            f32_buffer.push(f32::from_bits(THREAD_TYPE_PAIR.swap_bytes()));
+            f32_buffer.push(f32::from_bits(self.config_compressed.swap_bytes()));
+            f32_buffer.push(f32::from_bits(key.swap_bytes()));
 
             // Convert serialized bytes to f32
             for i in 0..f32_count {
@@ -121,7 +121,7 @@ impl NFPStore {
                     serialized[idx + 2],
                     serialized[idx + 3],
                 ];
-                f32_buffer.push(f32::from_le_bytes(bytes));
+                f32_buffer.push(f32::from_be_bytes(bytes));
             }
 
             self.nfp_pairs.push(f32_buffer);
@@ -179,6 +179,40 @@ impl NFPStore {
 
     pub fn phenotype_source(&self) -> u16 {
         self.phenotype_source
+    }
+
+    /// Generate pair data for NFP calculation
+    ///
+    /// Takes two nodes, rotates them, serializes with header
+    pub fn generate_pair(key: u32, nodes: &[PolygonNode], config: u32) -> Vec<f32> {
+        // Rotate the nodes
+        let rotated_nodes = PolygonNode::rotate_nodes(nodes);
+
+        // Serialize the nodes (returns Vec<u8>)
+        let serialized = PolygonNode::serialize(&rotated_nodes, 0);
+
+        // Convert byte buffer to f32 array
+        let f32_count = serialized.len() / 4;
+        let mut f32_buffer = Vec::with_capacity(3 + f32_count); // 3 for header
+
+        // Write header as f32 (reinterpreted from u32) in big-endian to match TypeScript DataView default
+        f32_buffer.push(f32::from_bits(THREAD_TYPE_PAIR.swap_bytes()));
+        f32_buffer.push(f32::from_bits(config.swap_bytes()));
+        f32_buffer.push(f32::from_bits(key.swap_bytes()));
+
+        // Convert serialized bytes to f32
+        for i in 0..f32_count {
+            let idx = i * 4;
+            let bytes = [
+                serialized[idx],
+                serialized[idx + 1],
+                serialized[idx + 2],
+                serialized[idx + 3],
+            ];
+            f32_buffer.push(f32::from_be_bytes(bytes));
+        }
+
+        f32_buffer
     }
 
     fn serialize_map_to_buffer(map: &HashMap<u32, Vec<u8>>) -> Vec<u8> {

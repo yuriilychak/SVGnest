@@ -1,3 +1,4 @@
+import { nfp_generate_pair } from 'wasm-nesting';
 import { NFPCache, NestConfig, THREAD_TYPE, i32, u16, u32, u8, usize, f32 } from './types';
 import PolygonNode from './polygon-node';
 import { serializeMapToBuffer, serializeConfig } from './helpers';
@@ -73,15 +74,10 @@ export default class NFPStore {
         const key: u32 = PolygonNode.generateNFPCacheKey(this.#angleSplit, inside, node1, node2);
 
         if (!this.#nfpCache.has(key)) {
-            const nodes = PolygonNode.rotateNodes([node1, node2]);
-            const buffer = PolygonNode.serialize(nodes, Uint32Array.BYTES_PER_ELEMENT * 3);
-            const view: DataView = new DataView(buffer);
+            const pairData = NFPStore.generatePair(key, node1, node2, this.#configCompressed);
+            console.log(pairData, NFPStore.generatePairRust(key, node1, node2, this.#configCompressed));
 
-            view.setUint32(0, THREAD_TYPE.PAIR);
-            view.setUint32(Uint32Array.BYTES_PER_ELEMENT, this.#configCompressed);
-            view.setUint32(Uint32Array.BYTES_PER_ELEMENT << 1, key);
-
-            this.#nfpPairs.push(new Float32Array(buffer));
+            this.#nfpPairs.push(pairData);
         } else {
             newCache.set(key, this.#nfpCache.get(key));
         }
@@ -128,5 +124,25 @@ export default class NFPStore {
 
     public get phenotypeSource(): u16 {
         return this.#phenotypeSource;
+    }
+
+    public static generatePair(key: u32, node1: PolygonNode, node2: PolygonNode, config: u32): Float32Array {
+        const nodes = PolygonNode.rotateNodes([node1, node2]);
+        const buffer = PolygonNode.serialize(nodes, Uint32Array.BYTES_PER_ELEMENT * 3);
+        const view: DataView = new DataView(buffer);
+
+        view.setUint32(0, THREAD_TYPE.PAIR);
+        view.setUint32(Uint32Array.BYTES_PER_ELEMENT, config);
+        view.setUint32(Uint32Array.BYTES_PER_ELEMENT << 1, key);
+
+        return new Float32Array(buffer);
+    }
+
+    public static generatePairRust(key: u32, node1: PolygonNode, node2: PolygonNode, config: u32): Float32Array {
+        const nodes = [node1, node2];
+        const serialized = PolygonNode.serialize(nodes);
+        const nodesFloat32 = new Float32Array(serialized);
+
+        return nfp_generate_pair(key, config, nodesFloat32);
     }
 }

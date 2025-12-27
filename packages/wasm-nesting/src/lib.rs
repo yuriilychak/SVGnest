@@ -25,15 +25,6 @@ pub fn abs_polygon_area(points: &[f32]) -> f64 {
 }
 
 #[wasm_bindgen]
-pub fn rotate_polygon_wasm(polygon: &[f32], angle: f32) -> Float32Array {
-    let mut result = polygon.to_vec();
-    f32::rotate_polygon(&mut result, angle);
-    let out = Float32Array::new_with_length(result.len() as u32);
-    out.copy_from(&result);
-    out
-}
-
-#[wasm_bindgen]
 pub fn calculate_bounds_wasm(polygon: &[f32]) -> Float32Array {
     let size = polygon.len() >> 1;
     let bounds = f32::calculate_bounds(polygon, 0, size);
@@ -183,31 +174,17 @@ pub fn generate_bounds_wasm(mem_seg: &[f32], spacing: i32, curve_tolerance: f32)
 /// Initialize the singleton GeneticAlgorithm
 ///
 /// Arguments:
-/// - nodes_data: Uint8Array containing serialized PolygonNode data
+/// - nodes_data: Float32Array containing serialized PolygonNode data
 /// - bounds: Float32Array [x, y, width, height]
 /// - config: Serialized NestConfig (u32)
 #[wasm_bindgen]
-pub fn genetic_algorithm_init(nodes_data: &[u8], bounds: &[f32], config: u32) {
+pub fn genetic_algorithm_init(nodes_data: &[f32], bounds: &[f32], config: u32) {
     use crate::genetic_algorithm::GeneticAlgorithm;
     use crate::geometry::bound_rect::BoundRect;
     use crate::nest_config::NestConfig;
 
-    // Convert byte array to f32 array (reinterpret bytes as f32)
-    let f32_len = nodes_data.len() / 4;
-    let nodes_f32: Vec<f32> = (0..f32_len)
-        .map(|i| {
-            let idx = i * 4;
-            f32::from_ne_bytes([
-                nodes_data[idx],
-                nodes_data[idx + 1],
-                nodes_data[idx + 2],
-                nodes_data[idx + 3],
-            ])
-        })
-        .collect();
-
-    // Deserialize nodes using f32 buffer
-    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+    // Deserialize nodes directly from f32 array
+    let nodes = PolygonNode::deserialize(nodes_data, 0);
 
     // Create bounds - check bounds array length
     if bounds.len() < 4 {
@@ -238,29 +215,15 @@ pub fn genetic_algorithm_clean() {
 /// Get individual from the singleton GeneticAlgorithm
 ///
 /// Arguments:
-/// - nodes_data: Uint8Array containing serialized PolygonNode data
+/// - nodes_data: Float32Array containing serialized PolygonNode data
 ///
 /// Returns: Uint8Array containing serialized Phenotype [source (u16), placement_count (u32), placement[] (i32[]), rotation[] (u16[])]
 #[wasm_bindgen]
-pub fn genetic_algorithm_get_individual(nodes_data: &[u8]) -> Uint8Array {
+pub fn genetic_algorithm_get_individual(nodes_data: &[f32]) -> Uint8Array {
     use crate::genetic_algorithm::GeneticAlgorithm;
 
-    // Convert byte array to f32 array (reinterpret bytes as f32)
-    let f32_len = nodes_data.len() / 4;
-    let nodes_f32: Vec<f32> = (0..f32_len)
-        .map(|i| {
-            let idx = i * 4;
-            f32::from_ne_bytes([
-                nodes_data[idx],
-                nodes_data[idx + 1],
-                nodes_data[idx + 2],
-                nodes_data[idx + 3],
-            ])
-        })
-        .collect();
-
-    // Deserialize nodes using f32 buffer
-    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+    // Deserialize nodes directly from f32 array
+    let nodes = PolygonNode::deserialize(nodes_data, 0);
 
     let phenotype_opt = GeneticAlgorithm::with_instance(|ga| ga.get_individual(&nodes));
 
@@ -326,14 +289,14 @@ pub fn genetic_algorithm_update_fitness(source: u16, fitness: f32) {
 /// Initialize the singleton NFPStore
 ///
 /// Arguments:
-/// - nodes_data: Uint8Array containing serialized PolygonNode data (all nodes + bin_node)
+/// - nodes_data: Float32Array containing serialized PolygonNode data (all nodes + bin_node)
 /// - config: Serialized NestConfig (u32)
 /// - phenotype_source: Phenotype source ID (u16)
 /// - sources: Int32Array of source indices
 /// - rotations: Uint16Array of rotation values
 #[wasm_bindgen]
 pub fn nfp_store_init(
-    nodes_data: &[u8],
+    nodes_data: &[f32],
     config: u32,
     phenotype_source: u16,
     sources: &[i32],
@@ -342,22 +305,8 @@ pub fn nfp_store_init(
     use crate::nest_config::NestConfig;
     use crate::nesting::nfp_store::NFPStore;
 
-    // Convert byte array to f32 array (reinterpret bytes as f32)
-    let f32_len = nodes_data.len() / 4;
-    let nodes_f32: Vec<f32> = (0..f32_len)
-        .map(|i| {
-            let idx = i * 4;
-            f32::from_ne_bytes([
-                nodes_data[idx],
-                nodes_data[idx + 1],
-                nodes_data[idx + 2],
-                nodes_data[idx + 3],
-            ])
-        })
-        .collect();
-
-    // Deserialize all nodes (including bin_node as last)
-    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+    // Deserialize all nodes (including bin_node as last) directly from f32 array
+    let nodes = PolygonNode::deserialize(nodes_data, 0);
 
     // Split: last node is bin_node, rest are regular nodes
     let bin_node = &nodes[nodes.len() - 1];
@@ -442,30 +391,16 @@ pub fn nfp_store_clean() {
 /// Get placement data from the singleton NFPStore
 ///
 /// Arguments:
-/// - nodes_data: Uint8Array containing serialized PolygonNode data
+/// - nodes_data: Float32Array containing serialized PolygonNode data
 /// - area: Bin area (f32)
 ///
 /// Returns: Uint8Array containing placement data
 #[wasm_bindgen]
-pub fn nfp_store_get_placement_data(nodes_data: &[u8], area: f32) -> Uint8Array {
+pub fn nfp_store_get_placement_data(nodes_data: &[f32], area: f32) -> Uint8Array {
     use crate::nesting::nfp_store::NFPStore;
 
-    // Convert byte array to f32 array (reinterpret bytes as f32)
-    let f32_len = nodes_data.len() / 4;
-    let nodes_f32: Vec<f32> = (0..f32_len)
-        .map(|i| {
-            let idx = i * 4;
-            f32::from_ne_bytes([
-                nodes_data[idx],
-                nodes_data[idx + 1],
-                nodes_data[idx + 2],
-                nodes_data[idx + 3],
-            ])
-        })
-        .collect();
-
-    // Deserialize nodes using f32 buffer
-    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+    // Deserialize nodes directly from f32 array
+    let nodes = PolygonNode::deserialize(nodes_data, 0);
 
     let result = NFPStore::with_instance(|nfp_store| nfp_store.get_placement_data(&nodes, area));
 
@@ -531,31 +466,14 @@ pub fn nfp_store_get_phenotype_source() -> u16 {
 
 /// Rotate polygon nodes
 ///
-/// Takes serialized nodes as Uint8Array, deserializes them, rotates them,
+/// Takes serialized nodes as Float32Array, deserializes them, rotates them,
 /// and returns the rotated nodes as Uint8Array
 #[wasm_bindgen]
-pub fn rotate_nodes_wasm(nodes_data: Uint8Array) -> Uint8Array {
+pub fn rotate_nodes_wasm(nodes_data: &[f32]) -> Uint8Array {
     use crate::nesting::polygon_node::PolygonNode;
 
-    // Convert Uint8Array to Vec<u8>
-    let nodes_vec = nodes_data.to_vec();
-
-    // Convert bytes to f32 array
-    let f32_len = nodes_vec.len() / 4;
-    let nodes_f32: Vec<f32> = (0..f32_len)
-        .map(|i| {
-            let idx = i * 4;
-            f32::from_ne_bytes([
-                nodes_vec[idx],
-                nodes_vec[idx + 1],
-                nodes_vec[idx + 2],
-                nodes_vec[idx + 3],
-            ])
-        })
-        .collect();
-
-    // Deserialize nodes
-    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+    // Deserialize nodes directly from f32 array
+    let nodes = PolygonNode::deserialize(nodes_data, 0);
 
     // Rotate nodes
     let rotated_nodes = PolygonNode::rotate_nodes(&nodes);
@@ -566,5 +484,25 @@ pub fn rotate_nodes_wasm(nodes_data: Uint8Array) -> Uint8Array {
     // Return as Uint8Array
     let out = Uint8Array::new_with_length(serialized.len() as u32);
     out.copy_from(&serialized);
+    out
+}
+
+/// Generate pair data for NFP calculation
+///
+/// Takes key, config, and serialized nodes (2 nodes), returns Float32Array with header and rotated nodes
+#[wasm_bindgen]
+pub fn nfp_generate_pair(key: u32, config: u32, nodes_data: &[f32]) -> Float32Array {
+    use crate::nesting::nfp_store::NFPStore;
+    use crate::nesting::polygon_node::PolygonNode;
+
+    // Deserialize nodes directly from f32 array
+    let nodes = PolygonNode::deserialize(nodes_data, 0);
+
+    // Generate pair
+    let pair_data = NFPStore::generate_pair(key, &nodes, config);
+
+    // Return as Float32Array
+    let out = Float32Array::new_with_length(pair_data.len() as u32);
+    out.copy_from(&pair_data);
     out
 }

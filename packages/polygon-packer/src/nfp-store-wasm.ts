@@ -36,7 +36,7 @@ export default class NFPStore {
         // Combine all nodes + binNode
         const allNodes = [...nodes, binNode];
         const serializedNodes = PolygonNode.serialize(allNodes);
-        const nodesUint8 = new Uint8Array(serializedNodes);
+        const nodesFloat32 = new Float32Array(serializedNodes);
 
         // Serialize config
         const configSerialized = serializeConfig(config);
@@ -46,7 +46,7 @@ export default class NFPStore {
         const rotationsArray = new Uint16Array(rotations);
 
         // Call WASM
-        nfp_store_init(nodesUint8, configSerialized, phenotypeSource, sourcesArray, rotationsArray);
+        nfp_store_init(nodesFloat32, configSerialized, phenotypeSource, sourcesArray, rotationsArray);
     }
 
     public update(nfps: ArrayBuffer[]): void {
@@ -88,10 +88,10 @@ export default class NFPStore {
     public getPlacementData(inputNodes: PolygonNode[], area: f32): Uint8Array {
         // Serialize nodes
         const serializedNodes = PolygonNode.serialize(inputNodes);
-        const nodesUint8 = new Uint8Array(serializedNodes);
+        const nodesFloat32 = new Float32Array(serializedNodes);
 
         // Call WASM
-        return nfp_store_get_placement_data(nodesUint8, area);
+        return nfp_store_get_placement_data(nodesFloat32, area);
     }
 
     public get nfpPairs(): Float32Array[] {
@@ -100,7 +100,6 @@ export default class NFPStore {
         // Deserialize: count (f32) + [size (f32) + data]...
         let offset = 0;
 
-        const count = Float32Array.from([serialized[offset]])[0];
         const countBits = new Uint32Array(Float32Array.from([serialized[offset]]).buffer)[0];
         offset += 1;
 

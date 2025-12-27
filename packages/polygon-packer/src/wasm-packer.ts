@@ -1,9 +1,10 @@
 import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
 import GeneticAlgorithm from './genetic-algorithm';
 import NFPStore from './nfp-store';
-import { f32, NestConfig, PolygonNode, SourceItem } from './types';
+import { f32, NestConfig, SourceItem } from './types';
 import { readUint32FromF32, generateTree, generateBounds, deserializeConfig } from './helpers';
 import { BoundRectF32 } from './geometry';
+import PolygonNode from './polygon-node';
 
 export default class WasmPacker {
 

@@ -25,7 +25,7 @@ export default class GeneticAlgorithmWasm {
     public init(nodes: PolygonNode[], bounds: BoundRectF32, config: NestConfig): void {
         // Serialize nodes
         const serializedNodes = PolygonNode.serialize(nodes);
-        const nodesUint8 = new Uint8Array(serializedNodes);
+        const nodesFloat32 = new Float32Array(serializedNodes);
 
         // Serialize bounds
         const boundsArray = new Float32Array([bounds.x, bounds.y, bounds.width, bounds.height]);
@@ -34,7 +34,7 @@ export default class GeneticAlgorithmWasm {
         const configSerialized = serializeConfig(config);
 
         // Call WASM
-        genetic_algorithm_init(nodesUint8, boundsArray, configSerialized);
+        genetic_algorithm_init(nodesFloat32, boundsArray, configSerialized);
     }
 
     public clean(): void {
@@ -44,10 +44,10 @@ export default class GeneticAlgorithmWasm {
     public getIndividual(nodes: PolygonNode[]): { source: u16, placement: i32[], rotation: u16[] } | null {
         // Serialize nodes
         const serializedNodes = PolygonNode.serialize(nodes);
-        const nodesUint8 = new Uint8Array(serializedNodes);
+        const nodesFloat32 = new Float32Array(serializedNodes);
 
         // Call WASM
-        const result = genetic_algorithm_get_individual(nodesUint8);
+        const result = genetic_algorithm_get_individual(nodesFloat32);
 
         if (result.length === 0) {
             return null;
