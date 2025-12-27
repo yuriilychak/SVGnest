@@ -17,8 +17,7 @@ impl NestContent {
 
     pub fn init(&mut self, buffer: &[f32], node_offset: usize) {
         let nest_data = buffer[1].to_bits().swap_bytes();
-        let root_count = buffer[node_offset].to_bits().swap_bytes() as usize;
-        let (mut nodes, _) = PolygonNode::deserialize_nodes(buffer, node_offset + 1, root_count);
+        let mut nodes = PolygonNode::deserialize(buffer, node_offset);
 
         self.nest_config.deserialize(nest_data);
         self.nodes.append(&mut nodes);
@@ -33,10 +32,7 @@ impl NestContent {
             return;
         }
 
-        // Read node count (big-endian u32, matching TypeScript DataView)
-        let root_count = buffer[0].to_bits().swap_bytes() as usize;
-        let (nodes, _) = PolygonNode::deserialize_nodes(buffer, 1, root_count);
-        self.nodes = nodes;
+        self.nodes = PolygonNode::deserialize(buffer, 0);
     }
 
     pub fn clean(&mut self) {

@@ -19,26 +19,24 @@ export default class PolygonPacker {
         this.#wasmPacker = new WasmPacker();
     }
 
-    static deserializePairs(data: Uint8Array): ArrayBuffer[] {
-        const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    static deserializePairs(data: Float32Array): ArrayBuffer[] {
         let offset = 0;
 
-        // Read count
-        const count = view.getUint32(offset, true);
-        offset += 4;
+        // Read count (as u32 bits from f32)
+        const countBits = new Uint32Array(Float32Array.from([data[offset]]).buffer)[0];
+        offset += 1;
 
         const pairs: ArrayBuffer[] = [];
 
         // Read each pair
-        for (let i = 0; i < count; i++) {
-            const size = view.getUint32(offset, true);
-            offset += 4;
+        for (let i = 0; i < countBits; i++) {
+            const sizeBits = new Uint32Array(Float32Array.from([data[offset]]).buffer)[0];
+            offset += 1;
 
-            const pairData = new ArrayBuffer(size);
-            new Uint8Array(pairData).set(new Uint8Array(data.buffer, data.byteOffset + offset, size));
-            offset += size;
+            const pairData = data.slice(offset, offset + sizeBits);
+            offset += sizeBits;
 
-            pairs.push(pairData);
+            pairs.push(pairData.buffer);
         }
 
         return pairs;

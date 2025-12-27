@@ -12,7 +12,6 @@ pub struct WasmPacker {
     bin_bounds: Option<BoundRect<f32>>,
     result_bounds: Option<BoundRect<f32>>,
     best: Option<Vec<f32>>,
-    nfp_store: NFPStore,
     nodes: Vec<PolygonNode>,
     config: NestConfig,
 }
@@ -25,7 +24,6 @@ impl WasmPacker {
             bin_bounds: None,
             result_bounds: None,
             best: None,
-            nfp_store: NFPStore::new(),
             nodes: Vec::new(),
             config: NestConfig::new(),
         }
@@ -80,46 +78,51 @@ impl WasmPacker {
         let individual = GeneticAlgorithm::with_instance(|ga| ga.get_individual(&self.nodes))
             .expect("Failed to get individual");
 
-        self.nfp_store.init(
-            &self.nodes,
-            self.bin_node.as_ref().unwrap(),
-            &self.config,
-            individual.source(),
-            individual.placement(),
-            individual.rotation(),
-        );
+        NFPStore::with_instance(|nfp_store| {
+            nfp_store.init(
+                &self.nodes,
+                self.bin_node.as_ref().unwrap(),
+                &self.config,
+                individual.source(),
+                individual.placement(),
+                individual.rotation(),
+            );
+        });
 
-        let pairs = self.nfp_store.nfp_pairs();
+        let pairs = NFPStore::with_instance(|nfp_store| nfp_store.nfp_pairs().to_vec());
 
-        // Serialize pairs: count (u32) + [size (u32) + data] for each pair
-        let mut total_size = 4; // count
-        for pair in pairs {
-            total_size += 4 + pair.len(); // size + data
+        // Serialize pairs: count (f32) + [size (f32) + data] for each pair
+        let mut total_size = 1; // count as f32
+        for pair in &pairs {
+            total_size += 1 + pair.len(); // size as f32 + data
         }
 
-        let mut buffer = vec![0u8; total_size];
-        let mut offset = 0;
+        let mut buffer = Vec::with_capacity(total_size);
 
-        // Write count
-        buffer[offset..offset + 4].copy_from_slice(&(pairs.len() as u32).to_le_bytes());
-        offset += 4;
+        // Write count (as bits of u32)
+        buffer.push(f32::from_bits(pairs.len() as u32));
 
         // Write each pair
-        for pair in pairs {
-            buffer[offset..offset + 4].copy_from_slice(&(pair.len() as u32).to_le_bytes());
-            offset += 4;
-
-            buffer[offset..offset + pair.len()].copy_from_slice(pair);
-            offset += pair.len();
+        for pair in &pairs {
+            buffer.push(f32::from_bits(pair.len() as u32));
+            buffer.extend_from_slice(pair);
         }
 
-        buffer
+        // Convert f32 buffer to bytes for return
+        let byte_len = buffer.len() * 4;
+        let mut byte_buffer = vec![0u8; byte_len];
+        for (i, &f) in buffer.iter().enumerate() {
+            byte_buffer[i * 4..(i + 1) * 4].copy_from_slice(&f.to_le_bytes());
+        }
+
+        byte_buffer
     }
 
     pub fn get_placement_data(&mut self, generated_nfp: Vec<Vec<u8>>) -> Vec<u8> {
-        self.nfp_store.update(generated_nfp);
-        self.nfp_store
-            .get_placement_data(&self.nodes, self.bin_area)
+        NFPStore::with_instance(|nfp_store| {
+            nfp_store.update(generated_nfp);
+            nfp_store.get_placement_data(&self.nodes, self.bin_area)
+        })
     }
 
     pub fn get_placement_result(&mut self, placements: Vec<Vec<u8>>) -> Vec<u8> {
@@ -130,8 +133,9 @@ impl WasmPacker {
         // Convert first placement to f32 slice
         let mut placements_data = Self::bytes_to_f32_vec(&placements[0]);
 
+        let phenotype_source = NFPStore::with_instance(|nfp_store| nfp_store.phenotype_source());
         GeneticAlgorithm::with_instance(|ga| {
-            ga.update_fitness(self.nfp_store.phenotype_source(), placements_data[0]);
+            ga.update_fitness(phenotype_source, placements_data[0]);
         });
 
         // Find best placement
@@ -170,7 +174,7 @@ impl WasmPacker {
                 }
             }
 
-            num_parts = self.nfp_store.placement_count() as u16;
+            num_parts = NFPStore::with_instance(|nfp_store| nfp_store.placement_count()) as u16;
             num_placed_parts = placed_count;
             place_percentage = placed_area / total_area;
             has_result = true;
@@ -200,11 +204,13 @@ impl WasmPacker {
         GeneticAlgorithm::with_instance(|ga| {
             ga.clean();
         });
-        self.nfp_store.clean();
+        NFPStore::with_instance(|nfp_store| {
+            nfp_store.clean();
+        });
     }
 
     pub fn pair_count(&self) -> usize {
-        self.nfp_store.nfp_pairs().len()
+        NFPStore::with_instance(|nfp_store| nfp_store.nfp_pairs_count())
     }
 
     // Helper functions

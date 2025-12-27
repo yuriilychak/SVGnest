@@ -20,11 +20,6 @@ use crate::utils::mid_value::MidValue;
 use crate::utils::number::Number;
 
 #[wasm_bindgen]
-pub fn polygon_area(points: &[f32]) -> f64 {
-    return Number::polygon_area(points);
-}
-
-#[wasm_bindgen]
 pub fn abs_polygon_area(points: &[f32]) -> f64 {
     return Number::abs_polygon_area(points);
 }
@@ -48,11 +43,6 @@ pub fn calculate_bounds_wasm(polygon: &[f32]) -> Float32Array {
 }
 
 #[wasm_bindgen]
-pub fn almost_equal(a: f64, b: f64, tolerance: f64) -> bool {
-    a.almost_equal(b, Some(tolerance))
-}
-
-#[wasm_bindgen]
 pub fn set_bits_u32(source: u32, value: u16, index: u8, bit_count: u8) -> u32 {
     set_bits(source, value, index, bit_count)
 }
@@ -60,16 +50,6 @@ pub fn set_bits_u32(source: u32, value: u16, index: u8, bit_count: u8) -> u32 {
 #[wasm_bindgen]
 pub fn get_u16_from_u32(source: u32, index: u8) -> u16 {
     get_u16(source, index)
-}
-
-#[wasm_bindgen]
-pub fn cycle_index_wasm(index: usize, size: usize, offset: isize) -> usize {
-    cycle_index(index, size, offset)
-}
-
-#[wasm_bindgen]
-pub fn mid_value_f64(value: f64, left: f64, right: f64) -> f64 {
-    value.mid_value(left, right)
 }
 
 /// Generate NFP cache key from two polygon nodes (WASM wrapper)
@@ -138,7 +118,7 @@ pub fn generate_tree_wasm(
 ) -> Uint8Array {
     let nodes =
         clipper_wrapper::generate_tree(values, sizes, spacing as i32, curve_tolerance as f64);
-    let serialized = PolygonNode::serialize_nodes(&nodes, 0);
+    let serialized = PolygonNode::serialize(&nodes, 0);
 
     let result = Uint8Array::new_with_length(serialized.len() as u32);
     result.copy_from(&serialized);
@@ -162,7 +142,7 @@ pub fn generate_bounds_wasm(mem_seg: &[f32], spacing: i32, curve_tolerance: f32)
         Some((bounds, result_bounds, area, node)) => {
             // Serialize the node
             let nodes = vec![node];
-            let serialized = PolygonNode::serialize_nodes(&nodes, 0);
+            let serialized = PolygonNode::serialize(&nodes, 0);
 
             // Calculate total size: 9 floats + serialized bytes (as f32 array)
             // We need to convert bytes to f32 count
@@ -227,8 +207,7 @@ pub fn genetic_algorithm_init(nodes_data: &[u8], bounds: &[f32], config: u32) {
         .collect();
 
     // Deserialize nodes using f32 buffer
-    let node_count = nodes_f32[0].to_bits().swap_bytes() as usize;
-    let (nodes, _) = PolygonNode::deserialize_nodes(&nodes_f32, 1, node_count);
+    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
 
     // Create bounds - check bounds array length
     if bounds.len() < 4 {
@@ -281,8 +260,7 @@ pub fn genetic_algorithm_get_individual(nodes_data: &[u8]) -> Uint8Array {
         .collect();
 
     // Deserialize nodes using f32 buffer
-    let node_count = nodes_f32[0].to_bits().swap_bytes() as usize;
-    let (nodes, _) = PolygonNode::deserialize_nodes(&nodes_f32, 1, node_count);
+    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
 
     let phenotype_opt = GeneticAlgorithm::with_instance(|ga| ga.get_individual(&nodes));
 
@@ -339,4 +317,214 @@ pub fn genetic_algorithm_update_fitness(source: u16, fitness: f32) {
     GeneticAlgorithm::with_instance(|ga| {
         ga.update_fitness(source, fitness);
     });
+}
+
+// ============================================================================
+// NFPStore WASM Wrappers
+// ============================================================================
+
+/// Initialize the singleton NFPStore
+///
+/// Arguments:
+/// - nodes_data: Uint8Array containing serialized PolygonNode data (all nodes + bin_node)
+/// - config: Serialized NestConfig (u32)
+/// - phenotype_source: Phenotype source ID (u16)
+/// - sources: Int32Array of source indices
+/// - rotations: Uint16Array of rotation values
+#[wasm_bindgen]
+pub fn nfp_store_init(
+    nodes_data: &[u8],
+    config: u32,
+    phenotype_source: u16,
+    sources: &[i32],
+    rotations: &[u16],
+) {
+    use crate::nest_config::NestConfig;
+    use crate::nesting::nfp_store::NFPStore;
+
+    // Convert byte array to f32 array (reinterpret bytes as f32)
+    let f32_len = nodes_data.len() / 4;
+    let nodes_f32: Vec<f32> = (0..f32_len)
+        .map(|i| {
+            let idx = i * 4;
+            f32::from_ne_bytes([
+                nodes_data[idx],
+                nodes_data[idx + 1],
+                nodes_data[idx + 2],
+                nodes_data[idx + 3],
+            ])
+        })
+        .collect();
+
+    // Deserialize all nodes (including bin_node as last)
+    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+
+    // Split: last node is bin_node, rest are regular nodes
+    let bin_node = &nodes[nodes.len() - 1];
+    let regular_nodes = &nodes[..nodes.len() - 1];
+
+    // Deserialize config
+    let mut nest_config = NestConfig::new();
+    nest_config.deserialize(config);
+
+    // Initialize NFPStore
+    NFPStore::with_instance(|nfp_store| {
+        nfp_store.init(
+            regular_nodes,
+            bin_node,
+            &nest_config,
+            phenotype_source,
+            sources,
+            rotations,
+        );
+    });
+}
+
+/// Update NFP cache in the singleton NFPStore
+///
+/// Arguments:
+/// - nfps_data: Uint8Array containing serialized NFPs [count (u32), [size (u32), data]...]
+#[wasm_bindgen]
+pub fn nfp_store_update(nfps_data: &[u8]) {
+    use crate::nesting::nfp_store::NFPStore;
+
+    if nfps_data.len() < 4 {
+        return;
+    }
+
+    // Read count
+    let count =
+        u32::from_le_bytes([nfps_data[0], nfps_data[1], nfps_data[2], nfps_data[3]]) as usize;
+    let mut offset = 4;
+
+    let mut nfps: Vec<Vec<u8>> = Vec::with_capacity(count);
+
+    for _ in 0..count {
+        if offset + 4 > nfps_data.len() {
+            break;
+        }
+
+        // Read size
+        let size = u32::from_le_bytes([
+            nfps_data[offset],
+            nfps_data[offset + 1],
+            nfps_data[offset + 2],
+            nfps_data[offset + 3],
+        ]) as usize;
+        offset += 4;
+
+        if offset + size > nfps_data.len() {
+            break;
+        }
+
+        // Read NFP data
+        let nfp = nfps_data[offset..offset + size].to_vec();
+        offset += size;
+
+        nfps.push(nfp);
+    }
+
+    NFPStore::with_instance(|nfp_store| {
+        nfp_store.update(nfps);
+    });
+}
+
+/// Clean the singleton NFPStore
+#[wasm_bindgen]
+pub fn nfp_store_clean() {
+    use crate::nesting::nfp_store::NFPStore;
+
+    NFPStore::with_instance(|nfp_store| {
+        nfp_store.clean();
+    });
+}
+
+/// Get placement data from the singleton NFPStore
+///
+/// Arguments:
+/// - nodes_data: Uint8Array containing serialized PolygonNode data
+/// - area: Bin area (f32)
+///
+/// Returns: Uint8Array containing placement data
+#[wasm_bindgen]
+pub fn nfp_store_get_placement_data(nodes_data: &[u8], area: f32) -> Uint8Array {
+    use crate::nesting::nfp_store::NFPStore;
+
+    // Convert byte array to f32 array (reinterpret bytes as f32)
+    let f32_len = nodes_data.len() / 4;
+    let nodes_f32: Vec<f32> = (0..f32_len)
+        .map(|i| {
+            let idx = i * 4;
+            f32::from_ne_bytes([
+                nodes_data[idx],
+                nodes_data[idx + 1],
+                nodes_data[idx + 2],
+                nodes_data[idx + 3],
+            ])
+        })
+        .collect();
+
+    // Deserialize nodes using f32 buffer
+    let nodes = PolygonNode::deserialize(&nodes_f32, 0);
+
+    let result = NFPStore::with_instance(|nfp_store| nfp_store.get_placement_data(&nodes, area));
+
+    let out = Uint8Array::new_with_length(result.len() as u32);
+    out.copy_from(&result);
+    out
+}
+
+/// Get NFP pairs from the singleton NFPStore
+///
+/// Returns: Uint8Array containing serialized pairs [count (u32), [size (u32), data]...]
+#[wasm_bindgen]
+pub fn nfp_store_get_nfp_pairs() -> Float32Array {
+    use crate::nesting::nfp_store::NFPStore;
+
+    let pairs = NFPStore::with_instance(|nfp_store| nfp_store.nfp_pairs().to_vec());
+
+    // Serialize: count (f32) + [size (f32) + data] for each pair
+    let mut total_size = 1; // count as f32
+    for pair in &pairs {
+        total_size += 1 + pair.len(); // size as f32 + data
+    }
+
+    let mut buffer = Vec::with_capacity(total_size);
+
+    // Write count as f32
+    buffer.push(f32::from_bits(pairs.len() as u32));
+
+    // Write each pair
+    for pair in &pairs {
+        buffer.push(f32::from_bits(pair.len() as u32));
+        buffer.extend_from_slice(pair);
+    }
+
+    let out = Float32Array::new_with_length(buffer.len() as u32);
+    out.copy_from(&buffer);
+    out
+}
+
+/// Get NFP pairs count from the singleton NFPStore
+#[wasm_bindgen]
+pub fn nfp_store_get_nfp_pairs_count() -> usize {
+    use crate::nesting::nfp_store::NFPStore;
+
+    NFPStore::with_instance(|nfp_store| nfp_store.nfp_pairs_count())
+}
+
+/// Get placement count from the singleton NFPStore
+#[wasm_bindgen]
+pub fn nfp_store_get_placement_count() -> usize {
+    use crate::nesting::nfp_store::NFPStore;
+
+    NFPStore::with_instance(|nfp_store| nfp_store.placement_count())
+}
+
+/// Get phenotype source from the singleton NFPStore
+#[wasm_bindgen]
+pub fn nfp_store_get_phenotype_source() -> u16 {
+    use crate::nesting::nfp_store::NFPStore;
+
+    NFPStore::with_instance(|nfp_store| nfp_store.phenotype_source())
 }

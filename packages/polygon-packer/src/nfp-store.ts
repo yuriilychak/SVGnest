@@ -5,7 +5,7 @@ import { serializeMapToBuffer, serializePolygonNodes, serializeConfig, generateN
 export default class NFPStore {
     #nfpCache: NFPCache = new Map<u32, ArrayBuffer>();
 
-    #nfpPairs: ArrayBuffer[] = [];
+    #nfpPairs: Float32Array[] = [];
 
     #sources: i32[] = [];
 
@@ -14,6 +14,18 @@ export default class NFPStore {
     #angleSplit: u8 = 0;
 
     #configCompressed: u32 = 0;
+
+    static #instance: NFPStore;
+
+    private constructor() { }
+
+    public static get instance(): NFPStore {
+        if (!NFPStore.#instance) {
+            NFPStore.#instance = new NFPStore();
+        }
+
+        return NFPStore.#instance;
+    }
 
     public init(nodes: PolygonNode[], binNode: PolygonNode, config: NestConfig, phenotypeSource: u16, sources: i32[], rotations: u16[]): void {
         this.#configCompressed = serializeConfig(config);
@@ -69,7 +81,7 @@ export default class NFPStore {
             view.setUint32(Uint32Array.BYTES_PER_ELEMENT, this.#configCompressed);
             view.setUint32(Uint32Array.BYTES_PER_ELEMENT << 1, key);
 
-            this.#nfpPairs.push(buffer);
+            this.#nfpPairs.push(new Float32Array(buffer));
         } else {
             newCache.set(key, this.#nfpCache.get(key));
         }
@@ -101,8 +113,12 @@ export default class NFPStore {
         return new Uint8Array(buffer);
     }
 
-    public get nfpPairs(): ArrayBuffer[] {
+    public get nfpPairs(): Float32Array[] {
         return this.#nfpPairs;
+    }
+
+    public get nfpPairsCount(): usize {
+        return this.#nfpPairs.length;
     }
 
     public get placementCount(): usize {

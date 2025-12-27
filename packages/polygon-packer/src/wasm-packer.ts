@@ -1,5 +1,5 @@
 import { get_u16_from_u32, abs_polygon_area } from 'wasm-nesting';
-import { GeneticAlgorithm } from './genetic-algorithm';
+import GeneticAlgorithm from './genetic-algorithm';
 import NFPStore from './nfp-store';
 import { f32, NestConfig, PolygonNode, SourceItem } from './types';
 import { readUint32FromF32, generateTree, generateBounds, deserializeConfig } from './helpers';
@@ -16,8 +16,6 @@ export default class WasmPacker {
     #resultBounds: BoundRectF32 = null;
 
     #best: Float32Array = null;
-
-    #nfpStore: NFPStore = new NFPStore();
 
     #nodes: PolygonNode[] = [];
 
@@ -50,49 +48,48 @@ export default class WasmPacker {
         GeneticAlgorithm.instance.init(this.#nodes, this.#resultBounds, this.#config);
     }
 
-    public getPairs(): Uint8Array {
+    public getPairs(): Float32Array {
         const individual = GeneticAlgorithm.instance.getIndividual(this.#nodes);
-        this.#nfpStore.init(this.#nodes, this.#binNode, this.#config, individual.source, individual.placement, individual.rotation);
+        NFPStore.instance.init(this.#nodes, this.#binNode, this.#config, individual.source, individual.placement, individual.rotation);
 
-        const pairs = this.#nfpStore.nfpPairs;
+        const pairs = NFPStore.instance.nfpPairs;
 
-        // Serialize pairs: count (u32) + [size (u32) + data] for each pair
-        let totalSize = 4; // count
+        // Serialize pairs: count (f32) + [size (f32) + data] for each pair
+        let totalSize = 1; // count as f32
         for (const pair of pairs) {
-            totalSize += 4 + pair.byteLength; // size + data
+            totalSize += 1 + pair.length; // size as f32 + data
         }
 
-        const buffer = new ArrayBuffer(totalSize);
-        const view = new DataView(buffer);
+        const buffer = new Float32Array(totalSize);
         let offset = 0;
 
-        // Write count
-        view.setUint32(offset, pairs.length, true);
-        offset += 4;
+        // Write count (as bits of u32)
+        buffer[offset] = new Float32Array(new Uint32Array([pairs.length]).buffer)[0];
+        offset += 1;
 
         // Write each pair
         for (const pair of pairs) {
-            view.setUint32(offset, pair.byteLength, true);
-            offset += 4;
+            buffer[offset] = new Float32Array(new Uint32Array([pair.length]).buffer)[0];
+            offset += 1;
 
-            new Uint8Array(buffer, offset, pair.byteLength).set(new Uint8Array(pair));
-            offset += pair.byteLength;
+            buffer.set(pair, offset);
+            offset += pair.length;
         }
 
-        return new Uint8Array(buffer);
+        return buffer;
     }
 
     public getPlacementData(generatedNfp: ArrayBuffer[]): Uint8Array {
-        this.#nfpStore.update(generatedNfp);
+        NFPStore.instance.update(generatedNfp);
 
-        return this.#nfpStore.getPlacementData(this.#nodes, this.#binArea);
+        return NFPStore.instance.getPlacementData(this.#nodes, this.#binArea);
     }
 
     public getPlacemehntResult(placements: ArrayBuffer[]): Uint8Array {
         let placementsData: Float32Array = new Float32Array(placements[0]);
         let currentPlacement: Float32Array = null;
 
-        GeneticAlgorithm.instance.updateFitness(this.#nfpStore.phenotypeSource, placementsData[0]);
+        GeneticAlgorithm.instance.updateFitness(NFPStore.instance.phenotypeSource, placementsData[0]);
 
         for (let i = 1; i < placements.length; ++i) {
             currentPlacement = new Float32Array(placements[i]);
@@ -132,7 +129,7 @@ export default class WasmPacker {
                 }
             }
 
-            numParts = this.#nfpStore.placementCount;
+            numParts = NFPStore.instance.placementCount;
             numPlacedParts = placedCount;
             placePerecntage = placedArea / totalArea;
             result = { placementsData };
@@ -158,11 +155,11 @@ export default class WasmPacker {
         this.#best = null;
         this.#binNode = null;
         GeneticAlgorithm.instance.clean();
-        this.#nfpStore.clean();
+        NFPStore.instance.clean();
     }
 
     public get pairCount(): number {
-        return this.#nfpStore.nfpPairs.length;
+        return NFPStore.instance.nfpPairsCount;
     }
 
     static serializePlacementResult(

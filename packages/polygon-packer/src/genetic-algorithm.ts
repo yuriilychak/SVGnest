@@ -4,9 +4,9 @@ import {
     genetic_algorithm_get_individual,
     genetic_algorithm_update_fitness
 } from 'wasm-nesting';
-import { BoundRectF32 } from '../geometry';
-import { i32, NestConfig, PolygonNode, u16 } from '../types';
-import { serializeConfig, serializePolygonNodes } from '../helpers';
+import { BoundRectF32 } from './geometry';
+import { i32, NestConfig, PolygonNode, u16 } from './types';
+import { serializeConfig, serializePolygonNodes } from './helpers';
 
 export default class GeneticAlgorithmWasm {
     static #instance: GeneticAlgorithmWasm;

@@ -1,4 +1,5 @@
 use crate::{nest_config::NestConfig, nesting::polygon_node::PolygonNode, utils::number::Number};
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 // Thread type constants
@@ -7,15 +8,20 @@ const THREAD_TYPE_PAIR: u32 = 0;
 
 pub struct NFPStore {
     nfp_cache: HashMap<u32, Vec<u8>>,
-    nfp_pairs: Vec<Vec<u8>>,
+    nfp_pairs: Vec<Vec<f32>>,
     sources: Vec<i32>,
     phenotype_source: u16,
     angle_split: u8,
     config_compressed: u32,
 }
 
+// Singleton instance using thread_local
+thread_local! {
+    static INSTANCE: RefCell<NFPStore> = RefCell::new(NFPStore::new());
+}
+
 impl NFPStore {
-    pub fn new() -> Self {
+    fn new() -> Self {
         NFPStore {
             nfp_cache: HashMap::new(),
             nfp_pairs: Vec::new(),
@@ -24,6 +30,14 @@ impl NFPStore {
             angle_split: 0,
             config_compressed: 0,
         }
+    }
+
+    /// Access the singleton instance
+    pub fn with_instance<F, R>(f: F) -> R
+    where
+        F: FnOnce(&mut NFPStore) -> R,
+    {
+        INSTANCE.with(|instance| f(&mut instance.borrow_mut()))
     }
 
     pub fn init(
@@ -86,15 +100,31 @@ impl NFPStore {
 
         if !self.nfp_cache.contains_key(&key) {
             let nodes = Self::rotate_nodes(&[node1.clone(), node2.clone()]);
-            let header_size = 12; // 3 * u32
-            let mut buffer = PolygonNode::serialize_nodes(&nodes, header_size);
+            let header_size = 3; // 3 * f32 for header
+            let serialized = PolygonNode::serialize(&nodes, 0);
 
-            // Write header
-            buffer[0..4].copy_from_slice(&THREAD_TYPE_PAIR.to_le_bytes());
-            buffer[4..8].copy_from_slice(&self.config_compressed.to_le_bytes());
-            buffer[8..12].copy_from_slice(&key.to_le_bytes());
+            // Convert byte buffer to f32 array
+            let f32_count = serialized.len() / 4;
+            let mut f32_buffer = Vec::with_capacity(header_size + f32_count);
 
-            self.nfp_pairs.push(buffer);
+            // Write header as f32 (reinterpreted from u32)
+            f32_buffer.push(f32::from_bits(THREAD_TYPE_PAIR));
+            f32_buffer.push(f32::from_bits(self.config_compressed));
+            f32_buffer.push(f32::from_bits(key));
+
+            // Convert serialized bytes to f32
+            for i in 0..f32_count {
+                let idx = i * 4;
+                let bytes = [
+                    serialized[idx],
+                    serialized[idx + 1],
+                    serialized[idx + 2],
+                    serialized[idx + 3],
+                ];
+                f32_buffer.push(f32::from_le_bytes(bytes));
+            }
+
+            self.nfp_pairs.push(f32_buffer);
         } else {
             if let Some(cached) = self.nfp_cache.get(&key) {
                 new_cache.insert(key, cached.clone());
@@ -121,13 +151,13 @@ impl NFPStore {
             .collect();
         let nodes = Self::rotate_nodes(&nodes);
         let header_size = 16; // 4 * u32
-        let mut buffer = PolygonNode::serialize_nodes(&nodes, header_size + buffer_size);
+        let mut buffer = PolygonNode::serialize(&nodes, header_size + buffer_size);
 
-        // Write header
-        buffer[0..4].copy_from_slice(&THREAD_TYPE_PLACEMENT.to_le_bytes());
-        buffer[4..8].copy_from_slice(&self.config_compressed.to_le_bytes());
-        buffer[8..12].copy_from_slice(&area.to_le_bytes());
-        buffer[12..16].copy_from_slice(&(buffer_size as u32).to_le_bytes());
+        // Write header in big-endian to match TypeScript DataView default
+        buffer[0..4].copy_from_slice(&THREAD_TYPE_PLACEMENT.to_be_bytes());
+        buffer[4..8].copy_from_slice(&self.config_compressed.to_be_bytes());
+        buffer[8..12].copy_from_slice(&area.to_be_bytes());
+        buffer[12..16].copy_from_slice(&(buffer_size as u32).to_be_bytes());
 
         // Copy NFP cache buffer
         buffer[16..16 + buffer_size].copy_from_slice(&nfp_buffer);
@@ -135,8 +165,12 @@ impl NFPStore {
         buffer
     }
 
-    pub fn nfp_pairs(&self) -> &[Vec<u8>] {
+    pub fn nfp_pairs(&self) -> &[Vec<f32>] {
         &self.nfp_pairs
+    }
+
+    pub fn nfp_pairs_count(&self) -> usize {
+        self.nfp_pairs.len()
     }
 
     pub fn placement_count(&self) -> usize {
