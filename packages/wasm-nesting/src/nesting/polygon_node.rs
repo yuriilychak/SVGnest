@@ -148,6 +148,60 @@ impl PolygonNode {
         })
     }
 
+    /// Serialize nodes to Vec<f32> format (for Float32Array)
+    /// Only the root node count uses big-endian (swap_bytes), all other values are native format
+    pub fn serialize_f32(nodes: &[PolygonNode], offset: usize) -> Vec<f32> {
+        // Calculate total f32 count needed
+        let total_count = Self::calculate_total_f32_count(nodes, offset + 1);
+        let mut buffer = vec![0.0f32; total_count];
+
+        // Write node count as f32 with big-endian (swap_bytes) - only for root level
+        let node_count = nodes.len() as u32;
+        buffer[offset] = f32::from_bits(node_count.swap_bytes());
+
+        // Serialize nodes starting after the count
+        Self::serialize_f32_internal(nodes, &mut buffer, offset + 1);
+        buffer
+    }
+
+    fn serialize_f32_internal(nodes: &[PolygonNode], buffer: &mut [f32], offset: usize) -> usize {
+        nodes.iter().fold(offset, |mut result, node| {
+            // Write source as f32 (reinterpreting u32 bits) - big-endian to match deserialize
+            buffer[result] = f32::from_bits(((node.source + 1) as u32).swap_bytes());
+            result += 1;
+
+            // Write rotation - big-endian to match deserialize
+            buffer[result] = f32::from_bits(node.rotation.to_bits().swap_bytes());
+            result += 1;
+
+            // Write mem_seg length as f32 (number of points) - big-endian to match deserialize
+            let mem_seg_length = ((node.mem_seg.len() >> 1) as u32).swap_bytes();
+            buffer[result] = f32::from_bits(mem_seg_length);
+            result += 1;
+
+            // Write mem_seg data directly (coordinate data in native format)
+            buffer[result..result + node.mem_seg.len()].copy_from_slice(&node.mem_seg);
+            result += node.mem_seg.len();
+
+            // Write children count as f32 - big-endian to match deserialize
+            buffer[result] = f32::from_bits((node.children.len() as u32).swap_bytes());
+            result += 1;
+
+            // Recursively serialize children
+            Self::serialize_f32_internal(&node.children, buffer, result)
+        })
+    }
+
+    fn calculate_total_f32_count(nodes: &[PolygonNode], initial_count: usize) -> usize {
+        nodes.iter().fold(initial_count, |result, node| {
+            // 4 f32 values for: source, rotation, mem_seg_length, children_count
+            // + mem_seg.len() f32 values for the polygon data
+            let node_count = 4 + node.mem_seg.len();
+            let new_result = result + node_count;
+            Self::calculate_total_f32_count(&node.children, new_result)
+        })
+    }
+
     /// Generate NFP cache key from two polygon nodes
     pub fn generate_nfp_cache_key(
         rotation_split: u32,

@@ -75,7 +75,6 @@ export default class NFPStore {
 
         if (!this.#nfpCache.has(key)) {
             const pairData = NFPStore.generatePair(key, node1, node2, this.#configCompressed);
-            console.log(pairData, NFPStore.generatePairRust(key, node1, node2, this.#configCompressed));
 
             this.#nfpPairs.push(pairData);
         } else {
@@ -126,23 +125,12 @@ export default class NFPStore {
         return this.#phenotypeSource;
     }
 
+
     public static generatePair(key: u32, node1: PolygonNode, node2: PolygonNode, config: u32): Float32Array {
-        const nodes = PolygonNode.rotateNodes([node1, node2]);
-        const buffer = PolygonNode.serialize(nodes, Uint32Array.BYTES_PER_ELEMENT * 3);
-        const view: DataView = new DataView(buffer);
-
-        view.setUint32(0, THREAD_TYPE.PAIR);
-        view.setUint32(Uint32Array.BYTES_PER_ELEMENT, config);
-        view.setUint32(Uint32Array.BYTES_PER_ELEMENT << 1, key);
-
-        return new Float32Array(buffer);
-    }
-
-    public static generatePairRust(key: u32, node1: PolygonNode, node2: PolygonNode, config: u32): Float32Array {
         const nodes = [node1, node2];
         const serialized = PolygonNode.serialize(nodes);
-        const nodesFloat32 = new Float32Array(serialized);
+        const nodesUint8 = new Float32Array(serialized);
 
-        return nfp_generate_pair(key, config, nodesFloat32);
+        return nfp_generate_pair(key, config, nodesUint8);
     }
 }

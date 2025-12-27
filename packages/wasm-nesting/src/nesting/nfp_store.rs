@@ -100,29 +100,20 @@ impl NFPStore {
 
         if !self.nfp_cache.contains_key(&key) {
             let nodes = PolygonNode::rotate_nodes(&[node1.clone(), node2.clone()]);
-            let header_size = 3; // 3 * f32 for header
-            let serialized = PolygonNode::serialize(&nodes, 0);
 
-            // Convert byte buffer to f32 array
-            let f32_count = serialized.len() / 4;
-            let mut f32_buffer = Vec::with_capacity(header_size + f32_count);
+            // Serialize directly to f32 (no byte conversion needed)
+            let serialized_f32 = PolygonNode::serialize_f32(&nodes, 0);
+
+            // Create buffer with header + serialized nodes
+            let mut f32_buffer = Vec::with_capacity(3 + serialized_f32.len());
 
             // Write header as f32 (reinterpreted from u32) in big-endian to match TypeScript DataView default
             f32_buffer.push(f32::from_bits(THREAD_TYPE_PAIR.swap_bytes()));
             f32_buffer.push(f32::from_bits(self.config_compressed.swap_bytes()));
             f32_buffer.push(f32::from_bits(key.swap_bytes()));
 
-            // Convert serialized bytes to f32
-            for i in 0..f32_count {
-                let idx = i * 4;
-                let bytes = [
-                    serialized[idx],
-                    serialized[idx + 1],
-                    serialized[idx + 2],
-                    serialized[idx + 3],
-                ];
-                f32_buffer.push(f32::from_be_bytes(bytes));
-            }
+            // Append serialized f32 data directly
+            f32_buffer.extend_from_slice(&serialized_f32);
 
             self.nfp_pairs.push(f32_buffer);
         } else {
@@ -188,29 +179,19 @@ impl NFPStore {
         // Rotate the nodes
         let rotated_nodes = PolygonNode::rotate_nodes(nodes);
 
-        // Serialize the nodes (returns Vec<u8>)
-        let serialized = PolygonNode::serialize(&rotated_nodes, 0);
+        // Serialize the nodes directly to f32 (no byte conversion needed)
+        let serialized_f32 = PolygonNode::serialize_f32(&rotated_nodes, 0);
 
-        // Convert byte buffer to f32 array
-        let f32_count = serialized.len() / 4;
-        let mut f32_buffer = Vec::with_capacity(3 + f32_count); // 3 for header
+        // Create buffer with header + serialized nodes
+        let mut f32_buffer = Vec::with_capacity(3 + serialized_f32.len());
 
         // Write header as f32 (reinterpreted from u32) in big-endian to match TypeScript DataView default
         f32_buffer.push(f32::from_bits(THREAD_TYPE_PAIR.swap_bytes()));
         f32_buffer.push(f32::from_bits(config.swap_bytes()));
         f32_buffer.push(f32::from_bits(key.swap_bytes()));
 
-        // Convert serialized bytes to f32
-        for i in 0..f32_count {
-            let idx = i * 4;
-            let bytes = [
-                serialized[idx],
-                serialized[idx + 1],
-                serialized[idx + 2],
-                serialized[idx + 3],
-            ];
-            f32_buffer.push(f32::from_be_bytes(bytes));
-        }
+        // Append serialized f32 data directly
+        f32_buffer.extend_from_slice(&serialized_f32);
 
         f32_buffer
     }
