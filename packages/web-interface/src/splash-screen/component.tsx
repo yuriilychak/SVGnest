@@ -23,7 +23,7 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
                     onOpenApp(action === BUTTON_ACTION.DEMO);
                     break;
                 case BUTTON_ACTION.CODE:
-                    window.open('https://github.com/Jack000/SVGnest', '_blank');
+                    window.open('https://github.com/yuriilychak/SVGnest', '_blank');
                     break;
                 default:
                     setDrawerOpen(action === BUTTON_ACTION.OPEN_FAQ);
