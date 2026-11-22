@@ -27,8 +27,6 @@ dependencies = [
  "getrandom 0.4.3",
  "illustrator-rs",
  "kurbo 0.13.1",
- "serde",
- "serde_json",
  "svg-format-algo",
  "wasm-bindgen",
  "zpdf",

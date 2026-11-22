@@ -2,10 +2,6 @@
 
 use wasm_bindgen::prelude::*;
 use kurbo::PathEl;
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-struct SvgDocuments { documents: Vec<String> }
 
 #[wasm_bindgen]
 pub fn detect_ai_format(input: &[u8]) -> String {
@@ -100,10 +96,9 @@ pub fn output_to_svg(input: &[u8], placement_json: &str) -> Result<String, JsVal
 }
 
 #[wasm_bindgen]
-pub fn output_to_data(input: &[u8], placement_json: &str) -> Result<Vec<u8>, JsValue> {
-	let documents: SvgDocuments = serde_json::from_str(&output_to_svg(input, placement_json)?)
-		.map_err(|error| JsValue::from_str(&format!("Invalid placed SVG output: {error}")))?;
-	let svg = documents.documents.first().ok_or_else(|| JsValue::from_str("No output document was generated"))?;
+pub fn output_to_data(placed_svg: &[u8]) -> Result<Vec<u8>, JsValue> {
+	let svg = std::str::from_utf8(placed_svg)
+		.map_err(|error| JsValue::from_str(&format!("Placed SVG is not valid UTF-8: {error}")))?;
 	let document = illustrator_rs::importer::svg::import_svg_string(svg, None)
 		.map_err(|error| JsValue::from_str(&error.to_string()))?;
 	let pgf = illustrator_rs::writer::pgf::write_pgf(&document, None)
@@ -133,9 +128,8 @@ mod tests {
 
     #[test]
     fn writes_pdf_compatible_ai_bytes() {
-        let eps = b"%!PS-Adobe-3.0\n%%BoundingBox: 0 0 100 100\nnewpath 10 10 moveto 90 10 lineto 90 90 lineto closepath fill\nshowpage\n";
-        let placement = r#"{"placements":[[{"id":0,"x":0,"y":0,"rotation":0}]],"tree":[{"source":0,"children":[]}],"binBounds":{"x":0,"y":0,"width":100,"height":100},"binSource":0}"#;
-        let bytes = output_to_data(eps, placement).expect("AI export should succeed");
+        let svg = b"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M10 10L90 10L90 90Z\" fill=\"black\"/></svg>";
+        let bytes = output_to_data(svg).expect("AI export should succeed");
         assert!(bytes.starts_with(b"%PDF-"));
     }
 

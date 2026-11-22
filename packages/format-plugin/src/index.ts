@@ -59,6 +59,8 @@ export interface FormatPlugin<Input = FormatInput, Config = unknown, Data = Inpu
 	readonly extensions: readonly string[];
 	inputToPolygons(input: Input, config: Config): Promise<FormatResult<InputPolygons>>;
 	inputToSvg(input: Input, config: Config): Promise<FormatResult<string>>;
-	outputToData(input: Input, placing: PlacementOutput): Promise<FormatResult<Data>>;
+	/** Persist SVG documents already rendered by `outputToSvg`; implementations
+	 * may encode them into a format-specific binary representation. */
+	outputToData(documents: SvgDocuments): Promise<FormatResult<Data>>;
 	outputToSvg(input: Input, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>>;
 }

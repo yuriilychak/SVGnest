@@ -115,12 +115,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 if (output.value.documents.length) {
                     outputDocuments.current = output.value.documents;
                     outputAiData.current = formatPlugin.id === 'ai'
-                        ? (await formatPlugin.outputToData(sourceInput.current, {
-                            placements: best.placements,
-                            tree: context.tree,
-                            binBounds: context.binBounds,
-                            binSource
-                        })).value
+                        ? (await formatPlugin.outputToData(output.value)).value
                         : null;
                     svgWrapper.current?.replaceChildren(...output.value.documents.map(toSvgElement));
                 }

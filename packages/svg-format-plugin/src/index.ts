@@ -55,9 +55,8 @@ export class SvgInputAdapter {
 }
 
 /**
- * Complete SVG implementation of the format-plugin contract. Both output
- * methods deliberately delegate to the same Rust renderer while SVG is the
- * only persisted output format.
+ * Complete SVG implementation of the format-plugin contract. SVG output is
+ * already the persisted representation, so `outputToData` returns it as-is.
  */
 export class SvgFormatPlugin extends SvgInputAdapter implements FormatPlugin<FormatInput, SvgFormatConfig, SvgDocuments> {
 	declare protected readonly wasm: SvgOutputWasm;
@@ -70,8 +69,8 @@ export class SvgFormatPlugin extends SvgInputAdapter implements FormatPlugin<For
 		return { value: decodeDocuments(this.wasm.output_to_svg(toUtf8(input), JSON.stringify(placing))), diagnostics: [] };
 	}
 
-	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
-		return this.outputToSvg(input, placing);
+	async outputToData(documents: SvgDocuments): Promise<FormatResult<SvgDocuments>> {
+		return { value: documents, diagnostics: [] };
 	}
 }
 
