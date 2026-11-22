@@ -4,6 +4,7 @@ export type AiFormat = 'pdf-compatible' | 'legacy-eps' | 'unknown';
 export interface AiFormatWasm {
 	detect_ai_format(input: Uint8Array): AiFormat;
 	validate_ai(input: Uint8Array): AiFormat;
+	input_to_svg(input: Uint8Array): string;
 }
 
 /** Detects the two Illustrator container families before invoking a parser. */
@@ -20,5 +21,9 @@ export class AiFormatPlugin {
 	/** Parses the container and throws an actionable error for unsupported artwork. */
 	validate(input: string | Uint8Array): AiFormat {
 		return this.wasm.validate_ai(typeof input === 'string' ? new TextEncoder().encode(input) : input);
+	}
+
+	inputToSvg(input: string | Uint8Array): string {
+		return this.wasm.input_to_svg(typeof input === 'string' ? new TextEncoder().encode(input) : input);
 	}
 }

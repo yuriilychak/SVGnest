@@ -14,7 +14,7 @@ Add an Adobe Illustrator (`.ai`) input plugin that converts supported artwork in
 ## Implementation phases
 
 1. **Foundation (current):** add the Rust/WASM and TypeScript packages, byte-signature detection, and test fixtures.
-2. **PDF-compatible AI (in progress):** `effectcraft-pdf` is integrated for container sniffing and full parse validation in Rust/WASM. Next, translate its render tree into normalized SVG and polygons.
+2. **PDF-compatible AI (in progress):** `effectcraft-pdf` is integrated for container sniffing and full parse validation in Rust/WASM. Supported vector paths now convert to normalized SVG; polygon extraction and paint fidelity remain.
 3. **Legacy AI/EPS:** add a PostScript/EPS parser and the same normalized SVG intermediary.
 4. **Output:** define whether AI export is supported; initially return SVG documents and diagnose that native AI output is unavailable.
 5. **Integration:** register `.ai` file selection in the web app and add corpus-based tests for both families.

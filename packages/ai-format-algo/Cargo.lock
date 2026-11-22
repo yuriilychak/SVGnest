@@ -13,6 +13,8 @@ name = "ai-format-algo"
 version = "0.1.0"
 dependencies = [
  "effectcraft-pdf",
+ "effectcraft-svg",
+ "kurbo",
  "wasm-bindgen",
 ]
 

@@ -1,6 +1,7 @@
 //! Adobe Illustrator byte-format detection for the SVGnest AI plugin.
 
 use wasm_bindgen::prelude::*;
+use kurbo::PathEl;
 
 #[wasm_bindgen]
 pub fn detect_ai_format(input: &[u8]) -> String {
@@ -22,6 +23,29 @@ pub fn validate_ai(input: &[u8]) -> Result<String, JsValue> {
 	effectcraft_pdf::parse(input)
 		.map_err(|error| JsValue::from_str(&format!("Unable to parse Adobe Illustrator artwork: {error}")))?;
 	Ok(format)
+}
+
+/// Converts supported vector paths into normalized SVG. Images and advanced
+/// paints are intentionally omitted from this first geometry-only bridge.
+#[wasm_bindgen]
+pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
+	let doc = effectcraft_pdf::parse(input)
+		.map_err(|error| JsValue::from_str(&format!("Unable to parse Adobe Illustrator artwork: {error}")))?;
+	let mut body = String::new();
+	for (transform, _opacity, shape) in doc.flatten() {
+		let mut d = String::new();
+		for element in shape.geom.to_path().elements() {
+			match element {
+				PathEl::MoveTo(point) => { let point = transform * *point; d.push_str(&format!("M{} {}", point.x, point.y)); }
+				PathEl::LineTo(point) => { let point = transform * *point; d.push_str(&format!("L{} {}", point.x, point.y)); }
+				PathEl::QuadTo(control, point) => { let control = transform * *control; let point = transform * *point; d.push_str(&format!("Q{} {} {} {}", control.x, control.y, point.x, point.y)); }
+				PathEl::CurveTo(a, b, point) => { let a = transform * *a; let b = transform * *b; let point = transform * *point; d.push_str(&format!("C{} {} {} {} {} {}", a.x, a.y, b.x, b.y, point.x, point.y)); }
+				PathEl::ClosePath => d.push('Z'),
+			}
+		}
+		if !d.is_empty() { body.push_str(&format!("<path d=\"{d}\" fill=\"black\"/>")); }
+	}
+	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
 }
 
 #[cfg(test)]
