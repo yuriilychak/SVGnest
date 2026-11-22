@@ -1,5 +1,5 @@
 // src/wasm-loader.ts
-var WASM_URL = "/workers/poygon_pack_algo_bg.wasm";
+var wasmUrl = () => new URL("workers/poygon_pack_algo_bg.wasm", document.baseURI);
 var NfpWasm = class _NfpWasm {
   #binary;
   #wasm;
@@ -13,7 +13,7 @@ var NfpWasm = class _NfpWasm {
     const retainBinary = !binary.byteLength;
     let instanceBinary;
     if (retainBinary) {
-      const response = await fetch(WASM_URL);
+      const response = await fetch(wasmUrl());
       if (!response.ok) throw new Error(`Failed to fetch nesting WASM: ${response.status} ${response.statusText}`);
       wasmBinary = await response.arrayBuffer();
       instanceBinary = wasmBinary;
