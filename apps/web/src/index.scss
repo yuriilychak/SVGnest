@@ -1,0 +1,62 @@
+@use './@shared-styles.scss' as *;
+
+.fadeContainer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: $c-background;
+    opacity: 1;
+    transition: opacity 300ms ease-in-out;
+
+    &.fading {
+        opacity: 0;
+    }
+
+    &.faded {
+        opacity: 1;
+    }
+}
+
+* {
+    box-sizing: border-box;
+    color: $c-primary;
+}
+
+p {
+    margin: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: $g-none;
+    scrollbar-color: $c-primary $c-background;
+    overflow: hidden;
+    scrollbar-width: thin;
+}
+
+.export-content {
+    fill: #8498d1 !important;
+    fill-opacity: 1 !important;
+    stroke: #617bb5 !important;
+    stroke-width: $g-xs !important;
+    stroke-linejoin: round !important;
+}
+
+#app {
+    width: 100vw;
+    height: 100vh;
+
+    #exportRoot {
+        fill: $c-background !important;
+        fill-opacity: 1 !important;
+        stroke: #8498d1 !important;
+    }
+
+    #exportContent {
+        @extend .export-content;
+
+        & * {
+            @extend .export-content;
+        }
+    }
+}

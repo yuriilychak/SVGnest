@@ -1,0 +1,13 @@
+@use '../../../@shared-styles.scss' as *;
+
+.mesureRoot {
+    @include flex-center(column);
+}
+
+.mesureTitle {
+    font-size: $fs-sm;
+}
+
+.mesureValue {
+    font-size: $fs-lg;
+}

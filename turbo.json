@@ -1,24 +1,21 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "package.json", "tsconfig.json", "webpack.config.mjs", "Cargo.toml", "Cargo.lock"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**"]
     },
-    "watch": {
+    "check": {
+      "dependsOn": ["^check"],
+      "outputs": []
+    },
+    "dev": {
       "cache": false,
       "persistent": true
     },
-    "test": {
-      "inputs": ["src/**", "package.json", "jest.config.js", "tsconfig.json"],
-      "outputs": ["coverage/**"]
-    },
-    "lint": {
-      "inputs": ["src/**", "package.json", ".eslintrc.js"]
-    },
-    "lint:fix": {
-      "inputs": ["src/**", "package.json", ".eslintrc.js"]
+    "clean": {
+      "cache": false
     }
   }
 }

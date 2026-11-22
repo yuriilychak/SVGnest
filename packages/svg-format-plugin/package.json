@@ -1,0 +1,21 @@
+{
+  "name": "@svgnest/svg-format-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WASM adapter for SVGnest's Rust SVG format core.",
+  "exports": "./src/index.ts",
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@svgnest/format-plugin": "file:../format-plugin",
+    "@svgnest/svg-format-algo": "file:../svg-format-algo"
+  },
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

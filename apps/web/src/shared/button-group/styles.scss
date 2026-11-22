@@ -1,0 +1,55 @@
+@use '../../@shared-styles.scss' as *;
+
+$button-radius: 16px;
+$icon-size: 20px;
+
+.button {
+    @include flex-center(row, $g-sm);
+    height: $button-radius * 2;
+    padding: $g-sm $g-md $g-sm $g-sm;
+    border: $g-xs solid;
+    border-radius: $button-radius;
+    border-color: $c-primary;
+    background-color: $c-background;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s ease-in-out;
+
+    &:hover {
+        transform: scale(1.05);
+    }
+
+    &:disabled {
+        filter: grayscale(1);
+        pointer-events: none;
+    }
+
+    > * {
+        pointer-events: none;
+    }
+}
+
+.iconButton {
+    @extend .button;
+
+    padding: $g-none;
+    width: $button-radius * 2;
+}
+
+.buttonGroup {
+    @include flex-center(row, $g-sm);
+
+    @media (min-width: $bp-sm) {
+        gap: $g-md;
+    }
+}
+
+.buttonIcon {
+    width: $icon-size;
+    height: $icon-size;
+
+    & > svg {
+        width: $icon-size;
+        height: $icon-size;
+    }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@svgnest/poygon-pack-algo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "pkg"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg --out-name poygon_pack_algo && node scripts/keep-wasm-only.mjs",
+    "check": "cargo test"
+  }
+}

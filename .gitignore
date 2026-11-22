@@ -1,14 +1,16 @@
-# Ignore pkg and target directories in all packages
-packages/**/pkg
-packages/**/target
-packages/**/.turbo
+node_modules/
+.turbo/
+dist/
+apps/web/public/legacy/
+apps/web/public/workers/
+.history/
 
-.turbo
-.history
-.DS_Store
-.vscode
-dist
-node_modules
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-/docs
+# Rust/Cargo build output for every workspace crate and build profile.
+**/target/
+**/*.profraw
+**/*.profdata
+
+# Generated WASM packages and the legacy nesting crate's local Cargo lock.
+packages/*/pkg/
+packages/svg-format-plugin/src/generated/
+packages/poygon-pack-algo/Cargo.lock

@@ -1,0 +1,11 @@
+@use '../../@shared-styles.scss' as *;
+
+.settingRoot {
+    display: flex;
+    flex-direction: column;
+}
+
+.settingHelpText {
+    font-size: $fs-sm;
+    color: $c-secondary;
+}

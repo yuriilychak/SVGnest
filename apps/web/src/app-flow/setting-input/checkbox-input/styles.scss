@@ -1,0 +1,29 @@
+@use '../../../@shared-styles.scss' as *;
+
+$checkbox-size: 16px;
+
+.checboxRoot {
+    width: fit-content;
+    height: 24px;
+    display: flex;
+    gap: $g-sm;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    font-size: $fs-md;
+}
+
+.checkboxChecked {
+    max-width: $checkbox-size;
+    max-height: $checkbox-size;
+    border-radius: $g-sm;
+    background-color: $c-secondary;
+}
+
+.checkboxUnchecked {
+    @extend .checkboxChecked;
+
+    & > svg {
+        opacity: 0;
+    }
+}

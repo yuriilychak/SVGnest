@@ -1,0 +1,107 @@
+@use '../@shared-styles.scss' as *;
+
+.alert {
+    width: 100%;
+    padding: $g-md;
+    font-size: $fs-sm;
+    color: $c-secondary;
+}
+
+@mixin alert-colors($border-color, $background-color) {
+    @extend .alert;
+    border-left: $g-sm $border-color solid;
+    background-color: $background-color;
+}
+
+.appRoot {
+    @include flex-center(column, $g-md);
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    padding: $g-lg;
+
+    @media (min-width: $bp-sm) {
+        align-items: start;
+    }
+}
+
+.appSvgContent {
+    flex: 1;
+    width: 100%;
+    position: relative;
+}
+
+.appSvgWrapper {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    overflow: auto;
+}
+
+.hidden {
+    position: absolute;
+    opacity: 0;
+}
+
+.appMenu {
+    align-items: start;
+    @include flex-center(column, $g-md);
+
+    @media (min-width: $bp-lg) {
+        flex-direction: row-reverse;
+    }
+}
+
+.drawerSpace {
+    min-height: $g-lg;
+}
+
+.info {
+    @include alert-colors(#64a3c7, #e5f6fd);
+}
+
+.success {
+    @include alert-colors(#3bb34a, #edf7ee);
+}
+
+.error {
+    @include alert-colors(#a85b61, #fdeded);
+}
+
+.svgContent {
+    position: relative;
+
+    & svg {
+        width: 100%;
+        height: auto;
+        position: absolute;
+
+        & * {
+            fill: $c-background !important;
+            fill-opacity: 0 !important;
+            stroke: $c-primary !important;
+            stroke-width: $g-xs !important;
+            stroke-linejoin: round !important;
+            pointer-events: fill;
+        }
+
+        & *:hover {
+            stroke: #0d6818 !important;
+            cursor: pointer !important;
+        }
+    }
+    & #backgroundRect {
+        fill: #eee !important;
+        fill-opacity: 1 !important;
+        stroke: #eee !important;
+        stroke-width: $g-xs !important;
+        stroke-linejoin: round !important;
+    }
+
+    & #selectedElement {
+        stroke: #06380c !important;
+        stroke-width: $g-sm !important;
+    }
+}

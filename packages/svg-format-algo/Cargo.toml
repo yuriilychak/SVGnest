@@ -1,0 +1,24 @@
+[package]
+name = "svg-format-algo"
+version = "0.1.0"
+edition = "2021"
+description = "Rust/WASM SVG parsing, normalization, polygonization, and output for SVGnest."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tiny-skia-path = "=0.11.4"
+# 0.45 is deliberately pinned: it is compatible with our reproducible registry
+# and includes SVG serialization without a separate writer feature.
+usvg = { version = "=0.45.1", default-features = false }
+wasm-bindgen = "0.2"

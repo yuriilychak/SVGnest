@@ -1,0 +1,13 @@
+[package]
+name = "poygon-pack-algo"
+version = "0.1.0"
+edition = "2021"
+description = "Rust/WASM no-fit-polygon engine for SVGnest."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+clipper2-rs = "0.3"
+wasm-bindgen = "0.2"
