@@ -1,4 +1,4 @@
-# ![SVGNest](http://svgnest.com/github/logo2.png)
+# <img src="apps/web/public/logo.svg" alt="SVGNest" width="128" />
 
 **SVGNest**: A browser-based vector nesting tool.
 

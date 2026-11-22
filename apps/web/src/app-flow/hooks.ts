@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadSvgFormatPlugin } from '@svgnest/svg-format-plugin';
 import { PolygonPack } from '@svgnest/polygon-pack';
-import demoSvg from '../demo.svg?raw';
 import { DEFAULT_SETTING, INITIAL_NESTING_STATISTICS, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP } from './constants';
 import { getModifiedButtons, toPercents } from './helpers';
 import { MESSAGE_ID } from './types';
@@ -142,7 +141,22 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         setSettings(next);
     }, [settings, stop]);
     const handleUploadSvg = useCallback(event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => void loadSvg(String(reader.result)); reader.readAsText(file); event.target.value = ''; }, [loadSvg]);
-    useEffect(() => { if (isDemoMode) void loadSvg(demoSvg); }, [isDemoMode, loadSvg]);
+    useEffect(() => {
+        if (!isDemoMode) return;
+        const controller = new AbortController();
+        void fetch(new URL('demo.svg', document.baseURI), { signal: controller.signal })
+            .then(response => {
+                if (!response.ok) throw new Error(`Failed to load demo SVG: ${response.status} ${response.statusText}`);
+                return response.text();
+            })
+            .then(loadSvg)
+            .catch(error => {
+                if (error.name === 'AbortError') return;
+                setMessage(String(error));
+                setMessageId(MESSAGE_ID.ERROR);
+            });
+        return () => controller.abort();
+    }, [isDemoMode, loadSvg]);
     const zoomStyles = useMemo(() => ({ width: `${Math.floor(scale * 100)}%` }), [scale]);
     const { disabledButtons, hiddenButtons } = useMemo(() => getModifiedButtons(isWorking, isBinSelected, iterations, svgSrc), [isWorking, isBinSelected, iterations, svgSrc]);
     return { handleClick, handleChangeSettings, handleUploadSvg, zoomStyles, fileLoader, svgWrapper, isDrawerOpen, isWorking, progress, nestingStatistics, estimate, iterations, settings, disabledButtons, hiddenButtons, message, messageId };

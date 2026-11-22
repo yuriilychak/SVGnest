@@ -1,5 +1,4 @@
 export { default as CheckIcon } from './check';
-export { default as Logo } from './logo';
 export { default as BackIcon } from './back';
 export { default as CodeIcon } from './code';
 export { default as DownloadIcon } from './download';
