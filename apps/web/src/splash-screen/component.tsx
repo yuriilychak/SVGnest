@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 
 import { HelpItem } from './help-item';
 import { ButtonGroup, SharedDrawer } from '../shared';
+import { Logo } from '../assets';
 import { BUTTON_CONFIG, HELP_CONTENT_CONFIG } from './constants';
 import { BUTTON_ACTION } from '../types';
 import { SplashScreenProps } from './types';
-import logoUrl from '../../../../assets/logo.svg';
 
 import './styles.scss';
 
@@ -34,7 +34,7 @@ const SplashScreen: FC<SplashScreenProps> = ({ onOpenApp }) => {
 
     return (
         <div className="splashScreenRoot">
-            <img className="logo" src={logoUrl} alt="SVGnest" width="256" height="256" />
+            <Logo />
             <p className="splashScreenTitle">{t('splashScreen.title')}</p>
             <p className="splashScreenSubtitle">{t('splashScreen.subtitle')}</p>
             <ButtonGroup buttonsConfig={BUTTON_CONFIG} onClick={handleAction} localePrefix="splashScreen.buttons" />
