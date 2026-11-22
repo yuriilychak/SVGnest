@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prepare-assets": "npm --workspace @svgnest/svg-format-algo run build && npm --workspace @svgnest/polygon-pack run build",
+    "prepare-assets": "npm --workspace @svgnest/svg-format-algo run build && npm --workspace @svgnest/ai-format-algo run build && npm --workspace @svgnest/polygon-pack run build",
     "prebuild": "npm run prepare-assets",
     "build": "vite build",
     "predev": "npm run prepare-assets",

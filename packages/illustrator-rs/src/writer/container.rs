@@ -174,7 +174,11 @@ impl ContainerBuilder {
             stream_obj_numbers.len() + objects.len() + 1,
             xref_offsets
                 .iter()
-                .map(|o| format!("{o:010} 00000 n "))
+                // A PDF cross-reference table consists of fixed-width *lines*.
+                // Keeping entries on one line leaves the offset table malformed,
+                // which makes PDF-compatible AI files fail to open even when the
+                // embedded Illustrator private stream is otherwise valid.
+                .map(|o| format!("{o:010} 00000 n \n"))
                 .collect::<String>(),
             stream_obj_numbers.len() + objects.len() + 1,
         );
@@ -223,4 +227,29 @@ pub fn build_ai(
 /// Build a new PDF-compatible Illustrator file entirely in memory.
 pub fn build_ai_bytes(pgf_source: String, metadata: Option<AiMetadata>) -> Result<Vec<u8>> {
 	ContainerBuilder::new(pgf_source, metadata).build_minimal_bytes()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_ai_bytes;
+
+    #[test]
+    fn minimal_pdf_uses_one_fixed_width_xref_entry_per_object() {
+        let bytes = build_ai_bytes("%AI5_BeginLayer\n%AI5_EndLayer--\n".into(), None)
+            .expect("minimal AI container should build");
+        let pdf = String::from_utf8(bytes).expect("test container is UTF-8");
+        let xref = pdf.split("xref\n0 ").nth(1).expect("xref table");
+        let mut lines = xref.lines();
+        let object_count: usize = lines
+            .next()
+            .expect("xref object count")
+            .parse()
+            .expect("numeric xref object count");
+
+        for _ in 0..object_count {
+            let entry = lines.next().expect("one xref line per object");
+            assert_eq!(entry.len(), 19, "xref entries must be fixed width");
+        }
+        assert_eq!(lines.next(), Some("trailer"));
+    }
 }
