@@ -9,10 +9,10 @@ struct SvgDocuments { documents: Vec<String> }
 
 #[wasm_bindgen]
 pub fn detect_ai_format(input: &[u8]) -> String {
-	match effectcraft_pdf::sniff(input) {
-		Some(effectcraft_pdf::Format::Pdf) => "pdf-compatible".into(),
-		Some(effectcraft_pdf::Format::Eps) => "legacy-eps".into(),
-		None => "unknown".into(),
+	match illustrator_rs::parser::container::detect_format(input) {
+		Ok(illustrator_rs::parser::container::AiFormat::Pdf) => "pdf-compatible".into(),
+		Ok(illustrator_rs::parser::container::AiFormat::Eps | illustrator_rs::parser::container::AiFormat::PostScript) => "legacy-eps".into(),
+		Err(_) => "unknown".into(),
 	}
 }
 
@@ -24,8 +24,7 @@ pub fn validate_ai(input: &[u8]) -> Result<String, JsValue> {
 	if format == "unknown" {
 		return Err(JsValue::from_str("Unsupported Adobe Illustrator container"));
 	}
-	effectcraft_pdf::parse(input)
-		.map_err(|error| JsValue::from_str(&format!("Unable to parse Adobe Illustrator artwork: {error}")))?;
+	input_to_svg(input)?;
 	Ok(format)
 }
 
@@ -33,6 +32,9 @@ pub fn validate_ai(input: &[u8]) -> Result<String, JsValue> {
 /// paints are intentionally omitted from this first geometry-only bridge.
 #[wasm_bindgen]
 pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
+	if matches!(illustrator_rs::parser::container::detect_format(input), Ok(illustrator_rs::parser::container::AiFormat::Pdf)) {
+		return pdf_to_svg(input).map_err(|error| JsValue::from_str(&format!("Unable to convert PDF-compatible Illustrator artwork: {error}")));
+	}
 	let doc = effectcraft_pdf::parse(input)
 		.map_err(|error| JsValue::from_str(&format!("Unable to parse Adobe Illustrator artwork: {error}")))?;
 	let mut body = String::new();
@@ -50,6 +52,23 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 		if !d.is_empty() { body.push_str(&format!("<path data-svgnest-source=\"{source}\" d=\"{d}\" fill=\"black\"/>")); }
 	}
 	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
+}
+
+/// Converts the visible PDF artwork into the normalized SVG consumed by the
+/// format-plugin contract. `core_input_to_svg` assigns stable source IDs after
+/// zpdf has interpreted PDF operators, transforms, clipping, and paint.
+fn pdf_to_svg(input: &[u8]) -> Result<String, String> {
+	let document = zpdf::PdfDocument::open(input.to_vec()).map_err(|error| error.to_string())?;
+	let page = zpdf::interpret_page(&document, 0, zpdf::PageInterpretOptions::default())
+		.map_err(|error| error.to_string())?;
+	page.ensure_complete().map_err(|error| error.to_string())?;
+	let svg = zpdf_svg_export::display_list_to_svg(
+		&page.display_list,
+		&page.fonts,
+		&page.images,
+		&zpdf_svg_export::SvgOptions { background: None, ..Default::default() },
+	);
+	svg_format_algo::core_input_to_svg(svg.as_bytes())
 }
 
 /// Experimental native Illustrator parser path, retained separately until it
@@ -119,4 +138,5 @@ mod tests {
         let bytes = output_to_data(eps, placement).expect("AI export should succeed");
         assert!(bytes.starts_with(b"%PDF-"));
     }
+
 }
