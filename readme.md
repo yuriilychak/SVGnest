@@ -1,35 +1,8 @@
-## Changes in fork:
-
--   Migrated to modern Web-Project structure.
--   Restructure project to monorep for reusage of modules.
--   Rewritten code to Rust and Typescript.
--   Migrate SVG parsing logic to non-DOM libs.
--   Optimized worker flow (Now workers created only once and reused).
--   Moved workers to ArrayBuffer input/output for better memory usage.
--   Migrated from Float64 to Float32/Int32 values in point for decrease memory usage and increase worker performance (Pair flow still use F64. If someone could help port this part of the code it would be great. There have been several attempts to port this part of the code to float32 but all of them have been unsuccessful).
--   Optimized concave flow. Now it faster then original. Original flow removed.
--   Isolated and refactored js-clipper logic to avoid of full lib usage (it decrease package size twice).
--   Rewrote js-clipper from dynamic lists to Data locality pattern structure.
--   Fully ported all math logic to Rust with WASM (speed-up packing time near 10 times).
--   Join worker data to chunks to decrees count of messages (speed-up nesting near 12%).
--   Migrated UI to React.
--   Added dev server for ability to run it without additional plugins.
--   Added singlethread realization via SingleThreadPacker class from polygon-packer package.
--   Added TypeDoc and RustDoc into all packages. 
-
-## Current TODO's
-
--   Add node package for ability to run nesting tool from terminal on server-side.
--   Extruct gravity argument to configuration for ability to configure it on UI.
-
-## Why I do it
-
-Currently I'm working on my own html game engine, and need tool for polyognal atlas generation. Due to I need polygon packing
-tool I splited it to packages for ability to reuse some modules in that tool.
-
 # ![SVGNest](http://svgnest.com/github/logo2.png)
 
 **SVGNest**: A browser-based vector nesting tool.
+
+This fork is a TypeScript monorepo with Rust/WebAssembly cores for SVG conversion and polygon packing. SVG parsing and conversion run in Rust without DOM parsing; the browser DOM is used only to display SVG and keep the GUI selection behavior.
 
 **Demo:** https://yuriilychak.github.io/SVGnest/
 
@@ -71,6 +44,43 @@ Make sure all parts have been converted to outlines, and that no outlines overla
 outlines to be used as the bin.
 
 All other outlines are automatically processed as parts for nesting.
+
+## Development
+
+Requirements: Node.js 20.19+ (npm 8+) and Rust with `wasm-pack` on `PATH`.
+
+```sh
+npm install
+npm run dev
+```
+
+The web application builds its WASM assets automatically before starting or producing a production build:
+
+```sh
+npm run build
+```
+
+The application lives in `apps/web`. Its build prepares the SVG-format WASM module and the packing worker/WASM assets, then Vite builds the UI.
+
+### Packages
+
+- `@svgnest/format-plugin` defines the format adapter contract: `inputToPolygons`, `inputToSvg`, `outputToData`, and `outputToSvg`.
+- `@svgnest/svg-format-algo` is the Rust/WASM SVG implementation, built with `usvg`.
+- `@svgnest/svg-format-plugin` adapts the Rust SVG core to the shared format-plugin contract. SVG input and output currently use the same conversion path.
+- `@svgnest/polygon-pack` is the TypeScript orchestration layer for packing. It can use its reusable worker executor or a main-thread executor through the execution mode passed to `PolygonPack.start`.
+- `@svgnest/poygon-pack-algo` is the Rust/WASM no-fit-polygon and genetic-algorithm core. (The package name intentionally follows the existing `poygon` spelling.)
+
+Useful checks:
+
+```sh
+npm run check
+npm --workspace @svgnest/svg-format-algo run check
+npm --workspace @svgnest/polygon-pack test
+```
+
+### Architecture notes
+
+The format plugin owns file parsing, serialization, and conversion to displayable SVG. GUI selection remains in the web app. This separation allows adding another input/output format by implementing the same four-method plugin contract, without changing packing or the UI workflow.
 
 ## Outline of algorithm
 
