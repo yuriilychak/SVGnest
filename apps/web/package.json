@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@svgnest/polygon-pack": "file:../../packages/polygon-pack",
+    "@svgnest/ai-format-plugin": "file:../../packages/ai-format-plugin",
     "@svgnest/svg-format-plugin": "file:../../packages/svg-format-plugin",
     "i18next": "^23.11.5",
     "i18next-browser-languagedetector": "^8.0.0",

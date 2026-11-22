@@ -48,20 +48,21 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
 }
 
-/// Converts AI vector paths to SVGnest's source-indexed polygon payload.
-#[wasm_bindgen]
-pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> {
-	let svg = input_to_svg(input)?;
-	svg_format_algo::input_to_polygons(svg.as_bytes(), tolerance)
-}
 
 #[cfg(test)]
 mod tests {
-    use super::detect_ai_format;
+    use super::{detect_ai_format, input_to_svg};
 
     #[test]
     fn detects_pdf_compatible_ai() { assert_eq!(detect_ai_format(b"%PDF-1.7"), "pdf-compatible"); }
 
     #[test]
     fn detects_legacy_eps_ai() { assert_eq!(detect_ai_format(b"%!PS-Adobe-3.0"), "legacy-eps"); }
+
+    #[test]
+    fn converts_legacy_eps_path_to_svg() {
+        let eps = b"%!PS-Adobe-3.0\n%%BoundingBox: 0 0 100 100\nnewpath 10 10 moveto 90 10 lineto 90 90 lineto closepath fill\nshowpage\n";
+        let svg = input_to_svg(eps).expect("EPS path should convert");
+        assert!(svg.contains("<path"));
+    }
 }

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadSvgFormatPlugin } from '@svgnest/svg-format-plugin';
+import { loadAiFormatPlugin } from '@svgnest/ai-format-plugin';
 import { PolygonPack } from '@svgnest/polygon-pack';
 import { DEFAULT_SETTING, INITIAL_NESTING_STATISTICS, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP } from './constants';
 import { getModifiedButtons, toPercents } from './helpers';
@@ -17,7 +18,9 @@ function toSvgElement(markup: string): SVGElement {
 }
 
 export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
-    const plugin = useRef(loadSvgFormatPlugin()).current;
+    const svgPlugin = useRef(loadSvgFormatPlugin()).current;
+    const aiPlugin = useRef(loadAiFormatPlugin()).current;
+    const plugin = useRef(svgPlugin);
     const nest = useRef(new PolygonPack()).current;
     const fileLoader = useRef<HTMLInputElement>(null);
     const svgWrapper = useRef<HTMLDivElement>(null);
@@ -51,15 +54,15 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         binIndex.current = source;
         setBinSelected(true); setWorking(false);
     }, [nest]);
-    const loadSvg = useCallback(async (text: string) => {
+    const loadSvg = useCallback(async (text: string | Uint8Array, nextPlugin = plugin.current) => {
         const requestId = ++loadId.current;
         try {
             nest.stop();
-            const svgPlugin = await plugin;
+            const formatPlugin = await nextPlugin;
             const config = { curveTolerance: configRef.current.curveTolerance };
             const [preview, polygons] = await Promise.all([
-                svgPlugin.inputToSvg(text, config),
-                svgPlugin.inputToPolygons(text, config)
+                formatPlugin.inputToSvg(text, config),
+                formatPlugin.inputToPolygons(text, config)
             ]);
             if (requestId !== loadId.current) return;
             const svg = toSvgElement(preview.value);
@@ -71,6 +74,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 elementsBySource[source] = element;
                 element.addEventListener('click', event => { event.stopPropagation(); selectBin(source); });
             });
+            plugin.current = nextPlugin;
             sourceInput.current = text;
             sourceElements.current = elementsBySource;
             partPolygons.current = polygons.value.polygons;
@@ -85,7 +89,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 setMessageId(MESSAGE_ID.ERROR);
             }
         }
-    }, [nest, plugin, selectBin]);
+    }, [nest, selectBin]);
     const start = useCallback(() => {
         if (binIndex.current === null) return;
         startedAt.current = Date.now();
@@ -99,8 +103,8 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
             const context = nest.placementContext;
             if (!context) return;
             try {
-                const svgPlugin = await plugin;
-                const output = await svgPlugin.outputToSvg(sourceInput.current, {
+                const formatPlugin = await plugin.current;
+                const output = await formatPlugin.outputToSvg(sourceInput.current, {
                     placements: best.placements,
                     tree: context.tree,
                     binBounds: context.binBounds,
@@ -118,7 +122,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
             }
         });
         setWorking(Boolean(started)); if (started) setMessageId(MESSAGE_ID.START);
-    }, [nest, plugin]);
+    }, [nest]);
     const stop = useCallback(() => { nest.stop(); setWorking(false); }, [nest]);
     const download = useCallback(() => {
         const svgDocument = outputDocuments.current[0];
@@ -140,7 +144,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         configRef.current = next;
         setSettings(next);
     }, [settings, stop]);
-    const handleUploadSvg = useCallback(event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => void loadSvg(String(reader.result)); reader.readAsText(file); event.target.value = ''; }, [loadSvg]);
+    const handleUploadSvg = useCallback(event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); const isAi = file.name.toLowerCase().endsWith('.ai'); reader.onload = () => void loadSvg(isAi ? new Uint8Array(reader.result as ArrayBuffer) : String(reader.result), isAi ? aiPlugin : svgPlugin); if (isAi) reader.readAsArrayBuffer(file); else reader.readAsText(file); event.target.value = ''; }, [aiPlugin, loadSvg, svgPlugin]);
     useEffect(() => {
         if (!isDemoMode) return;
         const controller = new AbortController();
@@ -149,14 +153,14 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 if (!response.ok) throw new Error(`Failed to load demo SVG: ${response.status} ${response.statusText}`);
                 return response.text();
             })
-            .then(loadSvg)
+            .then(text => loadSvg(text, svgPlugin))
             .catch(error => {
                 if (error.name === 'AbortError') return;
                 setMessage(String(error));
                 setMessageId(MESSAGE_ID.ERROR);
             });
         return () => controller.abort();
-    }, [isDemoMode, loadSvg]);
+    }, [isDemoMode, loadSvg, svgPlugin]);
     const zoomStyles = useMemo(() => ({ width: `${Math.floor(scale * 100)}%` }), [scale]);
     const { disabledButtons, hiddenButtons } = useMemo(() => getModifiedButtons(isWorking, isBinSelected, iterations, svgSrc), [isWorking, isBinSelected, iterations, svgSrc]);
     return { handleClick, handleChangeSettings, handleUploadSvg, zoomStyles, fileLoader, svgWrapper, isDrawerOpen, isWorking, progress, nestingStatistics, estimate, iterations, settings, disabledButtons, hiddenButtons, message, messageId };

@@ -1,5 +1,5 @@
 import type { FormatInput, FormatPlugin, FormatResult, InputPolygons, PlacementOutput, SvgDocuments } from '@svgnest/format-plugin';
-import { SvgFormatPlugin, type SvgFormatConfig, decodePolygons } from '@svgnest/svg-format-plugin';
+import { SvgFormatPlugin, type SvgFormatConfig } from '@svgnest/svg-format-plugin';
 
 export type AiFormat = 'pdf-compatible' | 'legacy-eps' | 'unknown';
 
@@ -8,7 +8,6 @@ export interface AiFormatWasm {
 	detect_ai_format(input: Uint8Array): AiFormat;
 	validate_ai(input: Uint8Array): AiFormat;
 	input_to_svg(input: Uint8Array): string;
-	input_to_polygons(input: Uint8Array, tolerance: number): string;
 }
 
 /** Detects the two Illustrator container families before invoking a parser. */
@@ -31,17 +30,12 @@ export class AiFormatPlugin implements FormatPlugin<FormatInput, SvgFormatConfig
 		return this.wasm.input_to_svg(typeof input === 'string' ? new TextEncoder().encode(input) : input);
 	}
 
-	private toPolygons(input: FormatInput, curveTolerance: number): string {
-		return this.wasm.input_to_polygons(typeof input === 'string' ? new TextEncoder().encode(input) : input, curveTolerance);
-	}
-
-	async inputToSvg(input: FormatInput, _config: SvgFormatConfig): Promise<FormatResult<string>> {
-		return { value: this.toSvg(input), diagnostics: [] };
+	async inputToSvg(input: FormatInput, config: SvgFormatConfig): Promise<FormatResult<string>> {
+		return this.svg.inputToSvg(this.toSvg(input), config);
 	}
 
 	async inputToPolygons(input: FormatInput, config: SvgFormatConfig): Promise<FormatResult<InputPolygons>> {
-		const payload = decodePolygons(this.toPolygons(input, config.curveTolerance));
-		return { value: { polygons: payload.polygons.map(({ source, points }) => Object.assign([...points], { source })), sources: payload.sources }, diagnostics: [] };
+		return this.svg.inputToPolygons(this.toSvg(input), config);
 	}
 
 	async outputToSvg(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
@@ -52,3 +46,5 @@ export class AiFormatPlugin implements FormatPlugin<FormatInput, SvgFormatConfig
 		return this.outputToSvg(input, placing);
 	}
 }
+
+export { loadAiFormatPlugin } from './wasm-loader.ts';

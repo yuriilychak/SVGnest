@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@svgnest/format-plugin': workspaceFile('../../packages/format-plugin/src/index.ts'),
+      '@svgnest/ai-format-plugin': workspaceFile('../../packages/ai-format-plugin/src/index.ts'),
       '@svgnest/svg-format-plugin': workspaceFile('../../packages/svg-format-plugin/src/index.ts')
     }
   },
