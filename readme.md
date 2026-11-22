@@ -1,4 +1,6 @@
-# <img src="apps/web/public/logo.svg" alt="SVGNest" width="128" />
+<p align="center">
+  <img src="apps/web/public/logo.svg" alt="SVGNest" width="256" />
+</p>
 
 **SVGNest**: A browser-based vector nesting tool.
 
