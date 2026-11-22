@@ -48,6 +48,13 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
 }
 
+/// Converts AI vector paths to SVGnest's source-indexed polygon payload.
+#[wasm_bindgen]
+pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> {
+	let svg = input_to_svg(input)?;
+	svg_format_algo::input_to_polygons(svg.as_bytes(), tolerance)
+}
+
 #[cfg(test)]
 mod tests {
     use super::detect_ai_format;
