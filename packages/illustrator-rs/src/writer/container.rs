@@ -135,7 +135,7 @@ impl ContainerBuilder {
         objects.push(format!(
             "{page_obj} 0 obj\n\
              << /Type /Page /Parent {pages_obj} 0 R /MediaBox [0 0 {width} {height}] \
-             /PieceInfo << /Illustrator << /Private << {private_refs} >> >> >>\n\
+             /PieceInfo << /Illustrator << /Private << {private_refs} >> >> >> >>\n\
              endobj"
         ));
 
@@ -251,5 +251,15 @@ mod tests {
             assert_eq!(entry.len(), 19, "xref entries must be fixed width");
         }
         assert_eq!(lines.next(), Some("trailer"));
+    }
+
+    #[test]
+    fn minimal_pdf_closes_the_page_dictionary_before_private_streams() {
+        let bytes = build_ai_bytes("%AI5_BeginLayer\n%AI5_EndLayer--\n".into(), None)
+            .expect("minimal AI container should build");
+        let pdf = String::from_utf8(bytes).expect("test container is UTF-8");
+        assert!(pdf.contains(
+            "/PieceInfo << /Illustrator << /Private << /AIPrivateData1 4 0 R >> >> >> >>\nendobj"
+        ));
     }
 }
