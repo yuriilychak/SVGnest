@@ -1,4 +1,4 @@
-const WASM_URL = '/workers/poygon_pack_algo_bg.wasm';
+const wasmUrl = () => new URL('workers/poygon_pack_algo_bg.wasm', document.baseURI);
 
 interface WasmExports {
 	memory: WebAssembly.Memory;
@@ -25,7 +25,7 @@ export class NfpWasm {
 		const retainBinary = !binary.byteLength;
 		let instanceBinary: ArrayBuffer;
 		if (retainBinary) {
-			const response = await fetch(WASM_URL);
+			const response = await fetch(wasmUrl());
 			if (!response.ok) throw new Error(`Failed to fetch nesting WASM: ${response.status} ${response.statusText}`);
 			wasmBinary = await response.arrayBuffer();
 			instanceBinary = wasmBinary;

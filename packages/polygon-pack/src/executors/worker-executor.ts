@@ -5,7 +5,7 @@ import type { NestingExecutor } from './types.ts';
 export class WorkerNestingExecutor implements NestingExecutor {
 	#pool: NestingWorkerPool;
 
-	constructor(url = '/workers/nesting.worker.js') {
+	constructor(url = new URL('workers/nesting.worker.js', document.baseURI).href) {
 		this.#pool = new NestingWorkerPool(url);
 	}
 
