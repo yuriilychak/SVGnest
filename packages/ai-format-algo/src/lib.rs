@@ -36,7 +36,7 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 	let doc = effectcraft_pdf::parse(input)
 		.map_err(|error| JsValue::from_str(&format!("Unable to parse Adobe Illustrator artwork: {error}")))?;
 	let mut body = String::new();
-	for (transform, _opacity, shape) in doc.flatten() {
+	for (source, (transform, _opacity, shape)) in doc.flatten().into_iter().enumerate() {
 		let mut d = String::new();
 		for element in shape.geom.to_path().elements() {
 			match element {
@@ -47,7 +47,7 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 				PathEl::ClosePath => d.push('Z'),
 			}
 		}
-		if !d.is_empty() { body.push_str(&format!("<path d=\"{d}\" fill=\"black\"/>")); }
+		if !d.is_empty() { body.push_str(&format!("<path data-svgnest-source=\"{source}\" d=\"{d}\" fill=\"black\"/>")); }
 	}
 	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
 }
@@ -109,6 +109,7 @@ mod tests {
         let eps = b"%!PS-Adobe-3.0\n%%BoundingBox: 0 0 100 100\nnewpath 10 10 moveto 90 10 lineto 90 90 lineto closepath fill\nshowpage\n";
         let svg = input_to_svg(eps).expect("EPS path should convert");
         assert!(svg.contains("<path"));
+        assert!(svg.contains("data-svgnest-source=\"0\""));
     }
 
     #[test]
