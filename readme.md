@@ -10,6 +10,21 @@ This fork is a TypeScript monorepo with Rust/WebAssembly cores for SVG conversio
 
 (requires SVG and webworker support). Mobile warning: running the demo is CPU intensive.
 
+## Contents
+
+- [What is nesting?](#what-is-nesting)
+- [Usage](#usage)
+- [Development](#development)
+  - [Packages](#packages)
+  - [Architecture notes](#architecture-notes)
+- [Outline of algorithm](#outline-of-algorithm)
+  - [Placing the part](#placing-the-part)
+  - [Optimization](#optimization)
+- [Evaluating fitness](#evaluating-fitness)
+- [Performance](#performance)
+- [Configuration parameters](#configuration-parameters)
+- [To-do](#to-do)
+
 references (PDF):
 
 -   [López-Camacho _et al._ 2013](http://www.cs.stir.ac.uk/~goc/papers/EffectiveHueristic2DAOR2013.pdf)
