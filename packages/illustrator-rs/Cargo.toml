@@ -1,0 +1,45 @@
+[package]
+name = "illustrator-rs"
+version = "0.1.0"
+edition = "2024"
+description = "Parse, export, and rebuild Adobe Illustrator (.ai) files — pure Rust"
+license = "MIT"
+repository = "https://github.com/Pilser/illustrator-rs"
+keywords = ["illustrator", "adobe", "ai", "vector", "svg"]
+categories = ["graphics", "parsing", "file-format"]
+
+[features]
+default = []
+model = []
+parser = ["model"]
+export = ["model"]
+importer = ["model", "export"]
+writer = ["model", "export", "parser"]
+cli = ["parser", "export", "importer", "writer", "dep:clap", "dep:env_logger"]
+handler = ["model", "parser", "export", "writer"]
+pdf = ["dep:lopdf"]
+zstd = ["dep:zstd"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+quick-xml = "0.36"
+flate2 = "1.0"
+base64 = "0.22"
+log = "0.4"
+thiserror = "2"
+regex-lite = "0.1"
+
+# Optional
+clap = { version = "4", features = ["derive"], optional = true }
+lopdf = { version = "0.34", optional = true }
+zstd = { version = "0.13", optional = true }
+env_logger = { version = "0.11", optional = true }
+# Future: handler-common = { git = "https://github.com/Pilser/OfficeCli-rust", optional = true }
+
+[dev-dependencies]
+env_logger = "0.11"
+
+[lib]
+name = "illustrator_rs"
+path = "src/lib.rs"

@@ -48,6 +48,20 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
 }
 
+/// Experimental native Illustrator parser path, retained separately until it
+/// passes the browser/WASM fixture corpus used by the production adapter.
+#[wasm_bindgen]
+pub fn input_to_svg_illustrator(input: &[u8]) -> Result<String, JsValue> {
+	let pgf = illustrator_rs::parser::container::extract_pgf_bytes(input)
+		.map_err(|error| JsValue::from_str(&error.to_string()))?;
+	let tokens = illustrator_rs::parser::lexer::tokenize(&pgf)
+		.map_err(|error| JsValue::from_str(&error.to_string()))?;
+	let document = illustrator_rs::parser::ai_parser::parse_ai(tokens)
+		.map_err(|error| JsValue::from_str(&error.to_string()))?;
+	illustrator_rs::export::svg::export_svg(&document)
+		.map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
 #[wasm_bindgen]
 pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> {
 	let svg = input_to_svg(input)?;

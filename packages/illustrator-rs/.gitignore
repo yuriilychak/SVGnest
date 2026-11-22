@@ -1,0 +1,5 @@
+/target
+*.ai
+*.ai-meta.json
+.env
+.output/
