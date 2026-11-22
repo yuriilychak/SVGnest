@@ -1,0 +1,15 @@
+{
+  "name": "@svgnest/ai-format-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Adobe Illustrator format adapter for SVGnest.",
+  "exports": "./src/index.ts",
+  "files": ["src"],
+  "dependencies": {
+    "@svgnest/format-plugin": "file:../format-plugin",
+    "@svgnest/ai-format-algo": "file:../ai-format-algo"
+  },
+  "scripts": { "check": "tsc --noEmit" },
+  "devDependencies": { "typescript": "^5.9.3" }
+}

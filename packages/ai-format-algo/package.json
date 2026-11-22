@@ -1,0 +1,11 @@
+{
+  "name": "@svgnest/ai-format-algo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": ["pkg"],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir ../ai-format-plugin/src/generated --out-name ai_format_algo",
+    "check": "cargo test"
+  }
+}
