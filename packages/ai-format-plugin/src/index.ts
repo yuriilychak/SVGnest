@@ -10,10 +10,11 @@ export interface AiFormatWasm {
 	input_to_svg(input: Uint8Array): string;
 	input_to_polygons(input: Uint8Array, tolerance: number): string;
 	output_to_svg(input: Uint8Array, placementJson: string): string;
+	output_to_data(input: Uint8Array, placementJson: string): Uint8Array;
 }
 
 /** Detects the two Illustrator container families before invoking a parser. */
-export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig, SvgDocuments> {
+export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig, Uint8Array> {
 	readonly id = 'ai';
 	readonly extensions = ['.ai'] as const;
 
@@ -47,8 +48,8 @@ export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig,
 		return { value, diagnostics: [] };
 	}
 
-	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
-		return this.outputToSvg(input, placing);
+	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<Uint8Array>> {
+		return { value: this.wasm.output_to_data(this.bytes(input), JSON.stringify(placing)), diagnostics: [] };
 	}
 
 	private bytes(input: FormatInput) { return typeof input === 'string' ? new TextEncoder().encode(input) : input; }

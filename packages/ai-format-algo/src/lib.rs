@@ -2,6 +2,10 @@
 
 use wasm_bindgen::prelude::*;
 use kurbo::PathEl;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct SvgDocuments { documents: Vec<String> }
 
 #[wasm_bindgen]
 pub fn detect_ai_format(input: &[u8]) -> String {
@@ -76,10 +80,23 @@ pub fn output_to_svg(input: &[u8], placement_json: &str) -> Result<String, JsVal
 		.map_err(|error| JsValue::from_str(&error))
 }
 
+#[wasm_bindgen]
+pub fn output_to_data(input: &[u8], placement_json: &str) -> Result<Vec<u8>, JsValue> {
+	let documents: SvgDocuments = serde_json::from_str(&output_to_svg(input, placement_json)?)
+		.map_err(|error| JsValue::from_str(&format!("Invalid placed SVG output: {error}")))?;
+	let svg = documents.documents.first().ok_or_else(|| JsValue::from_str("No output document was generated"))?;
+	let document = illustrator_rs::importer::svg::import_svg_string(svg, None)
+		.map_err(|error| JsValue::from_str(&error.to_string()))?;
+	let pgf = illustrator_rs::writer::pgf::write_pgf(&document, None)
+		.map_err(|error| JsValue::from_str(&error.to_string()))?;
+	illustrator_rs::writer::container::build_ai_bytes(pgf, None)
+		.map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
 
 #[cfg(test)]
 mod tests {
-    use super::{detect_ai_format, input_to_svg};
+    use super::{detect_ai_format, input_to_svg, output_to_data};
 
     #[test]
     fn detects_pdf_compatible_ai() { assert_eq!(detect_ai_format(b"%PDF-1.7"), "pdf-compatible"); }
@@ -92,5 +109,13 @@ mod tests {
         let eps = b"%!PS-Adobe-3.0\n%%BoundingBox: 0 0 100 100\nnewpath 10 10 moveto 90 10 lineto 90 90 lineto closepath fill\nshowpage\n";
         let svg = input_to_svg(eps).expect("EPS path should convert");
         assert!(svg.contains("<path"));
+    }
+
+    #[test]
+    fn writes_pdf_compatible_ai_bytes() {
+        let eps = b"%!PS-Adobe-3.0\n%%BoundingBox: 0 0 100 100\nnewpath 10 10 moveto 90 10 lineto 90 90 lineto closepath fill\nshowpage\n";
+        let placement = r#"{"placements":[[{"id":0,"x":0,"y":0,"rotation":0}]],"tree":[{"source":0,"children":[]}],"binBounds":{"x":0,"y":0,"width":100,"height":100},"binSource":0}"#;
+        let bytes = output_to_data(eps, placement).expect("AI export should succeed");
+        assert!(bytes.starts_with(b"%PDF-"));
     }
 }

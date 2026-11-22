@@ -45,7 +45,7 @@ pub mod prelude {
     #[cfg(feature = "writer")]
     pub use crate::writer::pgf::write_pgf;
     #[cfg(feature = "writer")]
-    pub use crate::writer::container::build_ai;
+    pub use crate::writer::container::{build_ai, build_ai_bytes};
 }
 
 pub use error::{Error, Result};

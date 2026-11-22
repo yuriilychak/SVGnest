@@ -83,6 +83,12 @@ impl ContainerBuilder {
     }
 
     fn build_minimal(&self, output_path: &Path) -> Result<()> {
+		std::fs::write(output_path, self.build_minimal_bytes()?)?;
+		Ok(())
+	}
+
+	/// Build a minimal PDF-compatible AI container without filesystem access.
+	pub fn build_minimal_bytes(&self) -> Result<Vec<u8>> {
         let pgf_bytes = self.pgf_source.as_bytes();
         let chunks = chunk_pgf_data(pgf_bytes, DEFAULT_CHUNK_SIZE);
 
@@ -174,8 +180,7 @@ impl ContainerBuilder {
         );
         pdf_bytes.extend_from_slice(xref_str.as_bytes());
 
-        std::fs::write(output_path, &pdf_bytes)?;
-        Ok(())
+        Ok(pdf_bytes)
     }
 
     fn pgf_matches_original(&self, original_path: &Path) -> bool {
@@ -213,4 +218,9 @@ pub fn build_ai(
 ) -> Result<()> {
     let builder = ContainerBuilder::new(pgf_source, metadata);
     builder.build(output_path, original_path)
+}
+
+/// Build a new PDF-compatible Illustrator file entirely in memory.
+pub fn build_ai_bytes(pgf_source: String, metadata: Option<AiMetadata>) -> Result<Vec<u8>> {
+	ContainerBuilder::new(pgf_source, metadata).build_minimal_bytes()
 }

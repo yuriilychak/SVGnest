@@ -16,6 +16,8 @@ dependencies = [
  "effectcraft-svg",
  "illustrator-rs",
  "kurbo 0.13.1",
+ "serde",
+ "serde_json",
  "svg-format-algo",
  "wasm-bindgen",
 ]
