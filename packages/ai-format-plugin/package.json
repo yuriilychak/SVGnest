@@ -8,8 +8,7 @@
   "files": ["src"],
   "dependencies": {
     "@svgnest/format-plugin": "file:../format-plugin",
-    "@svgnest/ai-format-algo": "file:../ai-format-algo",
-    "@svgnest/svg-format-plugin": "file:../svg-format-plugin"
+    "@svgnest/ai-format-algo": "file:../ai-format-algo"
   },
   "scripts": { "check": "tsc --noEmit" },
   "devDependencies": { "typescript": "^5.9.3" }

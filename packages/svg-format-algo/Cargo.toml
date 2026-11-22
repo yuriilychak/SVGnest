@@ -8,6 +8,10 @@ license = "MIT"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["wasm"]
+wasm = ["dep:wasm-bindgen"]
+
 [profile.release]
 opt-level = "z"
 lto = true
@@ -21,4 +25,4 @@ tiny-skia-path = "=0.11.4"
 # 0.45 is deliberately pinned: it is compatible with our reproducible registry
 # and includes SVG serialization without a separate writer feature.
 usvg = { version = "=0.45.1", default-features = false }
-wasm-bindgen = "0.2"
+wasm-bindgen = { version = "0.2", optional = true }

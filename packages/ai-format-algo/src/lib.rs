@@ -48,6 +48,20 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
 }
 
+#[wasm_bindgen]
+pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> {
+	let svg = input_to_svg(input)?;
+	svg_format_algo::core_input_to_polygons(svg.as_bytes(), tolerance)
+		.map_err(|error| JsValue::from_str(&error))
+}
+
+#[wasm_bindgen]
+pub fn output_to_svg(input: &[u8], placement_json: &str) -> Result<String, JsValue> {
+	let svg = input_to_svg(input)?;
+	svg_format_algo::core_output_to_svg(svg.as_bytes(), placement_json)
+		.map_err(|error| JsValue::from_str(&error))
+}
+
 
 #[cfg(test)]
 mod tests {

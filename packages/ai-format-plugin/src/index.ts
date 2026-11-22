@@ -1,21 +1,23 @@
-import type { FormatInput, FormatPlugin, FormatResult, InputPolygons, PlacementOutput, SvgDocuments } from '@svgnest/format-plugin';
-import { SvgFormatPlugin, type SvgFormatConfig } from '@svgnest/svg-format-plugin';
+import type { FormatInput, FormatPlugin, FormatResult, InputPolygons, PlacementOutput, SourcePolygon, SvgDocuments } from '@svgnest/format-plugin';
 
 export type AiFormat = 'pdf-compatible' | 'legacy-eps' | 'unknown';
+export interface AiFormatConfig { curveTolerance: number; }
 
 /** Narrow WASM seam for the first AI-plugin increment. */
 export interface AiFormatWasm {
 	detect_ai_format(input: Uint8Array): AiFormat;
 	validate_ai(input: Uint8Array): AiFormat;
 	input_to_svg(input: Uint8Array): string;
+	input_to_polygons(input: Uint8Array, tolerance: number): string;
+	output_to_svg(input: Uint8Array, placementJson: string): string;
 }
 
 /** Detects the two Illustrator container families before invoking a parser. */
-export class AiFormatPlugin implements FormatPlugin<FormatInput, SvgFormatConfig, SvgDocuments> {
+export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig, SvgDocuments> {
 	readonly id = 'ai';
 	readonly extensions = ['.ai'] as const;
 
-	constructor(private readonly wasm: AiFormatWasm, private readonly svg: SvgFormatPlugin) {}
+	constructor(private readonly wasm: AiFormatWasm) {}
 
 	detect(input: string | Uint8Array): AiFormat {
 		return this.wasm.detect_ai_format(typeof input === 'string' ? new TextEncoder().encode(input) : input);
@@ -30,21 +32,26 @@ export class AiFormatPlugin implements FormatPlugin<FormatInput, SvgFormatConfig
 		return this.wasm.input_to_svg(typeof input === 'string' ? new TextEncoder().encode(input) : input);
 	}
 
-	async inputToSvg(input: FormatInput, config: SvgFormatConfig): Promise<FormatResult<string>> {
-		return this.svg.inputToSvg(this.toSvg(input), config);
+	async inputToSvg(input: FormatInput, _config: AiFormatConfig): Promise<FormatResult<string>> {
+		return { value: this.toSvg(input), diagnostics: [] };
 	}
 
-	async inputToPolygons(input: FormatInput, config: SvgFormatConfig): Promise<FormatResult<InputPolygons>> {
-		return this.svg.inputToPolygons(this.toSvg(input), config);
+	async inputToPolygons(input: FormatInput, config: AiFormatConfig): Promise<FormatResult<InputPolygons>> {
+		const payload = JSON.parse(this.wasm.input_to_polygons(this.bytes(input), config.curveTolerance));
+		const polygons = payload.polygons.map(({ source, points }: { source: number; points: number[] }) => Object.assign(points, { source }) as SourcePolygon);
+		return { value: { polygons, sources: payload.sources }, diagnostics: [] };
 	}
 
 	async outputToSvg(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
-		return this.svg.outputToSvg(this.toSvg(input), placing);
+		const value = JSON.parse(this.wasm.output_to_svg(this.bytes(input), JSON.stringify(placing))) as SvgDocuments;
+		return { value, diagnostics: [] };
 	}
 
 	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
 		return this.outputToSvg(input, placing);
 	}
+
+	private bytes(input: FormatInput) { return typeof input === 'string' ? new TextEncoder().encode(input) : input; }
 }
 
 export { loadAiFormatPlugin } from './wasm-loader.ts';

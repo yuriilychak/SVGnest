@@ -5,6 +5,7 @@
 
 use serde::Deserialize;
 use tiny_skia_path::{PathSegment, Point};
+#[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
 const MAX_FLATTEN_DEPTH: u8 = 20;
@@ -58,10 +59,9 @@ fn parse_svg(input: &[u8]) -> Result<usvg::Tree, String> {
 /// Parses and normalizes an SVG entirely in Rust, returning canonical SVG
 /// markup. This is the first public WASM seam; polygon extraction and placed
 /// SVG generation will consume the same parsed representation next.
-#[wasm_bindgen]
-pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
-    let tree = parse_svg(input).map_err(|message| JsValue::from_str(&message))?;
-    display_svg(&tree).map_err(|message| JsValue::from_str(&message))
+pub fn core_input_to_svg(input: &[u8]) -> Result<String, String> {
+    let tree = parse_svg(input)?;
+    display_svg(&tree)
 }
 
 /// Parses SVG and returns flattened, source-indexed contours as JSON.
@@ -70,16 +70,12 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
 /// attach the `source` field to its legacy `number[]` polygon representation
 /// without involving browser SVG objects:
 /// `{ "polygons": [{ "source": 0, "points": [x0, y0, ...] }], "sources": [0] }`.
-#[wasm_bindgen]
-pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> {
+pub fn core_input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, String> {
     if !tolerance.is_finite() || tolerance <= 0.0 {
-        return Err(JsValue::from_str(
-            "Curve tolerance must be a positive finite number",
-        ));
+        return Err("Curve tolerance must be a positive finite number".into());
     }
-    let tree = parse_svg(input).map_err(|message| JsValue::from_str(&message))?;
-    let polygons =
-        polygonize(&tree, tolerance as f32).map_err(|message| JsValue::from_str(&message))?;
+    let tree = parse_svg(input)?;
+    let polygons = polygonize(&tree, tolerance as f32)?;
     Ok(polygons_json(&polygons))
 }
 
@@ -87,22 +83,32 @@ pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue
 /// Placement data is JSON matching `PlacementOutput` from the format-plugin
 /// contract. The renderer receives only Rust-normalized paths; it never reads
 /// or mutates a browser SVG DOM.
-#[wasm_bindgen]
-pub fn output_to_svg(input: &[u8], placement_json: &str) -> Result<String, JsValue> {
+pub fn core_output_to_svg(input: &[u8], placement_json: &str) -> Result<String, String> {
     let request: OutputRequest = serde_json::from_str(placement_json)
-        .map_err(|error| JsValue::from_str(&format!("Invalid placement data: {error}")))?;
-    validate_output_request(&request).map_err(|message| JsValue::from_str(&message))?;
-    let tree = parse_svg(input).map_err(|message| JsValue::from_str(&message))?;
-    let sources = source_fragments(&tree).map_err(|message| JsValue::from_str(&message))?;
+        .map_err(|error| format!("Invalid placement data: {error}"))?;
+    validate_output_request(&request)?;
+    let tree = parse_svg(input)?;
+    let sources = source_fragments(&tree)?;
     if request.bin_source >= sources.len() {
-        return Err(JsValue::from_str("Bin source does not exist in the SVG"));
+        return Err("Bin source does not exist in the SVG".into());
     }
     for node in &request.tree {
-        validate_tree_sources(node, sources.len())
-            .map_err(|message| JsValue::from_str(&message))?;
+        validate_tree_sources(node, sources.len())?;
     }
     Ok(output_documents_json(&request, &sources))
 }
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> { core_input_to_svg(input).map_err(|error| JsValue::from_str(&error)) }
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> { core_input_to_polygons(input, tolerance).map_err(|error| JsValue::from_str(&error)) }
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn output_to_svg(input: &[u8], placement_json: &str) -> Result<String, JsValue> { core_output_to_svg(input, placement_json).map_err(|error| JsValue::from_str(&error)) }
 
 fn polygonize(tree: &usvg::Tree, tolerance: f32) -> Result<Vec<Polygon>, String> {
     let mut polygons = Vec::new();
