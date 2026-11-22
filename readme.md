@@ -20,7 +20,7 @@ references (PDF):
 
 Given a square piece of material and some letters to be laser-cut:
 
-![letter nesting](http://svgnest.com/github/letters.png)
+![letter nesting](assets/readme/letters.png)
 
 We want to pack all the letters into the square, using as little material as possible. If a single square is not enough, we also
 want to minimize the number of squares used.
@@ -34,11 +34,11 @@ SVGnest is a free and open-source alternative that solves this problem with the 
 al.* 2006], using a genetic algorithm for global optimization. It works for arbitrary containers and concave edge cases, and
 performs on-par with existing commercial software.
 
-![non-rectangular shapes](http://svgnest.com/github/shapes.png)
+![non-rectangular shapes](assets/readme/shapes.png)
 
 It also features part-in-part support, for placing parts in the holes of other parts.
 
-![non-rectangular shapes](http://svgnest.com/github/recursion.png)
+![non-rectangular shapes](assets/readme/recursion.png)
 
 ## Usage
 
@@ -100,7 +100,7 @@ The key concept here is the "No Fit Polygon".
 
 Given polygons A and B, we want to "orbit" B around A such that they always touch but do not intersect.
 
-![No Fit Polygon example](http://svgnest.com/github/nfp.png)
+![No Fit Polygon example](assets/readme/nfp.png)
 
 The resulting orbit is the NFP. The NFP contains all possible placements of B that touches the previously placed parts. We can
 then choose a point on the NFP as the placement position using some heuristics.
@@ -110,7 +110,7 @@ polygon is inside the stationary one.
 
 When two or more parts have already been placed, we can take the union of the NFPs of the previously placed parts.
 
-![No Fit Polygon example](http://svgnest.com/github/nfp2.png)
+![No Fit Polygon example](assets/readme/nfp2.png)
 
 This means that we need to compute O(nlogn) NFPs to complete the first packing. While there are ways to mitigate this, we take
 the brute-force approach which has good properties for the optimization algo.
@@ -119,7 +119,7 @@ the brute-force approach which has good properties for the optimization algo.
 
 Now that we can place the parts, we need to optimize the insertion order. Here's an example of a bad insertion order:
 
-![Bad insertion order](http://svgnest.com/github/badnest.png)
+![Bad insertion order](assets/readme/badnest.png)
 
 If the large "C" is placed last, the concave space inside it won't be utilized because all the parts that could have filled it
 have already been placed.
@@ -127,7 +127,7 @@ have already been placed.
 To solve this, we use the "first-fit-decreasing" heuristic. Larger parts are placed first, and smaller parts last. This is quite
 intuitive, as the smaller parts tend to act as "sand" to fill the gaps left by the larger parts.
 
-![Good insertion order](http://svgnest.com/github/goodnest.png)
+![Good insertion order](assets/readme/goodnest.png)
 
 While this strategy gives us a good start, we want to explore more of the solution space. We could simply randomize the
 insertion order, but we can probably do better with a genetic algorithm. (If you don't know what a GA is,
@@ -149,7 +149,7 @@ very similar. By caching NFPs new individuals can be evaluated very quickly.
 
 ## Performance
 
-![SVGnest comparison](http://svgnest.com/github/comparison1.png)
+![SVGnest comparison](assets/readme/comparison1.png)
 
 Performs similarly to commercial software, after both have run for about 5 minutes.
 
@@ -167,7 +167,7 @@ Performs similarly to commercial software, after both have run for about 5 minut
 -   **Explore concave areas:** When enabled, solves the concave edge case at a cost of some performance and placement
     robustness:
 
-![Concave flag example](http://svgnest.com/github/concave.png)
+![Concave flag example](assets/readme/concave.png)
 
 ## To-do
 
