@@ -16,7 +16,7 @@ function toSvgElement(markup: string): SVGElement {
 }
 
 export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
-    const pluginLoaders = useRef({ svg: null, ai: null });
+    const pluginLoaders = useRef({ svg: null, ai: null, dxf: null });
     const plugin = useRef(null);
     const nest = useRef(new PolygonPack()).current;
     const fileLoader = useRef<HTMLInputElement>(null);
@@ -50,6 +50,10 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const loadAiPlugin = useCallback(() => {
         pluginLoaders.current.ai ??= import('@svgnest/ai-format-plugin').then(({ loadAiFormatPlugin }) => loadAiFormatPlugin());
         return pluginLoaders.current.ai;
+    }, []);
+    const loadDxfPlugin = useCallback(() => {
+        pluginLoaders.current.dxf ??= import('@svgnest/dxf-format-plugin').then(({ loadDxfFormatPlugin }) => loadDxfFormatPlugin());
+        return pluginLoaders.current.dxf;
     }, []);
 
     useEffect(() => () => nest.stop(), [nest]);
@@ -165,7 +169,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         configRef.current = next;
         setSettings(next);
     }, [settings, stop]);
-    const handleUploadSvg = useCallback(event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); const isAi = file.name.toLowerCase().endsWith('.ai'); const nextPlugin = isAi ? loadAiPlugin() : loadSvgPlugin(); reader.onload = () => void loadSvg(isAi ? new Uint8Array(reader.result as ArrayBuffer) : String(reader.result), nextPlugin); if (isAi) reader.readAsArrayBuffer(file); else reader.readAsText(file); event.target.value = ''; }, [loadAiPlugin, loadSvg, loadSvgPlugin]);
+    const handleUploadSvg = useCallback(event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); const extension = file.name.toLowerCase().split('.').pop(); const isAi = extension === 'ai'; const isDxf = extension === 'dxf'; const nextPlugin = isAi ? loadAiPlugin() : isDxf ? loadDxfPlugin() : loadSvgPlugin(); reader.onload = () => void loadSvg(isAi ? new Uint8Array(reader.result as ArrayBuffer) : String(reader.result), nextPlugin); if (isAi) reader.readAsArrayBuffer(file); else reader.readAsText(file); event.target.value = ''; }, [loadAiPlugin, loadDxfPlugin, loadSvg, loadSvgPlugin]);
     useEffect(() => {
         if (!isDemoMode) return;
         const controller = new AbortController();

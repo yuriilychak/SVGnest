@@ -39,7 +39,7 @@ const AppFlow: FC<AppFlowProps> = ({ onClose, isDemoMode }) => {
         <>
             <div className="appRoot">
                 <a id={PREDEFINED_ID.FILE_SAVER} className="hidden" />
-                <input className="hidden" type="file" accept="image/svg+xml,.ai,application/postscript" ref={fileLoader} onChange={handleUploadSvg} />
+                <input className="hidden" type="file" accept=".svg,.ai,.dxf" ref={fileLoader} onChange={handleUploadSvg} />
                 <div className="appSvgContent">
                     <div className="appSvgWrapper">
                         <div ref={svgWrapper} style={zoomStyles} id={PREDEFINED_ID.SVG_WRAPPER} className="svgContent" />

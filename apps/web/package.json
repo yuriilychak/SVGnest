@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prepare-assets": "npm --workspace @svgnest/svg-format-algo run build && npm --workspace @svgnest/ai-format-algo run build && npm --workspace @svgnest/polygon-pack run build",
+    "prepare-assets": "npm --workspace @svgnest/svg-format-algo run build && npm --workspace @svgnest/ai-format-algo run build && npm --workspace @svgnest/dxf-format-algo run build && npm --workspace @svgnest/polygon-pack run build",
     "prebuild": "npm run prepare-assets",
     "build": "vite build",
     "predev": "npm run prepare-assets",
@@ -14,6 +14,7 @@
   "dependencies": {
     "@svgnest/polygon-pack": "file:../../packages/polygon-pack",
     "@svgnest/ai-format-plugin": "file:../../packages/ai-format-plugin",
+    "@svgnest/dxf-format-plugin": "file:../../packages/dxf-format-plugin",
     "@svgnest/svg-format-plugin": "file:../../packages/svg-format-plugin",
     "i18next": "^23.11.5",
     "i18next-browser-languagedetector": "^8.0.0",

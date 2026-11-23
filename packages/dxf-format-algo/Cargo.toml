@@ -1,0 +1,13 @@
+[package]
+name = "dxf-format-algo"
+version = "0.1.0"
+edition = "2021"
+description = "Rust/WASM ASCII DXF conversion core for SVGnest."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+svg-format-algo = { path = "../svg-format-algo", default-features = false }
+wasm-bindgen = "0.2"
