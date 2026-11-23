@@ -22,26 +22,22 @@
     top: $g-md;
     right: $g-md;
     z-index: 10;
-
-    select {
-        padding: $g-xs $g-sm;
-        border: 1px solid $c-primary;
-        border-radius: $g-xs;
-        background: $c-background;
-        font: inherit;
-    }
-}
-
-.visuallyHidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
+    width: 2.5rem;
+    height: 2.5rem;
     padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+    border: 2px solid $c-primary;
+    border-radius: 50%;
+    background: $c-background;
+    color: $c-primary;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: $c-primary;
+        color: $c-background;
+    }
 }
 
 * {

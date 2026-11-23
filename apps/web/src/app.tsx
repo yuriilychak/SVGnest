@@ -5,11 +5,19 @@ import { SplashScreen } from './splash-screen';
 import { AppFlow } from './app-flow';
 import { FADE_STATUS } from './types';
 
+const LANGUAGES = ['en', 'es', 'pl', 'de', 'ru', 'uk'] as const;
+
 const App: FC = () => {
     const [isApp, setApp] = useState(false);
     const [isDemoMode, setDemoMode] = useState(false);
     const [fadeState, setFadeState] = useState<FADE_STATUS>(FADE_STATUS.NONE);
     const { t, i18n } = useTranslation();
+    const locale = (i18n.resolvedLanguage ?? i18n.language).split('-')[0];
+    const language = LANGUAGES.includes(locale as typeof LANGUAGES[number]) ? locale : 'en';
+    const switchLanguage = useCallback(() => {
+        const index = LANGUAGES.indexOf(language as typeof LANGUAGES[number]);
+        void i18n.changeLanguage(LANGUAGES[(index + 1) % LANGUAGES.length]);
+    }, [i18n, language]);
 
     const handleUpdateScreen = useCallback((nextDemoMode: boolean = false, nextApp: boolean = false) => {
         setFadeState(FADE_STATUS.FADING); // Start fading out
@@ -32,17 +40,9 @@ const App: FC = () => {
 
     return (
         <div className={`fadeContainer ${fadeState}`}>
-            <label className="languageSelector">
-                <span className="visuallyHidden">{t('languageSelector.label')}</span>
-                <select value={i18n.resolvedLanguage ?? i18n.language} onChange={event => void i18n.changeLanguage(event.target.value)}>
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                    <option value="pl">Polski</option>
-                    <option value="de">Deutsch</option>
-                    <option value="ru">Русский</option>
-                    <option value="uk">Українська</option>
-                </select>
-            </label>
+            <button className="languageSelector" type="button" onClick={switchLanguage} title={t('languageSelector.label')} aria-label={`${t('languageSelector.label')}: ${language.toUpperCase()}`}>
+                {language.toUpperCase()}
+            </button>
             {isApp ? (
                 <AppFlow onClose={handleUpdateScreen} isDemoMode={isDemoMode} />
             ) : (
