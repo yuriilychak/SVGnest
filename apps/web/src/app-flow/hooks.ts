@@ -143,13 +143,13 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const download = useCallback(() => {
         if (outputAiData.current) {
             const url = URL.createObjectURL(new Blob([outputAiData.current], { type: 'application/illustrator' }));
-            const link = document.createElement('a'); link.href = url; link.download = 'SVGNestOutput.ai'; link.click(); URL.revokeObjectURL(url);
+            const link = document.createElement('a'); link.href = url; link.download = 'VectorNestOutput.ai'; link.click(); URL.revokeObjectURL(url);
             return;
         }
         const svgDocument = outputDocuments.current[0];
         if (!svgDocument) return;
         const url = URL.createObjectURL(new Blob([svgDocument], { type: 'image/svg+xml;charset=utf-8' }));
-        const link = document.createElement('a'); link.href = url; link.download = 'SVGNestOutput.svg'; link.click(); URL.revokeObjectURL(url);
+        const link = document.createElement('a'); link.href = url; link.download = 'VectorNestOutput.svg'; link.click(); URL.revokeObjectURL(url);
     }, []);
     const handleClick = useCallback((action: BUTTON_ACTION) => {
         if (action === BUTTON_ACTION.START) start(); else if (action === BUTTON_ACTION.PAUSE) stop();

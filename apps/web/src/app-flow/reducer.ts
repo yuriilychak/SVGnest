@@ -58,7 +58,7 @@ const REDUCER = new Map<REDUCER_ACTION, ReducerMiddleware>([
 
             saver.href = blobURL;
 
-            saver.setAttribute('download', 'SVGNestOutput.svg');
+            saver.setAttribute('download', 'VectorNestOutput.svg');
             URL.revokeObjectURL(blobURL);
 
             return prevState;

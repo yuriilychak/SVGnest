@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="SVGNest" width="256" />
+  <img src="assets/logo.svg" alt="VectorNest" width="256" />
 </p>
 
-**SVGNest**: A browser-based vector nesting tool.
+**VectorNest**: A browser-based vector nesting tool.
 
-This fork is a TypeScript monorepo with Rust/WebAssembly cores for SVG conversion and polygon packing. SVG parsing and conversion run in Rust without DOM parsing; the browser DOM is used only to display SVG and keep the GUI selection behavior.
+This fork is a TypeScript monorepo with Rust/WebAssembly cores for vector-format conversion and polygon packing. Parsing and conversion run in Rust without DOM parsing; the browser DOM is used only to display the normalized vector preview and keep the GUI selection behavior. The web app currently supports SVG and PDF-compatible Adobe Illustrator (`.ai`) files.
 
 **Demo:** https://yuriilychak.github.io/SVGnest/
 
@@ -45,7 +45,7 @@ In the CNC world this is called "[nesting](http://sigmanest.com/)", and [softwar
 [industrial customers](http://www.hypertherm.com/en/Products/Automated_cutting/Nesting_software/) and
 [very expensive](http://www.nestfab.com/pricing/).
 
-SVGnest is a free and open-source alternative that solves this problem with the orbital approach outlined in [E.K. Burke *et
+VectorNest is a free and open-source alternative that solves this problem with the orbital approach outlined in [E.K. Burke *et
 al.* 2006], using a genetic algorithm for global optimization. It works for arbitrary containers and concave edge cases, and
 performs on-par with existing commercial software.
 
@@ -57,7 +57,7 @@ It also features part-in-part support, for placing parts in the holes of other p
 
 ## Usage
 
-Make sure all parts have been converted to outlines, and that no outlines overlap. Upload the SVG file and select one of the
+Make sure all parts have been converted to outlines, and that no outlines overlap. Upload a supported vector file and select one of the
 outlines to be used as the bin.
 
 All other outlines are automatically processed as parts for nesting.
@@ -77,7 +77,7 @@ The web application builds its WASM assets automatically before starting or prod
 npm run build
 ```
 
-The application lives in `apps/web`. Its build prepares the SVG-format WASM module and the packing worker/WASM assets, then Vite builds the UI.
+The application lives in `apps/web`. Its build prepares the SVG and AI format WASM modules plus the packing worker/WASM assets, then Vite builds the UI. Format modules load only when their file type is selected.
 
 ### Packages
 
@@ -164,14 +164,14 @@ very similar. By caching NFPs new individuals can be evaluated very quickly.
 
 ## Performance
 
-![SVGnest comparison](assets/readme/comparison1.png)
+![VectorNest comparison](assets/readme/comparison1.png)
 
 Performs similarly to commercial software, after both have run for about 5 minutes.
 
 ## Configuration parameters
 
 -   **Space between parts:** Minimum space between parts (eg. for laser kerf, CNC offset etc.)
--   **Curve tolerance:** The maximum error allowed for linear approximations of Bezier paths and arcs, in SVG units or "pixels".
+-   **Curve tolerance:** The maximum error allowed for linear approximations of Bezier paths and arcs, in document units. For SVG, these are typically pixels.
     Decrease this value if curved parts appear to slightly overlap.
 -   **Part rotations:** The _possible_ number of rotations to evaluate for each part. eg. 4 for only the cardinal directions.
     Larger values may improve results, but will be slower to converge.
