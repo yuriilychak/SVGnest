@@ -1,7 +1,5 @@
 // @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { loadSvgFormatPlugin } from '@svgnest/svg-format-plugin';
-import { loadAiFormatPlugin } from '@svgnest/ai-format-plugin';
 import { PolygonPack } from '@svgnest/polygon-pack';
 import { DEFAULT_SETTING, INITIAL_NESTING_STATISTICS, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP } from './constants';
 import { getModifiedButtons, toPercents } from './helpers';
@@ -18,9 +16,8 @@ function toSvgElement(markup: string): SVGElement {
 }
 
 export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
-    const svgPlugin = useRef(loadSvgFormatPlugin()).current;
-    const aiPlugin = useRef(loadAiFormatPlugin()).current;
-    const plugin = useRef(svgPlugin);
+    const pluginLoaders = useRef({ svg: null, ai: null });
+    const plugin = useRef(null);
     const nest = useRef(new PolygonPack()).current;
     const fileLoader = useRef<HTMLInputElement>(null);
     const svgWrapper = useRef<HTMLDivElement>(null);
@@ -46,6 +43,15 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const [messageId, setMessageId] = useState(MESSAGE_ID.UPLOAD);
     const startedAt = useRef(0);
 
+    const loadSvgPlugin = useCallback(() => {
+        pluginLoaders.current.svg ??= import('@svgnest/svg-format-plugin').then(({ loadSvgFormatPlugin }) => loadSvgFormatPlugin());
+        return pluginLoaders.current.svg;
+    }, []);
+    const loadAiPlugin = useCallback(() => {
+        pluginLoaders.current.ai ??= import('@svgnest/ai-format-plugin').then(({ loadAiFormatPlugin }) => loadAiFormatPlugin());
+        return pluginLoaders.current.ai;
+    }, []);
+
     useEffect(() => () => nest.stop(), [nest]);
     const selectBin = useCallback((source: number) => {
         if (!partPolygons.current.some(polygon => polygon.source === source)) return;
@@ -55,7 +61,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         binIndex.current = source;
         setBinSelected(true); setWorking(false);
     }, [nest]);
-    const loadSvg = useCallback(async (text: string | Uint8Array, nextPlugin = plugin.current) => {
+    const loadSvg = useCallback(async (text: string | Uint8Array, nextPlugin) => {
         const requestId = ++loadId.current;
         try {
             nest.stop();
@@ -159,7 +165,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
         configRef.current = next;
         setSettings(next);
     }, [settings, stop]);
-    const handleUploadSvg = useCallback(event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); const isAi = file.name.toLowerCase().endsWith('.ai'); reader.onload = () => void loadSvg(isAi ? new Uint8Array(reader.result as ArrayBuffer) : String(reader.result), isAi ? aiPlugin : svgPlugin); if (isAi) reader.readAsArrayBuffer(file); else reader.readAsText(file); event.target.value = ''; }, [aiPlugin, loadSvg, svgPlugin]);
+    const handleUploadSvg = useCallback(event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); const isAi = file.name.toLowerCase().endsWith('.ai'); const nextPlugin = isAi ? loadAiPlugin() : loadSvgPlugin(); reader.onload = () => void loadSvg(isAi ? new Uint8Array(reader.result as ArrayBuffer) : String(reader.result), nextPlugin); if (isAi) reader.readAsArrayBuffer(file); else reader.readAsText(file); event.target.value = ''; }, [loadAiPlugin, loadSvg, loadSvgPlugin]);
     useEffect(() => {
         if (!isDemoMode) return;
         const controller = new AbortController();
@@ -168,14 +174,14 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 if (!response.ok) throw new Error(`Failed to load demo SVG: ${response.status} ${response.statusText}`);
                 return response.text();
             })
-            .then(text => loadSvg(text, svgPlugin))
+            .then(text => loadSvg(text, loadSvgPlugin()))
             .catch(error => {
                 if (error.name === 'AbortError') return;
                 setMessage(String(error));
                 setMessageId(MESSAGE_ID.ERROR);
             });
         return () => controller.abort();
-    }, [isDemoMode, loadSvg, svgPlugin]);
+    }, [isDemoMode, loadSvg, loadSvgPlugin]);
     const zoomStyles = useMemo(() => ({ width: `${Math.floor(scale * 100)}%` }), [scale]);
     const { disabledButtons, hiddenButtons } = useMemo(() => getModifiedButtons(isWorking, isBinSelected, iterations, svgSrc), [isWorking, isBinSelected, iterations, svgSrc]);
     return { handleClick, handleChangeSettings, handleUploadSvg, zoomStyles, fileLoader, svgWrapper, isDrawerOpen, isWorking, progress, nestingStatistics, estimate, iterations, settings, disabledButtons, hiddenButtons, message, messageId };
