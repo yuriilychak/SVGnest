@@ -9,7 +9,7 @@ const App: FC = () => {
     const [isApp, setApp] = useState(false);
     const [isDemoMode, setDemoMode] = useState(false);
     const [fadeState, setFadeState] = useState<FADE_STATUS>(FADE_STATUS.NONE);
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
     const handleUpdateScreen = useCallback((nextDemoMode: boolean = false, nextApp: boolean = false) => {
         setFadeState(FADE_STATUS.FADING); // Start fading out
@@ -32,6 +32,17 @@ const App: FC = () => {
 
     return (
         <div className={`fadeContainer ${fadeState}`}>
+            <label className="languageSelector">
+                <span className="visuallyHidden">{t('languageSelector.label')}</span>
+                <select value={i18n.resolvedLanguage ?? i18n.language} onChange={event => void i18n.changeLanguage(event.target.value)}>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="pl">Polski</option>
+                    <option value="de">Deutsch</option>
+                    <option value="ru">Русский</option>
+                    <option value="uk">Українська</option>
+                </select>
+            </label>
             {isApp ? (
                 <AppFlow onClose={handleUpdateScreen} isDemoMode={isDemoMode} />
             ) : (
