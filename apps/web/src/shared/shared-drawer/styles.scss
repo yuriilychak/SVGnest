@@ -6,7 +6,10 @@
     display: flex;
     flex-direction: column;
     gap: $g-md;
-    padding: $g-lg $g-xl;
+    padding: $g-lg $g-xl calc(#{$g-lg} + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     transition: transform 0.3s ease-in-out;
     will-change: transform;
 }
@@ -29,13 +32,13 @@
 .drawerVertical {
     bottom: 0;
     left: 0;
-    @include drawer-styles(100vw, 50vh, 0, 100%);
+    @include drawer-styles(100vw, min(75dvh, calc(100dvh - env(safe-area-inset-top))), 0, 100%);
 }
 
 .drawerHorizontal {
     right: 0;
     top: 0;
-    @include drawer-styles(50vw, 100vh, 100%, 0);
+    @include drawer-styles(50vw, 100dvh, 100%, 0);
 }
 
 .fade {
