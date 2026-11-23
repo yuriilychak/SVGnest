@@ -12,6 +12,7 @@
     -webkit-overflow-scrolling: touch;
     transition: transform 0.3s ease-in-out;
     will-change: transform;
+    z-index: 21;
 }
 
 @mixin drawer-styles($width, $height, $translate-x, $translate-y) {
@@ -51,6 +52,7 @@
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
     will-change: opacity;
+    z-index: 20;
 
     &.fadeIn {
         opacity: 0.5;
