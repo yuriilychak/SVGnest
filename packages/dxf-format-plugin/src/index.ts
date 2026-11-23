@@ -3,6 +3,7 @@ import {
 	decodeInputPolygons,
 	decodeSvgDocuments,
 	type FormatInput,
+	type FormatDiagnostic,
 	type FormatWasm,
 	type FormatPlugin,
 	type FormatResult,
@@ -21,11 +22,11 @@ export class DxfFormatPlugin implements FormatPlugin<FormatInput, DxfFormatConfi
 	constructor(private readonly wasm: FormatWasm) {}
 
 	async inputToSvg(input: FormatInput, _config: DxfFormatConfig): Promise<FormatResult<string>> {
-		return { value: this.wasm.input_to_svg(bytes(input)), diagnostics: [] };
+		return { value: this.wasm.input_to_svg(bytes(input)), diagnostics: diagnostics(input) };
 	}
 
 	async inputToPolygons(input: FormatInput, config: DxfFormatConfig): Promise<FormatResult<InputPolygons>> {
-		return { value: decodeInputPolygons(this.wasm.input_to_polygons(bytes(input), config.curveTolerance)), diagnostics: [] };
+		return { value: decodeInputPolygons(this.wasm.input_to_polygons(bytes(input), config.curveTolerance)), diagnostics: diagnostics(input) };
 	}
 
 	async outputToSvg(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
@@ -38,4 +39,9 @@ export class DxfFormatPlugin implements FormatPlugin<FormatInput, DxfFormatConfi
 }
 
 function bytes(input: FormatInput): Uint8Array { return typeof input === 'string' ? new TextEncoder().encode(input) : input; }
+function diagnostics(input: FormatInput): FormatDiagnostic[] {
+	const text = typeof input === 'string' ? input : new TextDecoder().decode(input);
+	const unsupported = ['HATCH', 'MESH', 'POLYFACEMESH', '3DFACE', 'SOLID', 'REGION'].filter(kind => new RegExp(`^\\s*0\\s*\\r?\\n\\s*${kind}\\s*$`, 'mi').test(text));
+	return unsupported.map(kind => ({ level: 'warning', code: `dxf-unsupported-${kind.toLowerCase()}`, message: `${kind} entities are ignored because they cannot yet be nested safely.` }));
+}
 export { loadDxfFormatPlugin } from './loader.ts';
