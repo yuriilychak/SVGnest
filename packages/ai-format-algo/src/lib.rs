@@ -31,18 +31,18 @@ fn pdf_to_svg(input: &[u8]) -> Result<String, String> {
 }
 
 #[wasm_bindgen]
-pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> {
+pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<Vec<u8>, JsValue> {
 	let svg = input_to_svg_core(input).map_err(|error| JsValue::from_str(&error))?;
 	svg_format_algo::core_input_to_polygons(svg.as_bytes(), tolerance)
 		.map_err(|error| JsValue::from_str(&error))
 }
 
 #[wasm_bindgen]
-pub fn output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<String, JsValue> {
+pub fn output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, JsValue> {
 	output_to_svg_core(input, placement_data).map_err(|error| JsValue::from_str(&error))
 }
 
-fn output_to_svg_core(input: &[u8], placement_data: &[u8]) -> Result<String, String> {
+fn output_to_svg_core(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, String> {
 	let svg = input_to_svg_core(input)?;
 	svg_format_algo::core_output_to_svg(svg.as_bytes(), placement_data)
 }

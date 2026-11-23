@@ -4,7 +4,7 @@
 
 **VectorNest**: A browser-based vector nesting tool.
 
-This fork is a TypeScript monorepo with Rust/WebAssembly cores for vector-format conversion and polygon packing. Parsing and conversion run in Rust without DOM parsing; the browser DOM is used only to display the normalized vector preview and keep the GUI selection behavior. The web app currently supports SVG and PDF-compatible Adobe Illustrator (`.ai`) files.
+This fork is a TypeScript monorepo with Rust/WebAssembly cores for vector-format conversion and polygon packing. Parsing and conversion run in Rust without DOM parsing; the browser DOM is used only to display the normalized vector preview and keep the GUI selection behavior. The web app supports SVG, PDF-compatible Adobe Illustrator (`.ai`), and ASCII DXF (`.dxf`) files.
 
 **Demo:** https://yuriilychak.github.io/SVGnest/
 
@@ -77,13 +77,16 @@ The web application builds its WASM assets automatically before starting or prod
 npm run build
 ```
 
-The application lives in `apps/web`. Its build prepares the SVG and AI format WASM modules plus the packing worker/WASM assets, then Vite builds the UI. Format modules load only when their file type is selected.
+The application lives in `apps/web`. Its build prepares the SVG, AI, and DXF format WASM modules plus the packing worker/WASM assets, then Vite builds the UI. Format modules load only when their file type is selected.
 
 ### Packages
 
 - `@svgnest/format-plugin` defines the format adapter contract: `inputToPolygons`, `inputToSvg`, `outputToData`, and `outputToSvg`.
 - `@svgnest/svg-format-algo` is the Rust/WASM SVG implementation, built with `usvg`.
 - `@svgnest/svg-format-plugin` adapts the Rust SVG core to the shared format-plugin contract. SVG input and output currently use the same conversion path.
+- `@svgnest/ai-format-plugin` adapts PDF-compatible Adobe Illustrator input and produces native `.ai` output.
+- `@svgnest/dxf-format-algo` is the Rust/WASM ASCII DXF core. It supports `LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE`, `ARC`, and `ELLIPSE` entities.
+- `@svgnest/dxf-format-plugin` adapts the DXF core to the shared contract. DXF input is rendered as SVG for selection; nested results download as native ASCII `.dxf`. Binary DXF is not supported.
 - `@svgnest/polygon-pack` is the TypeScript orchestration layer for packing. It can use its reusable worker executor or a main-thread executor through the execution mode passed to `PolygonPack.start`.
 - `@svgnest/poygon-pack-algo` is the Rust/WASM no-fit-polygon and genetic-algorithm core. (The package name intentionally follows the existing `poygon` spelling.)
 
@@ -97,7 +100,7 @@ npm --workspace @svgnest/polygon-pack test
 
 ### Architecture notes
 
-The format plugin owns file parsing, serialization, and conversion to displayable SVG. GUI selection remains in the web app. This separation allows adding another input/output format by implementing the same four-method plugin contract, without changing packing or the UI workflow.
+The format plugin owns file parsing, serialization, and conversion to displayable SVG. GUI selection remains in the web app. Rust/WASM adapters exchange polygons and output SVG documents through versioned binary payloads, so TypeScript only performs shared deserialization. This separation allows adding another input/output format by implementing the same four-method plugin contract, without changing packing or the UI workflow.
 
 ## Outline of algorithm
 

@@ -17,6 +17,44 @@ export interface InputPolygons {
 	sources: readonly number[];
 }
 
+const INPUT_POLYGONS_MAGIC = [0x53, 0x4e, 0x50, 0x32]; // "SNP2"
+const SVG_DOCUMENTS_MAGIC = [0x53, 0x4e, 0x50, 0x33]; // "SNP3"
+
+/** Decodes the common Rust/WASM polygon payload used by every format plugin.
+ * Layout: magic, polygon count, then source index, point count, and f64 pairs. */
+export function decodeInputPolygons(bytes: Uint8Array): InputPolygons {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let offset = 0;
+	const take = (size: number): void => { if (offset + size > view.byteLength) throw new Error('Format core returned truncated polygon data'); };
+	const u32 = (): number => { take(4); const value = view.getUint32(offset, true); offset += 4; return value; };
+	const f64 = (): number => { take(8); const value = view.getFloat64(offset, true); offset += 8; if (!Number.isFinite(value)) throw new Error('Format core returned non-finite polygon coordinates'); return value; };
+	take(INPUT_POLYGONS_MAGIC.length);
+	if (!INPUT_POLYGONS_MAGIC.every((value, index) => bytes[index] === value)) throw new Error('Format core returned polygon data with an invalid header');
+	offset += INPUT_POLYGONS_MAGIC.length;
+	const count = u32(); const polygons: SourcePolygon[] = [];
+	for (let index = 0; index < count; index++) {
+		const source = u32(); const length = u32();
+		if (length % 2) throw new Error('Format core returned an odd polygon coordinate count');
+		const polygon = Array.from({ length }, f64) as SourcePolygon; polygon.source = source; polygons.push(polygon);
+	}
+	if (offset !== view.byteLength) throw new Error('Format core returned polygon data with trailing bytes');
+	return { polygons, sources: polygons.map(polygon => polygon.source) };
+}
+
+/** Decodes the common Rust/WASM UTF-8 SVG-document payload used by format adapters. */
+export function decodeSvgDocuments(bytes: Uint8Array): SvgDocuments {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let offset = 0;
+	const take = (size: number): Uint8Array => { if (offset + size > bytes.byteLength) throw new Error('Format core returned truncated SVG document data'); const value = bytes.subarray(offset, offset + size); offset += size; return value; };
+	const u32 = (): number => { const value = take(4); return new DataView(value.buffer, value.byteOffset, 4).getUint32(0, true); };
+	const magic = take(SVG_DOCUMENTS_MAGIC.length);
+	if (!SVG_DOCUMENTS_MAGIC.every((value, index) => magic[index] === value)) throw new Error('Format core returned SVG document data with an invalid header');
+	const count = u32(); const decoder = new TextDecoder('utf-8', { fatal: true }); const documents: string[] = [];
+	try { for (let index = 0; index < count; index++) documents.push(decoder.decode(take(u32()))); } catch { throw new Error('Format core returned invalid UTF-8 SVG document data'); }
+	if (offset !== bytes.byteLength) throw new Error('Format core returned SVG document data with trailing bytes');
+	return { documents };
+}
+
 export interface Placement {
 	id: number;
 	x: number;

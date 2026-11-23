@@ -62,27 +62,27 @@ pub fn core_input_to_svg(input: &[u8]) -> Result<String, String> {
 /// attach the `source` field to its legacy `number[]` polygon representation
 /// without involving browser SVG objects:
 /// `{ "polygons": [{ "source": 0, "points": [x0, y0, ...] }], "sources": [0] }`.
-pub fn core_input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, String> {
+pub fn core_input_to_polygons(input: &[u8], tolerance: f64) -> Result<Vec<u8>, String> {
     if !tolerance.is_finite() || tolerance <= 0.0 {
         return Err("Curve tolerance must be a positive finite number".into());
     }
     let tree = parse_svg(input)?;
     let polygons = polygonize(&tree, tolerance as f32)?;
-    Ok(polygons_json(&polygons))
+    Ok(polygons_binary(&polygons))
 }
 
 /// Renders placed source contours into one SVG document per nesting sheet.
 /// Placement data uses the compact `SNP1` binary encoding from format-plugin.
 /// The renderer receives only Rust-normalized paths; it never reads or mutates
 /// a browser SVG DOM.
-pub fn core_output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<String, String> {
+pub fn core_output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, String> {
     let documents = core_output_documents(input, placement_data)?;
-    Ok(output_documents_json(&documents))
+    Ok(svg_documents_binary(&documents))
 }
 
 /// Renders placed source contours without serializing the intermediate SVG
-/// documents. Format-specific binary exporters use this to avoid a JSON
-/// round-trip through the public WASM display API.
+/// documents. Format-specific binary exporters use this to avoid a binary
+/// payload round-trip through the public WASM display API.
 pub fn core_output_documents(input: &[u8], placement_data: &[u8]) -> Result<Vec<String>, String> {
     let request = decode_output_request(placement_data)?;
     validate_output_request(&request)?;
@@ -103,11 +103,11 @@ pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> { core_input_to_svg
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> { core_input_to_polygons(input, tolerance).map_err(|error| JsValue::from_str(&error)) }
+pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<Vec<u8>, JsValue> { core_input_to_polygons(input, tolerance).map_err(|error| JsValue::from_str(&error)) }
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<String, JsValue> { core_output_to_svg(input, placement_data).map_err(|error| JsValue::from_str(&error)) }
+pub fn output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, JsValue> { core_output_to_svg(input, placement_data).map_err(|error| JsValue::from_str(&error)) }
 
 const PLACEMENT_MAGIC: &[u8; 4] = b"SNP1";
 const MAX_TREE_DEPTH: u8 = 100;
@@ -346,31 +346,16 @@ fn approximately_equal(a: f32, b: f32) -> bool {
     (a - b).abs() <= 0.000_01
 }
 
-fn polygons_json(polygons: &[Polygon]) -> String {
-    let mut output = String::from("{\"polygons\":[");
-    for (index, polygon) in polygons.iter().enumerate() {
-        if index > 0 {
-            output.push(',');
-        }
-        output.push_str("{\"source\":");
-        output.push_str(&polygon.source.to_string());
-        output.push_str(",\"points\":[");
-        for (point_index, point) in polygon.points.iter().enumerate() {
-            if point_index > 0 {
-                output.push(',');
-            }
-            output.push_str(&point.to_string());
-        }
-        output.push_str("]}");
+fn polygons_binary(polygons: &[Polygon]) -> Vec<u8> {
+    let size = 8 + polygons.iter().map(|polygon| 8 + polygon.points.len() * 8).sum::<usize>();
+    let mut output = Vec::with_capacity(size);
+    output.extend_from_slice(b"SNP2");
+    output.extend_from_slice(&(polygons.len() as u32).to_le_bytes());
+    for polygon in polygons {
+        output.extend_from_slice(&(polygon.source as u32).to_le_bytes());
+        output.extend_from_slice(&(polygon.points.len() as u32).to_le_bytes());
+        for point in &polygon.points { output.extend_from_slice(&point.to_le_bytes()); }
     }
-    output.push_str("],\"sources\":[");
-    for (index, polygon) in polygons.iter().enumerate() {
-        if index > 0 {
-            output.push(',');
-        }
-        output.push_str(&polygon.source.to_string());
-    }
-    output.push_str("]}");
     output
 }
 
@@ -550,34 +535,11 @@ fn output_documents(request: &OutputRequest, sources: &[String]) -> Vec<String> 
         .collect()
 }
 
-fn output_documents_json(documents: &[String]) -> String {
-    let escaped = documents.iter().map(|document| json_string(document)).collect::<Vec<_>>();
-    format!("{{\"documents\":[{}]}}", escaped.join(","))
-}
-
-/// Serializes an SVG document as a JSON string without pulling a JSON crate
-/// into the WASM core. JSON permits UTF-8 directly; only quotes, backslashes,
-/// and C0 control characters require escaping.
-fn json_string(value: &str) -> String {
-    let mut output = String::with_capacity(value.len() + 2);
-    output.push('"');
-    for character in value.chars() {
-        match character {
-            '"' => output.push_str("\\\""),
-            '\\' => output.push_str("\\\\"),
-            '\u{08}' => output.push_str("\\b"),
-            '\u{0C}' => output.push_str("\\f"),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\t' => output.push_str("\\t"),
-            character if character <= '\u{1F}' => {
-                use std::fmt::Write;
-                write!(output, "\\u{:04x}", character as u32).expect("writing to a string cannot fail");
-            }
-            character => output.push(character),
-        }
-    }
-    output.push('"');
+fn svg_documents_binary(documents: &[String]) -> Vec<u8> {
+    let size = 8 + documents.iter().map(|document| 4 + document.len()).sum::<usize>();
+    let mut output = Vec::with_capacity(size);
+    output.extend_from_slice(b"SNP3"); output.extend_from_slice(&(documents.len() as u32).to_le_bytes());
+    for document in documents { output.extend_from_slice(&(document.len() as u32).to_le_bytes()); output.extend_from_slice(document.as_bytes()); }
     output
 }
 
@@ -646,7 +608,7 @@ fn format_number(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        core_output_documents, display_svg, output_documents, output_documents_json, parse_svg, polygonize, polygons_json, source_fragments,
+        core_output_documents, display_svg, output_documents, parse_svg, polygonize, polygons_binary, source_fragments, svg_documents_binary,
         Bounds, OutputRequest, Placement, TreeNode,
     };
 
@@ -697,10 +659,10 @@ mod tests {
             parse_svg(br#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0H2V2Z"/></svg>"#)
                 .expect("valid SVG must parse");
         let polygons = polygonize(&tree, 0.1).expect("geometry must be finite");
-        assert_eq!(
-            polygons_json(&polygons),
-            r#"{"polygons":[{"source":0,"points":[0,0,2,0,2,2]}],"sources":[0]}"#
-        );
+        let payload = polygons_binary(&polygons);
+        assert_eq!(&payload[..8], b"SNP2\x01\0\0\0");
+        assert_eq!(u32::from_le_bytes(payload[8..12].try_into().unwrap()), 0);
+        assert_eq!(u32::from_le_bytes(payload[12..16].try_into().unwrap()), 6);
     }
 
     #[test]
@@ -734,10 +696,10 @@ mod tests {
         assert!(document.contains("viewBox=\"0 0 40 20\""));
         assert!(document.contains("translate(12 4) rotate(90)"));
         assert!(document.contains("fill=\"#ff0000\""));
-        assert_eq!(
-            output_documents_json(&["\"\\\n\u{0001}".to_owned()]),
-            r#"{"documents":["\"\\\n\u0001"]}"#
-        );
+        let payload = svg_documents_binary(&["<svg/>".to_owned()]);
+        assert_eq!(&payload[..8], b"SNP3\x01\0\0\0");
+        assert_eq!(u32::from_le_bytes(payload[8..12].try_into().unwrap()), 6);
+        assert_eq!(&payload[12..], b"<svg/>");
     }
 
     #[test]

@@ -25,7 +25,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     const sourceElements = useRef<SVGElement[]>([]);
     const partPolygons = useRef([]);
     const outputDocuments = useRef<string[]>([]);
-    const outputAiData = useRef<Uint8Array | null>(null);
+    const outputData = useRef<{ bytes: Uint8Array; mime: string; name: string } | null>(null);
     const binIndex = useRef<number | null>(null);
     const configRef = useRef(DEFAULT_SETTING);
     const loadId = useRef(0);
@@ -90,7 +90,7 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
             sourceElements.current = elementsBySource;
             partPolygons.current = polygons.value.polygons;
             outputDocuments.current = [preview.value];
-            outputAiData.current = null;
+            outputData.current = null;
             binIndex.current = null;
             svgWrapper.current?.replaceChildren(svg);
             setSvgSrc(text); setBinSelected(false); setWorking(false); setProgress(0); setIterations(0);
@@ -124,13 +124,13 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
                 });
                 if (output.value.documents.length) {
                     outputDocuments.current = output.value.documents;
-                    outputAiData.current = formatPlugin.id === 'ai'
-                        ? (await formatPlugin.outputToData(sourceInput.current, {
+                    outputData.current = formatPlugin.id === 'ai' || formatPlugin.id === 'dxf'
+                        ? { bytes: (await formatPlugin.outputToData(sourceInput.current, {
                             placements: best.placements,
                             tree: context.tree,
                             binBounds: context.binBounds,
                             binSource
-                        })).value
+                        })).value, mime: formatPlugin.id === 'ai' ? 'application/illustrator' : 'application/dxf', name: `VectorNestOutput.${formatPlugin.id}` }
                         : null;
                     svgWrapper.current?.replaceChildren(...output.value.documents.map(toSvgElement));
                 }
@@ -145,9 +145,9 @@ export default function useAppFlow(onClose: () => void, isDemoMode: boolean) {
     }, [nest]);
     const stop = useCallback(() => { nest.stop(); setWorking(false); }, [nest]);
     const download = useCallback(() => {
-        if (outputAiData.current) {
-            const url = URL.createObjectURL(new Blob([outputAiData.current], { type: 'application/illustrator' }));
-            const link = document.createElement('a'); link.href = url; link.download = 'VectorNestOutput.ai'; link.click(); URL.revokeObjectURL(url);
+        if (outputData.current) {
+            const url = URL.createObjectURL(new Blob([outputData.current.bytes], { type: outputData.current.mime }));
+            const link = document.createElement('a'); link.href = url; link.download = outputData.current.name; link.click(); URL.revokeObjectURL(url);
             return;
         }
         const svgDocument = outputDocuments.current[0];

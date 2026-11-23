@@ -1,4 +1,4 @@
-import { encodePlacementOutput, type FormatInput, type FormatPlugin, type FormatResult, type InputPolygons, type PlacementOutput, type SourcePolygon, type SvgDocuments } from '@svgnest/format-plugin';
+import { decodeInputPolygons, decodeSvgDocuments, encodePlacementOutput, type FormatInput, type FormatPlugin, type FormatResult, type InputPolygons, type PlacementOutput, type SvgDocuments } from '@svgnest/format-plugin';
 
 export type AiFormat = 'pdf-compatible' | 'legacy-eps' | 'unknown';
 export interface AiFormatConfig { curveTolerance: number; }
@@ -6,8 +6,8 @@ export interface AiFormatConfig { curveTolerance: number; }
 /** Narrow WASM seam for the first AI-plugin increment. */
 export interface AiFormatWasm {
 	input_to_svg(input: Uint8Array): string;
-	input_to_polygons(input: Uint8Array, tolerance: number): string;
-	output_to_svg(input: Uint8Array, placementData: Uint8Array): string;
+	input_to_polygons(input: Uint8Array, tolerance: number): Uint8Array;
+	output_to_svg(input: Uint8Array, placementData: Uint8Array): Uint8Array;
 	output_to_data(input: Uint8Array, placementData: Uint8Array): Uint8Array;
 }
 
@@ -42,15 +42,12 @@ export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig,
 
 	async inputToPolygons(input: FormatInput, config: AiFormatConfig): Promise<FormatResult<InputPolygons>> {
 		const bytes = this.bytes(input); this.validate(bytes);
-		const payload = JSON.parse(this.wasm.input_to_polygons(bytes, config.curveTolerance));
-		const polygons = payload.polygons.map(({ source, points }: { source: number; points: number[] }) => Object.assign(points, { source }) as SourcePolygon);
-		return { value: { polygons, sources: payload.sources }, diagnostics: [] };
+		return { value: decodeInputPolygons(this.wasm.input_to_polygons(bytes, config.curveTolerance)), diagnostics: [] };
 	}
 
 	async outputToSvg(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
 		const bytes = this.bytes(input); this.validate(bytes);
-		const value = JSON.parse(this.wasm.output_to_svg(bytes, encodePlacementOutput(placing))) as SvgDocuments;
-		return { value, diagnostics: [] };
+		return { value: decodeSvgDocuments(this.wasm.output_to_svg(bytes, encodePlacementOutput(placing))), diagnostics: [] };
 	}
 
 	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<Uint8Array>> {
