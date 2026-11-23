@@ -15,7 +15,7 @@ const getHelpContent = (id: string, url: string = '', mask: string = '') => ({
 
 export const HELP_CONTENT_CONFIG = [
     getHelpContent('nesting'),
-    getHelpContent('cost', 'https://github.com/Jack000/SVGnest', 'Github'),
+    getHelpContent('cost', 'https://github.com/yuriilychak/SVGnest', 'Github'),
     getHelpContent('mesure'),
     getHelpContent('svg'),
     getHelpContent('stop'),
