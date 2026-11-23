@@ -498,6 +498,11 @@ impl SvgImporter {
     }
 
     fn parse_group(&self, g_el: &SvgElement, depth: usize) -> Option<AiObject> {
+        let transform = g_el
+            .attrs
+            .get("transform")
+            .map(|value| Matrix::from_svg_transform(value))
+            .unwrap_or_else(Matrix::identity);
         let mut group = AiGroup {
             children: vec![],
             name: g_el.attrs.get("id").cloned(),
@@ -532,6 +537,13 @@ impl SvgImporter {
             if let Some(obj) = self.parse_element(child, depth) {
                 group.children.push(obj);
             }
+        }
+
+        // AiGroup has no transform field. Flatten the SVG group's transform
+        // into its descendants so imported nesting output retains its bin and
+        // placement translations/rotations.
+        for child in &mut group.children {
+            transform_object(child, &transform);
         }
 
         Some(AiObject::Group(group))
@@ -1157,6 +1169,34 @@ impl SvgImporter {
                     });
                 }
         }
+    }
+}
+
+fn transform_object(object: &mut AiObject, transform: &Matrix) {
+    match object {
+        AiObject::Path(path) => {
+            for segment in &mut path.segments {
+                for point in &mut segment.points {
+                    *point = point.transformed(transform);
+                }
+            }
+        }
+        AiObject::Group(group) => {
+            for child in &mut group.children {
+                transform_object(child, transform);
+            }
+        }
+        AiObject::CompoundPath(compound) => {
+            for path in &mut compound.subpaths {
+                for segment in &mut path.segments {
+                    for point in &mut segment.points {
+                        *point = point.transformed(transform);
+                    }
+                }
+            }
+        }
+        AiObject::Text(text) => text.transform = transform.concat(&text.transform),
+        AiObject::Image(image) => image.transform = transform.concat(&image.transform),
     }
 }
 

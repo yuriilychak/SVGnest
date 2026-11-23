@@ -3,7 +3,6 @@
 //! `usvg` is intentionally the only SVG parser in this crate.  Browser DOM
 //! APIs must not be used for SVG normalization or geometry extraction.
 
-use serde::Deserialize;
 use tiny_skia_path::{PathSegment, Point};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -16,17 +15,13 @@ struct Polygon {
     points: Vec<f64>,
 }
 
-#[derive(Deserialize)]
 struct OutputRequest {
     placements: Vec<Vec<Placement>>,
     tree: Vec<TreeNode>,
-    #[serde(rename = "binBounds")]
     bin_bounds: Bounds,
-    #[serde(rename = "binSource")]
     bin_source: usize,
 }
 
-#[derive(Deserialize)]
 struct Placement {
     id: usize,
     x: f64,
@@ -34,14 +29,11 @@ struct Placement {
     rotation: f64,
 }
 
-#[derive(Deserialize)]
 struct TreeNode {
     source: Option<usize>,
-    #[serde(default)]
     children: Vec<TreeNode>,
 }
 
-#[derive(Deserialize)]
 struct Bounds {
     x: f64,
     y: f64,
@@ -80,12 +72,19 @@ pub fn core_input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, St
 }
 
 /// Renders placed source contours into one SVG document per nesting sheet.
-/// Placement data is JSON matching `PlacementOutput` from the format-plugin
-/// contract. The renderer receives only Rust-normalized paths; it never reads
-/// or mutates a browser SVG DOM.
-pub fn core_output_to_svg(input: &[u8], placement_json: &str) -> Result<String, String> {
-    let request: OutputRequest = serde_json::from_str(placement_json)
-        .map_err(|error| format!("Invalid placement data: {error}"))?;
+/// Placement data uses the compact `SNP1` binary encoding from format-plugin.
+/// The renderer receives only Rust-normalized paths; it never reads or mutates
+/// a browser SVG DOM.
+pub fn core_output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<String, String> {
+    let documents = core_output_documents(input, placement_data)?;
+    Ok(output_documents_json(&documents))
+}
+
+/// Renders placed source contours without serializing the intermediate SVG
+/// documents. Format-specific binary exporters use this to avoid a JSON
+/// round-trip through the public WASM display API.
+pub fn core_output_documents(input: &[u8], placement_data: &[u8]) -> Result<Vec<String>, String> {
+    let request = decode_output_request(placement_data)?;
     validate_output_request(&request)?;
     let tree = parse_svg(input)?;
     let sources = source_fragments(&tree)?;
@@ -95,7 +94,7 @@ pub fn core_output_to_svg(input: &[u8], placement_json: &str) -> Result<String, 
     for node in &request.tree {
         validate_tree_sources(node, sources.len())?;
     }
-    Ok(output_documents_json(&request, &sources))
+    Ok(output_documents(&request, &sources))
 }
 
 #[cfg(feature = "wasm")]
@@ -108,7 +107,67 @@ pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn output_to_svg(input: &[u8], placement_json: &str) -> Result<String, JsValue> { core_output_to_svg(input, placement_json).map_err(|error| JsValue::from_str(&error)) }
+pub fn output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<String, JsValue> { core_output_to_svg(input, placement_data).map_err(|error| JsValue::from_str(&error)) }
+
+const PLACEMENT_MAGIC: &[u8; 4] = b"SNP1";
+const MAX_TREE_DEPTH: u8 = 100;
+
+struct PlacementReader<'a> {
+    data: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> PlacementReader<'a> {
+    fn new(data: &'a [u8]) -> Self { Self { data, offset: 0 } }
+    fn take(&mut self, size: usize) -> Result<&'a [u8], String> {
+        let end = self.offset.checked_add(size).ok_or("Placement data is too large")?;
+        let bytes = self.data.get(self.offset..end).ok_or("Placement data is truncated")?;
+        self.offset = end;
+        Ok(bytes)
+    }
+    fn u8(&mut self) -> Result<u8, String> { Ok(self.take(1)?[0]) }
+    fn u32(&mut self) -> Result<usize, String> {
+        let bytes: [u8; 4] = self.take(4)?.try_into().expect("fixed-width read");
+        usize::try_from(u32::from_le_bytes(bytes)).map_err(|_| "Placement integer is too large".to_string())
+    }
+    fn f64(&mut self) -> Result<f64, String> {
+        let bytes: [u8; 8] = self.take(8)?.try_into().expect("fixed-width read");
+        let value = f64::from_le_bytes(bytes);
+        if value.is_finite() { Ok(value) } else { Err("Placement coordinates must be finite".into()) }
+    }
+    fn tree(&mut self, depth: u8) -> Result<TreeNode, String> {
+        if depth >= MAX_TREE_DEPTH { return Err("Placement tree is too deeply nested".into()); }
+        let source = match self.u8()? { 0 => None, 1 => Some(self.u32()?), _ => return Err("Placement tree has an invalid source tag".into()) };
+        let children_count = self.u32()?;
+        if children_count > self.data.len().saturating_sub(self.offset) / 5 { return Err("Placement tree child count is invalid".into()); }
+        let mut children = Vec::with_capacity(children_count);
+        for _ in 0..children_count { children.push(self.tree(depth + 1)?); }
+        Ok(TreeNode { source, children })
+    }
+}
+
+fn decode_output_request(data: &[u8]) -> Result<OutputRequest, String> {
+    let mut reader = PlacementReader::new(data);
+    if reader.take(4)? != PLACEMENT_MAGIC { return Err("Unsupported placement data encoding".into()); }
+    let bin_source = reader.u32()?;
+    let bin_bounds = Bounds { x: reader.f64()?, y: reader.f64()?, width: reader.f64()?, height: reader.f64()? };
+    let tree_count = reader.u32()?;
+    if tree_count > data.len().saturating_sub(reader.offset) / 5 { return Err("Placement tree count is invalid".into()); }
+    let mut tree = Vec::with_capacity(tree_count);
+    for _ in 0..tree_count { tree.push(reader.tree(0)?); }
+    let sheet_count = reader.u32()?;
+    if sheet_count > data.len().saturating_sub(reader.offset) / 4 { return Err("Placement sheet count is invalid".into()); }
+    let mut placements = Vec::with_capacity(sheet_count);
+    for _ in 0..sheet_count {
+        let count = reader.u32()?;
+        if count > data.len().saturating_sub(reader.offset) / 28 { return Err("Placement count is invalid".into()); }
+        let mut sheet = Vec::with_capacity(count);
+        for _ in 0..count { sheet.push(Placement { id: reader.u32()?, x: reader.f64()?, y: reader.f64()?, rotation: reader.f64()? }); }
+        placements.push(sheet);
+    }
+    if reader.offset != data.len() { return Err("Placement data has trailing bytes".into()); }
+    Ok(OutputRequest { placements, tree, bin_bounds, bin_source })
+}
 
 fn polygonize(tree: &usvg::Tree, tolerance: f32) -> Result<Vec<Polygon>, String> {
     let mut polygons = Vec::new();
@@ -483,17 +542,43 @@ fn path_style(path: &usvg::Path) -> String {
     style
 }
 
-fn output_documents_json(request: &OutputRequest, sources: &[String]) -> String {
-    let documents = request
+fn output_documents(request: &OutputRequest, sources: &[String]) -> Vec<String> {
+    request
         .placements
         .iter()
         .map(|placements| output_document(request, sources, placements))
-        .collect::<Vec<_>>();
-    let escaped = documents
-        .iter()
-        .map(|document| serde_json::to_string(document).expect("SVG string must serialize"))
-        .collect::<Vec<_>>();
+        .collect()
+}
+
+fn output_documents_json(documents: &[String]) -> String {
+    let escaped = documents.iter().map(|document| json_string(document)).collect::<Vec<_>>();
     format!("{{\"documents\":[{}]}}", escaped.join(","))
+}
+
+/// Serializes an SVG document as a JSON string without pulling a JSON crate
+/// into the WASM core. JSON permits UTF-8 directly; only quotes, backslashes,
+/// and C0 control characters require escaping.
+fn json_string(value: &str) -> String {
+    let mut output = String::with_capacity(value.len() + 2);
+    output.push('"');
+    for character in value.chars() {
+        match character {
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\u{08}' => output.push_str("\\b"),
+            '\u{0C}' => output.push_str("\\f"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            character if character <= '\u{1F}' => {
+                use std::fmt::Write;
+                write!(output, "\\u{:04x}", character as u32).expect("writing to a string cannot fail");
+            }
+            character => output.push(character),
+        }
+    }
+    output.push('"');
+    output
 }
 
 fn output_document(
@@ -561,7 +646,7 @@ fn format_number(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        display_svg, output_documents_json, parse_svg, polygonize, polygons_json, source_fragments,
+        core_output_documents, display_svg, output_documents, output_documents_json, parse_svg, polygonize, polygons_json, source_fragments,
         Bounds, OutputRequest, Placement, TreeNode,
     };
 
@@ -644,12 +729,46 @@ mod tests {
             },
             bin_source: 0,
         };
-        let payload = output_documents_json(&request, &sources);
-        let documents: serde_json::Value = serde_json::from_str(&payload).expect("output JSON");
-        let document = documents["documents"][0].as_str().expect("SVG document");
+        let documents = output_documents(&request, &sources);
+        let document = &documents[0];
         assert!(document.contains("viewBox=\"0 0 40 20\""));
         assert!(document.contains("translate(12 4) rotate(90)"));
         assert!(document.contains("fill=\"#ff0000\""));
+        assert_eq!(
+            output_documents_json(&["\"\\\n\u{0001}".to_owned()]),
+            r#"{"documents":["\"\\\n\u0001"]}"#
+        );
+    }
+
+    #[test]
+    fn decodes_the_format_plugin_binary_placement_payload() {
+        let mut placement = b"SNP1".to_vec();
+        let u32 = |value: u32, output: &mut Vec<u8>| output.extend(value.to_le_bytes());
+        let f64 = |value: f64, output: &mut Vec<u8>| output.extend(value.to_le_bytes());
+
+        u32(0, &mut placement); // bin source
+        f64(0.0, &mut placement);
+        f64(0.0, &mut placement);
+        f64(40.0, &mut placement);
+        f64(20.0, &mut placement);
+        u32(1, &mut placement); // tree count
+        placement.push(1); // node has a source
+        u32(0, &mut placement);
+        u32(0, &mut placement); // no children
+        u32(1, &mut placement); // sheet count
+        u32(1, &mut placement); // placement count
+        u32(0, &mut placement);
+        f64(12.0, &mut placement);
+        f64(4.0, &mut placement);
+        f64(90.0, &mut placement);
+
+        let documents = core_output_documents(
+            br#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="2" height="3"/></svg>"#,
+            &placement,
+        )
+        .expect("format-plugin payload should decode");
+        assert_eq!(documents.len(), 1);
+        assert!(documents[0].contains("translate(12 4) rotate(90)"));
     }
 
     #[test]

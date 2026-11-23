@@ -1,53 +1,16 @@
 //! Adobe Illustrator byte-format detection for the SVGnest AI plugin.
 
 use wasm_bindgen::prelude::*;
-use kurbo::PathEl;
-
-#[wasm_bindgen]
-pub fn detect_ai_format(input: &[u8]) -> String {
-	match illustrator_rs::parser::container::detect_format(input) {
-		Ok(illustrator_rs::parser::container::AiFormat::Pdf) => "pdf-compatible".into(),
-		Ok(illustrator_rs::parser::container::AiFormat::Eps | illustrator_rs::parser::container::AiFormat::PostScript) => "legacy-eps".into(),
-		Err(_) => "unknown".into(),
-	}
-}
-
-/// Parses an AI container to verify that its vector content is supported.
-/// SVG conversion will be added once the render-tree-to-SVG bridge is defined.
-#[wasm_bindgen]
-pub fn validate_ai(input: &[u8]) -> Result<String, JsValue> {
-	let format = detect_ai_format(input);
-	if format == "unknown" {
-		return Err(JsValue::from_str("Unsupported Adobe Illustrator container"));
-	}
-	input_to_svg(input)?;
-	Ok(format)
-}
+use illustrator_rs::{AiDocument, AiObject, CmykColor, Color};
 
 /// Converts supported vector paths into normalized SVG. Images and advanced
 /// paints are intentionally omitted from this first geometry-only bridge.
 #[wasm_bindgen]
 pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
-	if matches!(illustrator_rs::parser::container::detect_format(input), Ok(illustrator_rs::parser::container::AiFormat::Pdf)) {
-		return pdf_to_svg(input).map_err(|error| JsValue::from_str(&format!("Unable to convert PDF-compatible Illustrator artwork: {error}")));
-	}
-	let doc = effectcraft_pdf::parse(input)
-		.map_err(|error| JsValue::from_str(&format!("Unable to parse Adobe Illustrator artwork: {error}")))?;
-	let mut body = String::new();
-	for (source, (transform, _opacity, shape)) in doc.flatten().into_iter().enumerate() {
-		let mut d = String::new();
-		for element in shape.geom.to_path().elements() {
-			match element {
-				PathEl::MoveTo(point) => { let point = transform * *point; d.push_str(&format!("M{} {}", point.x, point.y)); }
-				PathEl::LineTo(point) => { let point = transform * *point; d.push_str(&format!("L{} {}", point.x, point.y)); }
-				PathEl::QuadTo(control, point) => { let control = transform * *control; let point = transform * *point; d.push_str(&format!("Q{} {} {} {}", control.x, control.y, point.x, point.y)); }
-				PathEl::CurveTo(a, b, point) => { let a = transform * *a; let b = transform * *b; let point = transform * *point; d.push_str(&format!("C{} {} {} {} {} {}", a.x, a.y, b.x, b.y, point.x, point.y)); }
-				PathEl::ClosePath => d.push('Z'),
-			}
-		}
-		if !d.is_empty() { body.push_str(&format!("<path data-svgnest-source=\"{source}\" d=\"{d}\" fill=\"black\"/>")); }
-	}
-	Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{body}</svg>", doc.width, doc.height))
+	input_to_svg_core(input).map_err(|error| JsValue::from_str(&error))
+}
+fn input_to_svg_core(input: &[u8]) -> Result<String, String> {
+	pdf_to_svg(input).map_err(|error| format!("Unable to convert PDF-compatible Illustrator artwork: {error}"))
 }
 
 /// Converts the visible PDF artwork into the normalized SVG consumed by the
@@ -67,70 +30,58 @@ fn pdf_to_svg(input: &[u8]) -> Result<String, String> {
 	svg_format_algo::core_input_to_svg(svg.as_bytes())
 }
 
-/// Experimental native Illustrator parser path, retained separately until it
-/// passes the browser/WASM fixture corpus used by the production adapter.
-#[wasm_bindgen]
-pub fn input_to_svg_illustrator(input: &[u8]) -> Result<String, JsValue> {
-	let pgf = illustrator_rs::parser::container::extract_pgf_bytes(input)
-		.map_err(|error| JsValue::from_str(&error.to_string()))?;
-	let tokens = illustrator_rs::parser::lexer::tokenize(&pgf)
-		.map_err(|error| JsValue::from_str(&error.to_string()))?;
-	let document = illustrator_rs::parser::ai_parser::parse_ai(tokens)
-		.map_err(|error| JsValue::from_str(&error.to_string()))?;
-	illustrator_rs::export::svg::export_svg(&document)
-		.map_err(|error| JsValue::from_str(&error.to_string()))
-}
-
 #[wasm_bindgen]
 pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<String, JsValue> {
-	let svg = input_to_svg(input)?;
+	let svg = input_to_svg_core(input).map_err(|error| JsValue::from_str(&error))?;
 	svg_format_algo::core_input_to_polygons(svg.as_bytes(), tolerance)
 		.map_err(|error| JsValue::from_str(&error))
 }
 
 #[wasm_bindgen]
-pub fn output_to_svg(input: &[u8], placement_json: &str) -> Result<String, JsValue> {
-	let svg = input_to_svg(input)?;
-	svg_format_algo::core_output_to_svg(svg.as_bytes(), placement_json)
-		.map_err(|error| JsValue::from_str(&error))
+pub fn output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<String, JsValue> {
+	output_to_svg_core(input, placement_data).map_err(|error| JsValue::from_str(&error))
+}
+
+fn output_to_svg_core(input: &[u8], placement_data: &[u8]) -> Result<String, String> {
+	let svg = input_to_svg_core(input)?;
+	svg_format_algo::core_output_to_svg(svg.as_bytes(), placement_data)
 }
 
 #[wasm_bindgen]
-pub fn output_to_data(placed_svg: &[u8]) -> Result<Vec<u8>, JsValue> {
-	let svg = std::str::from_utf8(placed_svg)
-		.map_err(|error| JsValue::from_str(&format!("Placed SVG is not valid UTF-8: {error}")))?;
-	let document = illustrator_rs::importer::svg::import_svg_string(svg, None)
-		.map_err(|error| JsValue::from_str(&error.to_string()))?;
-	let pgf = illustrator_rs::writer::pgf::write_pgf(&document, None)
-		.map_err(|error| JsValue::from_str(&error.to_string()))?;
-	illustrator_rs::writer::container::build_ai_bytes(pgf, None)
-		.map_err(|error| JsValue::from_str(&error.to_string()))
+pub fn output_to_data(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, JsValue> {
+	output_to_data_core(input, placement_data).map_err(|error| JsValue::from_str(&error))
 }
 
+fn output_to_data_core(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, String> {
+	let source_svg = input_to_svg_core(input)?;
+	let documents = svg_format_algo::core_output_documents(source_svg.as_bytes(), placement_data)
+		?;
+	let svg = documents.first().ok_or("No output document was generated")?;
+	let mut document = illustrator_rs::importer::svg::import_svg_string(svg, None)
+		.map_err(|error| error.to_string())?;
+	set_missing_fills_to_black(&mut document);
+	let pgf = illustrator_rs::writer::pgf::write_pgf(&document, None)
+		.map_err(|error| error.to_string())?;
+	illustrator_rs::writer::container::build_ai_bytes(pgf, None)
+		.map_err(|error| error.to_string())
+}
 
-#[cfg(test)]
-mod tests {
-    use super::{detect_ai_format, input_to_svg, output_to_data};
-
-    #[test]
-    fn detects_pdf_compatible_ai() { assert_eq!(detect_ai_format(b"%PDF-1.7"), "pdf-compatible"); }
-
-    #[test]
-    fn detects_legacy_eps_ai() { assert_eq!(detect_ai_format(b"%!PS-Adobe-3.0"), "legacy-eps"); }
-
-    #[test]
-    fn converts_legacy_eps_path_to_svg() {
-        let eps = b"%!PS-Adobe-3.0\n%%BoundingBox: 0 0 100 100\nnewpath 10 10 moveto 90 10 lineto 90 90 lineto closepath fill\nshowpage\n";
-        let svg = input_to_svg(eps).expect("EPS path should convert");
-        assert!(svg.contains("<path"));
-        assert!(svg.contains("data-svgnest-source=\"0\""));
-    }
-
-    #[test]
-    fn writes_pdf_compatible_ai_bytes() {
-        let svg = b"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M10 10L90 10L90 90Z\" fill=\"black\"/></svg>";
-        let bytes = output_to_data(svg).expect("AI export should succeed");
-        assert!(bytes.starts_with(b"%PDF-"));
-    }
-
+fn set_missing_fills_to_black(document: &mut AiDocument) {
+	let black = || Color::Cmyk(CmykColor { cyan: 0.0, magenta: 0.0, yellow: 0.0, black: 1.0 });
+	fn visit(object: &mut AiObject, black: &impl Fn() -> Color) {
+		match object {
+			AiObject::Path(path) if !path.clip && path.fill.is_none() => path.fill = Some(black()),
+			AiObject::Group(group) => for child in &mut group.children { visit(child, black); },
+			AiObject::CompoundPath(compound) => {
+				if compound.fill.is_none() { compound.fill = Some(black()); }
+				for path in &mut compound.subpaths {
+					if !path.clip && path.fill.is_none() { path.fill = Some(black()); }
+				}
+			}
+			_ => {}
+		}
+	}
+	for layer in &mut document.layers {
+		for object in &mut layer.children { visit(object, &black); }
+	}
 }

@@ -1,19 +1,17 @@
-import type { FormatInput, FormatPlugin, FormatResult, InputPolygons, PlacementOutput, SourcePolygon, SvgDocuments } from '@svgnest/format-plugin';
+import { encodePlacementOutput, type FormatInput, type FormatPlugin, type FormatResult, type InputPolygons, type PlacementOutput, type SourcePolygon, type SvgDocuments } from '@svgnest/format-plugin';
 
 export type AiFormat = 'pdf-compatible' | 'legacy-eps' | 'unknown';
 export interface AiFormatConfig { curveTolerance: number; }
 
 /** Narrow WASM seam for the first AI-plugin increment. */
 export interface AiFormatWasm {
-	detect_ai_format(input: Uint8Array): AiFormat;
-	validate_ai(input: Uint8Array): AiFormat;
 	input_to_svg(input: Uint8Array): string;
 	input_to_polygons(input: Uint8Array, tolerance: number): string;
-	output_to_svg(input: Uint8Array, placementJson: string): string;
-	output_to_data(placedSvg: Uint8Array): Uint8Array;
+	output_to_svg(input: Uint8Array, placementData: Uint8Array): string;
+	output_to_data(input: Uint8Array, placementData: Uint8Array): Uint8Array;
 }
 
-/** Detects the two Illustrator container families before invoking a parser. */
+/** Accepts PDF-compatible Illustrator files (AI 9+) only. */
 export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig, Uint8Array> {
 	readonly id = 'ai';
 	readonly extensions = ['.ai'] as const;
@@ -21,16 +19,21 @@ export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig,
 	constructor(private readonly wasm: AiFormatWasm) {}
 
 	detect(input: string | Uint8Array): AiFormat {
-		return this.wasm.detect_ai_format(typeof input === 'string' ? new TextEncoder().encode(input) : input);
+		const bytes = this.bytes(input);
+		return startsWith(bytes, '%PDF-') ? 'pdf-compatible' : startsWith(bytes, '%!PS') ? 'legacy-eps' : 'unknown';
 	}
 
-	/** Parses the container and throws an actionable error for unsupported artwork. */
+	/** Rejects legacy and invalid files before invoking the PDF/WASM parser. */
 	validate(input: string | Uint8Array): AiFormat {
-		return this.wasm.validate_ai(typeof input === 'string' ? new TextEncoder().encode(input) : input);
+		const format = this.detect(input);
+		if (format === 'legacy-eps') throw new Error('Legacy PostScript/EPS Illustrator files are not supported. Open the file in Illustrator and save it as a PDF-compatible AI file (Illustrator 9 or later).');
+		if (format !== 'pdf-compatible') throw new Error('Unsupported Adobe Illustrator container. Expected a PDF-compatible AI file.');
+		return format;
 	}
 
 	private toSvg(input: FormatInput): string {
-		return this.wasm.input_to_svg(typeof input === 'string' ? new TextEncoder().encode(input) : input);
+		const bytes = this.bytes(input); this.validate(bytes);
+		return this.wasm.input_to_svg(bytes);
 	}
 
 	async inputToSvg(input: FormatInput, _config: AiFormatConfig): Promise<FormatResult<string>> {
@@ -38,23 +41,29 @@ export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig,
 	}
 
 	async inputToPolygons(input: FormatInput, config: AiFormatConfig): Promise<FormatResult<InputPolygons>> {
-		const payload = JSON.parse(this.wasm.input_to_polygons(this.bytes(input), config.curveTolerance));
+		const bytes = this.bytes(input); this.validate(bytes);
+		const payload = JSON.parse(this.wasm.input_to_polygons(bytes, config.curveTolerance));
 		const polygons = payload.polygons.map(({ source, points }: { source: number; points: number[] }) => Object.assign(points, { source }) as SourcePolygon);
 		return { value: { polygons, sources: payload.sources }, diagnostics: [] };
 	}
 
 	async outputToSvg(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
-		const value = JSON.parse(this.wasm.output_to_svg(this.bytes(input), JSON.stringify(placing))) as SvgDocuments;
+		const bytes = this.bytes(input); this.validate(bytes);
+		const value = JSON.parse(this.wasm.output_to_svg(bytes, encodePlacementOutput(placing))) as SvgDocuments;
 		return { value, diagnostics: [] };
 	}
 
-	async outputToData(documents: SvgDocuments): Promise<FormatResult<Uint8Array>> {
-		const placedSvg = documents.documents[0];
-		if (!placedSvg) throw new Error('No placed SVG document was generated');
-		return { value: this.wasm.output_to_data(new TextEncoder().encode(placedSvg)), diagnostics: [] };
+	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<Uint8Array>> {
+		const bytes = this.bytes(input); this.validate(bytes);
+		return { value: this.wasm.output_to_data(bytes, encodePlacementOutput(placing)), diagnostics: [] };
 	}
 
 	private bytes(input: FormatInput) { return typeof input === 'string' ? new TextEncoder().encode(input) : input; }
+}
+
+function startsWith(bytes: Uint8Array, value: string): boolean {
+	const prefix = new TextEncoder().encode(value);
+	return bytes.length >= prefix.length && prefix.every((byte, index) => bytes[index] === byte);
 }
 
 export { loadAiFormatPlugin } from './wasm-loader.ts';

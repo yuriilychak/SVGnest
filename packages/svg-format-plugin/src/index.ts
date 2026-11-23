@@ -1,12 +1,13 @@
-import type {
-	FormatDiagnostic,
-	FormatInput,
-	FormatPlugin,
-	FormatResult,
-	InputPolygons,
-	PlacementOutput,
-	SourcePolygon,
-	SvgDocuments
+import {
+	encodePlacementOutput,
+	type FormatDiagnostic,
+	type FormatInput,
+	type FormatPlugin,
+	type FormatResult,
+	type InputPolygons,
+	type PlacementOutput,
+	type SourcePolygon,
+	type SvgDocuments,
 } from '@svgnest/format-plugin';
 
 export interface SvgFormatConfig {
@@ -20,7 +21,7 @@ export interface SvgFormatWasm {
 }
 
 export interface SvgOutputWasm extends SvgFormatWasm {
-	output_to_svg(input: Uint8Array, placementJson: string): string;
+	output_to_svg(input: Uint8Array, placementData: Uint8Array): string;
 }
 
 type PolygonPayload = {
@@ -56,7 +57,7 @@ export class SvgInputAdapter {
 
 /**
  * Complete SVG implementation of the format-plugin contract. SVG output is
- * already the persisted representation, so `outputToData` returns it as-is.
+ * already the persisted representation, so both methods use the same renderer.
  */
 export class SvgFormatPlugin extends SvgInputAdapter implements FormatPlugin<FormatInput, SvgFormatConfig, SvgDocuments> {
 	declare protected readonly wasm: SvgOutputWasm;
@@ -66,11 +67,11 @@ export class SvgFormatPlugin extends SvgInputAdapter implements FormatPlugin<For
 	}
 
 	async outputToSvg(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
-		return { value: decodeDocuments(this.wasm.output_to_svg(toUtf8(input), JSON.stringify(placing))), diagnostics: [] };
+		return { value: decodeDocuments(this.wasm.output_to_svg(toUtf8(input), encodePlacementOutput(placing))), diagnostics: [] };
 	}
 
-	async outputToData(documents: SvgDocuments): Promise<FormatResult<SvgDocuments>> {
-		return { value: documents, diagnostics: [] };
+	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
+		return this.outputToSvg(input, placing);
 	}
 }
 

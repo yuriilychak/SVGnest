@@ -91,6 +91,7 @@ impl ContainerBuilder {
 	pub fn build_minimal_bytes(&self) -> Result<Vec<u8>> {
         let pgf_bytes = self.pgf_source.as_bytes();
         let chunks = chunk_pgf_data(pgf_bytes, DEFAULT_CHUNK_SIZE);
+        let preview = pdf_preview_stream(&self.pgf_source);
 
         let (width, height) = self
             .metadata
@@ -121,6 +122,8 @@ impl ContainerBuilder {
         objects.push(format!("{next_obj} 0 obj\n<< /Type /Pages /Kids [{} 0 R] /Count 1 >>\nendobj", next_obj + 1));
         next_obj += 1;
         let page_obj = next_obj;
+        next_obj += 1;
+        let preview_obj = next_obj;
 
         let mut private_refs = String::new();
         for (i, _) in chunks.iter().enumerate() {
@@ -134,7 +137,7 @@ impl ContainerBuilder {
 
         objects.push(format!(
             "{page_obj} 0 obj\n\
-             << /Type /Page /Parent {pages_obj} 0 R /MediaBox [0 0 {width} {height}] \
+             << /Type /Page /Parent {pages_obj} 0 R /MediaBox [0 0 {width} {height}] /Contents {preview_obj} 0 R \
              /PieceInfo << /Illustrator << /Private << {private_refs} >> >> >> >>\n\
              endobj"
         ));
@@ -149,6 +152,13 @@ impl ContainerBuilder {
             pdf_bytes.extend_from_slice(obj_str.as_bytes());
             pdf_bytes.push(b'\n');
         }
+
+        xref_offsets.push(pdf_bytes.len());
+        let preview_len = preview.len();
+        pdf_bytes.extend_from_slice(
+            format!("{preview_obj} 0 obj\n<< /Length {preview_len} >>\nstream\n{preview}endstream\nendobj\n")
+                .as_bytes(),
+        );
 
         for (i, &obj_num) in stream_obj_numbers.iter().enumerate() {
             xref_offsets.push(pdf_bytes.len());
@@ -193,6 +203,38 @@ impl ContainerBuilder {
             Err(_) => false,
         }
     }
+}
+
+/// Illustrator's private stream uses a few AI-specific operators.  Keep it
+/// intact for Illustrator, while translating the ordinary path subset into a
+/// PDF page-content stream so exported AI files are visible in PDF viewers
+/// and thumbnail generators too.
+fn pdf_preview_stream(pgf: &str) -> String {
+    let mut preview = String::from("q\n");
+    for line in pgf.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('%') || line.ends_with(" Lb") || line.ends_with(" Ln") || line == "LB" {
+            continue;
+        }
+        match line {
+            "u" | "*u" => preview.push_str("q\n"),
+            "U" | "*U" => preview.push_str("Q\n"),
+            _ if line.ends_with(" Xa") => {
+                preview.push_str(line.trim_end_matches(" Xa"));
+                preview.push_str(" rg\n");
+            }
+            _ if line.ends_with(" XA") => {
+                preview.push_str(line.trim_end_matches(" XA"));
+                preview.push_str(" RG\n");
+            }
+            _ => {
+                preview.push_str(line);
+                preview.push('\n');
+            }
+        }
+    }
+    preview.push_str("Q\n");
+    preview
 }
 
 fn chunk_pgf_data(data: &[u8], chunk_size: usize) -> Vec<Vec<u8>> {
