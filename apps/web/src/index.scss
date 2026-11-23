@@ -4,6 +4,7 @@
     position: absolute;
     width: 100%;
     height: 100%;
+    height: 100dvh;
     background-color: $c-background;
     opacity: 1;
     transition: opacity 300ms ease-in-out;
@@ -19,8 +20,8 @@
 
 .languageSelector {
     position: fixed;
-    top: $g-md;
-    right: $g-md;
+    top: calc(#{$g-md} + env(safe-area-inset-top));
+    right: calc(#{$g-md} + env(safe-area-inset-right));
     z-index: 10;
     width: 2.5rem;
     height: 2.5rem;

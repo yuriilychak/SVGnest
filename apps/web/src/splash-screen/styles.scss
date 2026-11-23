@@ -3,7 +3,8 @@
 .splashScreenRoot {
     @include flex-center(column, $g-sm);
     width: 100vw;
-    height: 100vh;
+    height: 100%;
+    min-height: 100dvh;
     color: $c-primary;
     font-weight: 500;
     padding: $g-none $g-md;

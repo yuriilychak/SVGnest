@@ -17,16 +17,19 @@
     @include flex-center(column, $g-md);
     position: relative;
     width: 100vw;
-    height: 100vh;
-    padding: $g-lg;
+    height: 100%;
+    min-height: 100dvh;
+    padding: calc(#{$g-md} + env(safe-area-inset-top)) calc(#{$g-md} + env(safe-area-inset-right)) calc(#{$g-md} + env(safe-area-inset-bottom)) calc(#{$g-md} + env(safe-area-inset-left));
 
     @media (min-width: $bp-sm) {
         align-items: start;
+        padding: $g-lg;
     }
 }
 
 .appSvgContent {
     flex: 1;
+    min-height: 0;
     width: 100%;
     position: relative;
 }
@@ -48,6 +51,8 @@
 .appMenu {
     align-items: start;
     @include flex-center(column, $g-md);
+    flex-shrink: 0;
+    max-width: 100%;
 
     @media (min-width: $bp-lg) {
         flex-direction: row-reverse;
