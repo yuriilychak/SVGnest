@@ -27,5 +27,17 @@
   "appFlow.statistics.meure.places.label": "Детали",
   "appFlow.statistics.meure.efficiency.label": "Эффективность",
   "appFlow.statistics.progress.title": "Ход размещения",
-  "appFlow.statistics.progress.subtitle": "Осталось: {{time}}"
+  "appFlow.statistics.progress.subtitle": "Осталось: {{time}}",
+  "splashScreen.helpDrawer.item.help.title": "Нужна помощь?", "splashScreen.helpDrawer.item.help.description": "Создайте обращение на GitHub или свяжитесь со мной:",
+  "splashScreen.helpDrawer.item.overlap.title": "Детали немного пересекаются?", "splashScreen.helpDrawer.item.overlap.description": "Кривые аппроксимируются отрезками. Для большей точности уменьшите допуск кривой.",
+  "splashScreen.helpDrawer.item.stop.title": "Расчёт не заканчивается?", "splashScreen.helpDrawer.item.stop.description": "Программа ищет лучшие решения, пока вы не нажмёте остановку. Результат можно скачать в любой момент.",
+  "splashScreen.helpDrawer.item.svg.title": "Текст или изображение не отображается?", "splashScreen.helpDrawer.item.svg.description": "Размещение работает только с замкнутыми формами. Преобразуйте текст и другие элементы в контуры и избегайте пересечений.",
+  "splashScreen.helpDrawer.item.mesure.title": "Дюймы или миллиметры?", "splashScreen.helpDrawer.item.mesure.description": "Настройки используют единицы документа. Пересчёт зависит от формата и программы экспорта.",
+  "splashScreen.helpDrawer.item.cost.title": "Сколько это стоит?", "splashScreen.helpDrawer.item.cost.description": "Это бесплатно и имеет открытый исходный код. Код и подробности находятся на",
+  "splashScreen.helpDrawer.item.nesting.title": "Что такое размещение?", "splashScreen.helpDrawer.item.nesting.description": "Это расположение деталей с минимальным расходом материала; в информатике это нерегулярная упаковка.",
+  "appFlow.settingsDrawer.item.spacing.description": "Расстояние между деталями в единицах документа.", "appFlow.settingsDrawer.item.curveTolerance.description": "Максимальная ошибка при преобразовании кривых и дуг в отрезки. Меньший допуск требует больше времени.",
+  "appFlow.settingsDrawer.item.rotations.description": "Количество поворотов, рассматриваемых при размещении детали.", "appFlow.settingsDrawer.item.populationSize.description": "Количество решений в популяции генетического алгоритма.",
+  "appFlow.settingsDrawer.item.mutationRate.description": "Частота мутаций в каждом поколении генетического алгоритма.", "appFlow.settingsDrawer.item.useHoles.description": "Размещает детали в отверстиях других деталей. Расчёт займёт больше времени.",
+  "appFlow.settingsDrawer.item.exploreConcave.description": "Пытается решить замкнутые вогнутые области. Расчёт займёт больше времени.", "appFlow.alert.start.message": "По умолчанию выбран прямоугольник документа. При необходимости выберите другой элемент как контейнер и начните размещение.",
+  "appFlow.statistics.progress.counter.year_one": "{{count}} год", "appFlow.statistics.progress.counter.year_other": "{{count}} лет", "appFlow.statistics.progress.counter.day_one": "{{count}} день", "appFlow.statistics.progress.counter.day_other": "{{count}} дней", "appFlow.statistics.progress.counter.hour_one": "{{count}} час", "appFlow.statistics.progress.counter.hour_other": "{{count}} часов", "appFlow.statistics.progress.counter.minute_one": "{{count}} минута", "appFlow.statistics.progress.counter.minute_other": "{{count}} минут", "appFlow.statistics.progress.counter.second_one": "{{count}} секунда", "appFlow.statistics.progress.counter.second_other": "{{count}} секунд", "appFlow.statistics.progress.counter.milisecond": "меньше секунды"
 }

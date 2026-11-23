@@ -27,5 +27,17 @@
   "appFlow.statistics.meure.places.label": "Teile",
   "appFlow.statistics.meure.efficiency.label": "Effizienz",
   "appFlow.statistics.progress.title": "Verschachtelungsfortschritt",
-  "appFlow.statistics.progress.subtitle": "Verbleibend: {{time}}"
+  "appFlow.statistics.progress.subtitle": "Verbleibend: {{time}}",
+  "splashScreen.helpDrawer.item.help.title": "Brauche ich Hilfe?", "splashScreen.helpDrawer.item.help.description": "Erstelle ein Issue auf GitHub oder kontaktiere mich:",
+  "splashScreen.helpDrawer.item.overlap.title": "Teile überlappen sich leicht?", "splashScreen.helpDrawer.item.overlap.description": "Kurven werden durch Liniensegmente angenähert. Verringere für genauere Ergebnisse die Kurventoleranz.",
+  "splashScreen.helpDrawer.item.stop.title": "Hört es nie auf?", "splashScreen.helpDrawer.item.stop.description": "Die Software sucht weiter nach besseren Lösungen, bis du sie anhältst. Du kannst das Ergebnis jederzeit herunterladen.",
+  "splashScreen.helpDrawer.item.svg.title": "Mein Text oder Bild fehlt?", "splashScreen.helpDrawer.item.svg.description": "Verschachtelung funktioniert nur mit geschlossenen Formen. Wandle Text und andere Elemente in Konturen um und vermeide Überlappungen.",
+  "splashScreen.helpDrawer.item.mesure.title": "Zoll oder Millimeter?", "splashScreen.helpDrawer.item.mesure.description": "Die Einstellungen verwenden Dokumenteinheiten. Die Umrechnung hängt vom Format und Exportprogramm ab.",
+  "splashScreen.helpDrawer.item.cost.title": "Was kostet es?", "splashScreen.helpDrawer.item.cost.description": "Es ist kostenlos und Open Source. Code und Details stehen auf",
+  "splashScreen.helpDrawer.item.nesting.title": "Was ist Verschachtelung?", "splashScreen.helpDrawer.item.nesting.description": "Teile werden so angeordnet, dass möglichst wenig Material benötigt wird. Informatik nennt dies irreguläres Bin-Packing.",
+  "appFlow.settingsDrawer.item.spacing.description": "Der Abstand zwischen Teilen in Dokumenteinheiten.", "appFlow.settingsDrawer.item.curveTolerance.description": "Der maximale Fehler beim Umwandeln von Kurven und Bögen in Liniensegmente. Kleinere Werte dauern länger.",
+  "appFlow.settingsDrawer.item.rotations.description": "Anzahl der beim Platzieren berücksichtigten Drehungen.", "appFlow.settingsDrawer.item.populationSize.description": "Anzahl der Lösungen in der Population des genetischen Algorithmus.",
+  "appFlow.settingsDrawer.item.mutationRate.description": "Mutationsrate pro Generation des genetischen Algorithmus.", "appFlow.settingsDrawer.item.useHoles.description": "Platziert Teile in Löchern anderer Teile. Dies dauert länger.",
+  "appFlow.settingsDrawer.item.exploreConcave.description": "Versucht eingeschlossene konkave Bereiche zu lösen. Dies dauert länger.", "appFlow.alert.start.message": "Standardmäßig ist das Dokumentrechteck ausgewählt. Wähle bei Bedarf ein anderes Element als Behälter und starte dann die Verschachtelung.",
+  "appFlow.statistics.progress.counter.year_one": "{{count}} Jahr", "appFlow.statistics.progress.counter.year_other": "{{count}} Jahre", "appFlow.statistics.progress.counter.day_one": "{{count}} Tag", "appFlow.statistics.progress.counter.day_other": "{{count}} Tage", "appFlow.statistics.progress.counter.hour_one": "{{count}} Stunde", "appFlow.statistics.progress.counter.hour_other": "{{count}} Stunden", "appFlow.statistics.progress.counter.minute_one": "{{count}} Minute", "appFlow.statistics.progress.counter.minute_other": "{{count}} Minuten", "appFlow.statistics.progress.counter.second_one": "{{count}} Sekunde", "appFlow.statistics.progress.counter.second_other": "{{count}} Sekunden", "appFlow.statistics.progress.counter.milisecond": "weniger als eine Sekunde"
 }

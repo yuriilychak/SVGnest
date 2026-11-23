@@ -27,5 +27,17 @@
   "appFlow.statistics.meure.places.label": "Części",
   "appFlow.statistics.meure.efficiency.label": "Wydajność",
   "appFlow.statistics.progress.title": "Postęp rozmieszczania",
-  "appFlow.statistics.progress.subtitle": "Pozostało: {{time}}"
+  "appFlow.statistics.progress.subtitle": "Pozostało: {{time}}",
+  "splashScreen.helpDrawer.item.help.title": "Potrzebuję pomocy?", "splashScreen.helpDrawer.item.help.description": "Dodaj zgłoszenie na GitHubie lub skontaktuj się ze mną:",
+  "splashScreen.helpDrawer.item.overlap.title": "Części lekko się nakładają?", "splashScreen.helpDrawer.item.overlap.description": "Krzywe są przybliżane odcinkami. Aby uzyskać większą dokładność, zmniejsz tolerancję krzywej.",
+  "splashScreen.helpDrawer.item.stop.title": "Czy obliczenia nigdy się nie kończą?", "splashScreen.helpDrawer.item.stop.description": "Program szuka lepszych rozwiązań do chwili zatrzymania. Wynik możesz pobrać w dowolnym momencie.",
+  "splashScreen.helpDrawer.item.svg.title": "Tekst lub obraz się nie pojawia?", "splashScreen.helpDrawer.item.svg.description": "Rozmieszczanie działa tylko dla zamkniętych kształtów. Zamień tekst i inne elementy na kontury oraz unikaj nakładania.",
+  "splashScreen.helpDrawer.item.mesure.title": "Cale czy milimetry?", "splashScreen.helpDrawer.item.mesure.description": "Ustawienia używają jednostek dokumentu. Przeliczenie zależy od formatu i programu eksportującego.",
+  "splashScreen.helpDrawer.item.cost.title": "Ile to kosztuje?", "splashScreen.helpDrawer.item.cost.description": "To darmowy projekt open source. Kod i szczegóły są na",
+  "splashScreen.helpDrawer.item.nesting.title": "Czym jest rozmieszczanie?", "splashScreen.helpDrawer.item.nesting.description": "To układanie części tak, by zużyć jak najmniej materiału; w informatyce jest to nieregularne pakowanie binów.",
+  "appFlow.settingsDrawer.item.spacing.description": "Odstęp między częściami w jednostkach dokumentu.", "appFlow.settingsDrawer.item.curveTolerance.description": "Maksymalny błąd przy zamianie krzywych i łuków na odcinki. Mniejsza tolerancja wymaga więcej czasu.",
+  "appFlow.settingsDrawer.item.rotations.description": "Liczba obrotów branych pod uwagę podczas umieszczania części.", "appFlow.settingsDrawer.item.populationSize.description": "Liczba rozwiązań w populacji algorytmu genetycznego.",
+  "appFlow.settingsDrawer.item.mutationRate.description": "Współczynnik mutacji w każdym pokoleniu algorytmu genetycznego.", "appFlow.settingsDrawer.item.useHoles.description": "Umieszcza części w otworach innych części. Obliczenia trwają dłużej.",
+  "appFlow.settingsDrawer.item.exploreConcave.description": "Próbuje rozwiązać zamknięte obszary wklęsłe. Obliczenia trwają dłużej.", "appFlow.alert.start.message": "Domyślnie wybrany jest prostokąt dokumentu. Wybierz inny element jako pojemnik, jeśli chcesz, a następnie rozpocznij rozmieszczanie.",
+  "appFlow.statistics.progress.counter.year_one": "{{count}} rok", "appFlow.statistics.progress.counter.year_other": "{{count}} lat", "appFlow.statistics.progress.counter.day_one": "{{count}} dzień", "appFlow.statistics.progress.counter.day_other": "{{count}} dni", "appFlow.statistics.progress.counter.hour_one": "{{count}} godzina", "appFlow.statistics.progress.counter.hour_other": "{{count}} godzin", "appFlow.statistics.progress.counter.minute_one": "{{count}} minuta", "appFlow.statistics.progress.counter.minute_other": "{{count}} minut", "appFlow.statistics.progress.counter.second_one": "{{count}} sekunda", "appFlow.statistics.progress.counter.second_other": "{{count}} sekund", "appFlow.statistics.progress.counter.milisecond": "mniej niż sekunda"
 }

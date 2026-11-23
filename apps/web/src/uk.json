@@ -27,5 +27,17 @@
   "appFlow.statistics.meure.places.label": "Деталі",
   "appFlow.statistics.meure.efficiency.label": "Ефективність",
   "appFlow.statistics.progress.title": "Перебіг розміщення",
-  "appFlow.statistics.progress.subtitle": "Залишилось: {{time}}"
+  "appFlow.statistics.progress.subtitle": "Залишилось: {{time}}",
+  "splashScreen.helpDrawer.item.help.title": "Потрібна допомога?", "splashScreen.helpDrawer.item.help.description": "Створіть звернення на GitHub або зв’яжіться зі мною:",
+  "splashScreen.helpDrawer.item.overlap.title": "Деталі трохи перетинаються?", "splashScreen.helpDrawer.item.overlap.description": "Криві апроксимуються відрізками. Для вищої точності зменште допуск кривої.",
+  "splashScreen.helpDrawer.item.stop.title": "Обчислення ніколи не зупиняється?", "splashScreen.helpDrawer.item.stop.description": "Програма шукатиме кращі рішення, доки ви не натиснете зупинку. Результат можна завантажити будь-коли.",
+  "splashScreen.helpDrawer.item.svg.title": "Текст або зображення не відображається?", "splashScreen.helpDrawer.item.svg.description": "Розміщення працює лише із замкненими формами. Перетворіть текст та інші елементи на контури й уникайте перетинів.",
+  "splashScreen.helpDrawer.item.mesure.title": "Дюйми чи міліметри?", "splashScreen.helpDrawer.item.mesure.description": "Налаштування використовують одиниці документа. Перерахунок залежить від формату та програми експорту.",
+  "splashScreen.helpDrawer.item.cost.title": "Скільки це коштує?", "splashScreen.helpDrawer.item.cost.description": "Це безкоштовний проєкт із відкритим кодом. Код і подробиці є на",
+  "splashScreen.helpDrawer.item.nesting.title": "Що таке розміщення?", "splashScreen.helpDrawer.item.nesting.description": "Це розташування деталей із мінімальними витратами матеріалу; в інформатиці це нерегулярне пакування.",
+  "appFlow.settingsDrawer.item.spacing.description": "Відстань між деталями в одиницях документа.", "appFlow.settingsDrawer.item.curveTolerance.description": "Максимальна похибка перетворення кривих і дуг на відрізки. Менший допуск потребує більше часу.",
+  "appFlow.settingsDrawer.item.rotations.description": "Кількість поворотів, що розглядаються під час розміщення деталі.", "appFlow.settingsDrawer.item.populationSize.description": "Кількість рішень у популяції генетичного алгоритму.",
+  "appFlow.settingsDrawer.item.mutationRate.description": "Частота мутацій у кожному поколінні генетичного алгоритму.", "appFlow.settingsDrawer.item.useHoles.description": "Розміщує деталі в отворах інших деталей. Обчислення триватиме довше.",
+  "appFlow.settingsDrawer.item.exploreConcave.description": "Намагається розв’язати замкнені увігнуті області. Обчислення триватиме довше.", "appFlow.alert.start.message": "Типово вибрано прямокутник документа. За потреби виберіть інший елемент як контейнер, а потім почніть розміщення.",
+  "appFlow.statistics.progress.counter.year_one": "{{count}} рік", "appFlow.statistics.progress.counter.year_other": "{{count}} років", "appFlow.statistics.progress.counter.day_one": "{{count}} день", "appFlow.statistics.progress.counter.day_other": "{{count}} днів", "appFlow.statistics.progress.counter.hour_one": "{{count}} година", "appFlow.statistics.progress.counter.hour_other": "{{count}} годин", "appFlow.statistics.progress.counter.minute_one": "{{count}} хвилина", "appFlow.statistics.progress.counter.minute_other": "{{count}} хвилин", "appFlow.statistics.progress.counter.second_one": "{{count}} секунда", "appFlow.statistics.progress.counter.second_other": "{{count}} секунд", "appFlow.statistics.progress.counter.milisecond": "менше секунди"
 }
