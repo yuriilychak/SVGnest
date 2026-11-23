@@ -6,6 +6,15 @@
 
 export type FormatInput = string | Uint8Array;
 
+/** Uniform Rust/WASM surface implemented by every vector-format core. */
+export interface FormatWasm {
+	input_to_svg(input: Uint8Array): string;
+	input_to_polygons(input: Uint8Array, tolerance: number): Uint8Array;
+	output_to_svg(input: Uint8Array, placementData: Uint8Array): Uint8Array;
+	/** Native serialized output for the originating format. */
+	output_to_data(input: Uint8Array, placementData: Uint8Array): Uint8Array;
+}
+
 /** Flat [x0, y0, x1, y1, …] contour with its stable source-artwork index. */
 export interface SourcePolygon extends Array<number> {
 	source: number;

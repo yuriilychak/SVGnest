@@ -1,7 +1,8 @@
-import { DxfFormatPlugin, type DxfFormatWasm } from './index.ts';
+import { DxfFormatPlugin } from './index.ts';
+import type { FormatWasm } from '@svgnest/format-plugin';
 import init, * as wasm from './generated/dxf_format_algo.js';
 
-type WasmModule = DxfFormatWasm & { default(input?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module): Promise<unknown>; };
+type WasmModule = FormatWasm & { default(input?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module): Promise<unknown>; };
 let plugin: Promise<DxfFormatPlugin> | undefined;
 
 /** Loads the isolated DXF Rust/WASM adapter once. */

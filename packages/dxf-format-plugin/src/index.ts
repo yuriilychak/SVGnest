@@ -3,6 +3,7 @@ import {
 	decodeInputPolygons,
 	decodeSvgDocuments,
 	type FormatInput,
+	type FormatWasm,
 	type FormatPlugin,
 	type FormatResult,
 	type InputPolygons,
@@ -12,20 +13,12 @@ import {
 
 export interface DxfFormatConfig { curveTolerance: number; }
 
-/** The Rust/WASM DXF conversion and SVGnest rendering surface. */
-export interface DxfFormatWasm {
-	input_to_svg(input: Uint8Array): string;
-	input_to_polygons(input: Uint8Array, tolerance: number): Uint8Array;
-	output_to_svg(input: Uint8Array, placementData: Uint8Array): Uint8Array;
-	output_to_data(input: Uint8Array, placementData: Uint8Array): Uint8Array;
-}
-
 /** Complete ASCII DXF implementation of the shared format-plugin contract. */
 export class DxfFormatPlugin implements FormatPlugin<FormatInput, DxfFormatConfig, Uint8Array> {
 	readonly id = 'dxf';
 	readonly extensions = ['.dxf'] as const;
 
-	constructor(private readonly wasm: DxfFormatWasm) {}
+	constructor(private readonly wasm: FormatWasm) {}
 
 	async inputToSvg(input: FormatInput, _config: DxfFormatConfig): Promise<FormatResult<string>> {
 		return { value: this.wasm.input_to_svg(bytes(input)), diagnostics: [] };

@@ -109,6 +109,12 @@ pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<Vec<u8>, JsValu
 #[wasm_bindgen]
 pub fn output_to_svg(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, JsValue> { core_output_to_svg(input, placement_data).map_err(|error| JsValue::from_str(&error)) }
 
+/// SVG's native persisted output is the same shared SVG-document payload used
+/// for preview output, preserving the uniform format-core WASM surface.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn output_to_data(input: &[u8], placement_data: &[u8]) -> Result<Vec<u8>, JsValue> { core_output_to_svg(input, placement_data).map_err(|error| JsValue::from_str(&error)) }
+
 const PLACEMENT_MAGIC: &[u8; 4] = b"SNP1";
 const MAX_TREE_DEPTH: u8 = 100;
 

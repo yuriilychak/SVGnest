@@ -1,7 +1,8 @@
-import { SvgFormatPlugin, type SvgOutputWasm } from './index.ts';
+import { SvgFormatPlugin } from './index.ts';
+import type { FormatWasm } from '@svgnest/format-plugin';
 import init, * as wasm from './generated/svg_format_algo.js';
 
-type WasmModule = SvgOutputWasm & {
+type WasmModule = FormatWasm & {
 	default(input?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module): Promise<unknown>;
 };
 

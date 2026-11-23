@@ -1,7 +1,8 @@
-import { AiFormatPlugin, type AiFormatWasm } from './index.ts';
+import { AiFormatPlugin } from './index.ts';
+import type { FormatWasm } from '@svgnest/format-plugin';
 import init, * as wasm from './generated/ai_format_algo.js';
 
-type WasmModule = AiFormatWasm & {
+type WasmModule = FormatWasm & {
 	default(input?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module): Promise<unknown>;
 };
 

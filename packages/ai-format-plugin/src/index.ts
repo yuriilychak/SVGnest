@@ -1,22 +1,14 @@
-import { decodeInputPolygons, decodeSvgDocuments, encodePlacementOutput, type FormatInput, type FormatPlugin, type FormatResult, type InputPolygons, type PlacementOutput, type SvgDocuments } from '@svgnest/format-plugin';
+import { decodeInputPolygons, decodeSvgDocuments, encodePlacementOutput, type FormatInput, type FormatPlugin, type FormatResult, type FormatWasm, type InputPolygons, type PlacementOutput, type SvgDocuments } from '@svgnest/format-plugin';
 
 export type AiFormat = 'pdf-compatible' | 'legacy-eps' | 'unknown';
 export interface AiFormatConfig { curveTolerance: number; }
-
-/** Narrow WASM seam for the first AI-plugin increment. */
-export interface AiFormatWasm {
-	input_to_svg(input: Uint8Array): string;
-	input_to_polygons(input: Uint8Array, tolerance: number): Uint8Array;
-	output_to_svg(input: Uint8Array, placementData: Uint8Array): Uint8Array;
-	output_to_data(input: Uint8Array, placementData: Uint8Array): Uint8Array;
-}
 
 /** Accepts PDF-compatible Illustrator files (AI 9+) only. */
 export class AiFormatPlugin implements FormatPlugin<FormatInput, AiFormatConfig, Uint8Array> {
 	readonly id = 'ai';
 	readonly extensions = ['.ai'] as const;
 
-	constructor(private readonly wasm: AiFormatWasm) {}
+	constructor(private readonly wasm: FormatWasm) {}
 
 	detect(input: string | Uint8Array): AiFormat {
 		const bytes = this.bytes(input);
