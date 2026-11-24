@@ -87,14 +87,13 @@ npm --workspace @svgnest/node start -- input.svg --bin 0 --out nested.svg --iter
 
 ### Packages
 
-- `@svgnest/format-plugin` defines the format adapter contract: `inputToPolygons`, `inputToSvg`, `outputToData`, and `outputToSvg`.
-- `@svgnest/svg-format-core` is the Rust/WASM SVG implementation, built with `usvg`.
-- `@svgnest/svg-format-plugin` is the TypeScript adapter for the Rust SVG core. SVG input and output currently use the same conversion path.
-- `@svgnest/ai-format-plugin` is the TypeScript adapter for PDF-compatible Adobe Illustrator input and native `.ai` output.
-- `@svgnest/dxf-format-core` is the Rust/WASM ASCII DXF core. It supports `LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE`, `ARC`, and `ELLIPSE` entities.
-- `@svgnest/dxf-format-plugin` is the TypeScript adapter for the DXF core. DXF input is rendered as SVG for selection; nested results download as native ASCII `.dxf`. Binary DXF is not supported.
-- `@svgnest/polygon-pack` is the TypeScript orchestration layer for packing. Browser code uses reusable Web Workers or the main-thread executor; Node code provides persistent worker-thread and single-thread executors.
-- `@svgnest/polygon-pack-core` is the Rust/WASM no-fit-polygon and genetic-algorithm core.
+- `packages/plugins/format` (`@svgnest/format-plugin`) defines the shared adapter contract: `inputToPolygons`, `inputToSvg`, `outputToData`, and `outputToSvg`.
+- Each file format is organized as `packages/plugins/<format>/{core,adapter}`. `core` is Rust/WASM; `adapter` is the TypeScript glue used by browser and Node entry points.
+- `packages/plugins/svg` provides SVG normalization, polygon extraction, and SVG output.
+- `packages/plugins/ai` provides PDF-compatible Illustrator input and native `.ai` output; it also contains the vendored `illustrator-rs` library.
+- `packages/plugins/dxf` provides ASCII DXF import/export, including `LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE`, `ARC`, `ELLIPSE`, and planar `SPLINE` entities.
+- `packages/polygon-pack/{core,adapter}` contains the Rust/WASM no-fit-polygon and genetic-algorithm engine plus its TypeScript orchestration layer. The adapter supports browser workers, a browser main-thread fallback, persistent Node worker threads, and Node single-thread execution.
+- `apps/web` is the browser UI; `apps/node` is the terminal application.
 
 Useful checks:
 
