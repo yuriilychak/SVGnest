@@ -1,0 +1,32 @@
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn input_to_svg(input: &[u8]) -> Result<String, JsValue> {
+    let svg = parse_to_svg(input).map_err(|error| JsValue::from_str(&error))?;
+    svg_format_algo::core_input_to_svg(svg.as_bytes()).map_err(|error| JsValue::from_str(&error))
+}
+
+#[wasm_bindgen]
+pub fn input_to_polygons(input: &[u8], tolerance: f64) -> Result<Vec<u8>, JsValue> {
+    let svg = parse_to_svg(input).map_err(|error| JsValue::from_str(&error))?;
+    svg_format_algo::core_input_to_polygons(svg.as_bytes(), tolerance).map_err(|error| JsValue::from_str(&error))
+}
+
+#[wasm_bindgen]
+pub fn output_to_svg(input: &[u8], placement: &[u8]) -> Result<Vec<u8>, JsValue> {
+    let svg = parse_to_svg(input).map_err(|error| JsValue::from_str(&error))?;
+    svg_format_algo::core_output_to_svg(svg.as_bytes(), placement).map_err(|error| JsValue::from_str(&error))
+}
+
+#[wasm_bindgen]
+pub fn output_to_data(input: &[u8], placement: &[u8]) -> Result<Vec<u8>, JsValue> {
+    // Serialize the placement as native bytes for this file format.
+    // Do not return SVG unless SVG is the native output format.
+    let _ = (input, placement);
+    Err(JsValue::from_str("Native output has not been implemented"))
+}
+
+fn parse_to_svg(input: &[u8]) -> Result<String, String> {
+    // Replace with the format parser. The result must be self-contained SVG.
+    String::from_utf8(input.to_vec()).map_err(|_| "Example input must be UTF-8".to_owned())
+}

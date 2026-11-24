@@ -7,7 +7,7 @@
     "pkg"
   ],
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir ../svg-format-plugin/src/generated --out-name svg_format_algo",
+    "build": "wasm-pack build --target web --out-dir ../plugin/src/generated --out-name svg_format_algo",
     "check": "cargo test"
   }
 }

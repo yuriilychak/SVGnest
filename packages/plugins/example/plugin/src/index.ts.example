@@ -1,0 +1,43 @@
+import {
+	decodeInputPolygons,
+	decodeSvgDocuments,
+	encodePlacementOutput,
+	type FormatInput,
+	type FormatPlugin,
+	type FormatResult,
+	type FormatWasm,
+	type InputPolygons,
+	type PlacementOutput,
+	type SvgDocuments,
+} from '@svgnest/format-plugin';
+
+export interface ExampleFormatConfig { curveTolerance: number; }
+
+export class ExampleFormatPlugin implements FormatPlugin<FormatInput, ExampleFormatConfig, Uint8Array> {
+	readonly id = 'example';
+	readonly extensions = ['.example'] as const;
+
+	constructor(private readonly wasm: FormatWasm) {}
+
+	async inputToSvg(input: FormatInput, _config: ExampleFormatConfig): Promise<FormatResult<string>> {
+		return { value: this.wasm.input_to_svg(bytes(input)), diagnostics: [] };
+	}
+
+	async inputToPolygons(input: FormatInput, config: ExampleFormatConfig): Promise<FormatResult<InputPolygons>> {
+		return { value: decodeInputPolygons(this.wasm.input_to_polygons(bytes(input), config.curveTolerance)), diagnostics: [] };
+	}
+
+	async outputToSvg(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<SvgDocuments>> {
+		return { value: decodeSvgDocuments(this.wasm.output_to_svg(bytes(input), encodePlacementOutput(placing))), diagnostics: [] };
+	}
+
+	async outputToData(input: FormatInput, placing: PlacementOutput): Promise<FormatResult<Uint8Array>> {
+		return { value: this.wasm.output_to_data(bytes(input), encodePlacementOutput(placing)), diagnostics: [] };
+	}
+}
+
+export { loadExampleFormatPlugin } from './wasm-loader.ts';
+
+function bytes(input: FormatInput): Uint8Array {
+	return typeof input === 'string' ? new TextEncoder().encode(input) : input;
+}

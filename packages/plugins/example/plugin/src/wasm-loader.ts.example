@@ -1,0 +1,14 @@
+import { ExampleFormatPlugin } from './index.ts';
+import type { FormatWasm } from '@svgnest/format-plugin';
+import init, * as wasm from './generated/example_format_algo.js';
+
+type WasmModule = FormatWasm & {
+	default(input?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module): Promise<unknown>;
+};
+
+let plugin: Promise<ExampleFormatPlugin> | undefined;
+
+export function loadExampleFormatPlugin(): Promise<ExampleFormatPlugin> {
+	plugin ??= init().then(() => new ExampleFormatPlugin(wasm as WasmModule));
+	return plugin;
+}

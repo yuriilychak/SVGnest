@@ -9,8 +9,8 @@
     "src"
   ],
   "dependencies": {
-    "@svgnest/format-plugin": "file:../format-plugin",
-    "@svgnest/svg-format-algo": "file:../svg-format-algo"
+    "@svgnest/format-plugin": "file:../../format",
+    "@svgnest/svg-format-algo": "file:../algo"
   },
   "scripts": {
     "check": "tsc --noEmit"

@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 illustrator-rs = { path = "../illustrator-rs", features = ["importer", "writer"] }
-svg-format-algo = { path = "../svg-format-algo", default-features = false }
+svg-format-algo = { path = "../../svg/algo", default-features = false }
 zpdf = { version = "0.21.0", default-features = false }
 zpdf-svg-export = "0.21.0"
 # zpdf's transitive encryption support reaches getrandom on wasm; enable its

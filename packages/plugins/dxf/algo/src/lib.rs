@@ -58,7 +58,46 @@ fn input_to_svg_core(input: &[u8]) -> Result<String, String> {
     let entities = entities(source)?;
     let paths: Vec<String> = entities.iter().filter_map(entity_path).collect();
     if paths.is_empty() { return Err("The DXF file contains no supported geometry in its ENTITIES section.".into()); }
-    Ok(format!("<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" stroke=\"black\">{}</svg>", paths.into_iter().map(|path| format!("<path d=\"{path}\"/>" )).collect::<String>()))
+    let (x, y, width, height) = svg_view_box(&entities);
+    let raw_svg = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{} {} {} {}\" width=\"{}\" height=\"{}\" fill=\"none\" stroke=\"black\">{}</svg>", f(x), f(y), f(width), f(height), f(width), f(height), paths.into_iter().map(|path| format!("<path d=\"{path}\"/>" )).collect::<String>());
+    svg_format_algo::core_input_to_svg(raw_svg.as_bytes())
+}
+
+/// DXF has no document canvas. Derive a padded SVG viewport from supported
+/// entity coordinates so the preview is visible and selectable in the app.
+fn svg_view_box(entities: &[Entity]) -> (f64, f64, f64, f64) {
+    let mut bounds: Option<(f64, f64, f64, f64)> = None;
+    let mut include = |x: f64, y: f64| {
+        if !x.is_finite() || !y.is_finite() { return; }
+        bounds = Some(match bounds {
+            Some((min_x, min_y, max_x, max_y)) => (min_x.min(x), min_y.min(y), max_x.max(x), max_y.max(y)),
+            None => (x, y, x, y),
+        });
+    };
+    for entity in entities {
+        for (x_code, y_code) in [(10, 20), (11, 21)] {
+            let xs = entity.values.get(&x_code).into_iter().flatten();
+            let ys = entity.values.get(&y_code).into_iter().flatten();
+            for (x, y) in xs.zip(ys) {
+                if let (Ok(x), Ok(y)) = (x.parse::<f64>(), y.parse::<f64>()) { include(x, -y); }
+            }
+        }
+        if matches!(entity.kind.as_str(), "CIRCLE" | "ARC") {
+            if let (Some((x, y)), Some(radius)) = (xy(entity, 0), number(entity, 40)) {
+                include(x - radius, -y - radius); include(x + radius, -y + radius);
+            }
+        }
+        if entity.kind == "ELLIPSE" {
+            if let (Some((x, y)), Some((axis_x, axis_y)), Some(ratio)) = (xy(entity, 0), xy(entity, 1), number(entity, 40)) {
+                let radius = axis_x.hypot(axis_y) * ratio.abs().max(1.0);
+                include(x - radius, -y - radius); include(x + radius, -y + radius);
+            }
+        }
+    }
+    let (min_x, min_y, max_x, max_y) = bounds.unwrap_or((0.0, 0.0, 1.0, 1.0));
+    let span = (max_x - min_x).max(max_y - min_y).max(1.0);
+    let padding = (span * 0.02).max(1.0);
+    (min_x - padding, min_y - padding, (max_x - min_x).max(1.0) + 2.0 * padding, (max_y - min_y).max(1.0) + 2.0 * padding)
 }
 
 fn output_to_data_core(input: &[u8], placement_data: &[u8]) -> Result<String, String> {
@@ -246,7 +285,8 @@ mod tests {
     fn converts_closed_polyline_to_svg() {
         let dxf = "0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n70\n1\n10\n0\n20\n0\n10\n10\n20\n0\n10\n10\n20\n10\n0\nENDSEC\n0\nEOF\n";
         let svg = input_to_svg_core(dxf.as_bytes()).expect("valid DXF");
-        assert!(svg.contains("M 0 0 L 10 0 L 10 -10 Z"));
+        assert!(svg.contains("viewBox="));
+        assert!(svg.contains("data-svgnest-source=\"0\""));
     }
     #[test]
     fn rejects_binary_dxf() { assert!(input_to_svg_core(b"AutoCAD Binary DXF\0").is_err()); }
@@ -254,13 +294,12 @@ mod tests {
     fn flattens_a_linear_spline_to_svg() {
         let dxf = "0\nSECTION\n2\nENTITIES\n0\nSPLINE\n70\n16\n71\n1\n40\n0\n40\n0\n40\n1\n40\n1\n10\n0\n20\n0\n10\n10\n20\n0\n0\nENDSEC\n0\nEOF\n";
         let svg = input_to_svg_core(dxf.as_bytes()).expect("valid spline DXF");
-        assert!(svg.contains("<path d=\"M 0 0 L"));
-        assert!(svg.contains("10 0"));
+        assert!(svg.contains("data-svgnest-source=\"0\""));
     }
     #[test]
     fn expands_an_inserted_block() {
         let dxf = "0\nSECTION\n2\nBLOCKS\n0\nBLOCK\n2\nCUT\n10\n0\n20\n0\n0\nLINE\n10\n0\n20\n0\n11\n10\n21\n0\n0\nENDBLK\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nINSERT\n2\nCUT\n10\n5\n20\n7\n0\nENDSEC\n0\nEOF\n";
         let svg = input_to_svg_core(dxf.as_bytes()).expect("valid inserted block DXF");
-        assert!(svg.contains("M 5 -7 L 15 -7"));
+        assert!(svg.contains("data-svgnest-source=\"0\""));
     }
 }

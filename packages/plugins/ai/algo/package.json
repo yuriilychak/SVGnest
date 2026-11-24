@@ -5,7 +5,7 @@
   "type": "module",
   "files": ["pkg"],
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir ../ai-format-plugin/src/generated --out-name ai_format_algo",
+    "build": "wasm-pack build --target web --out-dir ../plugin/src/generated --out-name ai_format_algo",
     "check": "cargo test"
   }
 }

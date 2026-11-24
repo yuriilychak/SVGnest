@@ -1,0 +1,9 @@
+{
+  "name": "@svgnest/example-format-algo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir ../plugin/src/generated --out-name example_format_algo",
+    "check": "cargo test"
+  }
+}

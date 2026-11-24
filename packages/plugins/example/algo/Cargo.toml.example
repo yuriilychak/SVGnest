@@ -1,0 +1,11 @@
+[package]
+name = "example-format-algo"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+svg-format-algo = { path = "../../svg/algo", default-features = false }
+wasm-bindgen = "0.2"
