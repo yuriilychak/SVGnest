@@ -2,9 +2,9 @@
   <img src="assets/logo.svg" alt="VectorNest" width="256" />
 </p>
 
-**VectorNest**: A browser-based vector nesting tool.
+**VectorNest**: A vector nesting tool that runs in the browser or from Node.js.
 
-This fork is a TypeScript monorepo with Rust/WebAssembly cores for vector-format conversion and polygon packing. Parsing and conversion run in Rust without DOM parsing; the browser DOM is used only to display the normalized vector preview and keep the GUI selection behavior. The web app supports SVG, PDF-compatible Adobe Illustrator (`.ai`), and ASCII DXF (`.dxf`) files.
+This fork is a TypeScript monorepo with Rust/WebAssembly cores for vector-format conversion and polygon packing. Parsing and conversion run in Rust without DOM parsing; the browser DOM is used only to display the normalized vector preview and keep the GUI selection behavior. The web app and Node CLI support SVG, PDF-compatible Adobe Illustrator (`.ai`), and ASCII DXF (`.dxf`) files.
 
 **Demo:** https://yuriilychak.github.io/SVGnest/
 
