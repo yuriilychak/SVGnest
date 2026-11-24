@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "WASM adapter for SVGnest's Rust SVG format core.",
-  "exports": "./src/index.ts",
+  "exports": { ".": "./src/index.ts", "./node": "./src/node.ts" },
   "files": [
     "src"
   ],

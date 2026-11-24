@@ -21,8 +21,10 @@ import type { NestingConfig, PlacementResult, PolygonNode, SourcePolygon } from 
 
 type ProgressCallback = (progress: number) => void;
 type DisplayCallback = (best: PlacementResult | null) => void;
+type ExecutorFactory = (mode: NestingExecutionMode) => NestingExecutor;
 
 export class PolygonPack {
+	#executorFactory?: ExecutorFactory;
   #prepared: Uint8Array | null = null;
   // Legacy empty-cache payload is one zero f64, represented directly as bytes.
   #nfpCacheState: Uint8Array = emptyCacheState();
@@ -35,6 +37,10 @@ export class PolygonPack {
   #progress = 0;
   #runId = 0;
   working = false;
+
+  constructor(executorFactory?: ExecutorFactory) {
+      this.#executorFactory = executorFactory;
+  }
 
   async #launchGeneration(runId: number, workerConfig: number, displayCallback: DisplayCallback): Promise<void> {
       if (runId !== this.#runId) return;
@@ -180,9 +186,9 @@ export class PolygonPack {
       if (this.#executor && this.#executionMode === executionMode) return this.#executor;
       this.#executor?.terminate();
       this.#executionMode = executionMode;
-      this.#executor = executionMode === 'workers'
+      this.#executor = this.#executorFactory?.(executionMode) ?? (executionMode === 'workers'
         ? new WorkerNestingExecutor()
-        : new MainThreadNestingExecutor();
+        : new MainThreadNestingExecutor());
       return this.#executor;
   }
 

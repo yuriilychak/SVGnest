@@ -1,0 +1,13 @@
+{
+  "name": "@svgnest/node",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx src/index.ts", "check": "tsc --noEmit" },
+  "dependencies": {
+    "@svgnest/ai-format-plugin": "file:../../packages/plugins/ai/adapter",
+    "@svgnest/dxf-format-plugin": "file:../../packages/plugins/dxf/adapter",
+    "@svgnest/polygon-pack": "file:../../packages/polygon-pack/adapter",
+    "@svgnest/svg-format-plugin": "file:../../packages/plugins/svg/adapter"
+  },
+  "devDependencies": { "@types/node": "^24.0.0", "tsx": "^4.23.15", "typescript": "^5.9.3" }
+}

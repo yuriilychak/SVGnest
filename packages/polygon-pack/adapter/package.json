@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "description": "The no-fit-polygon placement and genetic-algorithm engine used by SVGnest.",
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
   "files": [
     "src"
   ],
@@ -15,6 +18,7 @@
     "clean": "node -e \"console.log('No generated files in @svgnest/polygon-pack.')\""
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"

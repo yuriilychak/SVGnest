@@ -77,17 +77,23 @@ The web application builds its WASM assets automatically before starting or prod
 npm run build
 ```
 
-The application lives in `apps/web`. Its build prepares the SVG, AI, and DXF format WASM modules plus the packing worker/WASM assets, then Vite builds the UI. Format modules load only when their file type is selected.
+The browser application lives in `apps/web`. Its build prepares the SVG, AI, and DXF format WASM modules plus the packing worker/WASM assets, then Vite builds the UI. Format modules load only when their file type is selected.
+
+The terminal application lives in `apps/node`. It imports SVG, PDF-compatible AI, or ASCII DXF, runs the same Rust/WASM packing core, and writes the source format back out. It uses persistent Node worker threads by default, or `--single-thread` for the shared single-thread executor:
+
+```sh
+npm --workspace @svgnest/node start -- input.svg --bin 0 --out nested.svg --iterations 100
+```
 
 ### Packages
 
 - `@svgnest/format-plugin` defines the format adapter contract: `inputToPolygons`, `inputToSvg`, `outputToData`, and `outputToSvg`.
 - `@svgnest/svg-format-core` is the Rust/WASM SVG implementation, built with `usvg`.
-- `@svgnest/svg-format-plugin` adapts the Rust SVG core to the shared format-plugin contract. SVG input and output currently use the same conversion path.
-- `@svgnest/ai-format-plugin` adapts PDF-compatible Adobe Illustrator input and produces native `.ai` output.
+- `@svgnest/svg-format-plugin` is the TypeScript adapter for the Rust SVG core. SVG input and output currently use the same conversion path.
+- `@svgnest/ai-format-plugin` is the TypeScript adapter for PDF-compatible Adobe Illustrator input and native `.ai` output.
 - `@svgnest/dxf-format-core` is the Rust/WASM ASCII DXF core. It supports `LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE`, `ARC`, and `ELLIPSE` entities.
-- `@svgnest/dxf-format-plugin` adapts the DXF core to the shared contract. DXF input is rendered as SVG for selection; nested results download as native ASCII `.dxf`. Binary DXF is not supported.
-- `@svgnest/polygon-pack` is the TypeScript orchestration layer for packing. It can use its reusable worker executor or a main-thread executor through the execution mode passed to `PolygonPack.start`.
+- `@svgnest/dxf-format-plugin` is the TypeScript adapter for the DXF core. DXF input is rendered as SVG for selection; nested results download as native ASCII `.dxf`. Binary DXF is not supported.
+- `@svgnest/polygon-pack` is the TypeScript orchestration layer for packing. Browser code uses reusable Web Workers or the main-thread executor; Node code provides persistent worker-thread and single-thread executors.
 - `@svgnest/polygon-pack-core` is the Rust/WASM no-fit-polygon and genetic-algorithm core.
 
 Useful checks:
@@ -96,6 +102,7 @@ Useful checks:
 npm run check
 npm --workspace @svgnest/svg-format-core run check
 npm --workspace @svgnest/polygon-pack test
+npm --workspace @svgnest/node run check
 ```
 
 ### Architecture notes
