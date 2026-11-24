@@ -1,0 +1,13 @@
+{
+  "name": "@svgnest/polygon-pack-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "pkg"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg --out-name polygon_pack_core && node scripts/keep-wasm-only.mjs",
+    "check": "cargo test"
+  }
+}

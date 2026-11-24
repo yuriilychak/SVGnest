@@ -1,0 +1,13 @@
+{
+  "name": "@svgnest/svg-format-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "pkg"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir ../adapter/src/generated --out-name svg_format_core",
+    "check": "cargo test"
+  }
+}

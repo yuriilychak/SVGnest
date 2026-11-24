@@ -1,0 +1,22 @@
+{
+  "name": "@svgnest/polygon-pack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The no-fit-polygon placement and genetic-algorithm engine used by SVGnest.",
+  "exports": "./src/index.ts",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "npm --workspace @svgnest/polygon-pack-core run build && esbuild ./src/workers/nesting.worker.ts --bundle --format=esm --platform=browser --outfile=../../../apps/web/public/workers/nesting.worker.js && cp ../core/pkg/polygon_pack_core_bg.wasm ../../../apps/web/public/workers/polygon_pack_core_bg.wasm",
+    "check": "tsc --noEmit",
+    "test": "tsx --test ./test/*.test.ts",
+    "clean": "node -e \"console.log('No generated files in @svgnest/polygon-pack.')\""
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

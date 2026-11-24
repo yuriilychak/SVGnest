@@ -1,0 +1,12 @@
+{
+  "name": "@svgnest/example-format-plugin",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@svgnest/format-plugin": "file:../../format",
+    "@svgnest/example-format-core": "file:../core"
+  },
+  "scripts": { "check": "tsc --noEmit" },
+  "devDependencies": { "typescript": "^5.9.3" }
+}

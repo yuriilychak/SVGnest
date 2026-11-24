@@ -82,19 +82,19 @@ The application lives in `apps/web`. Its build prepares the SVG, AI, and DXF for
 ### Packages
 
 - `@svgnest/format-plugin` defines the format adapter contract: `inputToPolygons`, `inputToSvg`, `outputToData`, and `outputToSvg`.
-- `@svgnest/svg-format-algo` is the Rust/WASM SVG implementation, built with `usvg`.
+- `@svgnest/svg-format-core` is the Rust/WASM SVG implementation, built with `usvg`.
 - `@svgnest/svg-format-plugin` adapts the Rust SVG core to the shared format-plugin contract. SVG input and output currently use the same conversion path.
 - `@svgnest/ai-format-plugin` adapts PDF-compatible Adobe Illustrator input and produces native `.ai` output.
-- `@svgnest/dxf-format-algo` is the Rust/WASM ASCII DXF core. It supports `LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE`, `ARC`, and `ELLIPSE` entities.
+- `@svgnest/dxf-format-core` is the Rust/WASM ASCII DXF core. It supports `LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE`, `ARC`, and `ELLIPSE` entities.
 - `@svgnest/dxf-format-plugin` adapts the DXF core to the shared contract. DXF input is rendered as SVG for selection; nested results download as native ASCII `.dxf`. Binary DXF is not supported.
 - `@svgnest/polygon-pack` is the TypeScript orchestration layer for packing. It can use its reusable worker executor or a main-thread executor through the execution mode passed to `PolygonPack.start`.
-- `@svgnest/poygon-pack-algo` is the Rust/WASM no-fit-polygon and genetic-algorithm core. (The package name intentionally follows the existing `poygon` spelling.)
+- `@svgnest/polygon-pack-core` is the Rust/WASM no-fit-polygon and genetic-algorithm core.
 
 Useful checks:
 
 ```sh
 npm run check
-npm --workspace @svgnest/svg-format-algo run check
+npm --workspace @svgnest/svg-format-core run check
 npm --workspace @svgnest/polygon-pack test
 ```
 
@@ -131,7 +131,7 @@ When two or more parts have already been placed, we can take the union of the NF
 ![No Fit Polygon example](assets/readme/nfp2.png)
 
 This means that we need to compute O(nlogn) NFPs to complete the first packing. While there are ways to mitigate this, we take
-the brute-force approach which has good properties for the optimization algo.
+the brute-force approach which has good properties for the optimization algorithm.
 
 ### Optimization
 

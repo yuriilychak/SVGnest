@@ -4,8 +4,8 @@ Each file format is self-contained under `packages/plugins/<format>/`:
 
 ```text
 packages/plugins/<format>/
-├── algo/                 # Rust parser/serializer compiled to WASM
-├── plugin/               # Browser-facing TypeScript adapter
+├── core/                 # Rust parser/serializer compiled to WASM
+├── adapter/              # Browser-facing TypeScript glue
 └── <format>-specific/    # Optional Rust libraries, such as illustrator-rs
 ```
 
@@ -19,18 +19,18 @@ the shared binary payloads, loads WASM, and reports format diagnostics.
 1. Copy `example/` to `packages/plugins/<format>/` and replace every
    `example` placeholder with the format name.
 2. Give the two npm packages stable names, such as
-   `@svgnest/<format>-format-algo` and `@svgnest/<format>-format-plugin`.
-3. Implement all four WASM exports in `algo/src/lib.rs`:
+   `@svgnest/<format>-format-core` and `@svgnest/<format>-format-plugin`.
+3. Implement all four WASM exports in `core/src/lib.rs`:
    `input_to_svg`, `input_to_polygons`, `output_to_svg`, and `output_to_data`.
    Their signatures must match `FormatWasm` in `format/src/index.ts`.
 4. Use the shared binary codecs: return `SNP2` polygon data from
    `input_to_polygons` and `SNP3` SVG-document data from `output_to_svg`.
    `output_to_data` returns the native bytes of the original format.
-5. Point the algo build script at `../plugin/src/generated` and add the new
+5. Point the core build script at `../adapter/src/generated` and add the new
    plugin package to `apps/web/package.json`, `apps/web/vite.config.mjs`, and
    the format choice in `apps/web/src/app-flow/hooks.ts`.
 6. Run `npm run check` from the repository root. Run
-   `npm --workspace @svgnest/<format>-format-algo run build` when validating
+   `npm --workspace @svgnest/<format>-format-core run build` when validating
    the generated WASM boundary directly.
 
 ## Integration rules

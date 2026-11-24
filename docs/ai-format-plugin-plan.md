@@ -28,4 +28,4 @@ Add an Adobe Illustrator (`.ai`) input plugin that converts supported artwork in
 ## Validation completed
 
 - `effectcraft-pdf` 0.9.2 is MIT OR Apache-2.0 licensed and parses PDF-compatible AI and EPS inputs from byte buffers.
-- `ai-format-algo` builds for `wasm32-unknown-unknown` with Rust 1.95.0.
+- `ai-format-core` builds for `wasm32-unknown-unknown` with Rust 1.95.0.

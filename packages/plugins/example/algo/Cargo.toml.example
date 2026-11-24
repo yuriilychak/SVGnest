@@ -1,5 +1,5 @@
 [package]
-name = "example-format-algo"
+name = "example-format-core"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,5 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-svg-format-algo = { path = "../../svg/algo", default-features = false }
+svg-format-core = { path = "../../svg/core", default-features = false }
 wasm-bindgen = "0.2"

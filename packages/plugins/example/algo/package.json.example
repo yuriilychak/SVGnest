@@ -1,9 +1,9 @@
 {
-  "name": "@svgnest/example-format-algo",
+  "name": "@svgnest/example-format-core",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir ../plugin/src/generated --out-name example_format_algo",
+    "build": "wasm-pack build --target web --out-dir ../adapter/src/generated --out-name example_format_core",
     "check": "cargo test"
   }
 }

@@ -10,9 +10,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@svgnest/format-plugin': workspaceFile('../../packages/plugins/format/src/index.ts'),
-      '@svgnest/ai-format-plugin': workspaceFile('../../packages/plugins/ai/plugin/src/index.ts'),
-      '@svgnest/dxf-format-plugin': workspaceFile('../../packages/plugins/dxf/plugin/src/index.ts'),
-      '@svgnest/svg-format-plugin': workspaceFile('../../packages/plugins/svg/plugin/src/index.ts')
+      '@svgnest/ai-format-plugin': workspaceFile('../../packages/plugins/ai/adapter/src/index.ts'),
+      '@svgnest/dxf-format-plugin': workspaceFile('../../packages/plugins/dxf/adapter/src/index.ts'),
+      '@svgnest/svg-format-plugin': workspaceFile('../../packages/plugins/svg/adapter/src/index.ts')
     }
   },
   esbuild: {
