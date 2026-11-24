@@ -79,7 +79,7 @@ fn output_to_data_core(input: &[u8], placement_data: &[u8]) -> Result<String, St
 
 fn entities(source: &str) -> Result<Vec<Entity>, String> {
     let document = DxfReader::from_reader(Cursor::new(source.as_bytes().to_vec()))
-        .and_then(|mut reader| reader.read()).map_err(|error| format!("Unable to read DXF: {error}"))?;
+        .and_then(|reader| reader.read()).map_err(|error| format!("Unable to read DXF: {error}"))?;
     let mut output = Vec::new();
     for entity in document.model_space_entities() {
         if let EntityType::Insert(insert) = entity {
@@ -107,52 +107,6 @@ fn project_entity(entity: &EntityType) -> Option<Entity> {
     values.insert(8, vec![layer.clone()]);
     Some(Entity { kind: kind.into(), values })
 }
-
-/*fn legacy_entities(source: &str) -> Result<Vec<Entity>, String> {
-    let lines: Vec<&str> = source.trim_start_matches('\u{feff}').lines().collect();
-    if lines.len() % 2 != 0 { return Err("Invalid ASCII DXF: group-code/value pairs are incomplete.".into()); }
-    let mut pairs = Vec::with_capacity(lines.len() / 2);
-    for (index, pair) in lines.chunks(2).enumerate() {
-        let code = pair[0].trim().parse::<i32>().map_err(|_| format!("Invalid DXF group code at line {}.", index * 2 + 1))?;
-        pairs.push((code, pair[1].trim()));
-    }
-    let start = pairs.windows(2).position(|window| window[0] == (0, "SECTION") && window[1] == (2, "ENTITIES"))
-        .ok_or("Invalid DXF: missing ENTITIES section.")? + 2;
-    let mut output = Vec::new();
-    let mut current: Option<Entity> = None;
-    for (code, value) in pairs.into_iter().skip(start) {
-        if code == 0 && value == "ENDSEC" { break; }
-        if code == 0 {
-            if let Some(entity) = current.take() { output.push(entity); }
-            current = Some(Entity { kind: value.to_ascii_uppercase(), ..Default::default() });
-        } else if let Some(entity) = current.as_mut() {
-            entity.values.entry(code).or_default().push(value.to_owned());
-        }
-    }
-    if let Some(entity) = current { output.push(entity); }
-    Ok(merge_polylines(output))
-}*/
-
-fn merge_polylines(records: Vec<Entity>) -> Vec<Entity> {
-    let mut output = Vec::new(); let mut index = 0;
-    while index < records.len() {
-        let mut record = records[index].clone_entity();
-        if record.kind != "POLYLINE" {
-            if record.kind != "VERTEX" && record.kind != "SEQEND" { output.push(record); }
-            index += 1; continue;
-        }
-        let mut xs = Vec::new(); let mut ys = Vec::new(); index += 1;
-        while let Some(vertex) = records.get(index).filter(|value| value.kind == "VERTEX") {
-            if let Some((x, y)) = xy(vertex, 0) { xs.push(x.to_string()); ys.push(y.to_string()); }
-            index += 1;
-        }
-        if records.get(index).is_some_and(|value| value.kind == "SEQEND") { index += 1; }
-        record.values.insert(10, xs); record.values.insert(20, ys); output.push(record);
-    }
-    output
-}
-
-impl Entity { fn clone_entity(&self) -> Self { Self { kind: self.kind.clone(), values: self.values.clone() } } }
 
 fn entity_path(entity: &Entity) -> Option<String> {
     match entity.kind.as_str() {
