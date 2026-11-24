@@ -10,3 +10,9 @@ npm --workspace @svgnest/node start -- input.svg --bin 0 --out nested.svg --iter
 
 The app uses persistent worker threads by default. Pass `--single-thread` to
 use the shared single-thread executor instead.
+
+Pass packing settings in a JSON file with `--config settings.json`; individual
+flags override it. Supported JSON keys and flags are `curveTolerance`
+(`--curve-tolerance`), `spacing` (`--spacing`), `rotations` (`--rotations`),
+`populationSize` (`--population-size`), `mutationRate` (`--mutation-rate`),
+and `useHoles` (`--use-holes` or `--no-use-holes`).
